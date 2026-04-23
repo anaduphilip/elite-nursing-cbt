@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: elite-nursing-backend
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: JWT_SECRET
+        value: elite_secret_key_2024
+      - key: PAYSTACK_SECRET_KEY
+        value: sk_test_914942102d70c01f18154a767948ed05a5f63e7f
