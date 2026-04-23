@@ -10,10 +10,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
-mongoose.connect('mongodb://localhost:27017/quizapp')
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.log('MongoDB error:', err));
+// MongoDB connection - USING ENVIRONMENT VARIABLE
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/quizapp';
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('MongoDB connected successfully'))
+  .catch(err => console.log('MongoDB connection error:', err));
 
 // User Schema
 const UserSchema = new mongoose.Schema({
@@ -189,7 +190,7 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
 
 // ============ PAYMENT ROUTES ============
 
-// Initialize payment (create Paystack transaction)
+// Initialize payment
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount } = req.body;
@@ -199,7 +200,7 @@ app.post('/api/initialize-payment', async (req, res) => {
         email: email,
         amount: amount * 100,
         currency: 'NGN',
-        callback_url: 'http://localhost:5173/',
+        callback_url: 'https://elite-nursing-cbt.vercel.app/',
         metadata: {
           custom_fields: [
             {
@@ -228,7 +229,7 @@ app.post('/api/initialize-payment', async (req, res) => {
   }
 });
 
-// Verify payment and upgrade user
+// Verify payment
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const { reference, userId } = req.body;
@@ -264,4 +265,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`http://localhost:${PORT}`);
+  console.log(`MongoDB URI: ${MONGODB_URI ? 'Set' : 'Not set'}`);
 });
