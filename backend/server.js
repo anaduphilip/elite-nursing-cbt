@@ -7,7 +7,18 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+
+// CORS configuration - FIXED for Vercel frontend
+app.use(cors({
+  origin: [
+    'https://elite-nursing-cbt.vercel.app',
+    'http://localhost:5173',
+    'https://elite-nursing-cbt.onrender.com'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // MongoDB connection - USING ENVIRONMENT VARIABLE
