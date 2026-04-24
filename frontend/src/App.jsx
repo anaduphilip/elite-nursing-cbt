@@ -2,9 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 
-// Use environment variable for API URL, fallback to localhost for development
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-axios.defaults.baseURL = API_URL;
+axios.defaults.baseURL = 'https://elite-nursing-cbt.onrender.com';
 
 const AuthContext = createContext();
 
@@ -52,28 +50,169 @@ const Timer = ({ duration, onTimeUp }) => {
   );
 };
 
-// Premium Modal Component
+// Premium Modal Component - Bank Transfer Version
 const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
+  const [showPaymentInfo, setShowPaymentInfo] = useState(false);
+  const [paymentReference, setPaymentReference] = useState('');
+  const [selectedBank, setSelectedBank] = useState('opay');
+  const [uploading, setUploading] = useState(false);
   const { token, user } = useContext(AuthContext);
-  const [loading, setLoading] = useState(false);
 
-  const handlePayment = async () => {
-    setLoading(true);
+  const bankDetails = {
+    opay: {
+      bank: 'OPAY',
+      accountNumber: '9063908476',
+      accountName: 'ANADU PHILIP'
+    },
+    uba: {
+      bank: 'UNITED BANK FOR AFRICA (UBA)',
+      accountNumber: '2096620582',
+      accountName: 'ANADU PHILIP'
+    }
+  };
+
+  const handlePaymentRequest = () => {
+    setShowPaymentInfo(true);
+  };
+
+  const handleSubmitProof = async () => {
+    if (!paymentReference.trim()) {
+      alert('Please enter your payment reference/transaction ID');
+      return;
+    }
+    
+    setUploading(true);
     try {
-      const response = await axios.post('/api/initialize-payment', {
+      await axios.post('/api/payment-request', {
+        userId: user?.id,
         email: user?.email,
-        amount: 5000
+        amount: 5000,
+        reference: paymentReference,
+        bank: bankDetails[selectedBank].bank,
+        accountNumber: bankDetails[selectedBank].accountNumber,
+        examTitle: examTitle,
+        sectionNumber: sectionNumber
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      localStorage.setItem('payment_reference', response.data.reference);
-      window.location.href = response.data.authorization_url;
+      alert('✅ Payment request submitted! We will verify and activate your premium access within 24 hours. You will receive an email confirmation once approved.');
+      onClose();
     } catch (error) {
-      alert('Payment initialization failed. Please try again.');
-      setLoading(false);
+      alert('Error submitting payment request. Please try again.');
+    } finally {
+      setUploading(false);
     }
   };
+
+  if (showPaymentInfo) {
+    const selected = bankDetails[selectedBank];
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0,0,0,0.8)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2000,
+        backdropFilter: 'blur(5px)'
+      }}>
+        <div style={{
+          background: 'white',
+          borderRadius: 20,
+          padding: 30,
+          maxWidth: 500,
+          textAlign: 'center',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          maxHeight: '90vh',
+          overflowY: 'auto'
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 20 }}>🏦</div>
+          <h2 style={{ color: '#2E7D64', marginBottom: 15 }}>Bank Transfer Details</h2>
+          
+          <div style={{ marginBottom: 15 }}>
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 5 }}>Select Bank:</label>
+            <select 
+              value={selectedBank} 
+              onChange={(e) => setSelectedBank(e.target.value)}
+              style={{
+                width: '100%',
+                padding: 10,
+                border: '2px solid #e0e0e0',
+                borderRadius: 10,
+                fontSize: 14
+              }}
+            >
+              <option value="opay">OPAY</option>
+              <option value="uba">UNITED BANK FOR AFRICA (UBA)</option>
+            </select>
+          </div>
+
+          <div style={{ background: '#f0f7f4', padding: 20, borderRadius: 12, textAlign: 'left', marginBottom: 20 }}>
+            <p><strong>Bank:</strong> <span style={{ color: '#2E7D64' }}>{selected.bank}</span></p>
+            <p><strong>Account Name:</strong> <span style={{ color: '#2E7D64' }}>{selected.accountName}</span></p>
+            <p><strong>Account Number:</strong> <span style={{ color: '#2E7D64', fontSize: 20, fontWeight: 'bold' }}>{selected.accountNumber}</span></p>
+            <p><strong>Amount:</strong> <span style={{ color: '#2E7D64', fontSize: 20, fontWeight: 'bold' }}>₦5,000</span></p>
+          </div>
+
+          <p style={{ color: '#666', marginBottom: 15, fontSize: 14 }}>
+            After payment, enter your Transaction ID or Reference Number below:
+          </p>
+          
+          <input
+            type="text"
+            placeholder="Transaction ID / Reference Number"
+            value={paymentReference}
+            onChange={(e) => setPaymentReference(e.target.value)}
+            style={{
+              width: '100%',
+              padding: 12,
+              marginBottom: 20,
+              border: '2px solid #e0e0e0',
+              borderRadius: 10,
+              fontSize: 14
+            }}
+          />
+          
+          <button 
+            onClick={handleSubmitProof}
+            disabled={uploading}
+            style={{
+              background: '#2E7D64',
+              color: 'white',
+              padding: 12,
+              border: 'none',
+              borderRadius: 10,
+              cursor: 'pointer',
+              width: '100%',
+              fontWeight: 'bold',
+              fontSize: 16,
+              marginBottom: 10
+            }}
+          >
+            {uploading ? 'Submitting...' : 'Submit Payment Proof'}
+          </button>
+          
+          <button 
+            onClick={() => setShowPaymentInfo(false)}
+            style={{
+              background: 'transparent',
+              color: '#666',
+              padding: 10,
+              border: 'none',
+              cursor: 'pointer',
+              width: '100%'
+            }}
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -101,13 +240,13 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         <h2 style={{ color: '#2E7D64', marginBottom: 15 }}>Premium Required</h2>
         <p style={{ color: '#666', marginBottom: 20, lineHeight: 1.6 }}>
           <strong>{examTitle} - Examination {sectionNumber}</strong> is a premium exam.
-          Upgrade to unlock ALL premium examinations across all subjects!
+          Upgrade to unlock ALL premium examinations!
         </p>
         <div style={{ background: '#f0f7f4', padding: 20, borderRadius: 12, marginBottom: 25 }}>
           <p style={{ fontWeight: 'bold', color: '#2E7D64' }}>Premium Benefits:</p>
           <ul style={{ textAlign: 'left', color: '#666', marginTop: 10 }}>
             <li>✓ All 50+ Nursing Subjects</li>
-            <li>✓ All Examinations (1, 2, 3, 4+)</li>
+            <li>✓ All Examinations (2, 3, 4+)</li>
             <li>✓ Over 5,000 Practice Questions</li>
             <li>✓ Detailed Answer Reviews</li>
             <li>✓ Lifetime Access</li>
@@ -118,11 +257,11 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         </div>
         <div style={{ display: 'flex', gap: 15 }}>
           <button onClick={onClose} style={{ flex: 1, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
-          <button onClick={handlePayment} disabled={loading} style={{ flex: 1, background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>
-            {loading ? 'Processing...' : 'Pay ₦5,000'}
+          <button onClick={handlePaymentRequest} style={{ flex: 1, background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>
+            Pay via Bank Transfer
           </button>
         </div>
-        <p style={{ fontSize: 12, color: '#999', marginTop: 20 }}>Secure payment via Paystack</p>
+        <p style={{ fontSize: 12, color: '#999', marginTop: 20 }}>Manual verification within 24 hours</p>
       </div>
     </div>
   );
@@ -314,26 +453,136 @@ const JoinWhatsApp = () => {
 
 // Get Premium Component
 const GetPremium = () => {
+  const [showPaymentInfo, setShowPaymentInfo] = useState(false);
+  const [paymentReference, setPaymentReference] = useState('');
+  const [selectedBank, setSelectedBank] = useState('opay');
+  const [uploading, setUploading] = useState(false);
   const { token, user } = useContext(AuthContext);
-  const [loading, setLoading] = useState(false);
 
-  const handlePayment = async () => {
-    setLoading(true);
+  const bankDetails = {
+    opay: {
+      bank: 'OPAY',
+      accountNumber: '9063908476',
+      accountName: 'ANADU PHILIP'
+    },
+    uba: {
+      bank: 'UNITED BANK FOR AFRICA (UBA)',
+      accountNumber: '2096620582',
+      accountName: 'ANADU PHILIP'
+    }
+  };
+
+  const handleSubmitProof = async () => {
+    if (!paymentReference.trim()) {
+      alert('Please enter your payment reference/transaction ID');
+      return;
+    }
+    
+    setUploading(true);
     try {
-      const response = await axios.post('/api/initialize-payment', {
+      await axios.post('/api/payment-request', {
+        userId: user?.id,
         email: user?.email,
-        amount: 5000
+        amount: 5000,
+        reference: paymentReference,
+        bank: bankDetails[selectedBank].bank,
+        accountNumber: bankDetails[selectedBank].accountNumber
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      localStorage.setItem('payment_reference', response.data.reference);
-      window.location.href = response.data.authorization_url;
+      alert('✅ Payment request submitted! We will verify and activate your premium access within 24 hours.');
+      setShowPaymentInfo(false);
+      setPaymentReference('');
     } catch (error) {
-      alert('Payment initialization failed. Please try again.');
-      setLoading(false);
+      alert('Error submitting payment request. Please try again.');
+    } finally {
+      setUploading(false);
     }
   };
+
+  if (showPaymentInfo) {
+    const selected = bankDetails[selectedBank];
+    return (
+      <div style={{ padding: 40, maxWidth: 500, margin: '0 auto' }}>
+        <div style={{ background: 'white', borderRadius: 20, padding: 30, boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
+          <div style={{ fontSize: 48, textAlign: 'center', marginBottom: 20 }}>🏦</div>
+          <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 20 }}>Bank Transfer Details</h2>
+          
+          <div style={{ marginBottom: 15 }}>
+            <label style={{ fontWeight: 'bold' }}>Select Bank:</label>
+            <select 
+              value={selectedBank} 
+              onChange={(e) => setSelectedBank(e.target.value)}
+              style={{
+                width: '100%',
+                padding: 10,
+                border: '2px solid #e0e0e0',
+                borderRadius: 10,
+                marginTop: 5
+              }}
+            >
+              <option value="opay">OPAY</option>
+              <option value="uba">UNITED BANK FOR AFRICA (UBA)</option>
+            </select>
+          </div>
+
+          <div style={{ background: '#f0f7f4', padding: 20, borderRadius: 12, marginBottom: 20 }}>
+            <p><strong>Bank:</strong> {selected.bank}</p>
+            <p><strong>Account Name:</strong> {selected.accountName}</p>
+            <p><strong>Account Number:</strong> <span style={{ fontSize: 24, fontWeight: 'bold', color: '#2E7D64' }}>{selected.accountNumber}</span></p>
+            <p><strong>Amount:</strong> <span style={{ fontSize: 20, fontWeight: 'bold', color: '#2E7D64' }}>₦5,000</span></p>
+          </div>
+
+          <input
+            type="text"
+            placeholder="Transaction ID / Reference Number"
+            value={paymentReference}
+            onChange={(e) => setPaymentReference(e.target.value)}
+            style={{
+              width: '100%',
+              padding: 12,
+              marginBottom: 20,
+              border: '2px solid #e0e0e0',
+              borderRadius: 10
+            }}
+          />
+          
+          <button 
+            onClick={handleSubmitProof}
+            disabled={uploading}
+            style={{
+              background: '#2E7D64',
+              color: 'white',
+              padding: 12,
+              border: 'none',
+              borderRadius: 10,
+              cursor: 'pointer',
+              width: '100%',
+              fontWeight: 'bold',
+              marginBottom: 10
+            }}
+          >
+            {uploading ? 'Submitting...' : 'Submit Payment Proof'}
+          </button>
+          
+          <button 
+            onClick={() => setShowPaymentInfo(false)}
+            style={{
+              background: '#6c757d',
+              color: 'white',
+              padding: 12,
+              border: 'none',
+              borderRadius: 10,
+              cursor: 'pointer',
+              width: '100%'
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 40, maxWidth: 1000, margin: '0 auto' }}>
@@ -356,7 +605,7 @@ const GetPremium = () => {
               <div style={{ background: '#f0f7f4', padding: 25, borderRadius: 15 }}>
                 <div style={{ fontSize: 36, marginBottom: 10 }}>📚</div>
                 <h3 style={{ color: '#2E7D64' }}>All Subjects</h3>
-                <p style={{ color: '#666' }}>Access all 26 nursing subjects</p>
+                <p style={{ color: '#666' }}>Access all nursing subjects</p>
               </div>
               <div style={{ background: '#f0f7f4', padding: 25, borderRadius: 15 }}>
                 <div style={{ fontSize: 36, marginBottom: 10 }}>📝</div>
@@ -379,12 +628,11 @@ const GetPremium = () => {
               <div style={{ fontSize: 48, fontWeight: 'bold', color: '#2E7D64', marginBottom: 10 }}>
                 ₦5,000 <span style={{ fontSize: 18, color: '#666' }}>/ lifetime</span>
               </div>
-              <p style={{ color: '#666' }}>One-time payment • Instant access</p>
+              <p style={{ color: '#666' }}>Bank Transfer • Manual verification within 24 hours</p>
             </div>
             
             <button 
-              onClick={handlePayment} 
-              disabled={loading}
+              onClick={() => setShowPaymentInfo(true)} 
               style={{ 
                 background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', 
                 color: 'white', 
@@ -397,7 +645,7 @@ const GetPremium = () => {
                 boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
               }}
             >
-              {loading ? 'Processing...' : 'Upgrade to Premium Now'}
+              Upgrade to Premium Now
             </button>
           </>
         )}
@@ -422,10 +670,7 @@ const ExamDetail = () => {
       try {
         setLoading(true);
         
-        if (!token) {
-          console.log('No token found');
-          return;
-        }
+        if (!token) return;
         
         const res = await axios.get(`/api/quizzes/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -460,22 +705,19 @@ const ExamDetail = () => {
         setUserPremium(profileRes.data.isPremium);
         
       } catch (error) {
-        console.error('Error details:', error);
         if (error.response?.status === 401) {
           localStorage.removeItem('auth');
           logout();
           window.location.href = '/login';
         } else {
-          alert('Error loading exam: ' + (error.response?.data?.error || error.message));
+          alert('Error loading exam: ' + error.message);
         }
       } finally {
         setLoading(false);
       }
     };
     
-    if (id && token) {
-      fetchExam();
-    }
+    if (id && token) fetchExam();
   }, [id, token, logout]);
 
   const handleStartExam = (section) => {
@@ -730,8 +972,7 @@ const TakeExam = () => {
             borderRadius: 16, 
             padding: 25, 
             marginBottom: 20, 
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            transition: 'all 0.2s'
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
               <h4 style={{ color: 'white', margin: 0 }}>Question {globalQuestionNumber + idx + 1}</h4>
@@ -862,14 +1103,13 @@ const QuizList = () => {
   );
 };
 
-// Dropdown Menu Component (Top Right Corner)
+// Dropdown Menu Component
 const DropdownMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useContext(AuthContext);
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
-      {/* Avatar / Menu Button */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
         style={{
@@ -890,7 +1130,6 @@ const DropdownMenu = () => {
         👤
       </button>
 
-      {/* Dropdown Menu */}
       {isOpen && (
         <>
           <div 
@@ -915,7 +1154,6 @@ const DropdownMenu = () => {
             zIndex: 199,
             overflow: 'hidden'
           }}>
-            {/* User Info */}
             <div style={{ 
               padding: '20px', 
               background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
@@ -937,131 +1175,23 @@ const DropdownMenu = () => {
               )}
             </div>
             
-            {/* Menu Items */}
             <div style={{ padding: '10px 0' }}>
-              <Link 
-                to="/" 
-                onClick={() => setIsOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 15,
-                  padding: '12px 20px',
-                  textDecoration: 'none',
-                  color: '#333',
-                  transition: 'background 0.2s',
-                  borderBottom: '1px solid #f0f0f0'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-              >
+              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#333', borderBottom: '1px solid #f0f0f0' }}>
                 <span style={{ fontSize: 20 }}>🏠</span> Home
               </Link>
-              
-              <Link 
-                to="/get-premium" 
-                onClick={() => setIsOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 15,
-                  padding: '12px 20px',
-                  textDecoration: 'none',
-                  color: '#e65100',
-                  fontWeight: 'bold',
-                  transition: 'background 0.2s',
-                  borderBottom: '1px solid #f0f0f0',
-                  background: '#fff3e0'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#ffe0b2'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#fff3e0'}
-              >
+              <Link to="/get-premium" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#e65100', fontWeight: 'bold', background: '#fff3e0', borderBottom: '1px solid #f0f0f0' }}>
                 <span style={{ fontSize: 20 }}>⭐</span> Get Premium
               </Link>
-              
-              <Link 
-                to="/about" 
-                onClick={() => setIsOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 15,
-                  padding: '12px 20px',
-                  textDecoration: 'none',
-                  color: '#333',
-                  transition: 'background 0.2s',
-                  borderBottom: '1px solid #f0f0f0'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-              >
+              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#333', borderBottom: '1px solid #f0f0f0' }}>
                 <span style={{ fontSize: 20 }}>ℹ️</span> About Us
               </Link>
-              
-              <Link 
-                to="/contact" 
-                onClick={() => setIsOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 15,
-                  padding: '12px 20px',
-                  textDecoration: 'none',
-                  color: '#333',
-                  transition: 'background 0.2s',
-                  borderBottom: '1px solid #f0f0f0'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-              >
+              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#333', borderBottom: '1px solid #f0f0f0' }}>
                 <span style={{ fontSize: 20 }}>📞</span> Contact Us
               </Link>
-              
-              <Link 
-                to="/whatsapp" 
-                onClick={() => setIsOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 15,
-                  padding: '12px 20px',
-                  textDecoration: 'none',
-                  color: '#25D366',
-                  fontWeight: 'bold',
-                  transition: 'background 0.2s',
-                  borderBottom: '1px solid #f0f0f0'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#e8f5e9'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-              >
+              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', borderBottom: '1px solid #f0f0f0' }}>
                 <span style={{ fontSize: 20 }}>💬</span> Join WhatsApp
               </Link>
-              
-              {/* Logout Button - Last Option */}
-              <button 
-                onClick={() => {
-                  setIsOpen(false);
-                  logout();
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 15,
-                  padding: '12px 20px',
-                  width: '100%',
-                  textDecoration: 'none',
-                  color: '#dc3545',
-                  fontWeight: 'bold',
-                  transition: 'background 0.2s',
-                  border: 'none',
-                  background: 'white',
-                  cursor: 'pointer',
-                  borderTop: '1px solid #f0f0f0',
-                  fontSize: 16
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#ffebee'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-              >
+              <button onClick={() => { setIsOpen(false); logout(); }} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', width: '100%', textDecoration: 'none', color: '#dc3545', fontWeight: 'bold', border: 'none', background: 'white', cursor: 'pointer', borderTop: '1px solid #f0f0f0', fontSize: 16 }}>
                 <span style={{ fontSize: 20 }}>🚪</span> Logout
               </button>
             </div>
@@ -1142,41 +1272,6 @@ function App() {
   if (auth.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
-
-  // Payment verification after redirect from Paystack
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const reference = params.get('reference');
-    const trxref = params.get('trxref');
-    
-    const storedReference = localStorage.getItem('payment_reference');
-    const paymentRef = reference || trxref || storedReference;
-    
-    if (paymentRef && auth.user?.id) {
-      const verifyPayment = async () => {
-        try {
-          const response = await axios.post('/api/verify-payment', {
-            reference: paymentRef,
-            userId: auth.user?.id
-          });
-          
-          if (response.data.success) {
-            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
-            localStorage.removeItem('payment_reference');
-            setAuth({ ...auth, user: { ...auth.user, isPremium: true } });
-            localStorage.setItem('auth', JSON.stringify({ ...auth, user: { ...auth.user, isPremium: true } }));
-            window.location.href = '/';
-          } else {
-            alert('Payment verification failed. Please contact support.');
-          }
-        } catch (error) {
-          console.error('Verification error:', error);
-          alert('Payment verification failed. Please contact support.');
-        }
-      };
-      verifyPayment();
-    }
-  }, [auth.user?.id]);
 
   return (
     <AuthContext.Provider value={{ ...auth, login, logout }}>

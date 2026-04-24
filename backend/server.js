@@ -3,12 +3,11 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
 
-// CORS configuration - FIXED for Vercel frontend
+// CORS configuration
 app.use(cors({
   origin: [
     'https://elite-nursing-cbt.vercel.app',
@@ -21,7 +20,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// MongoDB connection - USING ENVIRONMENT VARIABLE
+// MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/quizapp';
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('MongoDB connected successfully'))
@@ -33,6 +32,14 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   isPremium: { type: Boolean, default: false },
   purchaseDate: Date,
+  paymentRequests: [{
+    amount: Number,
+    reference: String,
+    bank: String,
+    accountNumber: String,
+    status: { type: String, default: 'pending' },
+    date: { type: Date, default: Date.now }
+  }],
   quizResults: [{
     quizId: mongoose.Schema.Types.ObjectId,
     score: Number,
@@ -113,7 +120,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Get user profile (check if premium)
+// Get user profile
 app.get('/api/user/profile', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -128,6 +135,96 @@ app.get('/api/user/profile', async (req, res) => {
     });
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// ============ PAYMENT REQUEST ROUTES (Bank Transfer) ============
+
+// Submit payment request
+app.post('/api/payment-request', async (req, res) => {
+  try {
+    const { userId, email, amount, reference, bank, accountNumber, examTitle, sectionNumber } = req.body;
+    
+    console.log('========================================');
+    console.log('🔔 NEW PREMIUM PAYMENT REQUEST 🔔');
+    console.log('========================================');
+    console.log('User ID:', userId);
+    console.log('Email:', email);
+    console.log('Amount:', amount);
+    console.log('Reference:', reference);
+    console.log('Bank:', bank);
+    console.log('Account Number:', accountNumber);
+    console.log('Exam:', examTitle, 'Section:', sectionNumber);
+    console.log('========================================');
+    
+    // Save payment request to user's record
+    await User.findByIdAndUpdate(userId, {
+      $push: {
+        paymentRequests: {
+          amount: amount,
+          reference: reference,
+          bank: bank,
+          accountNumber: accountNumber,
+          status: 'pending',
+          date: new Date()
+        }
+      }
+    });
+    
+    res.json({ success: true, message: 'Payment request submitted successfully' });
+  } catch (error) {
+    console.error('Payment request error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get payment requests (for admin - you can add authentication later)
+app.get('/api/payment-requests', async (req, res) => {
+  try {
+    const users = await User.find({ 'paymentRequests.0': { $exists: true } })
+      .select('email paymentRequests');
+    
+    const allRequests = [];
+    users.forEach(user => {
+      user.paymentRequests.forEach(request => {
+        allRequests.push({
+          userId: user._id,
+          email: user.email,
+          ...request.toObject()
+        });
+      });
+    });
+    
+    // Sort by date, newest first
+    allRequests.sort((a, b) => b.date - a.date);
+    
+    res.json(allRequests);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Approve payment and upgrade user
+app.post('/api/admin/approve-payment', async (req, res) => {
+  try {
+    const { userId, paymentRequestId } = req.body;
+    
+    // Update payment request status
+    await User.updateOne(
+      { _id: userId, 'paymentRequests._id': paymentRequestId },
+      { $set: { 'paymentRequests.$.status': 'approved' } }
+    );
+    
+    // Upgrade user to premium
+    await User.findByIdAndUpdate(userId, { 
+      isPremium: true,
+      purchaseDate: new Date()
+    });
+    
+    console.log(`✅ User ${userId} upgraded to premium!`);
+    res.json({ success: true, message: 'User upgraded to premium' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -199,73 +296,6 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
   }
 });
 
-// ============ PAYMENT ROUTES ============
-
-// Initialize payment
-app.post('/api/initialize-payment', async (req, res) => {
-  try {
-    const { email, amount } = req.body;
-    
-    const response = await axios.post('https://api.paystack.co/transaction/initialize', 
-      {
-        email: email,
-        amount: amount * 100,
-        currency: 'NGN',
-        callback_url: 'https://elite-nursing-cbt.vercel.app/',
-        metadata: {
-          custom_fields: [
-            {
-              display_name: "Plan",
-              variable_name: "plan",
-              value: "Premium Access"
-            }
-          ]
-        }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    
-    res.json({ 
-      authorization_url: response.data.data.authorization_url, 
-      reference: response.data.data.reference 
-    });
-  } catch (error) {
-    console.error('Payment init error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Payment initialization failed' });
-  }
-});
-
-// Verify payment
-app.post('/api/verify-payment', async (req, res) => {
-  try {
-    const { reference, userId } = req.body;
-    
-    const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
-      }
-    });
-    
-    if (response.data.data.status === 'success') {
-      await User.findByIdAndUpdate(userId, { 
-        isPremium: true,
-        purchaseDate: new Date()
-      });
-      res.json({ success: true, message: 'Account upgraded to premium!' });
-    } else {
-      res.json({ success: false, message: 'Payment verification failed' });
-    }
-  } catch (error) {
-    console.error('Verification error:', error);
-    res.status(500).json({ error: 'Verification failed' });
-  }
-});
-
 // ============ TEST ROUTE ============
 app.get('/', (req, res) => {
   res.send('ELITE NURSING & MIDWIFERY CBT API is Running!');
@@ -276,5 +306,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`http://localhost:${PORT}`);
-  console.log(`MongoDB URI: ${MONGODB_URI ? 'Set' : 'Not set'}`);
 });
