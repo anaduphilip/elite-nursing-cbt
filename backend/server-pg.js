@@ -9,19 +9,13 @@ require('dotenv').config();
 const app = express();
 
 app.use(cors({
-  origin: [
-    'https://elite-nursing-cbt.vercel.app',
-    'http://localhost:5173',
-    'https://elite-nursing-cbt.onrender.com'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: ['https://elite-nursing-cbt.vercel.app', 'http://localhost:5173'],
+  credentials: true
 }));
 app.use(express.json());
 
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL || 'postgresql://elite_nursing_db_user:5ekKhHsWARhZ4WXv1Q3EMh4zHIPLMQyJ@dpg-d7lmn2og4nts73d3g7gg-a/elite_nursing_db',
+  connectionString: process.env.POSTGRES_URL,
   ssl: { rejectUnauthorized: false }
 });
 
@@ -33,7 +27,6 @@ async function initDatabase() {
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         is_premium BOOLEAN DEFAULT FALSE,
-        purchase_date TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
@@ -44,11 +37,26 @@ async function initDatabase() {
         description TEXT,
         questions JSONB NOT NULL,
         is_premium BOOLEAN DEFAULT FALSE,
-        created_by INTEGER,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
     console.log('Database tables ready');
+    
+    // Insert sample quizzes
+    const result = await pool.query('SELECT COUNT(*) FROM quizzes');
+    if (parseInt(result.rows[0].count) === 0) {
+      const sampleQuizzes = [
+        { title: "Cardiovascular Nursing - Set 1", description: "Test your knowledge in Cardiovascular Nursing", is_premium: false, questions: [
+          { questionText: "The pain of angina pectoris is produced primarily by?", options: ["Vasoconstriction", "Movement of thromboemboli", "Myocardial ischemia", "The presence of atheromas"], correctAnswer: 2, points: 1 },
+          { questionText: "Exchange of gases and food nutrient take place in the?", options: ["Arteries", "Veins", "Arterioles", "Capillaries"], correctAnswer: 3, points: 1 }
+        ] }
+      ];
+      for (const quiz of sampleQuizzes) {
+        await pool.query('INSERT INTO quizzes (title, description, questions, is_premium) VALUES ($1, $2, $3, $4)',
+          [quiz.title, quiz.description, JSON.stringify(quiz.questions), quiz.is_premium]);
+      }
+      console.log('Sample quizzes imported');
+    }
   } catch (err) {
     console.error('Database init error:', err);
   }
@@ -58,18 +66,12 @@ initDatabase();
 app.post('/api/register', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email, is_premium',
-      [email, hashedPassword]
-    );
-    const user = result.rows[0];
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    res.json({ token, user: { id: user.id, email: user.email, isPremium: user.is_premium } });
+    const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) return res.status(400).json({ error: 'User exists' });
+    const hashed = await bcrypt.hash(password, 10);
+    const result = await pool.query('INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email, is_premium', [email, hashed]);
+    const token = jwt.sign({ userId: result.rows[0].id }, process.env.JWT_SECRET || 'secret');
+    res.json({ token, user: result.rows[0] });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -80,11 +82,10 @@ app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) return res.status(400).json({ error: 'User not found' });
-    const user = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password);
+    const valid = await bcrypt.compare(password, result.rows[0].password);
     if (!valid) return res.status(400).json({ error: 'Invalid password' });
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    res.json({ token, user: { id: user.id, email: user.email, isPremium: user.is_premium } });
+    const token = jwt.sign({ userId: result.rows[0].id }, process.env.JWT_SECRET || 'secret');
+    res.json({ token, user: { id: result.rows[0].id, email: result.rows[0].email, isPremium: result.rows[0].is_premium } });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -94,7 +95,7 @@ app.get('/api/user/profile', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ error: 'No token' });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     const result = await pool.query('SELECT id, email, is_premium FROM users WHERE id = $1', [decoded.userId]);
     res.json({ isPremium: result.rows[0].is_premium, email: result.rows[0].email });
   } catch (error) {
@@ -121,35 +122,19 @@ app.get('/api/quizzes/:quizId', async (req, res) => {
   }
 });
 
-app.post('/api/quizzes', async (req, res) => {
-  try {
-    const { title, description, questions, isPremium } = req.body;
-    const result = await pool.query(
-      'INSERT INTO quizzes (title, description, questions, is_premium) VALUES ($1, $2, $3, $4) RETURNING *',
-      [title, description, JSON.stringify(questions), isPremium || false]
-    );
-    res.json(result.rows[0]);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
 app.post('/api/quizzes/:quizId/submit', async (req, res) => {
   try {
     const quizResult = await pool.query('SELECT * FROM quizzes WHERE id = $1', [req.params.quizId]);
     if (quizResult.rows.length === 0) return res.status(404).json({ error: 'Quiz not found' });
-    const quiz = quizResult.rows[0];
-    const questions = quiz.questions;
+    const questions = quizResult.rows[0].questions;
     const { answers } = req.body;
-    let score = 0;
-    let totalPoints = 0;
-    questions.forEach((question, index) => {
-      totalPoints += question.points || 1;
-      if (answers[index] === question.correctAnswer) score += question.points || 1;
+    let score = 0, total = 0;
+    questions.forEach((q, i) => {
+      total += q.points || 1;
+      if (answers[i] === q.correctAnswer) score += q.points || 1;
     });
-    const percentage = (score / totalPoints) * 100;
-    const passed = percentage >= 70;
-    res.json({ score, total: totalPoints, percentage, passed });
+    const percentage = (score / total) * 100;
+    res.json({ score, total, percentage, passed: percentage >= 70 });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -158,7 +143,7 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount } = req.body;
-    const response = await axios.post('https://api.paystack.co/transaction/initialize', 
+    const response = await axios.post('https://api.paystack.co/transaction/initialize',
       { email, amount: amount * 100, currency: 'NGN', callback_url: 'https://elite-nursing-cbt.vercel.app/' },
       { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' } }
     );
@@ -175,7 +160,7 @@ app.post('/api/verify-payment', async (req, res) => {
       headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
     });
     if (response.data.data.status === 'success') {
-      await pool.query('UPDATE users SET is_premium = true, purchase_date = NOW() WHERE id = $1', [userId]);
+      await pool.query('UPDATE users SET is_premium = true WHERE id = $1', [userId]);
       res.json({ success: true });
     } else {
       res.json({ success: false });
@@ -190,26 +175,4 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-async function importSampleQuizzes() {
-  const result = await pool.query('SELECT COUNT(*) FROM quizzes');
-  if (parseInt(result.rows[0].count) === 0) {
-    const sampleQuizzes = [
-      { title: "Cardiovascular Nursing - Set 1", description: "Test your knowledge in Cardiovascular Nursing.", is_premium: false, questions: [
-        { questionText: "The pain of angina pectoris is produced primarily by?", options: ["Vasoconstriction", "Movement of thromboemboli", "Myocardial ischemia", "The presence of atheromas"], correctAnswer: 2, points: 1 }
-      ] },
-      { title: "Fundamentals of Nursing - Set 1", description: "Test your knowledge in Fundamentals of Nursing.", is_premium: false, questions: [
-        { questionText: "What is the first step in the nursing process?", options: ["Implementation", "Evaluation", "Assessment", "Planning"], correctAnswer: 2, points: 1 }
-      ] }
-    ];
-    for (const quiz of sampleQuizzes) {
-      await pool.query('INSERT INTO quizzes (title, description, questions, is_premium) VALUES ($1, $2, $3, $4)',
-        [quiz.title, quiz.description, JSON.stringify(quiz.questions), quiz.is_premium]);
-    }
-    console.log('Sample quizzes imported');
-  }
-}
-setTimeout(() => importSampleQuizzes().catch(console.error), 2000);
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
