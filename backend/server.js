@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -32,12 +33,10 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   isPremium: { type: Boolean, default: false },
   purchaseDate: Date,
-  paymentRequests: [{
-    amount: Number,
+  transactions: [{
     reference: String,
-    bank: String,
-    accountNumber: String,
-    status: { type: String, default: 'pending' },
+    amount: Number,
+    status: String,
     date: { type: Date, default: Date.now }
   }],
   quizResults: [{
@@ -72,7 +71,6 @@ const Quiz = mongoose.model('Quiz', QuizSchema);
 
 // Register
 app.post('/api/register', async (req, res) => {
-  console.log('Register request received:', req.body);
   try {
     const { email, password } = req.body;
     
@@ -98,7 +96,6 @@ app.post('/api/register', async (req, res) => {
 
 // Login
 app.post('/api/login', async (req, res) => {
-  console.log('Login request received:', req.body);
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
@@ -138,93 +135,110 @@ app.get('/api/user/profile', async (req, res) => {
   }
 });
 
-// ============ PAYMENT REQUEST ROUTES (Bank Transfer) ============
+// ============ FLUTTERWAVE PAYMENT ROUTES (DIRECT API) ============
 
-// Submit payment request
-app.post('/api/payment-request', async (req, res) => {
+// Initialize payment
+app.post('/api/initialize-payment', async (req, res) => {
   try {
-    const { userId, email, amount, reference, bank, accountNumber, examTitle, sectionNumber } = req.body;
+    const { email, amount, userId } = req.body;
     
-    console.log('========================================');
-    console.log('🔔 NEW PREMIUM PAYMENT REQUEST 🔔');
-    console.log('========================================');
-    console.log('User ID:', userId);
-    console.log('Email:', email);
-    console.log('Amount:', amount);
-    console.log('Reference:', reference);
-    console.log('Bank:', bank);
-    console.log('Account Number:', accountNumber);
-    console.log('Exam:', examTitle, 'Section:', sectionNumber);
-    console.log('========================================');
+    const tx_ref = `ELITE-${Date.now()}-${userId}`;
     
-    // Save payment request to user's record
+    const response = await axios.post('https://api.flutterwave.com/v3/payments', {
+      tx_ref: tx_ref,
+      amount: amount,
+      currency: "NGN",
+      redirect_url: "https://elite-nursing-cbt.vercel.app/payment-callback",
+      customer: {
+        email: email,
+        name: email
+      },
+      customizations: {
+        title: "ELITE Nursing CBT Premium",
+        description: "Lifetime access to all premium exams"
+      }
+    }, {
+      headers: {
+        Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    // Save transaction reference to user
     await User.findByIdAndUpdate(userId, {
       $push: {
-        paymentRequests: {
+        transactions: {
+          reference: tx_ref,
           amount: amount,
-          reference: reference,
-          bank: bank,
-          accountNumber: accountNumber,
           status: 'pending',
           date: new Date()
         }
       }
     });
     
-    res.json({ success: true, message: 'Payment request submitted successfully' });
+    res.json({ 
+      authorization_url: response.data.data.link,
+      reference: tx_ref
+    });
   } catch (error) {
-    console.error('Payment request error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Payment init error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Payment initialization failed: ' + (error.response?.data?.message || error.message) });
   }
 });
 
-// Get payment requests (for admin - you can add authentication later)
-app.get('/api/payment-requests', async (req, res) => {
+// Verify payment
+app.post('/api/verify-payment', async (req, res) => {
   try {
-    const users = await User.find({ 'paymentRequests.0': { $exists: true } })
-      .select('email paymentRequests');
+    const { reference, userId } = req.body;
     
-    const allRequests = [];
-    users.forEach(user => {
-      user.paymentRequests.forEach(request => {
-        allRequests.push({
-          userId: user._id,
-          email: user.email,
-          ...request.toObject()
-        });
+    const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
+      headers: {
+        Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`
+      }
+    });
+    
+    if (response.data.data.status === 'successful') {
+      // Update user to premium
+      await User.findByIdAndUpdate(userId, {
+        isPremium: true,
+        purchaseDate: new Date(),
+        $set: { 'transactions.$[elem].status': 'completed' }
+      }, {
+        arrayFilters: [{ 'elem.reference': reference }]
       });
-    });
-    
-    // Sort by date, newest first
-    allRequests.sort((a, b) => b.date - a.date);
-    
-    res.json(allRequests);
+      
+      res.json({ success: true, message: 'Payment verified! You are now premium.' });
+    } else {
+      res.json({ success: false, message: 'Payment verification failed' });
+    }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Verification error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Verification failed' });
   }
 });
 
-// Approve payment and upgrade user
-app.post('/api/admin/approve-payment', async (req, res) => {
+// Webhook for Flutterwave (optional - for automatic updates)
+app.post('/api/webhook', async (req, res) => {
   try {
-    const { userId, paymentRequestId } = req.body;
+    const { event, data } = req.body;
     
-    // Update payment request status
-    await User.updateOne(
-      { _id: userId, 'paymentRequests._id': paymentRequestId },
-      { $set: { 'paymentRequests.$.status': 'approved' } }
-    );
+    if (event === 'charge.completed' && data.status === 'successful') {
+      const tx_ref = data.tx_ref;
+      // Extract userId from tx_ref (format: ELITE-timestamp-userId)
+      const userId = tx_ref.split('-')[2];
+      
+      await User.findByIdAndUpdate(userId, {
+        isPremium: true,
+        purchaseDate: new Date()
+      });
+      
+      console.log(`✅ User ${userId} upgraded to premium via webhook!`);
+    }
     
-    // Upgrade user to premium
-    await User.findByIdAndUpdate(userId, { 
-      isPremium: true,
-      purchaseDate: new Date()
-    });
-    
-    console.log(`✅ User ${userId} upgraded to premium!`);
-    res.json({ success: true, message: 'User upgraded to premium' });
+    res.sendStatus(200);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Webhook error:', error);
+    res.sendStatus(500);
   }
 });
 
@@ -256,7 +270,6 @@ app.get('/api/quizzes/:quizId', async (req, res) => {
 
 // Create quiz
 app.post('/api/quizzes', async (req, res) => {
-  console.log('Create quiz request received:', req.body.title);
   try {
     const quiz = new Quiz(req.body);
     await quiz.save();
