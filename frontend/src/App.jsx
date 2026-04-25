@@ -47,7 +47,7 @@ const Timer = ({ duration, onTimeUp }) => {
 };
 
 // Premium Modal - Pay Per Exam OR Complete Package
-const PremiumModal = ({ onClose, examTitle, sectionNumber, onUpgradeComplete }) => {
+const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   const [selectedPlan, setSelectedPlan] = useState('single');
   const [loading, setLoading] = useState(false);
   const { token, user } = useContext(AuthContext);
@@ -115,7 +115,6 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber, onUpgradeComplete }) 
         <p style={{ color: '#666', marginBottom: 24 }}>{examTitle} - Examination {sectionNumber}</p>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
-          {/* Single Exam Option */}
           <div 
             onClick={() => setSelectedPlan('single')}
             style={{
@@ -123,8 +122,7 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber, onUpgradeComplete }) 
               borderRadius: 12,
               padding: 16,
               cursor: 'pointer',
-              background: selectedPlan === 'single' ? '#e8f5e9' : 'white',
-              transition: 'all 0.2s'
+              background: selectedPlan === 'single' ? '#e8f5e9' : 'white'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -136,7 +134,6 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber, onUpgradeComplete }) 
             </div>
           </div>
           
-          {/* Complete Package Option */}
           <div 
             onClick={() => setSelectedPlan('complete')}
             style={{
@@ -145,22 +142,11 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber, onUpgradeComplete }) 
               padding: 16,
               cursor: 'pointer',
               background: selectedPlan === 'complete' ? '#fff3e0' : 'white',
-              transition: 'all 0.2s',
               position: 'relative'
             }}
           >
             {selectedPlan === 'complete' && (
-              <div style={{
-                position: 'absolute',
-                top: -12,
-                right: 16,
-                background: '#ff9800',
-                color: 'white',
-                padding: '2px 12px',
-                borderRadius: 20,
-                fontSize: 12,
-                fontWeight: 'bold'
-              }}>BEST VALUE</div>
+              <div style={{ position: 'absolute', top: -12, right: 16, background: '#ff9800', color: 'white', padding: '2px 12px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>BEST VALUE</div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ textAlign: 'left' }}>
@@ -259,6 +245,33 @@ const Register = () => {
           <button type="submit" style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 14, width: '100%', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 18, marginTop: 20 }}>Register</button>
         </form>
         <p style={{ textAlign: 'center', marginTop: 20 }}>Already have an account? <Link to="/login" style={{ color: '#2E7D64', fontWeight: 'bold' }}>Login</Link></p>
+      </div>
+    </div>
+  );
+};
+
+// Coming Soon Component
+const ComingSoon = ({ title }) => {
+  return (
+    <div style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'clamp(20px, 5vw, 40px)' }}>
+      <div style={{ background: 'white', borderRadius: 20, padding: 'clamp(30px, 8vw, 60px)', maxWidth: 600, width: '100%', textAlign: 'center', boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
+        <div style={{ fontSize: 'clamp(60px, 15vw, 100px)', marginBottom: 20 }}>🚧</div>
+        <h1 style={{ color: '#2E7D64', fontSize: 'clamp(28px, 6vw, 40px)', marginBottom: 16 }}>Coming Soon!</h1>
+        <h2 style={{ color: '#ff9800', fontSize: 'clamp(18px, 5vw, 24px)', marginBottom: 20 }}>{title}</h2>
+        <p style={{ color: '#666', fontSize: 'clamp(14px, 4vw, 16px)', marginBottom: 30, lineHeight: 1.6 }}>
+          We are working hard to bring you high-quality practice questions for {title}. 
+          This section will be available soon. Check back later!
+        </p>
+        <div style={{ background: '#f0f7f4', padding: 20, borderRadius: 15 }}>
+          <p style={{ color: '#2E7D64', fontWeight: 'bold', marginBottom: 10 }}>Want to be notified when this section launches?</p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <input type="email" placeholder="Your email address" style={{ flex: 2, padding: 12, border: '2px solid #e0e0e0', borderRadius: 10, minWidth: 200 }} />
+            <button style={{ flex: 1, background: '#2E7D64', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Notify Me</button>
+          </div>
+        </div>
+        <Link to="/">
+          <button style={{ marginTop: 30, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer' }}>← Back to Home</button>
+        </Link>
       </div>
     </div>
   );
@@ -456,6 +469,133 @@ const GetPremium = () => {
   );
 };
 
+// Category Component - Home Page with Categories
+const HomePage = () => {
+  const categories = [
+    { id: 'general', name: 'General Nursing', icon: '🩺', description: 'All nursing practice questions', path: '/general-nursing', available: true },
+    { id: 'midwifery', name: 'Midwifery', icon: '👶', description: 'Midwifery practice questions', path: '/coming-soon/midwifery', available: false },
+    { id: 'public-health', name: 'Public Health', icon: '🏥', description: 'Public health nursing questions', path: '/coming-soon/public-health', available: false },
+    { id: 'dental', name: 'Dental Nursing', icon: '🦷', description: 'Dental nursing practice questions', path: '/coming-soon/dental-nursing', available: false },
+    { id: 'pediatric', name: 'Pediatric Nursing', icon: '👧', description: 'Pediatric nursing questions', path: '/coming-soon/pediatric-nursing', available: false },
+    { id: 'nclex', name: 'NCLEX Practice', icon: '🇺🇸', description: 'NCLEX style questions', path: '/coming-soon/nclex', available: false }
+  ];
+
+  return (
+    <div style={{ background: '#e8f5e9', minHeight: '100vh' }}>
+      <div style={{ padding: 'clamp(16px, 5vw, 30px)', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 'clamp(24px, 6vw, 40px)' }}>
+          <h1 style={{ color: '#2E7D64', fontSize: 'clamp(24px, 6vw, 36px)', marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h1>
+          <p style={{ color: '#666', fontSize: 'clamp(14px, 4vw, 18px)' }}>Computer Based Testing Platform</p>
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 25 }}>
+          {categories.map(category => (
+            <Link key={category.id} to={category.path} style={{ textDecoration: 'none' }}>
+              <div style={{ 
+                background: 'white', 
+                padding: 'clamp(20px, 5vw, 30px)', 
+                borderRadius: 20, 
+                boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
+                transition: 'transform 0.2s',
+                textAlign: 'center',
+                position: 'relative',
+                cursor: 'pointer',
+                border: category.available ? '2px solid #2E7D64' : '1px solid #ddd'
+              }}>
+                <div style={{ fontSize: 60, marginBottom: 15 }}>{category.icon}</div>
+                <h2 style={{ color: category.available ? '#2E7D64' : '#999', marginBottom: 10, fontSize: 'clamp(20px, 5vw, 24px)' }}>{category.name}</h2>
+                <p style={{ color: '#666', marginBottom: 15, fontSize: 'clamp(13px, 3vw, 14px)' }}>{category.description}</p>
+                {!category.available && (
+                  <span style={{ 
+                    display: 'inline-block', 
+                    background: '#ff9800', 
+                    color: 'white', 
+                    padding: '5px 15px', 
+                    borderRadius: 25, 
+                    fontSize: 12, 
+                    fontWeight: 'bold'
+                  }}>Coming Soon</span>
+                )}
+                {category.available && (
+                  <button style={{ 
+                    marginTop: 15, 
+                    background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
+                    color: 'white', 
+                    padding: '10px 20px', 
+                    border: 'none', 
+                    borderRadius: 10, 
+                    cursor: 'pointer', 
+                    fontWeight: 'bold',
+                    width: '100%'
+                  }}>View Exams →</button>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// General Nursing Page - Shows all quizzes
+const GeneralNursing = () => {
+  const [quizzes, setQuizzes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { token } = useContext(AuthContext);
+
+  useEffect(() => {
+    const fetchQuizzes = async () => {
+      try {
+        const res = await axios.get('/api/quizzes', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setQuizzes(res.data);
+      } catch (error) {
+        console.error('Error fetching quizzes:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQuizzes();
+  }, [token]);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 50, color: '#2E7D64' }}>Loading subjects...</div>;
+
+  return (
+    <div style={{ background: '#e8f5e9', minHeight: '100vh' }}>
+      <div style={{ padding: 'clamp(16px, 5vw, 30px)', maxWidth: 1200, margin: '0 auto' }}>
+        <Link to="/" style={{ color: '#2E7D64', textDecoration: 'none', display: 'inline-block', marginBottom: 20 }}>← Back to Categories</Link>
+        <h2 style={{ color: '#2E7D64', marginBottom: 20, fontSize: 'clamp(24px, 5vw, 32px)' }}>General Nursing</h2>
+        <p style={{ color: '#666', marginBottom: 30 }}>All nursing practice questions covering various topics.</p>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 25 }}>
+          {quizzes.map(quiz => {
+            const totalQuestions = quiz.questions?.length || 0;
+            const examCount = Math.ceil(totalQuestions / 20);
+            
+            return (
+              <div key={quiz._id} style={{ background: 'white', padding: 'clamp(16px, 4vw, 20px)', borderRadius: 16, boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>📚</div>
+                <h3 style={{ color: '#2E7D64', marginBottom: 8, fontSize: 'clamp(18px, 4vw, 20px)' }}>{quiz.title}</h3>
+                <p style={{ color: '#666', marginBottom: 12, fontSize: 'clamp(13px, 3vw, 14px)', lineHeight: 1.4 }}>{quiz.description}</p>
+                <div style={{ borderTop: '1px solid #eee', paddingTop: 12 }}>
+                  <p><strong style={{ color: '#2E7D64' }}>Total Questions:</strong> {totalQuestions}</p>
+                  <p><strong style={{ color: '#2E7D64' }}>Examinations:</strong> {examCount} exams (20 questions each)</p>
+                  <p><strong style={{ color: '#ff9800' }}>⭐ Free:</strong> Examination 1 only | <strong style={{ color: '#2E7D64' }}>Premium:</strong> Exams 2+ (₦200 each)</p>
+                </div>
+                <Link to={`/exam/${quiz._id}`}>
+                  <button style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 10, border: 'none', borderRadius: 8, marginTop: 12, cursor: 'pointer', width: '100%', fontWeight: 'bold', fontSize: 'clamp(14px, 3vw, 16px)' }}>View Examinations</button>
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Exam Detail Component
 const ExamDetail = () => {
   const { id } = useParams();
@@ -542,7 +682,7 @@ const ExamDetail = () => {
         />
       )}
       <div style={{ padding: 'clamp(12px, 4vw, 20px)', maxWidth: 1200, margin: '0 auto' }}>
-        <Link to="/" style={{ color: '#2E7D64', textDecoration: 'none', marginBottom: 20, display: 'inline-block', fontSize: 16 }}>← Back to Subjects</Link>
+        <Link to="/general-nursing" style={{ color: '#2E7D64', textDecoration: 'none', marginBottom: 20, display: 'inline-block', fontSize: 16 }}>← Back to General Nursing</Link>
         
         <div style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', borderRadius: 20, padding: 'clamp(16px, 5vw, 30px)', marginBottom: 30, color: 'white' }}>
           <h1 style={{ margin: 0, fontSize: 'clamp(24px, 5vw, 32px)' }}>{exam.title}</h1>
@@ -784,65 +924,6 @@ const TakeExam = () => {
   );
 };
 
-// Quiz List Component
-const QuizList = () => {
-  const [quizzes, setQuizzes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { token } = useContext(AuthContext);
-
-  useEffect(() => {
-    const fetchQuizzes = async () => {
-      try {
-        const res = await axios.get('/api/quizzes', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setQuizzes(res.data);
-      } catch (error) {
-        console.error('Error fetching quizzes:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchQuizzes();
-  }, [token]);
-
-  if (loading) return <div style={{ textAlign: 'center', padding: 50, color: '#2E7D64' }}>Loading subjects...</div>;
-
-  return (
-    <div style={{ background: '#e8f5e9', minHeight: '100vh' }}>
-      <div style={{ padding: 'clamp(16px, 5vw, 30px)', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 'clamp(24px, 6vw, 40px)' }}>
-          <h1 style={{ color: '#2E7D64', fontSize: 'clamp(24px, 6vw, 36px)', marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h1>
-          <p style={{ color: '#666', fontSize: 'clamp(14px, 4vw, 18px)' }}>Computer Based Testing Platform</p>
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
-          {quizzes.map(quiz => {
-            const totalQuestions = quiz.questions?.length || 0;
-            const examCount = Math.ceil(totalQuestions / 20);
-            
-            return (
-              <div key={quiz._id} style={{ background: 'white', padding: 'clamp(16px, 4vw, 20px)', borderRadius: 16, boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
-                <div style={{ fontSize: 40, marginBottom: 8 }}>📚</div>
-                <h3 style={{ color: '#2E7D64', marginBottom: 8, fontSize: 'clamp(18px, 4vw, 20px)' }}>{quiz.title}</h3>
-                <p style={{ color: '#666', marginBottom: 12, fontSize: 'clamp(13px, 3vw, 14px)', lineHeight: 1.4 }}>{quiz.description}</p>
-                <div style={{ borderTop: '1px solid #eee', paddingTop: 12 }}>
-                  <p><strong style={{ color: '#2E7D64' }}>Total Questions:</strong> {totalQuestions}</p>
-                  <p><strong style={{ color: '#2E7D64' }}>Examinations:</strong> {examCount} exams (20 questions each)</p>
-                  <p><strong style={{ color: '#ff9800' }}>⭐ Free:</strong> Examination 1 only | <strong style={{ color: '#2E7D64' }}>Premium:</strong> Exams 2+ (₦200 each)</p>
-                </div>
-                <Link to={`/exam/${quiz._id}`}>
-                  <button style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 10, border: 'none', borderRadius: 8, marginTop: 12, cursor: 'pointer', width: '100%', fontWeight: 'bold', fontSize: 'clamp(14px, 3vw, 16px)' }}>View Examinations</button>
-                </Link>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // Dropdown Menu Component
 const DropdownMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -928,7 +1009,9 @@ const AppContent = () => {
       </nav>
       
       <Routes>
-        <Route path="/" element={<QuizList />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/general-nursing" element={<GeneralNursing />} />
+        <Route path="/coming-soon/:category" element={<ComingSoon title="Coming Soon" />} />
         <Route path="/get-premium" element={<GetPremium />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactUs />} />
@@ -968,7 +1051,6 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const status = params.get('status');
     const tx_ref = params.get('tx_ref');
-    const transaction_id = params.get('transaction_id');
     
     if (status === 'successful' && tx_ref) {
       const verifyPayment = async () => {
