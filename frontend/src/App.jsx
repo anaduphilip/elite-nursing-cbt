@@ -50,169 +50,28 @@ const Timer = ({ duration, onTimeUp }) => {
   );
 };
 
-// Premium Modal Component - Bank Transfer Version
+// Premium Modal Component - Flutterwave Version
 const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
-  const [showPaymentInfo, setShowPaymentInfo] = useState(false);
-  const [paymentReference, setPaymentReference] = useState('');
-  const [selectedBank, setSelectedBank] = useState('opay');
-  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { token, user } = useContext(AuthContext);
 
-  const bankDetails = {
-    opay: {
-      bank: 'OPAY',
-      accountNumber: '9063908476',
-      accountName: 'ANADU PHILIP'
-    },
-    uba: {
-      bank: 'UNITED BANK FOR AFRICA (UBA)',
-      accountNumber: '2096620582',
-      accountName: 'ANADU PHILIP'
-    }
-  };
-
-  const handlePaymentRequest = () => {
-    setShowPaymentInfo(true);
-  };
-
-  const handleSubmitProof = async () => {
-    if (!paymentReference.trim()) {
-      alert('Please enter your payment reference/transaction ID');
-      return;
-    }
-    
-    setUploading(true);
+  const handlePayment = async () => {
+    setLoading(true);
     try {
-      await axios.post('/api/payment-request', {
-        userId: user?.id,
+      const response = await axios.post('/api/initialize-payment', {
         email: user?.email,
         amount: 5000,
-        reference: paymentReference,
-        bank: bankDetails[selectedBank].bank,
-        accountNumber: bankDetails[selectedBank].accountNumber,
-        examTitle: examTitle,
-        sectionNumber: sectionNumber
+        userId: user?.id
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('✅ Payment request submitted! We will verify and activate your premium access within 24 hours. You will receive an email confirmation once approved.');
-      onClose();
+      
+      window.location.href = response.data.authorization_url;
     } catch (error) {
-      alert('Error submitting payment request. Please try again.');
-    } finally {
-      setUploading(false);
+      alert('Payment initialization failed. Please try again.');
+      setLoading(false);
     }
   };
-
-  if (showPaymentInfo) {
-    const selected = bankDetails[selectedBank];
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0,0,0,0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000,
-        backdropFilter: 'blur(5px)'
-      }}>
-        <div style={{
-          background: 'white',
-          borderRadius: 20,
-          padding: 30,
-          maxWidth: 500,
-          textAlign: 'center',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-          maxHeight: '90vh',
-          overflowY: 'auto'
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 20 }}>🏦</div>
-          <h2 style={{ color: '#2E7D64', marginBottom: 15 }}>Bank Transfer Details</h2>
-          
-          <div style={{ marginBottom: 15 }}>
-            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 5 }}>Select Bank:</label>
-            <select 
-              value={selectedBank} 
-              onChange={(e) => setSelectedBank(e.target.value)}
-              style={{
-                width: '100%',
-                padding: 10,
-                border: '2px solid #e0e0e0',
-                borderRadius: 10,
-                fontSize: 14
-              }}
-            >
-              <option value="opay">OPAY</option>
-              <option value="uba">UNITED BANK FOR AFRICA (UBA)</option>
-            </select>
-          </div>
-
-          <div style={{ background: '#f0f7f4', padding: 20, borderRadius: 12, textAlign: 'left', marginBottom: 20 }}>
-            <p><strong>Bank:</strong> <span style={{ color: '#2E7D64' }}>{selected.bank}</span></p>
-            <p><strong>Account Name:</strong> <span style={{ color: '#2E7D64' }}>{selected.accountName}</span></p>
-            <p><strong>Account Number:</strong> <span style={{ color: '#2E7D64', fontSize: 20, fontWeight: 'bold' }}>{selected.accountNumber}</span></p>
-            <p><strong>Amount:</strong> <span style={{ color: '#2E7D64', fontSize: 20, fontWeight: 'bold' }}>₦5,000</span></p>
-          </div>
-
-          <p style={{ color: '#666', marginBottom: 15, fontSize: 14 }}>
-            After payment, enter your Transaction ID or Reference Number below:
-          </p>
-          
-          <input
-            type="text"
-            placeholder="Transaction ID / Reference Number"
-            value={paymentReference}
-            onChange={(e) => setPaymentReference(e.target.value)}
-            style={{
-              width: '100%',
-              padding: 12,
-              marginBottom: 20,
-              border: '2px solid #e0e0e0',
-              borderRadius: 10,
-              fontSize: 14
-            }}
-          />
-          
-          <button 
-            onClick={handleSubmitProof}
-            disabled={uploading}
-            style={{
-              background: '#2E7D64',
-              color: 'white',
-              padding: 12,
-              border: 'none',
-              borderRadius: 10,
-              cursor: 'pointer',
-              width: '100%',
-              fontWeight: 'bold',
-              fontSize: 16,
-              marginBottom: 10
-            }}
-          >
-            {uploading ? 'Submitting...' : 'Submit Payment Proof'}
-          </button>
-          
-          <button 
-            onClick={() => setShowPaymentInfo(false)}
-            style={{
-              background: 'transparent',
-              color: '#666',
-              padding: 10,
-              border: 'none',
-              cursor: 'pointer',
-              width: '100%'
-            }}
-          >
-            Back
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{
@@ -240,7 +99,7 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         <h2 style={{ color: '#2E7D64', marginBottom: 15 }}>Premium Required</h2>
         <p style={{ color: '#666', marginBottom: 20, lineHeight: 1.6 }}>
           <strong>{examTitle} - Examination {sectionNumber}</strong> is a premium exam.
-          Upgrade to unlock ALL premium examinations!
+          Upgrade to unlock ALL premium examinations across all subjects!
         </p>
         <div style={{ background: '#f0f7f4', padding: 20, borderRadius: 12, marginBottom: 25 }}>
           <p style={{ fontWeight: 'bold', color: '#2E7D64' }}>Premium Benefits:</p>
@@ -257,11 +116,11 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         </div>
         <div style={{ display: 'flex', gap: 15 }}>
           <button onClick={onClose} style={{ flex: 1, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
-          <button onClick={handlePaymentRequest} style={{ flex: 1, background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>
-            Pay via Bank Transfer
+          <button onClick={handlePayment} disabled={loading} style={{ flex: 1, background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>
+            {loading ? 'Processing...' : 'Pay ₦5,000 with Card'}
           </button>
         </div>
-        <p style={{ fontSize: 12, color: '#999', marginTop: 20 }}>Manual verification within 24 hours</p>
+        <p style={{ fontSize: 12, color: '#999', marginTop: 20 }}>Secure payment via Flutterwave</p>
       </div>
     </div>
   );
@@ -453,136 +312,26 @@ const JoinWhatsApp = () => {
 
 // Get Premium Component
 const GetPremium = () => {
-  const [showPaymentInfo, setShowPaymentInfo] = useState(false);
-  const [paymentReference, setPaymentReference] = useState('');
-  const [selectedBank, setSelectedBank] = useState('opay');
-  const [uploading, setUploading] = useState(false);
-  const { token, user } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
+  const { token, user, login } = useContext(AuthContext);
 
-  const bankDetails = {
-    opay: {
-      bank: 'OPAY',
-      accountNumber: '9063908476',
-      accountName: 'ANADU PHILIP'
-    },
-    uba: {
-      bank: 'UNITED BANK FOR AFRICA (UBA)',
-      accountNumber: '2096620582',
-      accountName: 'ANADU PHILIP'
-    }
-  };
-
-  const handleSubmitProof = async () => {
-    if (!paymentReference.trim()) {
-      alert('Please enter your payment reference/transaction ID');
-      return;
-    }
-    
-    setUploading(true);
+  const handlePayment = async () => {
+    setLoading(true);
     try {
-      await axios.post('/api/payment-request', {
-        userId: user?.id,
+      const response = await axios.post('/api/initialize-payment', {
         email: user?.email,
         amount: 5000,
-        reference: paymentReference,
-        bank: bankDetails[selectedBank].bank,
-        accountNumber: bankDetails[selectedBank].accountNumber
+        userId: user?.id
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('✅ Payment request submitted! We will verify and activate your premium access within 24 hours.');
-      setShowPaymentInfo(false);
-      setPaymentReference('');
+      
+      window.location.href = response.data.authorization_url;
     } catch (error) {
-      alert('Error submitting payment request. Please try again.');
-    } finally {
-      setUploading(false);
+      alert('Payment initialization failed. Please try again.');
+      setLoading(false);
     }
   };
-
-  if (showPaymentInfo) {
-    const selected = bankDetails[selectedBank];
-    return (
-      <div style={{ padding: 40, maxWidth: 500, margin: '0 auto' }}>
-        <div style={{ background: 'white', borderRadius: 20, padding: 30, boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
-          <div style={{ fontSize: 48, textAlign: 'center', marginBottom: 20 }}>🏦</div>
-          <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 20 }}>Bank Transfer Details</h2>
-          
-          <div style={{ marginBottom: 15 }}>
-            <label style={{ fontWeight: 'bold' }}>Select Bank:</label>
-            <select 
-              value={selectedBank} 
-              onChange={(e) => setSelectedBank(e.target.value)}
-              style={{
-                width: '100%',
-                padding: 10,
-                border: '2px solid #e0e0e0',
-                borderRadius: 10,
-                marginTop: 5
-              }}
-            >
-              <option value="opay">OPAY</option>
-              <option value="uba">UNITED BANK FOR AFRICA (UBA)</option>
-            </select>
-          </div>
-
-          <div style={{ background: '#f0f7f4', padding: 20, borderRadius: 12, marginBottom: 20 }}>
-            <p><strong>Bank:</strong> {selected.bank}</p>
-            <p><strong>Account Name:</strong> {selected.accountName}</p>
-            <p><strong>Account Number:</strong> <span style={{ fontSize: 24, fontWeight: 'bold', color: '#2E7D64' }}>{selected.accountNumber}</span></p>
-            <p><strong>Amount:</strong> <span style={{ fontSize: 20, fontWeight: 'bold', color: '#2E7D64' }}>₦5,000</span></p>
-          </div>
-
-          <input
-            type="text"
-            placeholder="Transaction ID / Reference Number"
-            value={paymentReference}
-            onChange={(e) => setPaymentReference(e.target.value)}
-            style={{
-              width: '100%',
-              padding: 12,
-              marginBottom: 20,
-              border: '2px solid #e0e0e0',
-              borderRadius: 10
-            }}
-          />
-          
-          <button 
-            onClick={handleSubmitProof}
-            disabled={uploading}
-            style={{
-              background: '#2E7D64',
-              color: 'white',
-              padding: 12,
-              border: 'none',
-              borderRadius: 10,
-              cursor: 'pointer',
-              width: '100%',
-              fontWeight: 'bold',
-              marginBottom: 10
-            }}
-          >
-            {uploading ? 'Submitting...' : 'Submit Payment Proof'}
-          </button>
-          
-          <button 
-            onClick={() => setShowPaymentInfo(false)}
-            style={{
-              background: '#6c757d',
-              color: 'white',
-              padding: 12,
-              border: 'none',
-              borderRadius: 10,
-              cursor: 'pointer',
-              width: '100%'
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ padding: 40, maxWidth: 1000, margin: '0 auto' }}>
@@ -628,11 +377,12 @@ const GetPremium = () => {
               <div style={{ fontSize: 48, fontWeight: 'bold', color: '#2E7D64', marginBottom: 10 }}>
                 ₦5,000 <span style={{ fontSize: 18, color: '#666' }}>/ lifetime</span>
               </div>
-              <p style={{ color: '#666' }}>Bank Transfer • Manual verification within 24 hours</p>
+              <p style={{ color: '#666' }}>Pay with Card, Bank Transfer, or USSD</p>
             </div>
             
             <button 
-              onClick={() => setShowPaymentInfo(true)} 
+              onClick={handlePayment} 
+              disabled={loading}
               style={{ 
                 background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', 
                 color: 'white', 
@@ -645,7 +395,7 @@ const GetPremium = () => {
                 boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
               }}
             >
-              Upgrade to Premium Now
+              {loading ? 'Processing...' : 'Upgrade to Premium Now'}
             </button>
           </>
         )}
@@ -1272,6 +1022,39 @@ function App() {
   if (auth.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
+
+  // Handle payment callback from Flutterwave
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    const tx_ref = params.get('tx_ref');
+    const transaction_id = params.get('transaction_id');
+    
+    if (status === 'successful' && tx_ref) {
+      const verifyPayment = async () => {
+        try {
+          const response = await axios.post('/api/verify-payment', {
+            reference: tx_ref,
+            userId: auth.user?.id
+          });
+          
+          if (response.data.success) {
+            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
+            // Update user in state
+            setAuth({ ...auth, user: { ...auth.user, isPremium: true } });
+            localStorage.setItem('auth', JSON.stringify({ ...auth, user: { ...auth.user, isPremium: true } }));
+            window.location.href = '/';
+          } else {
+            alert('Payment verification failed. Please contact support.');
+          }
+        } catch (error) {
+          console.error('Verification error:', error);
+          alert('Payment verification failed. Please contact support.');
+        }
+      };
+      verifyPayment();
+    }
+  }, [auth.user?.id]);
 
   return (
     <AuthContext.Provider value={{ ...auth, login, logout }}>
