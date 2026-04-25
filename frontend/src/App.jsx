@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 
@@ -7,7 +7,34 @@ axios.defaults.baseURL = API_URL;
 
 const AuthContext = createContext();
 
-// Timer Component - Sticky Header
+// Loading Spinner Component - Centered, Light
+const LoadingSpinner = () => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    width: '100%',
+    background: '#f0f7f4'
+  }}>
+    <div style={{
+      width: 50,
+      height: 50,
+      border: '4px solid #e0e0e0',
+      borderTop: '4px solid #2E7D64',
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite'
+    }} />
+    <style>{`
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `}</style>
+  </div>
+);
+
+// Timer Component
 const Timer = ({ duration, onTimeUp }) => {
   const [timeLeft, setTimeLeft] = useState(duration * 60);
 
@@ -16,15 +43,12 @@ const Timer = ({ duration, onTimeUp }) => {
       onTimeUp();
       return;
     }
-    const timer = setInterval(() => {
-      setTimeLeft(prev => prev - 1);
-    }, 1000);
+    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [timeLeft, onTimeUp]);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
-  
   const isWarning = timeLeft < 300;
 
   return (
@@ -32,21 +56,16 @@ const Timer = ({ duration, onTimeUp }) => {
       position: 'sticky',
       top: 0,
       zIndex: 1000,
-      background: isWarning ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' : 'linear-gradient(135deg, #1B5E4A 0%, #0D3B2E 100%)',
+      background: isWarning ? '#f44336' : '#2E7D64',
       color: 'white',
-      padding: '15px 24px',
+      padding: '12px 20px',
       textAlign: 'center',
-      fontSize: 32,
+      fontSize: 24,
       fontWeight: 'bold',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-      letterSpacing: '2px',
-      borderBottom: '3px solid rgba(255,255,255,0.3)'
+      boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
     }}>
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 15 }}>
-        <span>⏰</span>
-        <span>{minutes}:{seconds.toString().padStart(2, '0')}</span>
-        {isWarning && <span style={{ fontSize: 18, animation: 'pulse 1s infinite' }}>⚠️ TIME RUNNING OUT!</span>}
-      </div>
+      ⏰ {minutes}:{seconds.toString().padStart(2, '0')}
+      {isWarning && <span style={{ marginLeft: 10, fontSize: 14 }}>⚠️ TIME RUNNING OUT!</span>}
     </div>
   );
 };
@@ -59,13 +78,9 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   const handlePayment = async () => {
     setLoading(true);
     try {
-      const response = await axios.post('/api/initialize-payment', {
-        email: user?.email,
-        amount: 5000
-      }, {
+      const response = await axios.post('/api/initialize-payment', { email: user?.email, amount: 5900 }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
       localStorage.setItem('payment_reference', response.data.reference);
       window.location.href = response.data.authorization_url;
     } catch (error) {
@@ -76,52 +91,26 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
 
   return (
     <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.8)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 2000,
-      backdropFilter: 'blur(5px)'
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', zIndex: 2000
     }}>
       <div style={{
-        background: 'white',
-        borderRadius: 20,
-        padding: 40,
-        maxWidth: 450,
-        textAlign: 'center',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+        background: 'white', borderRadius: 20, padding: 30, maxWidth: 400,
+        textAlign: 'center', margin: '20px'
       }}>
-        <div style={{ fontSize: 64, marginBottom: 20 }}>⭐</div>
-        <h2 style={{ color: '#2E7D64', marginBottom: 15 }}>Premium Required</h2>
-        <p style={{ color: '#666', marginBottom: 20, lineHeight: 1.6 }}>
-          <strong>{examTitle} - Examination {sectionNumber}</strong> is a premium exam.
-          Upgrade to unlock ALL premium examinations across all subjects!
-        </p>
-        <div style={{ background: '#f0f7f4', padding: 20, borderRadius: 12, marginBottom: 25 }}>
-          <p style={{ fontWeight: 'bold', color: '#2E7D64' }}>Premium Benefits:</p>
-          <ul style={{ textAlign: 'left', color: '#666', marginTop: 10 }}>
-            <li>✓ All Nursing Subjects</li>
-            <li>✓ All Examinations (1, 2, 3, 4+)</li>
-            <li>✓ Over 12,000 Practice Questions</li>
-            <li>✓ Detailed Answer Reviews</li>
-            <li>✓ Lifetime Access</li>
-          </ul>
-        </div>
-        <div style={{ fontSize: 32, fontWeight: 'bold', color: '#2E7D64', marginBottom: 20 }}>
+        <div style={{ fontSize: 50 }}>⭐</div>
+        <h2 style={{ color: '#2E7D64' }}>Premium Required</h2>
+        <p><strong>{examTitle} - Examination {sectionNumber}</strong> is premium. Upgrade to unlock ALL exams!</p>
+        <div style={{ fontSize: 28, fontWeight: 'bold', color: '#2E7D64', margin: '15px 0' }}>
           ₦5,900 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime</span>
         </div>
-        <div style={{ display: 'flex', gap: 15 }}>
-          <button onClick={onClose} style={{ flex: 1, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
-          <button onClick={handlePayment} disabled={loading} style={{ flex: 1, background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={handlePayment} disabled={loading} style={{ flex: 1, background: '#ff9800', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>
             {loading ? 'Processing...' : 'Pay ₦5,900'}
           </button>
         </div>
-        <p style={{ fontSize: 12, color: '#999', marginTop: 20 }}>Secure payment via Paystack</p>
       </div>
     </div>
   );
@@ -144,21 +133,15 @@ const Login = () => {
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <div style={{ maxWidth: 450, margin: '20px', padding: 40, background: 'white', borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 30, fontSize: 28 }}>Welcome Back</h2>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '30px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 30 }}>Welcome Back</h2>
         <form onSubmit={handleSubmit}>
-          <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
           <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
-          <button type="submit" style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 14, width: '100%', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 18, marginTop: 20 }}>Login</button>
+          <button type="submit" style={{ width: '100%', background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 16, marginTop: 20 }}>Login</button>
         </form>
-        <p style={{ textAlign: 'center', marginTop: 25 }}>Don't have an account? <Link to="/register" style={{ color: '#2E7D64', fontWeight: 'bold' }}>Register</Link></p>
+        <p style={{ textAlign: 'center', marginTop: 20 }}>Don't have an account? <Link to="/register" style={{ color: '#2E7D64' }}>Register</Link></p>
       </div>
     </div>
   );
@@ -181,215 +164,15 @@ const Register = () => {
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <div style={{ maxWidth: 450, margin: '20px', padding: 40, background: 'white', borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 30, fontSize: 28 }}>Create Account</h2>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '30px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 30 }}>Create Account</h2>
         <form onSubmit={handleSubmit}>
-          <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
           <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
-          <button type="submit" style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 14, width: '100%', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 18, marginTop: 20 }}>Register</button>
+          <button type="submit" style={{ width: '100%', background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 16, marginTop: 20 }}>Register</button>
         </form>
-        <p style={{ textAlign: 'center', marginTop: 25 }}>Already have an account? <Link to="/login" style={{ color: '#2E7D64', fontWeight: 'bold' }}>Login</Link></p>
-      </div>
-    </div>
-  );
-};
-
-// About Us Component
-const AboutUs = () => {
-  return (
-    <div style={{ padding: 40, maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ color: '#2E7D64', marginBottom: 20 }}>About Us</h2>
-        <p style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
-          ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students in Nigeria.
-        </p>
-        <p style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
-          Our mission is to provide high-quality, accessible exam preparation materials that help students succeed in their nursing and midwifery licensing examinations.
-        </p>
-        <p style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
-          With over 12,000 practice questions covering General Nursing, Midwifery, and Public Health, we are committed to excellence in nursing education.
-        </p>
-        <h3 style={{ color: '#2E7D64', marginTop: 30, marginBottom: 15 }}>Coming Soon</h3>
-        <p style={{ color: '#666', lineHeight: 1.8 }}>
-          Dental Nursing, Pediatric Nursing, and NCLEX Practice questions are coming soon!
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// Contact Us Component
-const ContactUs = () => {
-  return (
-    <div style={{ padding: 40, maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ color: '#2E7D64', marginBottom: 20 }}>Contact Us</h2>
-        <p style={{ color: '#666', marginBottom: 30 }}>Have questions? We'd love to hear from you!</p>
-        
-        <div style={{ marginBottom: 30 }}>
-          <h3 style={{ color: '#2E7D64', marginBottom: 10 }}>📧 Email</h3>
-          <p style={{ color: '#666' }}>anaduphilip2000@gmail.com</p>
-        </div>
-        
-        <div style={{ marginBottom: 30 }}>
-          <h3 style={{ color: '#2E7D64', marginBottom: 10 }}>📞 Phone / WhatsApp</h3>
-          <p style={{ color: '#666' }}>09063908476</p>
-        </div>
-        
-        <div style={{ marginBottom: 30 }}>
-          <h3 style={{ color: '#2E7D64', marginBottom: 10 }}>💬 WhatsApp Group</h3>
-          <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none' }}>
-            Click here to join our WhatsApp community
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Join WhatsApp Component
-const JoinWhatsApp = () => {
-  return (
-    <div style={{ padding: 40, maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 8px 25px rgba(0,0,0,0.1)', textAlign: 'center' }}>
-        <div style={{ fontSize: 80, marginBottom: 20 }}>💬</div>
-        <h2 style={{ color: '#2E7D64', marginBottom: 20 }}>Join Our WhatsApp Community</h2>
-        <p style={{ color: '#666', marginBottom: 30, lineHeight: 1.8 }}>
-          Get instant updates, study tips, and connect with fellow nursing students!
-        </p>
-        
-        <div style={{ background: '#f0f7f4', padding: 30, borderRadius: 15, marginBottom: 30 }}>
-          <h3 style={{ color: '#2E7D64', marginBottom: 15 }}>What you'll get:</h3>
-          <ul style={{ textAlign: 'left', color: '#666', maxWidth: 400, margin: '0 auto' }}>
-            <li style={{ margin: '10px 0' }}>✓ Daily practice questions</li>
-            <li style={{ margin: '10px 0' }}>✓ Exam tips and strategies</li>
-            <li style={{ margin: '10px 0' }}>✓ Updates on new features</li>
-            <li style={{ margin: '10px 0' }}>✓ Peer support and discussions</li>
-            <li style={{ margin: '10px 0' }}>✓ Special announcements</li>
-          </ul>
-        </div>
-        
-        <a 
-          href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={{ textDecoration: 'none' }}
-        >
-          <button style={{ 
-            background: '#25D366', 
-            color: 'white', 
-            padding: '14px 40px', 
-            border: 'none', 
-            borderRadius: 50, 
-            cursor: 'pointer', 
-            fontWeight: 'bold', 
-            fontSize: 18,
-            boxShadow: '0 4px 15px rgba(37,211,102,0.3)'
-          }}>
-            Join WhatsApp Group
-          </button>
-        </a>
-      </div>
-    </div>
-  );
-};
-
-// Get Premium Component
-const GetPremium = () => {
-  const { token, user } = useContext(AuthContext);
-  const [loading, setLoading] = useState(false);
-
-  const handlePayment = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post('/api/initialize-payment', {
-        email: user?.email,
-        amount: 5900
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      localStorage.setItem('payment_reference', response.data.reference);
-      window.location.href = response.data.authorization_url;
-    } catch (error) {
-      alert('Payment initialization failed. Please try again.');
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={{ padding: 40, maxWidth: 1000, margin: '0 auto' }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 8px 25px rgba(0,0,0,0.1)', textAlign: 'center' }}>
-        <div style={{ fontSize: 64, marginBottom: 20 }}>⭐</div>
-        <h2 style={{ color: '#2E7D64', marginBottom: 10 }}>Upgrade to Premium</h2>
-        <p style={{ color: '#666', marginBottom: 40, fontSize: 18 }}>
-          Get unlimited access to all examinations and features
-        </p>
-        
-        {user?.isPremium ? (
-          <div style={{ background: '#e8f5e9', padding: 40, borderRadius: 20 }}>
-            <div style={{ fontSize: 48, marginBottom: 10 }}>✅</div>
-            <h3 style={{ color: '#2E7D64', marginBottom: 10 }}>You are already a Premium Member!</h3>
-            <p style={{ color: '#666' }}>Thank you for supporting us. Enjoy unlimited access to all examinations.</p>
-          </div>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 25, marginBottom: 40 }}>
-              <div style={{ background: '#f0f7f4', padding: 25, borderRadius: 15 }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>📚</div>
-                <h3 style={{ color: '#2E7D64' }}>All Subjects</h3>
-                <p style={{ color: '#666' }}>General Nursing, Midwifery, Public Health</p>
-              </div>
-              <div style={{ background: '#f0f7f4', padding: 25, borderRadius: 15 }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>📝</div>
-                <h3 style={{ color: '#2E7D64' }}>All Exams</h3>
-                <p style={{ color: '#666' }}>Unlock Examinations 2, 3, 4+</p>
-              </div>
-              <div style={{ background: '#f0f7f4', padding: 25, borderRadius: 15 }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🎯</div>
-                <h3 style={{ color: '#2E7D64' }}>12,000+ Questions</h3>
-                <p style={{ color: '#666' }}>Massive question bank</p>
-              </div>
-              <div style={{ background: '#f0f7f4', padding: 25, borderRadius: 15 }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🏆</div>
-                <h3 style={{ color: '#2E7D64' }}>Lifetime Access</h3>
-                <p style={{ color: '#666' }}>One-time payment, forever access</p>
-              </div>
-            </div>
-            
-            <div style={{ background: '#f0f7f4', padding: 30, borderRadius: 15, marginBottom: 30 }}>
-              <div style={{ fontSize: 48, fontWeight: 'bold', color: '#2E7D64', marginBottom: 10 }}>
-                ₦5,900 <span style={{ fontSize: 18, color: '#666' }}>/ lifetime</span>
-              </div>
-              <p style={{ color: '#666' }}>One-time payment • Instant access</p>
-            </div>
-            
-            <button 
-              onClick={handlePayment} 
-              disabled={loading}
-              style={{ 
-                background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', 
-                color: 'white', 
-                padding: '16px 50px', 
-                border: 'none', 
-                borderRadius: 50, 
-                cursor: 'pointer', 
-                fontWeight: 'bold', 
-                fontSize: 18,
-                boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-              }}
-            >
-              {loading ? 'Processing...' : 'Upgrade to Premium Now'}
-            </button>
-          </>
-        )}
+        <p style={{ textAlign: 'center', marginTop: 20 }}>Already have an account? <Link to="/login" style={{ color: '#2E7D64' }}>Login</Link></p>
       </div>
     </div>
   );
@@ -404,9 +187,7 @@ const QuizList = () => {
   useEffect(() => {
     const fetchQuizzes = async () => {
       try {
-        const res = await axios.get('/api/quizzes', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
         setQuizzes(res.data);
       } catch (error) {
         console.error('Error fetching quizzes:', error);
@@ -421,186 +202,84 @@ const QuizList = () => {
   const generalNursing = quizzes.filter(q => 
     q.title.toLowerCase().includes('nursing') && 
     !q.title.toLowerCase().includes('midwifery') &&
-    !q.title.toLowerCase().includes('public')
+    !q.title.toLowerCase().includes('public') &&
+    !q.title.toLowerCase().includes('health')
   );
   
-  const midwifery = quizzes.filter(q => 
-    q.title.toLowerCase().includes('midwifery')
-  );
+  const midwifery = quizzes.filter(q => q.title.toLowerCase().includes('midwifery'));
   
   const publicHealth = quizzes.filter(q => 
     q.title.toLowerCase().includes('public') || 
     q.title.toLowerCase().includes('health')
   );
 
-  // Coming Soon Categories
   const comingSoonCategories = [
-    { name: 'DENTAL NURSING', icon: '🦷', description: 'Dental nursing practice questions coming soon!', questions: '0', exams: 0 },
-    { name: 'PEDIATRIC NURSING', icon: '👶', description: 'Child health nursing questions coming soon!', questions: '0', exams: 0 },
-    { name: 'NCLEX PRACTICE', icon: '🇺🇸', description: 'NCLEX-RN preparation questions coming soon!', questions: '0', exams: 0 }
+    { name: 'DENTAL NURSING', icon: '🦷', description: 'Dental nursing practice questions coming soon!' },
+    { name: 'PEDIATRIC NURSING', icon: '👶', description: 'Child health nursing questions coming soon!' },
+    { name: 'NCLEX PRACTICE', icon: '🇺🇸', description: 'NCLEX-RN preparation questions coming soon!' }
   ];
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 50, color: '#2E7D64' }}>Loading subjects...</div>;
+  if (loading) return <LoadingSpinner />;
 
   return (
-    <div style={{ background: '#e8f5e9', minHeight: '100vh' }}>
-      <div style={{ padding: 30, maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h1 style={{ color: '#2E7D64', fontSize: 36, marginBottom: 10 }}>ELITE NURSING & MIDWIFERY CBT</h1>
-          <p style={{ color: '#666', fontSize: 18 }}>Computer Based Testing Platform</p>
+    <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <h1 style={{ color: '#2E7D64', fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: '10px' }}>ELITE NURSING & MIDWIFERY CBT</h1>
+          <p style={{ color: '#666', fontSize: 'clamp(14px, 4vw, 18px)' }}>Computer Based Testing Platform</p>
         </div>
         
-        {/* Available Categories - Live */}
-        <h2 style={{ color: '#2E7D64', marginBottom: 20, fontSize: 24 }}>📚 Available Categories</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 25, marginBottom: 50 }}>
+        {/* Available Categories */}
+        <h2 style={{ color: '#2E7D64', marginBottom: '20px', fontSize: 'clamp(20px, 4vw, 24px)' }}>📚 Available Categories</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginBottom: '40px' }}>
           
-          {/* General Nursing */}
           {generalNursing.length > 0 && (
-            <div style={{ 
-              background: 'white', 
-              padding: 25, 
-              borderRadius: 16, 
-              boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
-              cursor: 'pointer',
-              borderLeft: '5px solid #2E7D64'
-            }}>
-              <div style={{ fontSize: 48, marginBottom: 10 }}>🩺</div>
-              <h3 style={{ color: '#2E7D64', marginBottom: 10, fontSize: 22 }}>GENERAL NURSING</h3>
-              <p style={{ color: '#666', marginBottom: 15, lineHeight: 1.5 }}>Comprehensive nursing practice questions covering all core nursing subjects.</p>
-              <div style={{ borderTop: '1px solid #eee', paddingTop: 15, marginTop: 10 }}>
-                <p><strong style={{ color: '#2E7D64' }}>Total Quizzes:</strong> {generalNursing.length}</p>
-                <p><strong style={{ color: '#2E7D64' }}>Total Questions:</strong> {generalNursing.reduce((sum, q) => sum + (q.questions?.length || 0), 0).toLocaleString()}</p>
-              </div>
+            <div style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', borderLeft: '5px solid #2E7D64' }}>
+              <div style={{ fontSize: '40px' }}>🩺</div>
+              <h3 style={{ color: '#2E7D64', marginBottom: '10px' }}>GENERAL NURSING</h3>
+              <p style={{ color: '#666', marginBottom: '15px' }}>Comprehensive nursing practice questions.</p>
+              <p><strong style={{ color: '#2E7D64' }}>Quizzes:</strong> {generalNursing.length}</p>
               <Link to="/category/general-nursing">
-                <button style={{ 
-                  background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
-                  color: 'white', 
-                  padding: 12, 
-                  border: 'none', 
-                  borderRadius: 10, 
-                  marginTop: 15, 
-                  cursor: 'pointer', 
-                  width: '100%', 
-                  fontWeight: 'bold',
-                  fontSize: 16
-                }}>View Examinations →</button>
+                <button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations →</button>
               </Link>
             </div>
           )}
 
-          {/* Midwifery */}
           {midwifery.length > 0 && (
-            <div style={{ 
-              background: 'white', 
-              padding: 25, 
-              borderRadius: 16, 
-              boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
-              cursor: 'pointer',
-              borderLeft: '5px solid #2E7D64'
-            }}>
-              <div style={{ fontSize: 48, marginBottom: 10 }}>🤰</div>
-              <h3 style={{ color: '#2E7D64', marginBottom: 10, fontSize: 22 }}>MIDWIFERY</h3>
-              <p style={{ color: '#666', marginBottom: 15, lineHeight: 1.5 }}>Specialized midwifery practice questions for maternal and newborn care.</p>
-              <div style={{ borderTop: '1px solid #eee', paddingTop: 15, marginTop: 10 }}>
-                <p><strong style={{ color: '#2E7D64' }}>Total Quizzes:</strong> {midwifery.length}</p>
-                <p><strong style={{ color: '#2E7D64' }}>Total Questions:</strong> {midwifery.reduce((sum, q) => sum + (q.questions?.length || 0), 0).toLocaleString()}</p>
-              </div>
+            <div style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', borderLeft: '5px solid #2E7D64' }}>
+              <div style={{ fontSize: '40px' }}>🤰</div>
+              <h3 style={{ color: '#2E7D64', marginBottom: '10px' }}>MIDWIFERY</h3>
+              <p style={{ color: '#666', marginBottom: '15px' }}>Specialized midwifery practice questions.</p>
+              <p><strong style={{ color: '#2E7D64' }}>Quizzes:</strong> {midwifery.length}</p>
               <Link to="/category/midwifery">
-                <button style={{ 
-                  background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
-                  color: 'white', 
-                  padding: 12, 
-                  border: 'none', 
-                  borderRadius: 10, 
-                  marginTop: 15, 
-                  cursor: 'pointer', 
-                  width: '100%', 
-                  fontWeight: 'bold',
-                  fontSize: 16
-                }}>View Examinations →</button>
+                <button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations →</button>
               </Link>
             </div>
           )}
 
-          {/* Public Health */}
           {publicHealth.length > 0 && (
-            <div style={{ 
-              background: 'white', 
-              padding: 25, 
-              borderRadius: 16, 
-              boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
-              cursor: 'pointer',
-              borderLeft: '5px solid #2E7D64'
-            }}>
-              <div style={{ fontSize: 48, marginBottom: 10 }}>🌍</div>
-              <h3 style={{ color: '#2E7D64', marginBottom: 10, fontSize: 22 }}>PUBLIC HEALTH</h3>
-              <p style={{ color: '#666', marginBottom: 15, lineHeight: 1.5 }}>Community health and public health nursing practice questions.</p>
-              <div style={{ borderTop: '1px solid #eee', paddingTop: 15, marginTop: 10 }}>
-                <p><strong style={{ color: '#2E7D64' }}>Total Quizzes:</strong> {publicHealth.length}</p>
-                <p><strong style={{ color: '#2E7D64' }}>Total Questions:</strong> {publicHealth.reduce((sum, q) => sum + (q.questions?.length || 0), 0).toLocaleString()}</p>
-              </div>
+            <div style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', borderLeft: '5px solid #2E7D64' }}>
+              <div style={{ fontSize: '40px' }}>🌍</div>
+              <h3 style={{ color: '#2E7D64', marginBottom: '10px' }}>PUBLIC HEALTH</h3>
+              <p style={{ color: '#666', marginBottom: '15px' }}>Community and public health nursing.</p>
+              <p><strong style={{ color: '#2E7D64' }}>Quizzes:</strong> {publicHealth.length}</p>
               <Link to="/category/public-health">
-                <button style={{ 
-                  background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
-                  color: 'white', 
-                  padding: 12, 
-                  border: 'none', 
-                  borderRadius: 10, 
-                  marginTop: 15, 
-                  cursor: 'pointer', 
-                  width: '100%', 
-                  fontWeight: 'bold',
-                  fontSize: 16
-                }}>View Examinations →</button>
+                <button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations →</button>
               </Link>
             </div>
           )}
         </div>
 
         {/* Coming Soon Categories */}
-        <h2 style={{ color: '#ff9800', marginBottom: 20, fontSize: 24 }}>⏳ Coming Soon</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 25 }}>
+        <h2 style={{ color: '#ff9800', marginBottom: '20px', fontSize: 'clamp(20px, 4vw, 24px)' }}>⏳ Coming Soon</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
           {comingSoonCategories.map((category, index) => (
-            <div key={index} style={{ 
-              background: 'white', 
-              padding: 25, 
-              borderRadius: 16, 
-              boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
-              opacity: 0.8,
-              border: '2px dashed #ff9800',
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                position: 'absolute',
-                top: 20,
-                right: -30,
-                background: '#ff9800',
-                color: 'white',
-                padding: '5px 40px',
-                transform: 'rotate(45deg)',
-                fontSize: 12,
-                fontWeight: 'bold'
-              }}>COMING SOON</div>
-              <div style={{ fontSize: 48, marginBottom: 10, opacity: 0.6 }}>{category.icon}</div>
-              <h3 style={{ color: '#ff9800', marginBottom: 10, fontSize: 22 }}>{category.name}</h3>
-              <p style={{ color: '#666', marginBottom: 15, lineHeight: 1.5 }}>{category.description}</p>
-              <div style={{ borderTop: '1px solid #eee', paddingTop: 15, marginTop: 10 }}>
-                <p><strong style={{ color: '#ff9800' }}>Status:</strong> Preparing content</p>
-                <p><strong style={{ color: '#ff9800' }}>Release:</strong> Coming soon</p>
-              </div>
-              <button disabled style={{ 
-                background: '#ccc', 
-                color: '#666', 
-                padding: 12, 
-                border: 'none', 
-                borderRadius: 10, 
-                marginTop: 15, 
-                cursor: 'not-allowed', 
-                width: '100%', 
-                fontWeight: 'bold',
-                fontSize: 16
-              }}>🚀 Coming Soon</button>
+            <div key={index} style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', border: '2px dashed #ff9800', opacity: 0.8, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: '15px', right: '-30px', background: '#ff9800', color: 'white', padding: '5px 40px', transform: 'rotate(45deg)', fontSize: '12px', fontWeight: 'bold' }}>COMING SOON</div>
+              <div style={{ fontSize: '40px', opacity: 0.6 }}>{category.icon}</div>
+              <h3 style={{ color: '#ff9800', marginBottom: '10px' }}>{category.name}</h3>
+              <p style={{ color: '#666' }}>{category.description}</p>
+              <button disabled style={{ width: '100%', background: '#ccc', color: '#666', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'not-allowed', fontWeight: 'bold' }}>🚀 Coming Soon</button>
             </div>
           ))}
         </div>
@@ -619,16 +298,15 @@ const CategoryView = () => {
   useEffect(() => {
     const fetchQuizzes = async () => {
       try {
-        const res = await axios.get('/api/quizzes', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
         
         let filtered = [];
         if (categoryName === 'general-nursing') {
           filtered = res.data.filter(q => 
             q.title.toLowerCase().includes('nursing') && 
             !q.title.toLowerCase().includes('midwifery') &&
-            !q.title.toLowerCase().includes('public')
+            !q.title.toLowerCase().includes('public') &&
+            !q.title.toLowerCase().includes('health')
           );
         } else if (categoryName === 'midwifery') {
           filtered = res.data.filter(q => q.title.toLowerCase().includes('midwifery'));
@@ -638,7 +316,6 @@ const CategoryView = () => {
             q.title.toLowerCase().includes('health')
           );
         }
-        
         setQuizzes(filtered);
       } catch (error) {
         console.error('Error fetching quizzes:', error);
@@ -667,53 +344,35 @@ const CategoryView = () => {
     }
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 50, color: '#2E7D64' }}>Loading...</div>;
+  if (loading) return <LoadingSpinner />;
 
   return (
-    <div style={{ background: '#e8f5e9', minHeight: '100vh' }}>
-      <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
-        <Link to="/" style={{ color: '#2E7D64', textDecoration: 'none', marginBottom: 20, display: 'inline-block', fontSize: 16 }}>← Back to Categories</Link>
+    <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#2E7D64', color: 'white', padding: '10px 20px', borderRadius: '30px', textDecoration: 'none', marginBottom: '20px', fontWeight: 'bold' }}>
+          ← Back to Categories
+        </Link>
         
-        <div style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', borderRadius: 20, padding: 30, marginBottom: 30, color: 'white', textAlign: 'center' }}>
-          <div style={{ fontSize: 64, marginBottom: 10 }}>{getCategoryIcon()}</div>
-          <h1 style={{ margin: 0, fontSize: 32 }}>{getCategoryTitle()}</h1>
-          <p style={{ marginTop: 10, opacity: 0.9 }}>{quizzes.length} quizzes available</p>
+        <div style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', borderRadius: '20px', padding: '30px', marginBottom: '30px', color: 'white', textAlign: 'center' }}>
+          <div style={{ fontSize: '50px' }}>{getCategoryIcon()}</div>
+          <h1 style={{ margin: 0, fontSize: 'clamp(24px, 5vw, 32px)' }}>{getCategoryTitle()}</h1>
+          <p style={{ marginTop: '10px' }}>{quizzes.length} quizzes available</p>
         </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 25 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
           {quizzes.map(quiz => {
             const totalQuestions = quiz.questions?.length || 0;
             const examCount = Math.ceil(totalQuestions / 20);
             
             return (
-              <div key={quiz._id} style={{ 
-                background: 'white', 
-                padding: 25, 
-                borderRadius: 16, 
-                boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
-                transition: 'transform 0.2s',
-                cursor: 'pointer'
-              }}>
-                <div style={{ fontSize: 48, marginBottom: 10 }}>📚</div>
-                <h3 style={{ color: '#2E7D64', marginBottom: 10, fontSize: 22 }}>{quiz.title}</h3>
-                <p style={{ color: '#666', marginBottom: 15, lineHeight: 1.5 }}>{quiz.description}</p>
-                <div style={{ borderTop: '1px solid #eee', paddingTop: 15, marginTop: 10 }}>
-                  <p><strong style={{ color: '#2E7D64' }}>Total Questions:</strong> {totalQuestions.toLocaleString()}</p>
-                  <p><strong style={{ color: '#2E7D64' }}>Examinations:</strong> {examCount} exams (20 questions each)</p>
-                </div>
+              <div key={quiz._id} style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: '40px' }}>📚</div>
+                <h3 style={{ color: '#2E7D64', marginBottom: '10px', fontSize: 'clamp(18px, 4vw, 22px)' }}>{quiz.title}</h3>
+                <p style={{ color: '#666', marginBottom: '15px' }}>{quiz.description}</p>
+                <p><strong style={{ color: '#2E7D64' }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
+                <p><strong style={{ color: '#2E7D64' }}>Exams:</strong> {examCount} (20 questions each)</p>
                 <Link to={`/exam/${quiz._id}`}>
-                  <button style={{ 
-                    background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
-                    color: 'white', 
-                    padding: 12, 
-                    border: 'none', 
-                    borderRadius: 10, 
-                    marginTop: 15, 
-                    cursor: 'pointer', 
-                    width: '100%', 
-                    fontWeight: 'bold',
-                    fontSize: 16
-                  }}>View Examinations</button>
+                  <button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations</button>
                 </Link>
               </div>
             );
@@ -739,15 +398,9 @@ const ExamDetail = () => {
     const fetchExam = async () => {
       try {
         setLoading(true);
+        if (!token) return;
         
-        if (!token) {
-          console.log('No token found');
-          return;
-        }
-        
-        const res = await axios.get(`/api/quizzes/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         setExam(res.data);
         
         const totalQuestions = res.data.questions.length;
@@ -762,8 +415,6 @@ const ExamDetail = () => {
           sectionsArray.push({
             number: sectionNumber,
             count: endIndex - startIndex,
-            startIndex: startIndex + 1,
-            endIndex: endIndex,
             isPremium: sectionNumber > 1,
             timeMinutes: endIndex - startIndex
           });
@@ -772,13 +423,9 @@ const ExamDetail = () => {
         }
         setSections(sectionsArray);
         
-        const profileRes = await axios.get('/api/user/profile', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const profileRes = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
         setUserPremium(profileRes.data.isPremium);
-        
       } catch (error) {
-        console.error('Error details:', error);
         if (error.response?.status === 401) {
           localStorage.removeItem('auth');
           logout();
@@ -790,10 +437,7 @@ const ExamDetail = () => {
         setLoading(false);
       }
     };
-    
-    if (id && token) {
-      fetchExam();
-    }
+    if (id && token) fetchExam();
   }, [id, token, logout]);
 
   const handleStartExam = (section) => {
@@ -805,86 +449,35 @@ const ExamDetail = () => {
     }
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 50, color: '#2E7D64' }}>Loading...</div>;
-  if (!exam) return <div style={{ textAlign: 'center', padding: 50, color: '#2E7D64' }}>Exam not found</div>;
+  if (loading) return <LoadingSpinner />;
+  if (!exam) return <div style={{ textAlign: 'center', padding: '50px' }}>Exam not found</div>;
 
   return (
-    <div style={{ background: '#e8f5e9', minHeight: '100vh' }}>
-      {showPremiumModal && (
-        <PremiumModal 
-          onClose={() => setShowPremiumModal(false)}
-          examTitle={exam.title}
-          sectionNumber={selectedSection?.number}
-        />
-      )}
-      <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
-        <Link to="/" style={{ color: '#2E7D64', textDecoration: 'none', marginBottom: 20, display: 'inline-block', fontSize: 16 }}>← Back to Categories</Link>
+    <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      {showPremiumModal && <PremiumModal onClose={() => setShowPremiumModal(false)} examTitle={exam.title} sectionNumber={selectedSection?.number} />}
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <Link to={`/category/${exam.title.toLowerCase().includes('midwifery') ? 'midwifery' : exam.title.toLowerCase().includes('public') || exam.title.toLowerCase().includes('health') ? 'public-health' : 'general-nursing'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#2E7D64', color: 'white', padding: '10px 20px', borderRadius: '30px', textDecoration: 'none', marginBottom: '20px', fontWeight: 'bold' }}>
+          ← Back to Category
+        </Link>
         
-        <div style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', borderRadius: 20, padding: 30, marginBottom: 30, color: 'white' }}>
-          <h1 style={{ margin: 0, fontSize: 32 }}>{exam.title}</h1>
-          <p style={{ marginTop: 10, opacity: 0.9 }}>{exam.description}</p>
-          <p style={{ marginTop: 15 }}>📚 Total Questions: {exam.questions?.length || 0}</p>
-          {userPremium && <p style={{ marginTop: 10, background: '#ff9800', display: 'inline-block', padding: '5px 15px', borderRadius: 20, fontWeight: 'bold' }}>⭐ PREMIUM USER - All exams unlocked!</p>}
+        <div style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', borderRadius: '20px', padding: '30px', marginBottom: '30px', color: 'white', textAlign: 'center' }}>
+          <h1 style={{ margin: 0, fontSize: 'clamp(24px, 5vw, 32px)' }}>{exam.title}</h1>
+          <p style={{ marginTop: '10px' }}>{exam.description}</p>
+          <p>📚 Total Questions: {exam.questions?.length || 0}</p>
+          {userPremium && <p style={{ marginTop: '10px', background: '#ff9800', display: 'inline-block', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold' }}>⭐ PREMIUM USER - All exams unlocked!</p>}
         </div>
         
-        <h2 style={{ color: '#2E7D64', marginBottom: 25 }}>Select Examination:</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 25 }}>
+        <h2 style={{ color: '#2E7D64', marginBottom: '20px' }}>Select Examination:</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
           {sections.map((section) => (
-            <div key={section.number} style={{ 
-              background: 'white', 
-              padding: 25, 
-              borderRadius: 16, 
-              boxShadow: '0 8px 25px rgba(0,0,0,0.1)', 
-              textAlign: 'center',
-              position: 'relative',
-              border: (section.isPremium && !userPremium) ? '2px solid #ff9800' : '2px solid #2E7D64'
-            }}>
-              {(section.isPremium && !userPremium) && (
-                <div style={{
-                  position: 'absolute',
-                  top: -12,
-                  right: 20,
-                  background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
-                  color: 'white',
-                  padding: '4px 12px',
-                  borderRadius: 20,
-                  fontSize: 12,
-                  fontWeight: 'bold'
-                }}>⭐ PREMIUM</div>
-              )}
-              {userPremium && section.isPremium && (
-                <div style={{
-                  position: 'absolute',
-                  top: -12,
-                  right: 20,
-                  background: '#2E7D64',
-                  color: 'white',
-                  padding: '4px 12px',
-                  borderRadius: 20,
-                  fontSize: 12,
-                  fontWeight: 'bold'
-                }}>✅ UNLOCKED</div>
-              )}
-              <div style={{ fontSize: 48 }}>{section.isPremium && !userPremium ? '⭐' : '📝'}</div>
-              <h3 style={{ color: '#2E7D64', marginTop: 10 }}>Examination {section.number}</h3>
-              <p style={{ fontSize: 28, fontWeight: 'bold', color: '#2E7D64', margin: '10px 0' }}>{section.count} Questions</p>
-              <p style={{ color: '#666' }}>Questions {section.startIndex} - {section.endIndex}</p>
-              <p style={{ color: '#ff9800', fontWeight: 'bold', marginTop: 10 }}>⏰ {section.timeMinutes} minute timer</p>
-              <button 
-                onClick={() => handleStartExam(section)}
-                style={{ 
-                  background: (section.isPremium && !userPremium) ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' : 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
-                  color: 'white', 
-                  padding: 12, 
-                  border: 'none', 
-                  borderRadius: 10, 
-                  marginTop: 20, 
-                  cursor: 'pointer', 
-                  width: '100%', 
-                  fontWeight: 'bold', 
-                  fontSize: 16 
-                }}
-              >
+            <div key={section.number} style={{ background: 'white', padding: '20px', borderRadius: '16px', textAlign: 'center', position: 'relative', border: (section.isPremium && !userPremium) ? '2px solid #ff9800' : '2px solid #2E7D64' }}>
+              {(section.isPremium && !userPremium) && <div style={{ position: 'absolute', top: '-12px', right: '20px', background: '#ff9800', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>⭐ PREMIUM</div>}
+              {userPremium && section.isPremium && <div style={{ position: 'absolute', top: '-12px', right: '20px', background: '#2E7D64', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>✅ UNLOCKED</div>}
+              <div style={{ fontSize: '40px' }}>{section.isPremium && !userPremium ? '⭐' : '📝'}</div>
+              <h3 style={{ color: '#2E7D64', marginTop: '10px' }}>Examination {section.number}</h3>
+              <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#2E7D64', margin: '10px 0' }}>{section.count} Questions</p>
+              <p style={{ color: '#ff9800', fontWeight: 'bold' }}>⏰ {section.timeMinutes} minutes</p>
+              <button onClick={() => handleStartExam(section)} style={{ width: '100%', background: (section.isPremium && !userPremium) ? '#ff9800' : '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>
                 {(section.isPremium && !userPremium) ? '⭐ Upgrade to Access' : 'Start Exam'}
               </button>
             </div>
@@ -910,15 +503,12 @@ const TakeExam = () => {
   useEffect(() => {
     const fetchExam = async () => {
       try {
-        const res = await axios.get(`/api/quizzes/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         setExam(res.data);
         
         const sectionNum = parseInt(sectionNumber);
-        const batchSize = 20;
-        const startIndex = (sectionNum - 1) * batchSize;
-        let endIndex = startIndex + batchSize;
+        const startIndex = (sectionNum - 1) * 20;
+        let endIndex = startIndex + 20;
         if (endIndex > res.data.questions.length) endIndex = res.data.questions.length;
         setQuestions(res.data.questions.slice(startIndex, endIndex));
       } catch (error) {
@@ -928,50 +518,33 @@ const TakeExam = () => {
     if (id) fetchExam();
   }, [id, sectionNumber, token]);
 
-  const handleAnswer = (qIndex, answerIndex) => {
-    setAnswers({ ...answers, [qIndex]: answerIndex });
-  };
-
-  const handleTimeUp = () => {
-    setTimeUp(true);
-    handleSubmit();
-  };
+  const handleAnswer = (qIndex, answerIndex) => setAnswers({ ...answers, [qIndex]: answerIndex });
+  const handleTimeUp = () => { setTimeUp(true); handleSubmit(); };
 
   const handleSubmit = () => {
     let score = 0;
     questions.forEach((question, idx) => {
-      const userAnswer = answers[idx];
-      if (userAnswer !== undefined && userAnswer === question.correctAnswer) score++;
+      if (answers[idx] !== undefined && answers[idx] === question.correctAnswer) score++;
     });
-    
-    const total = questions.length;
-    const percentage = (score / total) * 100;
-    const passed = percentage >= 70;
-    
-    setResult({ score, total, percentage, passed });
+    const percentage = (score / questions.length) * 100;
+    setResult({ score, total: questions.length, percentage, passed: percentage >= 70 });
     setSubmitted(true);
   };
 
-  if (!exam) return <div style={{ textAlign: 'center', padding: 50, color: '#2E7D64' }}>Loading examination...</div>;
-  if (questions.length === 0) return <div style={{ textAlign: 'center', padding: 50, color: '#2E7D64' }}>Loading questions...</div>;
+  if (!exam) return <LoadingSpinner />;
 
   if (submitted && !showReview) {
     return (
-      <div style={{ background: '#e8f5e9', minHeight: '100vh', padding: 40 }}>
-        <div style={{ maxWidth: 600, margin: '0 auto', background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 10px 40px rgba(0,0,0,0.1)', textAlign: 'center' }}>
-          <h2 style={{ color: '#2E7D64' }}>Examination {sectionNumber} Results</h2>
-          <div style={{ margin: 30 }}>
-            <p style={{ fontSize: 32, marginBottom: 15 }}>Score: <strong style={{ color: '#2E7D64' }}>{result.score}</strong> / {result.total}</p>
-            <p style={{ fontSize: 24, marginBottom: 15 }}>Percentage: <strong style={{ color: '#2E7D64' }}>{result.percentage?.toFixed(1)}%</strong></p>
-            <p style={{ fontSize: 18 }}>Unanswered: <strong>{result.total - Object.keys(answers).length}</strong> questions</p>
-          </div>
-          <p style={{ color: result.passed ? '#2E7D64' : '#dc3545', fontSize: 32, fontWeight: 'bold', margin: 20 }}>
-            {result.passed ? '✓ PASSED!' : '✗ Failed'}
-          </p>
+      <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ maxWidth: '500px', width: '100%', background: 'white', borderRadius: '20px', padding: '30px', textAlign: 'center' }}>
+          <h2 style={{ color: '#2E7D64' }}>Exam Results</h2>
+          <p style={{ fontSize: '32px', margin: '20px 0' }}>Score: <strong style={{ color: '#2E7D64' }}>{result.score}</strong> / {result.total}</p>
+          <p style={{ fontSize: '24px', marginBottom: '20px' }}>Percentage: <strong>{result.percentage?.toFixed(1)}%</strong></p>
+          <p style={{ fontSize: '24px', color: result.passed ? '#2E7D64' : '#dc3545', fontWeight: 'bold' }}>{result.passed ? '✓ PASSED!' : '✗ Failed'}</p>
           {timeUp && <p style={{ color: '#ff9800' }}>⏰ Time's up!</p>}
-          <div style={{ marginTop: 30 }}>
-            <button onClick={() => setShowReview(true)} style={{ background: '#2E7D64', color: 'white', padding: 12, border: 'none', borderRadius: 10, margin: 10, cursor: 'pointer', fontSize: 16 }}>Review Answers</button>
-            <Link to={`/exam/${id}`}><button style={{ background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, margin: 10, cursor: 'pointer', fontSize: 16 }}>Back to Exams</button></Link>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
+            <button onClick={() => setShowReview(true)} style={{ flex: 1, background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>Review Answers</button>
+            <Link to={`/exam/${id}`} style={{ flex: 1 }}><button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>Back to Exams</button></Link>
           </div>
         </div>
       </div>
@@ -979,226 +552,197 @@ const TakeExam = () => {
   }
 
   if (submitted && showReview) {
+    const globalStart = (parseInt(sectionNumber) - 1) * 20;
     return (
-      <div style={{ background: '#e8f5e9', minHeight: '100vh', padding: 20 }}>
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <div style={{ background: 'white', borderRadius: 16, padding: 25, marginBottom: 20, textAlign: 'center' }}>
+      <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', textAlign: 'center' }}>
             <h2 style={{ color: '#2E7D64' }}>Answer Review: {exam.title}</h2>
-            <p>Examination {sectionNumber} - Score: {result.score}/{result.total} ({result.percentage?.toFixed(1)}%)</p>
+            <p>Score: {result.score}/{result.total} ({result.percentage?.toFixed(1)}%)</p>
           </div>
-          
           {questions.map((q, idx) => {
             const userAnswer = answers[idx];
             const isCorrect = userAnswer !== undefined && userAnswer === q.correctAnswer;
-            const isUnanswered = userAnswer === undefined;
-            
             return (
-              <div key={idx} style={{ 
-                background: isCorrect ? '#e8f5e9' : (isUnanswered ? '#fff3e0' : '#ffebee'), 
-                borderRadius: 16, 
-                padding: 25, 
-                marginBottom: 20,
-                borderLeft: `6px solid ${isCorrect ? '#4caf50' : (isUnanswered ? '#ff9800' : '#f44336')}`,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-              }}>
-                <h4 style={{ marginBottom: 15, color: '#2E7D64' }}>Question {idx + 1}: {q.questionText}</h4>
-                {isUnanswered && <p style={{ color: '#ff9800' }}>⚠️ Unanswered</p>}
-                <div style={{ marginLeft: 20 }}>
-                  {q.options.map((opt, optIdx) => (
-                    <div key={optIdx} style={{ 
-                      margin: '10px 0', 
-                      padding: '12px 15px', 
-                      background: optIdx === q.correctAnswer ? '#c8e6c9' : (optIdx === userAnswer ? '#ffcdd2' : 'white'),
-                      borderRadius: 10,
-                      border: `1px solid ${optIdx === q.correctAnswer ? '#4caf50' : (optIdx === userAnswer ? '#f44336' : '#ddd')}`
-                    }}>
-                      <span style={{ fontWeight: 'bold' }}>{String.fromCharCode(65 + optIdx)}.</span> {opt}
-                      {optIdx === q.correctAnswer && <span style={{ color: '#4caf50', marginLeft: 10 }}>✓ Correct Answer</span>}
-                      {optIdx === userAnswer && optIdx !== q.correctAnswer && <span style={{ color: '#f44336', marginLeft: 10 }}>✗ Your Answer</span>}
-                    </div>
-                  ))}
-                </div>
+              <div key={idx} style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', borderLeft: `5px solid ${isCorrect ? '#4caf50' : '#f44336'}` }}>
+                <h4>Question {globalStart + idx + 1}: {q.questionText}</h4>
+                {userAnswer === undefined && <p style={{ color: '#ff9800' }}>⚠️ Unanswered</p>}
+                {q.options.map((opt, optIdx) => (
+                  <div key={optIdx} style={{ padding: '10px', margin: '5px 0', background: optIdx === q.correctAnswer ? '#c8e6c9' : (optIdx === userAnswer ? '#ffcdd2' : '#f5f5f5'), borderRadius: '8px' }}>
+                    <span style={{ fontWeight: 'bold' }}>{String.fromCharCode(65 + optIdx)}.</span> {opt}
+                    {optIdx === q.correctAnswer && <span style={{ color: '#4caf50', marginLeft: '10px' }}>✓ Correct</span>}
+                    {optIdx === userAnswer && optIdx !== q.correctAnswer && <span style={{ color: '#f44336', marginLeft: '10px' }}>✗ Your Answer</span>}
+                  </div>
+                ))}
               </div>
             );
           })}
-          <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <Link to={`/exam/${id}`}><button style={{ background: '#2E7D64', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 16 }}>Back to Examinations</button></Link>
-          </div>
+          <Link to={`/exam/${id}`}><button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '14px', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>Back to Examinations</button></Link>
         </div>
       </div>
     );
   }
 
-  const globalQuestionNumber = (parseInt(sectionNumber) - 1) * 20;
-  const examDuration = questions.length;
-
+  const globalStart = (parseInt(sectionNumber) - 1) * 20;
   return (
-    <div style={{ background: '#e8f5e9', minHeight: '100vh' }}>
-      <Timer duration={examDuration} onTimeUp={handleTimeUp} />
-      <div style={{ padding: '30px 20px', maxWidth: 1000, margin: '0 auto' }}>
-        <div style={{ background: 'white', borderRadius: 16, padding: 25, marginBottom: 25, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+    <div style={{ background: '#f0f7f4', minHeight: '100vh' }}>
+      <Timer duration={questions.length} onTimeUp={handleTimeUp} />
+      <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+        <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', textAlign: 'center' }}>
           <h2 style={{ color: '#2E7D64', margin: 0 }}>{exam.title}</h2>
-          <p style={{ marginTop: 10, color: '#666' }}>Examination {sectionNumber} - {questions.length} Questions</p>
-          <p style={{ marginTop: 5, color: '#ff9800' }}>⏰ Timer: {examDuration} minute(s)</p>
+          <p>Examination {sectionNumber} - {questions.length} Questions</p>
+          <p style={{ color: '#ff9800' }}>⏰ Timer: {questions.length} minute(s)</p>
         </div>
-        
         {questions.map((q, idx) => (
-          <div key={idx} style={{ 
-            background: '#2E7D64', 
-            borderRadius: 16, 
-            padding: 25, 
-            marginBottom: 20, 
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            transition: 'all 0.2s'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-              <h4 style={{ color: 'white', margin: 0 }}>Question {globalQuestionNumber + idx + 1}</h4>
-              {answers[idx] !== undefined && <span style={{ background: '#ff9800', color: '#2E7D64', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>Answered</span>}
+          <div key={idx} style={{ background: '#2E7D64', borderRadius: '16px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+              <h4 style={{ color: 'white', margin: 0 }}>Question {globalStart + idx + 1}</h4>
+              {answers[idx] !== undefined && <span style={{ background: '#ff9800', color: '#2E7D64', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>Answered</span>}
             </div>
-            <p style={{ fontSize: 16, lineHeight: 1.5, marginBottom: 20, color: 'white' }}>{q.questionText}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {q.options?.map((opt, optIdx) => (
-                <label key={optIdx} style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  cursor: 'pointer', 
-                  padding: '12px 18px', 
-                  background: answers[idx] === optIdx ? '#ff9800' : 'white', 
-                  borderRadius: 12, 
-                  border: answers[idx] === optIdx ? '2px solid #ff9800' : '1px solid #ddd',
-                  transition: 'all 0.2s'
-                }}>
-                  <input 
-                    type="radio" 
-                    name={`q${idx}`} 
-                    onChange={() => handleAnswer(idx, optIdx)} 
-                    checked={answers[idx] === optIdx}
-                    style={{ marginRight: 15, width: 20, height: 20, cursor: 'pointer' }} 
-                  /> 
-                  <span style={{ fontWeight: 'bold', marginRight: 12, minWidth: 30, color: '#333' }}>{String.fromCharCode(65 + optIdx)}.</span>
-                  <span style={{ fontSize: 15, color: '#333' }}>{opt}</span>
-                </label>
-              ))}
-            </div>
+            <p style={{ color: 'white', marginBottom: '20px' }}>{q.questionText}</p>
+            {q.options.map((opt, optIdx) => (
+              <label key={optIdx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '12px', margin: '8px 0', background: answers[idx] === optIdx ? '#ff9800' : 'white', borderRadius: '10px' }}>
+                <input type="radio" name={`q${idx}`} onChange={() => handleAnswer(idx, optIdx)} checked={answers[idx] === optIdx} style={{ marginRight: '15px' }} />
+                <span style={{ fontWeight: 'bold', marginRight: '10px' }}>{String.fromCharCode(65 + optIdx)}.</span> {opt}
+              </label>
+            ))}
           </div>
         ))}
-        
-        <div style={{ textAlign: 'center', marginTop: 30, paddingBottom: 50 }}>
-          <button onClick={handleSubmit} style={{ 
-            background: 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)', 
-            color: 'white', 
-            padding: '16px 40px', 
-            border: 'none', 
-            borderRadius: 50, 
-            cursor: 'pointer', 
-            fontSize: 18, 
-            fontWeight: 'bold',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-          }}>
-            Submit Examination
-          </button>
-        </div>
+        <button onClick={handleSubmit} style={{ width: '100%', background: '#28a745', color: 'white', padding: '16px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold', marginBottom: '30px' }}>Submit Examination</button>
       </div>
     </div>
   );
 };
 
-// Dropdown Menu Component (Top Right Corner)
+// About Us Component
+const AboutUs = () => {
+  const { darkMode } = useContext(AuthContext);
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', color: darkMode ? '#eee' : '#333' }}>
+        <h2 style={{ color: '#2E7D64' }}>About Us</h2>
+        <p style={{ lineHeight: 1.8, marginBottom: '20px' }}>ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students in Nigeria.</p>
+        <p style={{ lineHeight: 1.8, marginBottom: '20px' }}>Our mission is to provide high-quality, accessible exam preparation materials that help students succeed in their nursing and midwifery licensing examinations.</p>
+        <p style={{ lineHeight: 1.8, marginBottom: '20px' }}>With over 12,000 practice questions covering General Nursing, Midwifery, and Public Health, we are committed to excellence in nursing education.</p>
+        <h3 style={{ color: '#2E7D64', marginTop: '30px' }}>Coming Soon</h3>
+        <p>Dental Nursing, Pediatric Nursing, and NCLEX Practice questions are coming soon!</p>
+      </div>
+    </div>
+  );
+};
+
+// Contact Us Component
+const ContactUs = () => {
+  const { darkMode } = useContext(AuthContext);
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', color: darkMode ? '#eee' : '#333' }}>
+        <h2 style={{ color: '#2E7D64' }}>Contact Us</h2>
+        <p>Have questions? We'd love to hear from you!</p>
+        <div style={{ margin: '30px 0' }}><h3 style={{ color: '#2E7D64' }}>📧 Email</h3><p>anaduphilip2000@gmail.com</p></div>
+        <div style={{ margin: '30px 0' }}><h3 style={{ color: '#2E7D64' }}>📞 Phone / WhatsApp</h3><p>09063908476</p></div>
+        <div style={{ margin: '30px 0' }}><h3 style={{ color: '#2E7D64' }}>💬 WhatsApp Group</h3><a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ color: '#25D366' }}>Click here to join our WhatsApp community</a></div>
+      </div>
+    </div>
+  );
+};
+
+// Join WhatsApp Component
+const JoinWhatsApp = () => {
+  const { darkMode } = useContext(AuthContext);
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', textAlign: 'center', color: darkMode ? '#eee' : '#333' }}>
+        <div style={{ fontSize: '80px' }}>💬</div>
+        <h2 style={{ color: '#2E7D64' }}>Join Our WhatsApp Community</h2>
+        <p>Get instant updates, study tips, and connect with fellow nursing students!</p>
+        <div style={{ background: '#f0f7f4', padding: '20px', borderRadius: '15px', margin: '20px 0', textAlign: 'left' }}>
+          <h3 style={{ color: '#2E7D64' }}>What you'll get:</h3>
+          <ul><li>✓ Daily practice questions</li><li>✓ Exam tips and strategies</li><li>✓ Updates on new features</li><li>✓ Peer support and discussions</li><li>✓ Special announcements</li></ul>
+        </div>
+        <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+          <button style={{ background: '#25D366', color: 'white', padding: '14px 40px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }}>Join WhatsApp Group</button>
+        </a>
+      </div>
+    </div>
+  );
+};
+
+// Get Premium Component
+const GetPremium = () => {
+  const { token, user, darkMode } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
+
+  const handlePayment = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/initialize-payment', { email: user?.email, amount: 5900 }, { headers: { Authorization: `Bearer ${token}` } });
+      localStorage.setItem('payment_reference', response.data.reference);
+      window.location.href = response.data.authorization_url;
+    } catch (error) {
+      alert('Payment initialization failed. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
+      <div style={{ maxWidth: '1000px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', textAlign: 'center', color: darkMode ? '#eee' : '#333' }}>
+        <div style={{ fontSize: '64px' }}>⭐</div>
+        <h2 style={{ color: '#2E7D64' }}>Upgrade to Premium</h2>
+        <p style={{ fontSize: '18px' }}>Get unlimited access to all examinations and features</p>
+        {user?.isPremium ? (
+          <div style={{ background: '#e8f5e9', padding: '30px', borderRadius: '20px' }}>
+            <div style={{ fontSize: '48px' }}>✅</div>
+            <h3 style={{ color: '#2E7D64' }}>You are already a Premium Member!</h3>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', margin: '30px 0' }}>
+              <div><div style={{ fontSize: '36px' }}>📚</div><h3>All Subjects</h3></div>
+              <div><div style={{ fontSize: '36px' }}>📝</div><h3>All Exams</h3></div>
+              <div><div style={{ fontSize: '36px' }}>🎯</div><h3>12,000+ Questions</h3></div>
+              <div><div style={{ fontSize: '36px' }}>🏆</div><h3>Lifetime Access</h3></div>
+            </div>
+            <div style={{ background: '#f0f7f4', padding: '20px', borderRadius: '15px', margin: '20px 0' }}>
+              <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#2E7D64' }}>₦5,900 <span style={{ fontSize: '18px', color: '#666' }}>/ lifetime</span></div>
+            </div>
+            <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '16px 40px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }}>{loading ? 'Processing...' : 'Upgrade to Premium Now'}</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Dropdown Menu Component with Dark Mode Toggle
 const DropdownMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, darkMode, toggleDarkMode } = useContext(AuthContext);
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          background: '#2E7D64',
-          color: 'white',
-          border: 'none',
-          borderRadius: 50,
-          width: 45,
-          height: 45,
-          fontSize: 20,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
-        }}
-      >
-        👤
+      <button onClick={() => setIsOpen(!isOpen)} style={{ background: '#2E7D64', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 16px', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        ☰ Menu
       </button>
-
       {isOpen && (
         <>
-          <div 
-            onClick={() => setIsOpen(false)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 198
-            }}
-          />
-          <div style={{
-            position: 'absolute',
-            top: 55,
-            right: 0,
-            width: 280,
-            background: 'white',
-            borderRadius: 12,
-            boxShadow: '0 5px 25px rgba(0,0,0,0.15)',
-            zIndex: 199,
-            overflow: 'hidden'
-          }}>
-            <div style={{ 
-              padding: '20px', 
-              background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
-              color: 'white',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: 48, marginBottom: 5 }}>👤</div>
-              <div style={{ fontWeight: 'bold', fontSize: 14, wordBreak: 'break-all' }}>{user?.email}</div>
-              {user?.isPremium && (
-                <div style={{ 
-                  background: '#ff9800', 
-                  display: 'inline-block', 
-                  padding: '3px 12px', 
-                  borderRadius: 20, 
-                  fontSize: 11, 
-                  marginTop: 8,
-                  fontWeight: 'bold'
-                }}>⭐ PREMIUM MEMBER</div>
-              )}
+          <div onClick={() => setIsOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 198 }} />
+          <div style={{ position: 'absolute', top: '55px', right: 0, width: '260px', background: darkMode ? '#16213e' : 'white', borderRadius: '12px', boxShadow: '0 5px 20px rgba(0,0,0,0.15)', zIndex: 199, overflow: 'hidden' }}>
+            <div style={{ padding: '15px', background: '#2E7D64', color: 'white', textAlign: 'center' }}>
+              <div style={{ fontWeight: 'bold' }}>{user?.email}</div>
+              {user?.isPremium && <div style={{ background: '#ff9800', display: 'inline-block', padding: '2px 10px', borderRadius: '20px', fontSize: '11px', marginTop: '5px' }}>⭐ PREMIUM</div>}
             </div>
-            
             <div style={{ padding: '10px 0' }}>
-              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#333', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontSize: 20 }}>🏠</span> Home
-              </Link>
-              
-              <Link to="/get-premium" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#e65100', fontWeight: 'bold', background: '#fff3e0', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontSize: 20 }}>⭐</span> Get Premium
-              </Link>
-              
-              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#333', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontSize: 20 }}>ℹ️</span> About Us
-              </Link>
-              
-              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#333', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontSize: 20 }}>📞</span> Contact Us
-              </Link>
-              
-              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontSize: 20 }}>💬</span> Join WhatsApp
-              </Link>
-              
-              <button onClick={() => { setIsOpen(false); logout(); }} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', width: '100%', textDecoration: 'none', color: '#dc3545', fontWeight: 'bold', border: 'none', background: 'white', cursor: 'pointer', borderTop: '1px solid #f0f0f0', fontSize: 16 }}>
-                <span style={{ fontSize: 20 }}>🚪</span> Logout
-              </button>
+              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>🏠 Home</Link>
+              <Link to="/get-premium" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: '#e65100', fontWeight: 'bold', background: '#fff3e0', borderBottom: '1px solid #eee' }}>⭐ Get Premium</Link>
+              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>ℹ️ About Us</Link>
+              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>📞 Contact Us</Link>
+              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', borderBottom: '1px solid #eee' }}>💬 Join WhatsApp</Link>
+              <div onClick={() => { toggleDarkMode(); setIsOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #eee', color: darkMode ? '#eee' : '#333' }}>
+                <span style={{ fontSize: '20px' }}>{darkMode ? '☀️' : '🌙'}</span> {darkMode ? 'Light Mode' : 'Dark Mode'}
+              </div>
+              <button onClick={() => { setIsOpen(false); logout(); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: '#dc3545', fontWeight: 'bold', fontSize: '16px' }}>🚪 Logout</button>
             </div>
           </div>
         </>
@@ -1209,7 +753,7 @@ const DropdownMenu = () => {
 
 // Main App Component
 const AppContent = () => {
-  const { token, user } = useContext(AuthContext);
+  const { token, user, darkMode } = useContext(AuthContext);
 
   if (!token) {
     return (
@@ -1222,26 +766,14 @@ const AppContent = () => {
   }
 
   return (
-    <div>
-      <nav style={{ 
-        background: 'white', 
-        padding: '15px 30px', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        boxShadow: '0 2px 15px rgba(0,0,0,0.08)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        flexWrap: 'wrap'
-      }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh' }}>
+      <nav style={{ background: darkMode ? '#16213e' : 'white', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', position: 'sticky', top: 0, zIndex: 100 }}>
         <div>
-          <h1 style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '22px', margin: 0 }}>ELITE NURSING & MIDWIFERY CBT</h1>
+          <h1 style={{ color: '#2E7D64', fontSize: 'clamp(18px, 4vw, 22px)', margin: 0 }}>ELITE NURSING & MIDWIFERY CBT</h1>
           <p style={{ margin: 0, fontSize: '11px', color: '#2E7D64' }}>Computer Based Testing Platform</p>
         </div>
         <DropdownMenu />
       </nav>
-      
       <Routes>
         <Route path="/" element={<QuizList />} />
         <Route path="/category/:categoryName" element={<CategoryView />} />
@@ -1262,6 +794,10 @@ function App() {
     const saved = localStorage.getItem('auth');
     return saved ? JSON.parse(saved) : { token: null, user: null };
   });
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved === 'true';
+  });
 
   const login = (token, user) => {
     setAuth({ token, user });
@@ -1275,46 +811,40 @@ function App() {
     delete axios.defaults.headers.common['Authorization'];
   };
 
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+    localStorage.setItem('darkMode', !darkMode);
+  };
+
   if (auth.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const reference = params.get('reference');
-    const trxref = params.get('trxref');
-    
+    const reference = params.get('reference') || params.get('trxref');
     const storedReference = localStorage.getItem('payment_reference');
-    const paymentRef = reference || trxref || storedReference;
+    const paymentRef = reference || storedReference;
     
     if (paymentRef && auth.user?.id) {
       const verifyPayment = async () => {
         try {
-          const response = await axios.post('/api/verify-payment', {
-            reference: paymentRef,
-            userId: auth.user?.id
-          });
-          
+          const response = await axios.post('/api/verify-payment', { reference: paymentRef, userId: auth.user?.id });
           if (response.data.success) {
             alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
             localStorage.removeItem('payment_reference');
             setAuth({ ...auth, user: { ...auth.user, isPremium: true } });
             localStorage.setItem('auth', JSON.stringify({ ...auth, user: { ...auth.user, isPremium: true } }));
             window.location.href = '/';
-          } else {
-            alert('Payment verification failed. Please contact support.');
           }
-        } catch (error) {
-          console.error('Verification error:', error);
-          alert('Payment verification failed. Please contact support.');
-        }
+        } catch (error) { console.error('Verification error:', error); }
       };
       verifyPayment();
     }
   }, [auth.user?.id]);
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout }}>
+    <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
       <BrowserRouter>
         <AppContent />
       </BrowserRouter>
