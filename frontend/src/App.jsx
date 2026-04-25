@@ -6,7 +6,7 @@ axios.defaults.baseURL = 'https://elite-nursing-cbt.onrender.com';
 
 const AuthContext = createContext();
 
-// Timer Component - Sticky Header
+// Timer Component
 const Timer = ({ duration, onTimeUp }) => {
   const [timeLeft, setTimeLeft] = useState(duration * 60);
 
@@ -23,7 +23,6 @@ const Timer = ({ duration, onTimeUp }) => {
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
-  
   const isWarning = timeLeft < 300;
 
   return (
@@ -33,35 +32,51 @@ const Timer = ({ duration, onTimeUp }) => {
       zIndex: 1000,
       background: isWarning ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' : 'linear-gradient(135deg, #1B5E4A 0%, #0D3B2E 100%)',
       color: 'white',
-      padding: '15px 24px',
+      padding: '12px 16px',
       textAlign: 'center',
-      fontSize: 32,
-      fontWeight: 'bold',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-      letterSpacing: '2px',
-      borderBottom: '3px solid rgba(255,255,255,0.3)'
+      fontSize: 'clamp(20px, 5vw, 32px)',
+      fontWeight: 'bold'
     }}>
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 15 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span>⏰</span>
         <span>{minutes}:{seconds.toString().padStart(2, '0')}</span>
-        {isWarning && <span style={{ fontSize: 18, animation: 'pulse 1s infinite' }}>⚠️ TIME RUNNING OUT!</span>}
+        {isWarning && <span style={{ fontSize: 'clamp(12px, 4vw, 18px)' }}>⚠️ TIME RUNNING OUT!</span>}
       </div>
     </div>
   );
 };
 
-// Premium Modal Component - Flutterwave Version
-const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
+// Premium Modal - Pay Per Exam OR Complete Package
+const PremiumModal = ({ onClose, examTitle, sectionNumber, onUpgradeComplete }) => {
+  const [selectedPlan, setSelectedPlan] = useState('single');
   const [loading, setLoading] = useState(false);
   const { token, user } = useContext(AuthContext);
+
+  const plans = {
+    single: { 
+      name: 'Pay for This Exam', 
+      price: 200, 
+      description: `Access Examination ${sectionNumber} only`,
+      buttonText: `Pay ₦200 for This Exam`
+    },
+    complete: { 
+      name: 'Complete Package', 
+      price: 5900, 
+      description: 'Access ALL premium exams (Current + Future)',
+      buttonText: 'Pay ₦5,900 for Everything'
+    }
+  };
 
   const handlePayment = async () => {
     setLoading(true);
     try {
       const response = await axios.post('/api/initialize-payment', {
         email: user?.email,
-        amount: 5000,
-        userId: user?.id
+        amount: plans[selectedPlan].price,
+        userId: user?.id,
+        planType: selectedPlan,
+        examTitle: examTitle,
+        sectionNumber: sectionNumber
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -85,42 +100,89 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 2000,
-      backdropFilter: 'blur(5px)'
+      padding: '16px'
     }}>
       <div style={{
         background: 'white',
         borderRadius: 20,
-        padding: 40,
-        maxWidth: 450,
-        textAlign: 'center',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+        padding: 'clamp(20px, 5vw, 40px)',
+        maxWidth: 500,
+        width: '100%',
+        textAlign: 'center'
       }}>
-        <div style={{ fontSize: 64, marginBottom: 20 }}>⭐</div>
-        <h2 style={{ color: '#2E7D64', marginBottom: 15 }}>Premium Required</h2>
-        <p style={{ color: '#666', marginBottom: 20, lineHeight: 1.6 }}>
-          <strong>{examTitle} - Examination {sectionNumber}</strong> is a premium exam.
-          Upgrade to unlock ALL premium examinations across all subjects!
-        </p>
-        <div style={{ background: '#f0f7f4', padding: 20, borderRadius: 12, marginBottom: 25 }}>
-          <p style={{ fontWeight: 'bold', color: '#2E7D64' }}>Premium Benefits:</p>
-          <ul style={{ textAlign: 'left', color: '#666', marginTop: 10 }}>
-            <li>✓ All 50+ Nursing Subjects</li>
-            <li>✓ All Examinations (2, 3, 4+)</li>
-            <li>✓ Over 5,000 Practice Questions</li>
-            <li>✓ Detailed Answer Reviews</li>
-            <li>✓ Lifetime Access</li>
-          </ul>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
+        <h2 style={{ color: '#2E7D64', marginBottom: 8, fontSize: 'clamp(20px, 5vw, 28px)' }}>Upgrade to Premium</h2>
+        <p style={{ color: '#666', marginBottom: 24 }}>{examTitle} - Examination {sectionNumber}</p>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
+          {/* Single Exam Option */}
+          <div 
+            onClick={() => setSelectedPlan('single')}
+            style={{
+              border: selectedPlan === 'single' ? '2px solid #2E7D64' : '1px solid #ddd',
+              borderRadius: 12,
+              padding: 16,
+              cursor: 'pointer',
+              background: selectedPlan === 'single' ? '#e8f5e9' : 'white',
+              transition: 'all 0.2s'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ textAlign: 'left' }}>
+                <h3 style={{ margin: 0, color: '#2E7D64' }}>{plans.single.name}</h3>
+                <p style={{ margin: '5px 0 0', fontSize: 14, color: '#666' }}>{plans.single.description}</p>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 'bold', color: '#2E7D64' }}>₦{plans.single.price}</div>
+            </div>
+          </div>
+          
+          {/* Complete Package Option */}
+          <div 
+            onClick={() => setSelectedPlan('complete')}
+            style={{
+              border: selectedPlan === 'complete' ? '2px solid #ff9800' : '1px solid #ddd',
+              borderRadius: 12,
+              padding: 16,
+              cursor: 'pointer',
+              background: selectedPlan === 'complete' ? '#fff3e0' : 'white',
+              transition: 'all 0.2s',
+              position: 'relative'
+            }}
+          >
+            {selectedPlan === 'complete' && (
+              <div style={{
+                position: 'absolute',
+                top: -12,
+                right: 16,
+                background: '#ff9800',
+                color: 'white',
+                padding: '2px 12px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 'bold'
+              }}>BEST VALUE</div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ textAlign: 'left' }}>
+                <h3 style={{ margin: 0, color: '#e65100' }}>{plans.complete.name}</h3>
+                <p style={{ margin: '5px 0 0', fontSize: 14, color: '#666' }}>{plans.complete.description}</p>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 'bold', color: '#e65100' }}>₦{plans.complete.price}</div>
+            </div>
+          </div>
         </div>
-        <div style={{ fontSize: 32, fontWeight: 'bold', color: '#2E7D64', marginBottom: 20 }}>
-          ₦5,000 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime</span>
+        
+        <div style={{ background: '#f0f7f4', padding: 12, borderRadius: 10, marginBottom: 20 }}>
+          <p style={{ margin: 0, fontSize: 13, color: '#666' }}>✓ One-time payment • Instant access • Lifetime validity</p>
         </div>
-        <div style={{ display: 'flex', gap: 15 }}>
+        
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button onClick={onClose} style={{ flex: 1, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
-          <button onClick={handlePayment} disabled={loading} style={{ flex: 1, background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>
-            {loading ? 'Processing...' : 'Pay ₦5,000 with Card'}
+          <button onClick={handlePayment} disabled={loading} style={{ flex: 2, background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>
+            {loading ? 'Processing...' : plans[selectedPlan].buttonText}
           </button>
         </div>
-        <p style={{ fontSize: 12, color: '#999', marginTop: 20 }}>Secure payment via Flutterwave</p>
+        <p style={{ fontSize: 11, color: '#999', marginTop: 16 }}>Secure payment via Flutterwave</p>
       </div>
     </div>
   );
@@ -148,16 +210,17 @@ const Login = () => {
       background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      padding: '16px'
     }}>
-      <div style={{ maxWidth: 450, margin: '20px', padding: 40, background: 'white', borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 30, fontSize: 28 }}>Welcome Back</h2>
+      <div style={{ maxWidth: 450, width: '100%', margin: '20px', padding: 'clamp(24px, 6vw, 40px)', background: 'white', borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 30, fontSize: 'clamp(24px, 6vw, 28px)' }}>Welcome Back</h2>
         <form onSubmit={handleSubmit}>
           <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
           <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
           <button type="submit" style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 14, width: '100%', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 18, marginTop: 20 }}>Login</button>
         </form>
-        <p style={{ textAlign: 'center', marginTop: 25 }}>Don't have an account? <Link to="/register" style={{ color: '#2E7D64', fontWeight: 'bold' }}>Register</Link></p>
+        <p style={{ textAlign: 'center', marginTop: 20 }}>Don't have an account? <Link to="/register" style={{ color: '#2E7D64', fontWeight: 'bold' }}>Register</Link></p>
       </div>
     </div>
   );
@@ -185,16 +248,17 @@ const Register = () => {
       background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      padding: '16px'
     }}>
-      <div style={{ maxWidth: 450, margin: '20px', padding: 40, background: 'white', borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 30, fontSize: 28 }}>Create Account</h2>
+      <div style={{ maxWidth: 450, width: '100%', margin: '20px', padding: 'clamp(24px, 6vw, 40px)', background: 'white', borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 30, fontSize: 'clamp(24px, 6vw, 28px)' }}>Create Account</h2>
         <form onSubmit={handleSubmit}>
           <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
           <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
           <button type="submit" style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 14, width: '100%', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 18, marginTop: 20 }}>Register</button>
         </form>
-        <p style={{ textAlign: 'center', marginTop: 25 }}>Already have an account? <Link to="/login" style={{ color: '#2E7D64', fontWeight: 'bold' }}>Login</Link></p>
+        <p style={{ textAlign: 'center', marginTop: 20 }}>Already have an account? <Link to="/login" style={{ color: '#2E7D64', fontWeight: 'bold' }}>Login</Link></p>
       </div>
     </div>
   );
@@ -203,22 +267,14 @@ const Register = () => {
 // About Us Component
 const AboutUs = () => {
   return (
-    <div style={{ padding: 40, maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ color: '#2E7D64', marginBottom: 20 }}>About Us</h2>
-        <p style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
-          ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students in Nigeria.
-        </p>
-        <p style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
-          Our mission is to provide high-quality, accessible exam preparation materials that help students succeed in their nursing and midwifery licensing examinations.
-        </p>
-        <p style={{ color: '#666', lineHeight: 1.8, marginBottom: 20 }}>
-          With over 5,000 practice questions covering all major nursing subjects, we are committed to excellence in nursing education.
-        </p>
+    <div style={{ padding: 'clamp(20px, 5vw, 40px)', maxWidth: 800, margin: '0 auto' }}>
+      <div style={{ background: 'white', borderRadius: 20, padding: 'clamp(24px, 5vw, 40px)', boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2E7D64', marginBottom: 20, fontSize: 'clamp(24px, 5vw, 32px)' }}>About Us</h2>
+        <p style={{ color: '#666', lineHeight: 1.8, marginBottom: 16 }}>ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students in Nigeria.</p>
+        <p style={{ color: '#666', lineHeight: 1.8, marginBottom: 16 }}>Our mission is to provide high-quality, accessible exam preparation materials that help students succeed in their nursing and midwifery licensing examinations.</p>
+        <p style={{ color: '#666', lineHeight: 1.8, marginBottom: 16 }}>With over 5,000 practice questions covering all major nursing subjects, we are committed to excellence in nursing education.</p>
         <h3 style={{ color: '#2E7D64', marginTop: 30, marginBottom: 15 }}>Our Vision</h3>
-        <p style={{ color: '#666', lineHeight: 1.8 }}>
-          To become the leading CBT platform for nursing and midwifery students across Africa, empowering future healthcare professionals with the knowledge and confidence to excel.
-        </p>
+        <p style={{ color: '#666', lineHeight: 1.8 }}>To become the leading CBT platform for nursing and midwifery students across Africa.</p>
       </div>
     </div>
   );
@@ -227,8 +283,8 @@ const AboutUs = () => {
 // Contact Us Component
 const ContactUs = () => {
   return (
-    <div style={{ padding: 40, maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
+    <div style={{ padding: 'clamp(20px, 5vw, 40px)', maxWidth: 800, margin: '0 auto' }}>
+      <div style={{ background: 'white', borderRadius: 20, padding: 'clamp(24px, 5vw, 40px)', boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#2E7D64', marginBottom: 20 }}>Contact Us</h2>
         <p style={{ color: '#666', marginBottom: 30 }}>Have questions? We'd love to hear from you!</p>
         
@@ -244,19 +300,7 @@ const ContactUs = () => {
         
         <div style={{ marginBottom: 30 }}>
           <h3 style={{ color: '#2E7D64', marginBottom: 10 }}>💬 WhatsApp Group</h3>
-          <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none' }}>
-            Click here to join our WhatsApp community
-          </a>
-        </div>
-        
-        <div style={{ marginTop: 30, paddingTop: 20, borderTop: '1px solid #eee' }}>
-          <h3 style={{ color: '#2E7D64', marginBottom: 15 }}>Send us a Message</h3>
-          <form>
-            <input type="text" placeholder="Your Name" style={{ width: '100%', padding: 12, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10 }} />
-            <input type="email" placeholder="Your Email" style={{ width: '100%', padding: 12, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10 }} />
-            <textarea placeholder="Your Message" rows="4" style={{ width: '100%', padding: 12, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10 }} />
-            <button style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Send Message</button>
-          </form>
+          <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none' }}>Click here to join our WhatsApp community</a>
         </div>
       </div>
     </div>
@@ -266,44 +310,21 @@ const ContactUs = () => {
 // Join WhatsApp Component
 const JoinWhatsApp = () => {
   return (
-    <div style={{ padding: 40, maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 8px 25px rgba(0,0,0,0.1)', textAlign: 'center' }}>
+    <div style={{ padding: 'clamp(20px, 5vw, 40px)', maxWidth: 800, margin: '0 auto' }}>
+      <div style={{ background: 'white', borderRadius: 20, padding: 'clamp(24px, 5vw, 40px)', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', textAlign: 'center' }}>
         <div style={{ fontSize: 80, marginBottom: 20 }}>💬</div>
         <h2 style={{ color: '#2E7D64', marginBottom: 20 }}>Join Our WhatsApp Community</h2>
-        <p style={{ color: '#666', marginBottom: 30, lineHeight: 1.8 }}>
-          Get instant updates, study tips, and connect with fellow nursing students!
-        </p>
-        
-        <div style={{ background: '#f0f7f4', padding: 30, borderRadius: 15, marginBottom: 30 }}>
+        <div style={{ background: '#f0f7f4', padding: 30, borderRadius: 15, marginBottom: 30, textAlign: 'left' }}>
           <h3 style={{ color: '#2E7D64', marginBottom: 15 }}>What you'll get:</h3>
-          <ul style={{ textAlign: 'left', color: '#666', maxWidth: 400, margin: '0 auto' }}>
+          <ul style={{ color: '#666' }}>
             <li style={{ margin: '10px 0' }}>✓ Daily practice questions</li>
             <li style={{ margin: '10px 0' }}>✓ Exam tips and strategies</li>
             <li style={{ margin: '10px 0' }}>✓ Updates on new features</li>
             <li style={{ margin: '10px 0' }}>✓ Peer support and discussions</li>
-            <li style={{ margin: '10px 0' }}>✓ Special announcements</li>
           </ul>
         </div>
-        
-        <a 
-          href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={{ textDecoration: 'none' }}
-        >
-          <button style={{ 
-            background: '#25D366', 
-            color: 'white', 
-            padding: '14px 40px', 
-            border: 'none', 
-            borderRadius: 50, 
-            cursor: 'pointer', 
-            fontWeight: 'bold', 
-            fontSize: 18,
-            boxShadow: '0 4px 15px rgba(37,211,102,0.3)'
-          }}>
-            Join WhatsApp Group
-          </button>
+        <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+          <button style={{ background: '#25D366', color: 'white', padding: '14px 40px', border: 'none', borderRadius: 50, cursor: 'pointer', fontWeight: 'bold', fontSize: 18 }}>Join WhatsApp Group</button>
         </a>
       </div>
     </div>
@@ -312,16 +333,25 @@ const JoinWhatsApp = () => {
 
 // Get Premium Component
 const GetPremium = () => {
+  const [selectedPlan, setSelectedPlan] = useState('complete');
   const [loading, setLoading] = useState(false);
-  const { token, user, login } = useContext(AuthContext);
+  const { token, user } = useContext(AuthContext);
+
+  const plans = {
+    single: { price: 200, description: 'Pay per exam' },
+    complete: { price: 5900, description: 'Unlock everything' }
+  };
 
   const handlePayment = async () => {
     setLoading(true);
     try {
       const response = await axios.post('/api/initialize-payment', {
         email: user?.email,
-        amount: 5000,
-        userId: user?.id
+        amount: plans[selectedPlan].price,
+        userId: user?.id,
+        planType: selectedPlan === 'complete' ? 'complete' : 'single',
+        examTitle: 'Premium Package',
+        sectionNumber: 0
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -334,13 +364,11 @@ const GetPremium = () => {
   };
 
   return (
-    <div style={{ padding: 40, maxWidth: 1000, margin: '0 auto' }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 8px 25px rgba(0,0,0,0.1)', textAlign: 'center' }}>
+    <div style={{ padding: 'clamp(20px, 5vw, 40px)', maxWidth: 1000, margin: '0 auto' }}>
+      <div style={{ background: 'white', borderRadius: 20, padding: 'clamp(24px, 5vw, 40px)', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', textAlign: 'center' }}>
         <div style={{ fontSize: 64, marginBottom: 20 }}>⭐</div>
-        <h2 style={{ color: '#2E7D64', marginBottom: 10 }}>Upgrade to Premium</h2>
-        <p style={{ color: '#666', marginBottom: 40, fontSize: 18 }}>
-          Get unlimited access to all examinations and features
-        </p>
+        <h2 style={{ color: '#2E7D64', marginBottom: 10, fontSize: 'clamp(28px, 6vw, 36px)' }}>Upgrade to Premium</h2>
+        <p style={{ color: '#666', marginBottom: 40, fontSize: 'clamp(14px, 4vw, 18px)' }}>Get unlimited access to all examinations and features</p>
         
         {user?.isPremium ? (
           <div style={{ background: '#e8f5e9', padding: 40, borderRadius: 20 }}>
@@ -350,53 +378,77 @@ const GetPremium = () => {
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 25, marginBottom: 40 }}>
-              <div style={{ background: '#f0f7f4', padding: 25, borderRadius: 15 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20, marginBottom: 40 }}>
+              <div style={{ background: '#f0f7f4', padding: 'clamp(16px, 4vw, 24px)', borderRadius: 15 }}>
                 <div style={{ fontSize: 36, marginBottom: 10 }}>📚</div>
                 <h3 style={{ color: '#2E7D64' }}>All Subjects</h3>
                 <p style={{ color: '#666' }}>Access all nursing subjects</p>
               </div>
-              <div style={{ background: '#f0f7f4', padding: 25, borderRadius: 15 }}>
+              <div style={{ background: '#f0f7f4', padding: 'clamp(16px, 4vw, 24px)', borderRadius: 15 }}>
                 <div style={{ fontSize: 36, marginBottom: 10 }}>📝</div>
                 <h3 style={{ color: '#2E7D64' }}>All Exams</h3>
-                <p style={{ color: '#666' }}>Unlock Examinations 2, 3, 4+</p>
+                <p style={{ color: '#666' }}>Unlock all premium examinations</p>
               </div>
-              <div style={{ background: '#f0f7f4', padding: 25, borderRadius: 15 }}>
+              <div style={{ background: '#f0f7f4', padding: 'clamp(16px, 4vw, 24px)', borderRadius: 15 }}>
                 <div style={{ fontSize: 36, marginBottom: 10 }}>🎯</div>
                 <h3 style={{ color: '#2E7D64' }}>5,000+ Questions</h3>
                 <p style={{ color: '#666' }}>Massive question bank</p>
               </div>
-              <div style={{ background: '#f0f7f4', padding: 25, borderRadius: 15 }}>
+              <div style={{ background: '#f0f7f4', padding: 'clamp(16px, 4vw, 24px)', borderRadius: 15 }}>
                 <div style={{ fontSize: 36, marginBottom: 10 }}>🏆</div>
                 <h3 style={{ color: '#2E7D64' }}>Lifetime Access</h3>
                 <p style={{ color: '#666' }}>One-time payment, forever access</p>
               </div>
             </div>
             
-            <div style={{ background: '#f0f7f4', padding: 30, borderRadius: 15, marginBottom: 30 }}>
-              <div style={{ fontSize: 48, fontWeight: 'bold', color: '#2E7D64', marginBottom: 10 }}>
-                ₦5,000 <span style={{ fontSize: 18, color: '#666' }}>/ lifetime</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 400, margin: '0 auto 30px' }}>
+              <div 
+                onClick={() => setSelectedPlan('single')}
+                style={{
+                  border: selectedPlan === 'single' ? '2px solid #2E7D64' : '1px solid #ddd',
+                  borderRadius: 12,
+                  padding: 16,
+                  cursor: 'pointer',
+                  background: selectedPlan === 'single' ? '#e8f5e9' : 'white'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ textAlign: 'left' }}>
+                    <h3 style={{ margin: 0, color: '#2E7D64' }}>Pay Per Exam</h3>
+                    <p style={{ margin: '5px 0 0', fontSize: 14, color: '#666' }}>₦200 per premium exam</p>
+                  </div>
+                  <div style={{ fontSize: 24, fontWeight: 'bold', color: '#2E7D64' }}>₦200</div>
+                </div>
               </div>
-              <p style={{ color: '#666' }}>Pay with Card, Bank Transfer, or USSD</p>
+              
+              <div 
+                onClick={() => setSelectedPlan('complete')}
+                style={{
+                  border: selectedPlan === 'complete' ? '2px solid #ff9800' : '1px solid #ddd',
+                  borderRadius: 12,
+                  padding: 16,
+                  cursor: 'pointer',
+                  background: selectedPlan === 'complete' ? '#fff3e0' : 'white',
+                  position: 'relative'
+                }}
+              >
+                {selectedPlan === 'complete' && (
+                  <div style={{ position: 'absolute', top: -12, right: 16, background: '#ff9800', color: 'white', padding: '2px 12px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>BEST VALUE</div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ textAlign: 'left' }}>
+                    <h3 style={{ margin: 0, color: '#e65100' }}>Complete Package</h3>
+                    <p style={{ margin: '5px 0 0', fontSize: 14, color: '#666' }}>All premium exams + future updates</p>
+                  </div>
+                  <div style={{ fontSize: 24, fontWeight: 'bold', color: '#e65100' }}>₦5,900</div>
+                </div>
+              </div>
             </div>
             
-            <button 
-              onClick={handlePayment} 
-              disabled={loading}
-              style={{ 
-                background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', 
-                color: 'white', 
-                padding: '16px 50px', 
-                border: 'none', 
-                borderRadius: 50, 
-                cursor: 'pointer', 
-                fontWeight: 'bold', 
-                fontSize: 18,
-                boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-              }}
-            >
-              {loading ? 'Processing...' : 'Upgrade to Premium Now'}
+            <button onClick={handlePayment} disabled={loading} style={{ background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', color: 'white', padding: '16px 40px', border: 'none', borderRadius: 50, cursor: 'pointer', fontWeight: 'bold', fontSize: 18 }}>
+              {loading ? 'Processing...' : `Pay ${selectedPlan === 'complete' ? '₦5,900 for Complete Package' : '₦200 for Single Exam'}`}
             </button>
+            <p style={{ fontSize: 12, color: '#999', marginTop: 20 }}>Secure payment via Flutterwave</p>
           </>
         )}
       </div>
@@ -419,7 +471,6 @@ const ExamDetail = () => {
     const fetchExam = async () => {
       try {
         setLoading(true);
-        
         if (!token) return;
         
         const res = await axios.get(`/api/quizzes/${id}`, {
@@ -453,7 +504,6 @@ const ExamDetail = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         setUserPremium(profileRes.data.isPremium);
-        
       } catch (error) {
         if (error.response?.status === 401) {
           localStorage.removeItem('auth');
@@ -491,59 +541,38 @@ const ExamDetail = () => {
           sectionNumber={selectedSection?.number}
         />
       )}
-      <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ padding: 'clamp(12px, 4vw, 20px)', maxWidth: 1200, margin: '0 auto' }}>
         <Link to="/" style={{ color: '#2E7D64', textDecoration: 'none', marginBottom: 20, display: 'inline-block', fontSize: 16 }}>← Back to Subjects</Link>
         
-        <div style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', borderRadius: 20, padding: 30, marginBottom: 30, color: 'white' }}>
-          <h1 style={{ margin: 0, fontSize: 32 }}>{exam.title}</h1>
+        <div style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', borderRadius: 20, padding: 'clamp(16px, 5vw, 30px)', marginBottom: 30, color: 'white' }}>
+          <h1 style={{ margin: 0, fontSize: 'clamp(24px, 5vw, 32px)' }}>{exam.title}</h1>
           <p style={{ marginTop: 10, opacity: 0.9 }}>{exam.description}</p>
           <p style={{ marginTop: 15 }}>📚 Total Questions: {exam.questions?.length || 0}</p>
           {userPremium && <p style={{ marginTop: 10, background: '#ff9800', display: 'inline-block', padding: '5px 15px', borderRadius: 20, fontWeight: 'bold' }}>⭐ PREMIUM USER - All exams unlocked!</p>}
         </div>
         
-        <h2 style={{ color: '#2E7D64', marginBottom: 25 }}>Select Examination:</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 25 }}>
+        <h2 style={{ color: '#2E7D64', marginBottom: 20, fontSize: 'clamp(20px, 5vw, 28px)' }}>Select Examination:</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
           {sections.map((section) => (
             <div key={section.number} style={{ 
               background: 'white', 
-              padding: 25, 
+              padding: 'clamp(16px, 4vw, 24px)', 
               borderRadius: 16, 
-              boxShadow: '0 8px 25px rgba(0,0,0,0.1)', 
               textAlign: 'center',
               position: 'relative',
               border: (section.isPremium && !userPremium) ? '2px solid #ff9800' : '2px solid #2E7D64'
             }}>
               {(section.isPremium && !userPremium) && (
-                <div style={{
-                  position: 'absolute',
-                  top: -12,
-                  right: 20,
-                  background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
-                  color: 'white',
-                  padding: '4px 12px',
-                  borderRadius: 20,
-                  fontSize: 12,
-                  fontWeight: 'bold'
-                }}>⭐ PREMIUM</div>
-              )}
-              {userPremium && section.isPremium && (
-                <div style={{
-                  position: 'absolute',
-                  top: -12,
-                  right: 20,
-                  background: '#2E7D64',
-                  color: 'white',
-                  padding: '4px 12px',
-                  borderRadius: 20,
-                  fontSize: 12,
-                  fontWeight: 'bold'
-                }}>✅ UNLOCKED</div>
+                <div style={{ position: 'absolute', top: -12, right: 20, background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)', color: 'white', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>⭐ PREMIUM</div>
               )}
               <div style={{ fontSize: 48 }}>{section.isPremium && !userPremium ? '⭐' : '📝'}</div>
               <h3 style={{ color: '#2E7D64', marginTop: 10 }}>Examination {section.number}</h3>
               <p style={{ fontSize: 28, fontWeight: 'bold', color: '#2E7D64', margin: '10px 0' }}>{section.count} Questions</p>
               <p style={{ color: '#666' }}>Questions {section.startIndex} - {section.endIndex}</p>
               <p style={{ color: '#ff9800', fontWeight: 'bold', marginTop: 10 }}>⏰ {section.timeMinutes} minute timer</p>
+              {section.isPremium && !userPremium && (
+                <p style={{ color: '#2E7D64', fontWeight: 'bold', marginTop: 5, fontSize: 14 }}>₦200 to unlock</p>
+              )}
               <button 
                 onClick={() => handleStartExam(section)}
                 style={{ 
@@ -552,14 +581,14 @@ const ExamDetail = () => {
                   padding: 12, 
                   border: 'none', 
                   borderRadius: 10, 
-                  marginTop: 20, 
+                  marginTop: 15, 
                   cursor: 'pointer', 
                   width: '100%', 
                   fontWeight: 'bold', 
                   fontSize: 16 
                 }}
               >
-                {(section.isPremium && !userPremium) ? '⭐ Upgrade to Access' : 'Start Exam'}
+                {(section.isPremium && !userPremium) ? `⭐ Pay ₦200 to Access` : 'Start Free Exam'}
               </button>
             </div>
           ))}
@@ -631,21 +660,21 @@ const TakeExam = () => {
 
   if (submitted && !showReview) {
     return (
-      <div style={{ background: '#e8f5e9', minHeight: '100vh', padding: 40 }}>
-        <div style={{ maxWidth: 600, margin: '0 auto', background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 10px 40px rgba(0,0,0,0.1)', textAlign: 'center' }}>
+      <div style={{ background: '#e8f5e9', minHeight: '100vh', padding: 'clamp(20px, 5vw, 40px)' }}>
+        <div style={{ maxWidth: 600, margin: '0 auto', background: 'white', borderRadius: 20, padding: 'clamp(24px, 5vw, 40px)', textAlign: 'center' }}>
           <h2 style={{ color: '#2E7D64' }}>Examination {sectionNumber} Results</h2>
           <div style={{ margin: 30 }}>
-            <p style={{ fontSize: 32, marginBottom: 15 }}>Score: <strong style={{ color: '#2E7D64' }}>{result.score}</strong> / {result.total}</p>
-            <p style={{ fontSize: 24, marginBottom: 15 }}>Percentage: <strong style={{ color: '#2E7D64' }}>{result.percentage?.toFixed(1)}%</strong></p>
-            <p style={{ fontSize: 18 }}>Unanswered: <strong>{result.total - Object.keys(answers).length}</strong> questions</p>
+            <p style={{ fontSize: 'clamp(28px, 6vw, 32px)', marginBottom: 15 }}>Score: <strong style={{ color: '#2E7D64' }}>{result.score}</strong> / {result.total}</p>
+            <p style={{ fontSize: 'clamp(20px, 5vw, 24px)', marginBottom: 15 }}>Percentage: <strong style={{ color: '#2E7D64' }}>{result.percentage?.toFixed(1)}%</strong></p>
+            <p style={{ fontSize: 16 }}>Unanswered: <strong>{result.total - Object.keys(answers).length}</strong> questions</p>
           </div>
-          <p style={{ color: result.passed ? '#2E7D64' : '#dc3545', fontSize: 32, fontWeight: 'bold', margin: 20 }}>
+          <p style={{ color: result.passed ? '#2E7D64' : '#dc3545', fontSize: 'clamp(24px, 6vw, 32px)', fontWeight: 'bold', margin: 20 }}>
             {result.passed ? '✓ PASSED!' : '✗ Failed'}
           </p>
           {timeUp && <p style={{ color: '#ff9800' }}>⏰ Time's up!</p>}
-          <div style={{ marginTop: 30 }}>
-            <button onClick={() => setShowReview(true)} style={{ background: '#2E7D64', color: 'white', padding: 12, border: 'none', borderRadius: 10, margin: 10, cursor: 'pointer', fontSize: 16 }}>Review Answers</button>
-            <Link to={`/exam/${id}`}><button style={{ background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, margin: 10, cursor: 'pointer', fontSize: 16 }}>Back to Exams</button></Link>
+          <div style={{ marginTop: 30, display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button onClick={() => setShowReview(true)} style={{ background: '#2E7D64', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 16 }}>Review Answers</button>
+            <Link to={`/exam/${id}`}><button style={{ background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 16 }}>Back to Exams</button></Link>
           </div>
         </div>
       </div>
@@ -654,9 +683,9 @@ const TakeExam = () => {
 
   if (submitted && showReview) {
     return (
-      <div style={{ background: '#e8f5e9', minHeight: '100vh', padding: 20 }}>
+      <div style={{ background: '#e8f5e9', minHeight: '100vh', padding: 'clamp(12px, 4vw, 20px)' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <div style={{ background: 'white', borderRadius: 16, padding: 25, marginBottom: 20, textAlign: 'center' }}>
+          <div style={{ background: 'white', borderRadius: 16, padding: 'clamp(20px, 5vw, 25px)', marginBottom: 20, textAlign: 'center' }}>
             <h2 style={{ color: '#2E7D64' }}>Answer Review: {exam.title}</h2>
             <p>Examination {sectionNumber} - Score: {result.score}/{result.total} ({result.percentage?.toFixed(1)}%)</p>
           </div>
@@ -670,25 +699,24 @@ const TakeExam = () => {
               <div key={idx} style={{ 
                 background: isCorrect ? '#e8f5e9' : (isUnanswered ? '#fff3e0' : '#ffebee'), 
                 borderRadius: 16, 
-                padding: 25, 
-                marginBottom: 20,
-                borderLeft: `6px solid ${isCorrect ? '#4caf50' : (isUnanswered ? '#ff9800' : '#f44336')}`,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                padding: 'clamp(16px, 4vw, 20px)', 
+                marginBottom: 16,
+                borderLeft: `4px solid ${isCorrect ? '#4caf50' : (isUnanswered ? '#ff9800' : '#f44336')}`
               }}>
-                <h4 style={{ marginBottom: 15, color: '#2E7D64' }}>Question {idx + 1}: {q.questionText}</h4>
+                <h4 style={{ marginBottom: 12, color: '#2E7D64' }}>Question {idx + 1}: {q.questionText}</h4>
                 {isUnanswered && <p style={{ color: '#ff9800' }}>⚠️ Unanswered</p>}
-                <div style={{ marginLeft: 20 }}>
+                <div style={{ marginLeft: 12 }}>
                   {q.options.map((opt, optIdx) => (
                     <div key={optIdx} style={{ 
-                      margin: '10px 0', 
-                      padding: '12px 15px', 
+                      margin: '8px 0', 
+                      padding: '8px 12px', 
                       background: optIdx === q.correctAnswer ? '#c8e6c9' : (optIdx === userAnswer ? '#ffcdd2' : 'white'),
-                      borderRadius: 10,
+                      borderRadius: 8,
                       border: `1px solid ${optIdx === q.correctAnswer ? '#4caf50' : (optIdx === userAnswer ? '#f44336' : '#ddd')}`
                     }}>
                       <span style={{ fontWeight: 'bold' }}>{String.fromCharCode(65 + optIdx)}.</span> {opt}
-                      {optIdx === q.correctAnswer && <span style={{ color: '#4caf50', marginLeft: 10 }}>✓ Correct Answer</span>}
-                      {optIdx === userAnswer && optIdx !== q.correctAnswer && <span style={{ color: '#f44336', marginLeft: 10 }}>✗ Your Answer</span>}
+                      {optIdx === q.correctAnswer && <span style={{ color: '#4caf50', marginLeft: 8 }}>✓ Correct Answer</span>}
+                      {optIdx === userAnswer && optIdx !== q.correctAnswer && <span style={{ color: '#f44336', marginLeft: 8 }}>✗ Your Answer</span>}
                     </div>
                   ))}
                 </div>
@@ -696,7 +724,7 @@ const TakeExam = () => {
             );
           })}
           <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <Link to={`/exam/${id}`}><button style={{ background: '#2E7D64', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 16 }}>Back to Examinations</button></Link>
+            <Link to={`/exam/${id}`}><button style={{ background: '#2E7D64', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 16 }}>Back to Examinations</button></Link>
           </div>
         </div>
       </div>
@@ -709,67 +737,47 @@ const TakeExam = () => {
   return (
     <div style={{ background: '#e8f5e9', minHeight: '100vh' }}>
       <Timer duration={examDuration} onTimeUp={handleTimeUp} />
-      <div style={{ padding: '30px 20px', maxWidth: 1000, margin: '0 auto' }}>
-        <div style={{ background: 'white', borderRadius: 16, padding: 25, marginBottom: 25, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ color: '#2E7D64', margin: 0 }}>{exam.title}</h2>
-          <p style={{ marginTop: 10, color: '#666' }}>Examination {sectionNumber} - {questions.length} Questions</p>
-          <p style={{ marginTop: 5, color: '#ff9800' }}>⏰ Timer: {examDuration} minute(s)</p>
+      <div style={{ padding: 'clamp(12px, 4vw, 20px)', maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{ background: 'white', borderRadius: 16, padding: 'clamp(16px, 4vw, 24px)', marginBottom: 20 }}>
+          <h2 style={{ color: '#2E7D64', margin: 0, fontSize: 'clamp(18px, 5vw, 24px)' }}>{exam.title}</h2>
+          <p style={{ marginTop: 8, color: '#666' }}>Examination {sectionNumber} - {questions.length} Questions</p>
+          <p style={{ marginTop: 4, color: '#ff9800' }}>⏰ Timer: {examDuration} minute(s)</p>
         </div>
         
         {questions.map((q, idx) => (
           <div key={idx} style={{ 
             background: '#2E7D64', 
             borderRadius: 16, 
-            padding: 25, 
-            marginBottom: 20, 
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            padding: 'clamp(16px, 4vw, 20px)', 
+            marginBottom: 16
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
               <h4 style={{ color: 'white', margin: 0 }}>Question {globalQuestionNumber + idx + 1}</h4>
               {answers[idx] !== undefined && <span style={{ background: '#ff9800', color: '#2E7D64', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>Answered</span>}
             </div>
-            <p style={{ fontSize: 16, lineHeight: 1.5, marginBottom: 20, color: 'white' }}>{q.questionText}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <p style={{ fontSize: 'clamp(14px, 4vw, 16px)', lineHeight: 1.5, marginBottom: 16, color: 'white' }}>{q.questionText}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {q.options?.map((opt, optIdx) => (
                 <label key={optIdx} style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
                   cursor: 'pointer', 
-                  padding: '12px 18px', 
+                  padding: '10px 14px', 
                   background: answers[idx] === optIdx ? '#ff9800' : 'white', 
-                  borderRadius: 12, 
-                  border: answers[idx] === optIdx ? '2px solid #ff9800' : '1px solid #ddd',
-                  transition: 'all 0.2s'
+                  borderRadius: 10, 
+                  border: answers[idx] === optIdx ? '2px solid #ff9800' : '1px solid #ddd'
                 }}>
-                  <input 
-                    type="radio" 
-                    name={`q${idx}`} 
-                    onChange={() => handleAnswer(idx, optIdx)} 
-                    checked={answers[idx] === optIdx}
-                    style={{ marginRight: 15, width: 20, height: 20, cursor: 'pointer' }} 
-                  /> 
-                  <span style={{ fontWeight: 'bold', marginRight: 12, minWidth: 30, color: '#333' }}>{String.fromCharCode(65 + optIdx)}.</span>
-                  <span style={{ fontSize: 15, color: '#333' }}>{opt}</span>
+                  <input type="radio" name={`q${idx}`} onChange={() => handleAnswer(idx, optIdx)} checked={answers[idx] === optIdx} style={{ marginRight: 12, width: 18, height: 18, cursor: 'pointer' }} /> 
+                  <span style={{ fontWeight: 'bold', marginRight: 10, minWidth: 28, color: answers[idx] === optIdx ? '#2E7D64' : '#333' }}>{String.fromCharCode(65 + optIdx)}.</span>
+                  <span style={{ fontSize: 'clamp(13px, 4vw, 15px)', color: answers[idx] === optIdx ? '#2E7D64' : '#333' }}>{opt}</span>
                 </label>
               ))}
             </div>
           </div>
         ))}
         
-        <div style={{ textAlign: 'center', marginTop: 30, paddingBottom: 50 }}>
-          <button onClick={handleSubmit} style={{ 
-            background: 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)', 
-            color: 'white', 
-            padding: '16px 40px', 
-            border: 'none', 
-            borderRadius: 50, 
-            cursor: 'pointer', 
-            fontSize: 18, 
-            fontWeight: 'bold',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-          }}>
-            Submit Examination
-          </button>
+        <div style={{ textAlign: 'center', marginTop: 30, paddingBottom: 40 }}>
+          <button onClick={handleSubmit} style={{ background: 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)', color: 'white', padding: '14px 30px', border: 'none', borderRadius: 50, cursor: 'pointer', fontSize: 'clamp(16px, 4vw, 18px)', fontWeight: 'bold' }}>Submit Examination</button>
         </div>
       </div>
     </div>
@@ -802,47 +810,29 @@ const QuizList = () => {
 
   return (
     <div style={{ background: '#e8f5e9', minHeight: '100vh' }}>
-      <div style={{ padding: 30, maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h1 style={{ color: '#2E7D64', fontSize: 36, marginBottom: 10 }}>ELITE NURSING & MIDWIFERY CBT</h1>
-          <p style={{ color: '#666', fontSize: 18 }}>Computer Based Testing Platform</p>
+      <div style={{ padding: 'clamp(16px, 5vw, 30px)', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 'clamp(24px, 6vw, 40px)' }}>
+          <h1 style={{ color: '#2E7D64', fontSize: 'clamp(24px, 6vw, 36px)', marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h1>
+          <p style={{ color: '#666', fontSize: 'clamp(14px, 4vw, 18px)' }}>Computer Based Testing Platform</p>
         </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 25 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
           {quizzes.map(quiz => {
             const totalQuestions = quiz.questions?.length || 0;
             const examCount = Math.ceil(totalQuestions / 20);
             
             return (
-              <div key={quiz._id} style={{ 
-                background: 'white', 
-                padding: 25, 
-                borderRadius: 16, 
-                boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
-                transition: 'transform 0.2s',
-                cursor: 'pointer'
-              }}>
-                <div style={{ fontSize: 48, marginBottom: 10 }}>📚</div>
-                <h3 style={{ color: '#2E7D64', marginBottom: 10, fontSize: 22 }}>{quiz.title}</h3>
-                <p style={{ color: '#666', marginBottom: 15, lineHeight: 1.5 }}>{quiz.description}</p>
-                <div style={{ borderTop: '1px solid #eee', paddingTop: 15, marginTop: 10 }}>
+              <div key={quiz._id} style={{ background: 'white', padding: 'clamp(16px, 4vw, 20px)', borderRadius: 16, boxShadow: '0 8px 25px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>📚</div>
+                <h3 style={{ color: '#2E7D64', marginBottom: 8, fontSize: 'clamp(18px, 4vw, 20px)' }}>{quiz.title}</h3>
+                <p style={{ color: '#666', marginBottom: 12, fontSize: 'clamp(13px, 3vw, 14px)', lineHeight: 1.4 }}>{quiz.description}</p>
+                <div style={{ borderTop: '1px solid #eee', paddingTop: 12 }}>
                   <p><strong style={{ color: '#2E7D64' }}>Total Questions:</strong> {totalQuestions}</p>
                   <p><strong style={{ color: '#2E7D64' }}>Examinations:</strong> {examCount} exams (20 questions each)</p>
-                  <p><strong style={{ color: '#ff9800' }}>⭐ Free:</strong> Examination 1 only | <strong style={{ color: '#2E7D64' }}>Premium:</strong> Exams 2+</p>
+                  <p><strong style={{ color: '#ff9800' }}>⭐ Free:</strong> Examination 1 only | <strong style={{ color: '#2E7D64' }}>Premium:</strong> Exams 2+ (₦200 each)</p>
                 </div>
                 <Link to={`/exam/${quiz._id}`}>
-                  <button style={{ 
-                    background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
-                    color: 'white', 
-                    padding: 12, 
-                    border: 'none', 
-                    borderRadius: 10, 
-                    marginTop: 15, 
-                    cursor: 'pointer', 
-                    width: '100%', 
-                    fontWeight: 'bold',
-                    fontSize: 16
-                  }}>View Examinations</button>
+                  <button style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 10, border: 'none', borderRadius: 8, marginTop: 12, cursor: 'pointer', width: '100%', fontWeight: 'bold', fontSize: 'clamp(14px, 3vw, 16px)' }}>View Examinations</button>
                 </Link>
               </div>
             );
@@ -867,14 +857,13 @@ const DropdownMenu = () => {
           color: 'white',
           border: 'none',
           borderRadius: 50,
-          width: 45,
-          height: 45,
-          fontSize: 20,
+          width: 40,
+          height: 40,
+          fontSize: 18,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+          justifyContent: 'center'
         }}
       >
         👤
@@ -882,68 +871,20 @@ const DropdownMenu = () => {
 
       {isOpen && (
         <>
-          <div 
-            onClick={() => setIsOpen(false)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 198
-            }}
-          />
-          <div style={{
-            position: 'absolute',
-            top: 55,
-            right: 0,
-            width: 280,
-            background: 'white',
-            borderRadius: 12,
-            boxShadow: '0 5px 25px rgba(0,0,0,0.15)',
-            zIndex: 199,
-            overflow: 'hidden'
-          }}>
-            <div style={{ 
-              padding: '20px', 
-              background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
-              color: 'white',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: 48, marginBottom: 5 }}>👤</div>
-              <div style={{ fontWeight: 'bold', fontSize: 14, wordBreak: 'break-all' }}>{user?.email}</div>
-              {user?.isPremium && (
-                <div style={{ 
-                  background: '#ff9800', 
-                  display: 'inline-block', 
-                  padding: '3px 12px', 
-                  borderRadius: 20, 
-                  fontSize: 11, 
-                  marginTop: 8,
-                  fontWeight: 'bold'
-                }}>⭐ PREMIUM MEMBER</div>
-              )}
+          <div onClick={() => setIsOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 98 }} />
+          <div style={{ position: 'absolute', top: 50, right: 0, width: 250, background: 'white', borderRadius: 12, boxShadow: '0 5px 25px rgba(0,0,0,0.15)', zIndex: 99, overflow: 'hidden' }}>
+            <div style={{ padding: 16, background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', textAlign: 'center' }}>
+              <div style={{ fontSize: 40 }}>👤</div>
+              <div style={{ fontWeight: 'bold', fontSize: 12, wordBreak: 'break-all' }}>{user?.email}</div>
+              {user?.isPremium && <div style={{ background: '#ff9800', display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 10, marginTop: 6, fontWeight: 'bold' }}>⭐ PREMIUM</div>}
             </div>
-            
-            <div style={{ padding: '10px 0' }}>
-              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#333', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontSize: 20 }}>🏠</span> Home
-              </Link>
-              <Link to="/get-premium" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#e65100', fontWeight: 'bold', background: '#fff3e0', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontSize: 20 }}>⭐</span> Get Premium
-              </Link>
-              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#333', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontSize: 20 }}>ℹ️</span> About Us
-              </Link>
-              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#333', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontSize: 20 }}>📞</span> Contact Us
-              </Link>
-              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontSize: 20 }}>💬</span> Join WhatsApp
-              </Link>
-              <button onClick={() => { setIsOpen(false); logout(); }} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px 20px', width: '100%', textDecoration: 'none', color: '#dc3545', fontWeight: 'bold', border: 'none', background: 'white', cursor: 'pointer', borderTop: '1px solid #f0f0f0', fontSize: 16 }}>
-                <span style={{ fontSize: 20 }}>🚪</span> Logout
-              </button>
+            <div style={{ padding: '8px 0' }}>
+              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', textDecoration: 'none', color: '#333' }}><span>🏠</span> Home</Link>
+              <Link to="/get-premium" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', textDecoration: 'none', color: '#e65100', fontWeight: 'bold', background: '#fff3e0' }}><span>⭐</span> Get Premium</Link>
+              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', textDecoration: 'none', color: '#333' }}><span>ℹ️</span> About Us</Link>
+              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', textDecoration: 'none', color: '#333' }}><span>📞</span> Contact Us</Link>
+              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold' }}><span>💬</span> Join WhatsApp</Link>
+              <button onClick={() => { setIsOpen(false); logout(); }} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', width: '100%', textDecoration: 'none', color: '#dc3545', fontWeight: 'bold', border: 'none', background: 'white', cursor: 'pointer', borderTop: '1px solid #eee', fontSize: 14 }}><span>🚪</span> Logout</button>
             </div>
           </div>
         </>
@@ -970,19 +911,18 @@ const AppContent = () => {
     <div>
       <nav style={{ 
         background: 'white', 
-        padding: '15px 30px', 
+        padding: '10px 16px', 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        boxShadow: '0 2px 15px rgba(0,0,0,0.08)',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
         position: 'sticky',
         top: 0,
-        zIndex: 100,
-        flexWrap: 'wrap'
+        zIndex: 100
       }}>
         <div>
-          <h1 style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '22px', margin: 0 }}>ELITE NURSING & MIDWIFERY CBT</h1>
-          <p style={{ margin: 0, fontSize: '11px', color: '#2E7D64' }}>Computer Based Testing Platform</p>
+          <h1 style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: 'clamp(16px, 4vw, 20px)', margin: 0 }}>ELITE NURSING CBT</h1>
+          <p style={{ margin: 0, fontSize: '10px', color: '#2E7D64' }}>Computer Based Testing</p>
         </div>
         <DropdownMenu />
       </nav>
@@ -1039,8 +979,7 @@ function App() {
           });
           
           if (response.data.success) {
-            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
-            // Update user in state
+            alert('✅ Payment successful! Your account has been upgraded!');
             setAuth({ ...auth, user: { ...auth.user, isPremium: true } });
             localStorage.setItem('auth', JSON.stringify({ ...auth, user: { ...auth.user, isPremium: true } }));
             window.location.href = '/';
