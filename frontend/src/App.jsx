@@ -911,7 +911,7 @@ const GetPremium = () => {
               </div>
               <div>
                 <div style={{ fontSize: '36px', marginBottom: 10 }}>🎯</div>
-                <h3>12,000+ Questions</h3>
+                <h3>15,000+ Questions</h3>
               </div>
               <div>
                 <div style={{ fontSize: '36px', marginBottom: 10 }}>🏆</div>
