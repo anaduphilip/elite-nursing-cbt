@@ -7,7 +7,7 @@ axios.defaults.baseURL = API_URL;
 
 const AuthContext = createContext();
 
-// Loading Spinner Component - Centered, Light
+// Loading Spinner Component
 const LoadingSpinner = () => (
   <div style={{
     display: 'flex',
@@ -178,7 +178,7 @@ const Register = () => {
   );
 };
 
-// Quiz List Component with Categories
+// Quiz List Component - FIXED: Maps database category to display names
 const QuizList = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -198,26 +198,38 @@ const QuizList = () => {
     fetchQuizzes();
   }, [token]);
 
-  // Categorize quizzes
-  const generalNursing = quizzes.filter(q => 
-    q.title.toLowerCase().includes('nursing') && 
-    !q.title.toLowerCase().includes('midwifery') &&
-    !q.title.toLowerCase().includes('public') &&
-    !q.title.toLowerCase().includes('health')
-  );
-  
-  const midwifery = quizzes.filter(q => q.title.toLowerCase().includes('midwifery'));
-  
-  const publicHealth = quizzes.filter(q => 
-    q.title.toLowerCase().includes('public') || 
-    q.title.toLowerCase().includes('health')
-  );
+  // Group quizzes by display category (mapping database category to display name)
+  const groupedQuizzes = quizzes.reduce((acc, quiz) => {
+    let displayCategory = 'General Nursing';
+    if (quiz.category === 'midwifery') displayCategory = 'Midwifery';
+    else if (quiz.category === 'public-health') displayCategory = 'Public Health';
+    else if (quiz.category === 'general-nursing') displayCategory = 'General Nursing';
+    
+    if (!acc[displayCategory]) acc[displayCategory] = [];
+    acc[displayCategory].push(quiz);
+    return acc;
+  }, {});
 
-  const comingSoonCategories = [
-    { name: 'DENTAL NURSING', icon: '🦷', description: 'Dental nursing practice questions coming soon!' },
-    { name: 'PEDIATRIC NURSING', icon: '👶', description: 'Child health nursing questions coming soon!' },
-    { name: 'NCLEX PRACTICE', icon: '🇺🇸', description: 'NCLEX-RN preparation questions coming soon!' }
-  ];
+  const categoryConfig = {
+    'General Nursing': {
+      icon: '🩺',
+      color: '#2E7D64',
+      description: 'Comprehensive nursing practice questions for exam success.',
+      slug: 'general-nursing'
+    },
+    'Midwifery': {
+      icon: '🤰',
+      color: '#2E7D64',
+      description: 'Specialized midwifery practice questions for certification.',
+      slug: 'midwifery'
+    },
+    'Public Health': {
+      icon: '🌍',
+      color: '#2E7D64',
+      description: 'Community and public health nursing practice questions.',
+      slug: 'public-health'
+    }
+  };
 
   if (loading) return <LoadingSpinner />;
 
@@ -229,51 +241,37 @@ const QuizList = () => {
           <p style={{ color: '#666', fontSize: 'clamp(14px, 4vw, 18px)' }}>Computer Based Testing Platform</p>
         </div>
         
-        {/* Available Categories */}
         <h2 style={{ color: '#2E7D64', marginBottom: '20px', fontSize: 'clamp(20px, 4vw, 24px)' }}>📚 Available Categories</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginBottom: '40px' }}>
-          
-          {generalNursing.length > 0 && (
-            <div style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', borderLeft: '5px solid #2E7D64' }}>
-              <div style={{ fontSize: '40px' }}>🩺</div>
-              <h3 style={{ color: '#2E7D64', marginBottom: '10px' }}>GENERAL NURSING</h3>
-              <p style={{ color: '#666', marginBottom: '15px' }}>Comprehensive nursing practice questions.</p>
-              <p><strong style={{ color: '#2E7D64' }}>Quizzes:</strong> {generalNursing.length}</p>
-              <Link to="/category/general-nursing">
-                <button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations →</button>
-              </Link>
-            </div>
-          )}
-
-          {midwifery.length > 0 && (
-            <div style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', borderLeft: '5px solid #2E7D64' }}>
-              <div style={{ fontSize: '40px' }}>🤰</div>
-              <h3 style={{ color: '#2E7D64', marginBottom: '10px' }}>MIDWIFERY</h3>
-              <p style={{ color: '#666', marginBottom: '15px' }}>Specialized midwifery practice questions.</p>
-              <p><strong style={{ color: '#2E7D64' }}>Quizzes:</strong> {midwifery.length}</p>
-              <Link to="/category/midwifery">
-                <button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations →</button>
-              </Link>
-            </div>
-          )}
-
-          {publicHealth.length > 0 && (
-            <div style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', borderLeft: '5px solid #2E7D64' }}>
-              <div style={{ fontSize: '40px' }}>🌍</div>
-              <h3 style={{ color: '#2E7D64', marginBottom: '10px' }}>PUBLIC HEALTH</h3>
-              <p style={{ color: '#666', marginBottom: '15px' }}>Community and public health nursing.</p>
-              <p><strong style={{ color: '#2E7D64' }}>Quizzes:</strong> {publicHealth.length}</p>
-              <Link to="/category/public-health">
-                <button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations →</button>
-              </Link>
-            </div>
-          )}
+          {Object.entries(groupedQuizzes).map(([categoryName, categoryQuizzes]) => {
+            const config = categoryConfig[categoryName] || {
+              icon: '📚',
+              color: '#2E7D64',
+              description: 'Practice questions for nursing exams.',
+              slug: categoryName.toLowerCase().replace(/\s+/g, '-')
+            };
+            
+            return (
+              <div key={categoryName} style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', borderLeft: `5px solid ${config.color}` }}>
+                <div style={{ fontSize: '40px' }}>{config.icon}</div>
+                <h3 style={{ color: config.color, marginBottom: '10px' }}>{categoryName.toUpperCase()}</h3>
+                <p style={{ color: '#666', marginBottom: '15px' }}>{config.description}</p>
+                <p><strong style={{ color: config.color }}>Quizzes:</strong> {categoryQuizzes.length}</p>
+                <Link to={`/category/${config.slug}`}>
+                  <button style={{ width: '100%', background: config.color, color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations →</button>
+                </Link>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Coming Soon Categories */}
         <h2 style={{ color: '#ff9800', marginBottom: '20px', fontSize: 'clamp(20px, 4vw, 24px)' }}>⏳ Coming Soon</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-          {comingSoonCategories.map((category, index) => (
+          {[
+            { name: 'DENTAL NURSING', icon: '🦷', description: 'Dental nursing practice questions coming soon!' },
+            { name: 'PEDIATRIC NURSING', icon: '👶', description: 'Child health nursing questions coming soon!' },
+            { name: 'NCLEX PRACTICE', icon: '🇺🇸', description: 'NCLEX-RN preparation questions coming soon!' }
+          ].map((category, index) => (
             <div key={index} style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', border: '2px dashed #ff9800', opacity: 0.8, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: '15px', right: '-30px', background: '#ff9800', color: 'white', padding: '5px 40px', transform: 'rotate(45deg)', fontSize: '12px', fontWeight: 'bold' }}>COMING SOON</div>
               <div style={{ fontSize: '40px', opacity: 0.6 }}>{category.icon}</div>
@@ -288,34 +286,28 @@ const QuizList = () => {
   );
 };
 
-// Category View Component
+// Category View Component - FIXED: Uses database category field directly
 const CategoryView = () => {
   const { categoryName } = useParams();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const { token } = useContext(AuthContext);
 
+  // Map URL slug to database category value
+  const slugToCategory = {
+    'general-nursing': 'general-nursing',
+    'midwifery': 'midwifery',
+    'public-health': 'public-health'
+  };
+  
+  const actualCategory = slugToCategory[categoryName] || categoryName;
+
   useEffect(() => {
     const fetchQuizzes = async () => {
       try {
         const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-        
-        let filtered = [];
-        if (categoryName === 'general-nursing') {
-          filtered = res.data.filter(q => 
-            q.title.toLowerCase().includes('nursing') && 
-            !q.title.toLowerCase().includes('midwifery') &&
-            !q.title.toLowerCase().includes('public') &&
-            !q.title.toLowerCase().includes('health')
-          );
-        } else if (categoryName === 'midwifery') {
-          filtered = res.data.filter(q => q.title.toLowerCase().includes('midwifery'));
-        } else if (categoryName === 'public-health') {
-          filtered = res.data.filter(q => 
-            q.title.toLowerCase().includes('public') || 
-            q.title.toLowerCase().includes('health')
-          );
-        }
+        // Filter by the category field from database
+        const filtered = res.data.filter(q => q.category === actualCategory);
         setQuizzes(filtered);
       } catch (error) {
         console.error('Error fetching quizzes:', error);
@@ -324,39 +316,37 @@ const CategoryView = () => {
       }
     };
     fetchQuizzes();
-  }, [categoryName, token]);
+  }, [categoryName, token, actualCategory]);
 
-  const getCategoryTitle = () => {
-    switch(categoryName) {
-      case 'general-nursing': return 'GENERAL NURSING';
-      case 'midwifery': return 'MIDWIFERY';
-      case 'public-health': return 'PUBLIC HEALTH';
-      default: return 'EXAMINATIONS';
+  const getCategoryMeta = () => {
+    switch(actualCategory) {
+      case 'general-nursing':
+        return { title: 'GENERAL NURSING', icon: '🩺', color: '#2E7D64', description: 'Comprehensive nursing practice questions' };
+      case 'midwifery':
+        return { title: 'MIDWIFERY', icon: '🤰', color: '#2E7D64', description: 'Specialized midwifery practice questions' };
+      case 'public-health':
+        return { title: 'PUBLIC HEALTH', icon: '🌍', color: '#2E7D64', description: 'Community and public health nursing' };
+      default:
+        return { title: 'EXAMINATIONS', icon: '📚', color: '#2E7D64', description: 'Practice questions' };
     }
   };
 
-  const getCategoryIcon = () => {
-    switch(categoryName) {
-      case 'general-nursing': return '🩺';
-      case 'midwifery': return '🤰';
-      case 'public-health': return '🌍';
-      default: return '📚';
-    }
-  };
+  const meta = getCategoryMeta();
 
   if (loading) return <LoadingSpinner />;
 
   return (
     <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#2E7D64', color: 'white', padding: '10px 20px', borderRadius: '30px', textDecoration: 'none', marginBottom: '20px', fontWeight: 'bold' }}>
+        <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: meta.color, color: 'white', padding: '10px 20px', borderRadius: '30px', textDecoration: 'none', marginBottom: '20px', fontWeight: 'bold' }}>
           ← Back to Categories
         </Link>
         
-        <div style={{ background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', borderRadius: '20px', padding: '30px', marginBottom: '30px', color: 'white', textAlign: 'center' }}>
-          <div style={{ fontSize: '50px' }}>{getCategoryIcon()}</div>
-          <h1 style={{ margin: 0, fontSize: 'clamp(24px, 5vw, 32px)' }}>{getCategoryTitle()}</h1>
-          <p style={{ marginTop: '10px' }}>{quizzes.length} quizzes available</p>
+        <div style={{ background: `linear-gradient(135deg, ${meta.color} 0%, #1B5E4A 100%)`, borderRadius: '20px', padding: '30px', marginBottom: '30px', color: 'white', textAlign: 'center' }}>
+          <div style={{ fontSize: '50px' }}>{meta.icon}</div>
+          <h1 style={{ margin: 0, fontSize: 'clamp(24px, 5vw, 32px)' }}>{meta.title}</h1>
+          <p style={{ marginTop: '10px' }}>{meta.description}</p>
+          <p>{quizzes.length} quizzes available</p>
         </div>
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
@@ -367,12 +357,12 @@ const CategoryView = () => {
             return (
               <div key={quiz._id} style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: '40px' }}>📚</div>
-                <h3 style={{ color: '#2E7D64', marginBottom: '10px', fontSize: 'clamp(18px, 4vw, 22px)' }}>{quiz.title}</h3>
+                <h3 style={{ color: meta.color, marginBottom: '10px', fontSize: 'clamp(18px, 4vw, 22px)' }}>{quiz.title}</h3>
                 <p style={{ color: '#666', marginBottom: '15px' }}>{quiz.description}</p>
-                <p><strong style={{ color: '#2E7D64' }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
-                <p><strong style={{ color: '#2E7D64' }}>Exams:</strong> {examCount} (20 questions each)</p>
+                <p><strong style={{ color: meta.color }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
+                <p><strong style={{ color: meta.color }}>Exams:</strong> {examCount} (20 questions each)</p>
                 <Link to={`/exam/${quiz._id}`}>
-                  <button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations</button>
+                  <button style={{ width: '100%', background: meta.color, color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations</button>
                 </Link>
               </div>
             );
@@ -440,6 +430,14 @@ const ExamDetail = () => {
     if (id && token) fetchExam();
   }, [id, token, logout]);
 
+  const getCategorySlug = () => {
+    if (!exam?.category) return '/';
+    if (exam.category === 'general-nursing') return '/category/general-nursing';
+    if (exam.category === 'midwifery') return '/category/midwifery';
+    if (exam.category === 'public-health') return '/category/public-health';
+    return '/';
+  };
+
   const handleStartExam = (section) => {
     if (section.isPremium && !userPremium) {
       setSelectedSection(section);
@@ -456,7 +454,7 @@ const ExamDetail = () => {
     <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       {showPremiumModal && <PremiumModal onClose={() => setShowPremiumModal(false)} examTitle={exam.title} sectionNumber={selectedSection?.number} />}
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <Link to={`/category/${exam.title.toLowerCase().includes('midwifery') ? 'midwifery' : exam.title.toLowerCase().includes('public') || exam.title.toLowerCase().includes('health') ? 'public-health' : 'general-nursing'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#2E7D64', color: 'white', padding: '10px 20px', borderRadius: '30px', textDecoration: 'none', marginBottom: '20px', fontWeight: 'bold' }}>
+        <Link to={getCategorySlug()} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#2E7D64', color: 'white', padding: '10px 20px', borderRadius: '30px', textDecoration: 'none', marginBottom: '20px', fontWeight: 'bold' }}>
           ← Back to Category
         </Link>
         
@@ -715,7 +713,7 @@ const GetPremium = () => {
   );
 };
 
-// Dropdown Menu Component with Dark Mode Toggle
+// Dropdown Menu Component
 const DropdownMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout, darkMode, toggleDarkMode } = useContext(AuthContext);
