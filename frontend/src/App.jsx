@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext, lazy, Suspense } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 
@@ -116,63 +116,167 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   );
 };
 
-// Login Component
+// Modern Login Component
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
       const res = await axios.post('/api/login', { email, password });
       login(res.data.token, res.data.user);
     } catch (error) {
       alert('Login failed: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '30px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 30 }}>Welcome Back</h2>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ maxWidth: 450, width: '100%', background: 'white', borderRadius: 24, padding: '40px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
+          <h1 style={{ color: '#2E7D64', fontSize: 28, margin: 0, fontWeight: 'bold' }}>Welcome Back</h1>
+          <p style={{ color: '#666', marginTop: 8 }}>Sign in to continue your learning journey</p>
+        </div>
         <form onSubmit={handleSubmit}>
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
-          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
-          <button type="submit" style={{ width: '100%', background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 16, marginTop: 20 }}>Login</button>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', marginBottom: 8, color: '#333', fontWeight: 500 }}>Email Address</label>
+            <input 
+              type="email" 
+              placeholder="you@example.com" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              style={{ width: '100%', padding: '14px 16px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, transition: 'all 0.3s', outline: 'none' }}
+              onFocus={(e) => e.target.style.borderColor = '#2E7D64'}
+              onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+              required 
+            />
+          </div>
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', marginBottom: 8, color: '#333', fontWeight: 500 }}>Password</label>
+            <input 
+              type="password" 
+              placeholder="••••••••" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              style={{ width: '100%', padding: '14px 16px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, transition: 'all 0.3s', outline: 'none' }}
+              onFocus={(e) => e.target.style.borderColor = '#2E7D64'}
+              onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+              required 
+            />
+          </div>
+          <button 
+            type="submit" 
+            disabled={isLoading}
+            style={{ 
+              width: '100%', 
+              background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
+              color: 'white', 
+              padding: '14px', 
+              border: 'none', 
+              borderRadius: 12, 
+              cursor: 'pointer', 
+              fontWeight: 'bold', 
+              fontSize: 16,
+              opacity: isLoading ? 0.7 : 1,
+              transition: 'all 0.3s'
+            }}
+          >
+            {isLoading ? 'Logging in...' : 'Sign In'}
+          </button>
         </form>
-        <p style={{ textAlign: 'center', marginTop: 20 }}>Don't have an account? <Link to="/register" style={{ color: '#2E7D64' }}>Register</Link></p>
+        <p style={{ textAlign: 'center', marginTop: 24, color: '#666' }}>
+          Don't have an account? <Link to="/register" style={{ color: '#2E7D64', fontWeight: 'bold', textDecoration: 'none' }}>Create Account</Link>
+        </p>
       </div>
     </div>
   );
 };
 
-// Register Component
+// Modern Register Component
 const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
       const res = await axios.post('/api/register', { email, password });
       login(res.data.token, res.data.user);
     } catch (error) {
       alert('Registration failed: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '30px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 30 }}>Create Account</h2>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ maxWidth: 450, width: '100%', background: 'white', borderRadius: 24, padding: '40px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🎓</div>
+          <h1 style={{ color: '#2E7D64', fontSize: 28, margin: 0, fontWeight: 'bold' }}>Get Started</h1>
+          <p style={{ color: '#666', marginTop: 8 }}>Create your account to begin</p>
+        </div>
         <form onSubmit={handleSubmit}>
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
-          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: 14, margin: '10px 0', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 16 }} required />
-          <button type="submit" style={{ width: '100%', background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 16, marginTop: 20 }}>Register</button>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', marginBottom: 8, color: '#333', fontWeight: 500 }}>Email Address</label>
+            <input 
+              type="email" 
+              placeholder="you@example.com" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              style={{ width: '100%', padding: '14px 16px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, transition: 'all 0.3s', outline: 'none' }}
+              onFocus={(e) => e.target.style.borderColor = '#2E7D64'}
+              onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+              required 
+            />
+          </div>
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', marginBottom: 8, color: '#333', fontWeight: 500 }}>Password</label>
+            <input 
+              type="password" 
+              placeholder="Create a strong password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              style={{ width: '100%', padding: '14px 16px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, transition: 'all 0.3s', outline: 'none' }}
+              onFocus={(e) => e.target.style.borderColor = '#2E7D64'}
+              onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+              required 
+            />
+          </div>
+          <button 
+            type="submit" 
+            disabled={isLoading}
+            style={{ 
+              width: '100%', 
+              background: 'linear-gradient(135deg, #2E7D64 0%, #1B5E4A 100%)', 
+              color: 'white', 
+              padding: '14px', 
+              border: 'none', 
+              borderRadius: 12, 
+              cursor: 'pointer', 
+              fontWeight: 'bold', 
+              fontSize: 16,
+              opacity: isLoading ? 0.7 : 1,
+              transition: 'all 0.3s'
+            }}
+          >
+            {isLoading ? 'Creating account...' : 'Create Account'}
+          </button>
         </form>
-        <p style={{ textAlign: 'center', marginTop: 20 }}>Already have an account? <Link to="/login" style={{ color: '#2E7D64' }}>Login</Link></p>
+        <p style={{ textAlign: 'center', marginTop: 24, color: '#666' }}>
+          Already have an account? <Link to="/login" style={{ color: '#2E7D64', fontWeight: 'bold', textDecoration: 'none' }}>Sign In</Link>
+        </p>
       </div>
     </div>
   );
@@ -182,7 +286,7 @@ const Register = () => {
 const QuizList = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { token } = useContext(AuthContext);
+  const { token, darkMode } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchQuizzes = async () => {
@@ -211,58 +315,38 @@ const QuizList = () => {
   }, {});
 
   const categoryConfig = {
-    'General Nursing': {
-      icon: '🩺',
-      color: '#2E7D64',
-      description: 'Comprehensive nursing practice questions for exam success.',
-      slug: 'general-nursing'
-    },
-    'Midwifery': {
-      icon: '🤰',
-      color: '#2E7D64',
-      description: 'Specialized midwifery practice questions for certification.',
-      slug: 'midwifery'
-    },
-    'Public Health': {
-      icon: '🌍',
-      color: '#2E7D64',
-      description: 'Community and public health nursing practice questions.',
-      slug: 'public-health'
-    },
-    'Pediatric Nursing': {
-      icon: '👶',
-      color: '#2E7D64',
-      description: 'Child health nursing practice questions for pediatric certification.',
-      slug: 'pediatric-nursing'
-    }
+    'General Nursing': { icon: '🩺', color: '#2E7D64', description: 'Comprehensive nursing practice questions for exam success.', slug: 'general-nursing' },
+    'Midwifery': { icon: '🤰', color: '#2E7D64', description: 'Specialized midwifery practice questions for certification.', slug: 'midwifery' },
+    'Public Health': { icon: '🌍', color: '#2E7D64', description: 'Community and public health nursing practice questions.', slug: 'public-health' },
+    'Pediatric Nursing': { icon: '👶', color: '#2E7D64', description: 'Child health nursing practice questions for pediatric certification.', slug: 'pediatric-nursing' }
+  };
+
+  const calculateTotalQuestions = (categoryQuizzes) => {
+    return categoryQuizzes.reduce((total, quiz) => total + (quiz.questions?.length || 0), 0);
   };
 
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
           <h1 style={{ color: '#2E7D64', fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: '10px' }}>ELITE NURSING & MIDWIFERY CBT</h1>
-          <p style={{ color: '#666', fontSize: 'clamp(14px, 4vw, 18px)' }}>Computer Based Testing Platform</p>
+          <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 18px)' }}>Computer Based Testing Platform</p>
         </div>
         
         <h2 style={{ color: '#2E7D64', marginBottom: '20px', fontSize: 'clamp(20px, 4vw, 24px)' }}>📚 Available Categories</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginBottom: '40px' }}>
           {Object.entries(groupedQuizzes).map(([categoryName, categoryQuizzes]) => {
-            const config = categoryConfig[categoryName] || {
-              icon: '📚',
-              color: '#2E7D64',
-              description: 'Practice questions for nursing exams.',
-              slug: categoryName.toLowerCase().replace(/\s+/g, '-')
-            };
+            const config = categoryConfig[categoryName];
+            const totalQuestions = calculateTotalQuestions(categoryQuizzes);
             
             return (
-              <div key={categoryName} style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', borderLeft: `5px solid ${config.color}` }}>
+              <div key={categoryName} style={{ background: darkMode ? '#16213e' : 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', borderLeft: `5px solid ${config.color}` }}>
                 <div style={{ fontSize: '40px' }}>{config.icon}</div>
                 <h3 style={{ color: config.color, marginBottom: '10px' }}>{categoryName.toUpperCase()}</h3>
-                <p style={{ color: '#666', marginBottom: '15px' }}>{config.description}</p>
-                <p><strong style={{ color: config.color }}>Quizzes:</strong> {categoryQuizzes.length}</p>
+                <p style={{ color: darkMode ? '#aaa' : '#666', marginBottom: '15px' }}>{config.description}</p>
+                <p><strong style={{ color: config.color }}>Quizzes:</strong> {categoryQuizzes.length} <span style={{ color: darkMode ? '#aaa' : '#666' }}>({totalQuestions.toLocaleString()} Questions)</span></p>
                 <Link to={`/category/${config.slug}`}>
                   <button style={{ width: '100%', background: config.color, color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>View Examinations →</button>
                 </Link>
@@ -273,18 +357,20 @@ const QuizList = () => {
 
         <h2 style={{ color: '#ff9800', marginBottom: '20px', fontSize: 'clamp(20px, 4vw, 24px)' }}>⏳ Coming Soon</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-          {[
-            { name: 'DENTAL NURSING', icon: '🦷', description: 'Dental nursing practice questions coming soon!' },
-            { name: 'NCLEX PRACTICE', icon: '🇺🇸', description: 'NCLEX-RN preparation questions coming soon!' }
-          ].map((category, index) => (
-            <div key={index} style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', border: '2px dashed #ff9800', opacity: 0.8, position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: '15px', right: '-30px', background: '#ff9800', color: 'white', padding: '5px 40px', transform: 'rotate(45deg)', fontSize: '12px', fontWeight: 'bold' }}>COMING SOON</div>
-              <div style={{ fontSize: '40px', opacity: 0.6 }}>{category.icon}</div>
-              <h3 style={{ color: '#ff9800', marginBottom: '10px' }}>{category.name}</h3>
-              <p style={{ color: '#666' }}>{category.description}</p>
-              <button disabled style={{ width: '100%', background: '#ccc', color: '#666', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'not-allowed', fontWeight: 'bold' }}>🚀 Coming Soon</button>
-            </div>
-          ))}
+          <div style={{ background: darkMode ? '#16213e' : 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', border: '2px dashed #ff9800', opacity: 0.8, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: '15px', right: '-30px', background: '#ff9800', color: 'white', padding: '5px 40px', transform: 'rotate(45deg)', fontSize: '12px', fontWeight: 'bold' }}>COMING SOON</div>
+            <div style={{ fontSize: '40px', opacity: 0.6 }}>🦷</div>
+            <h3 style={{ color: '#ff9800', marginBottom: '10px' }}>DENTAL NURSING</h3>
+            <p style={{ color: darkMode ? '#aaa' : '#666' }}>Dental nursing practice questions coming soon!</p>
+            <button disabled style={{ width: '100%', background: '#ccc', color: '#666', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'not-allowed', fontWeight: 'bold' }}>🚀 Coming Soon</button>
+          </div>
+          <div style={{ background: darkMode ? '#16213e' : 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', border: '2px dashed #ff9800', opacity: 0.8, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: '15px', right: '-30px', background: '#ff9800', color: 'white', padding: '5px 40px', transform: 'rotate(45deg)', fontSize: '12px', fontWeight: 'bold' }}>COMING SOON</div>
+            <div style={{ fontSize: '40px', opacity: 0.6 }}>🇺🇸</div>
+            <h3 style={{ color: '#ff9800', marginBottom: '10px' }}>NCLEX PRACTICE</h3>
+            <p style={{ color: darkMode ? '#aaa' : '#666' }}>NCLEX-RN preparation questions coming soon!</p>
+            <button disabled style={{ width: '100%', background: '#ccc', color: '#666', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'not-allowed', fontWeight: 'bold' }}>🚀 Coming Soon</button>
+          </div>
         </div>
       </div>
     </div>
@@ -296,7 +382,7 @@ const CategoryView = () => {
   const { categoryName } = useParams();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { token } = useContext(AuthContext);
+  const { token, darkMode } = useContext(AuthContext);
 
   const slugToCategory = {
     'general-nursing': 'general-nursing',
@@ -324,16 +410,11 @@ const CategoryView = () => {
 
   const getCategoryMeta = () => {
     switch(actualCategory) {
-      case 'general-nursing':
-        return { title: 'GENERAL NURSING', icon: '🩺', color: '#2E7D64', description: 'Comprehensive nursing practice questions' };
-      case 'midwifery':
-        return { title: 'MIDWIFERY', icon: '🤰', color: '#2E7D64', description: 'Specialized midwifery practice questions' };
-      case 'public-health':
-        return { title: 'PUBLIC HEALTH', icon: '🌍', color: '#2E7D64', description: 'Community and public health nursing' };
-      case 'pediatric-nursing':
-        return { title: 'PEDIATRIC NURSING', icon: '👶', color: '#2E7D64', description: 'Child health nursing practice questions' };
-      default:
-        return { title: 'EXAMINATIONS', icon: '📚', color: '#2E7D64', description: 'Practice questions' };
+      case 'general-nursing': return { title: 'GENERAL NURSING', icon: '🩺', color: '#2E7D64', description: 'Comprehensive nursing practice questions' };
+      case 'midwifery': return { title: 'MIDWIFERY', icon: '🤰', color: '#2E7D64', description: 'Specialized midwifery practice questions' };
+      case 'public-health': return { title: 'PUBLIC HEALTH', icon: '🌍', color: '#2E7D64', description: 'Community and public health nursing' };
+      case 'pediatric-nursing': return { title: 'PEDIATRIC NURSING', icon: '👶', color: '#2E7D64', description: 'Child health nursing practice questions' };
+      default: return { title: 'EXAMINATIONS', icon: '📚', color: '#2E7D64', description: 'Practice questions' };
     }
   };
 
@@ -342,7 +423,7 @@ const CategoryView = () => {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: meta.color, color: 'white', padding: '10px 20px', borderRadius: '30px', textDecoration: 'none', marginBottom: '20px', fontWeight: 'bold' }}>
           ← Back to Categories
@@ -361,10 +442,10 @@ const CategoryView = () => {
             const examCount = Math.ceil(totalQuestions / 20);
             
             return (
-              <div key={quiz._id} style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+              <div key={quiz._id} style={{ background: darkMode ? '#16213e' : 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: '40px' }}>📚</div>
                 <h3 style={{ color: meta.color, marginBottom: '10px', fontSize: 'clamp(18px, 4vw, 22px)' }}>{quiz.title}</h3>
-                <p style={{ color: '#666', marginBottom: '15px' }}>{quiz.description}</p>
+                <p style={{ color: darkMode ? '#aaa' : '#666', marginBottom: '15px' }}>{quiz.description}</p>
                 <p><strong style={{ color: meta.color }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
                 <p><strong style={{ color: meta.color }}>Exams:</strong> {examCount} (20 questions each)</p>
                 <Link to={`/exam/${quiz._id}`}>
@@ -389,7 +470,7 @@ const ExamDetail = () => {
   const [userPremium, setUserPremium] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastScores, setLastScores] = useState({});
-  const { token, logout } = useContext(AuthContext);
+  const { token, logout, darkMode } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchExam = async () => {
@@ -464,7 +545,7 @@ const ExamDetail = () => {
   if (!exam) return <div style={{ textAlign: 'center', padding: '50px' }}>Exam not found</div>;
 
   return (
-    <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       {showPremiumModal && <PremiumModal onClose={() => setShowPremiumModal(false)} examTitle={exam.title} sectionNumber={selectedSection?.number} />}
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <Link to={getCategorySlug()} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#2E7D64', color: 'white', padding: '10px 20px', borderRadius: '30px', textDecoration: 'none', marginBottom: '20px', fontWeight: 'bold' }}>
@@ -483,7 +564,7 @@ const ExamDetail = () => {
           {sections.map((section) => {
             const lastScore = lastScores[section.number];
             return (
-              <div key={section.number} style={{ background: 'white', padding: '20px', borderRadius: '16px', textAlign: 'center', position: 'relative', border: (section.isPremium && !userPremium) ? '2px solid #ff9800' : '2px solid #2E7D64' }}>
+              <div key={section.number} style={{ background: darkMode ? '#16213e' : 'white', padding: '20px', borderRadius: '16px', textAlign: 'center', position: 'relative', border: (section.isPremium && !userPremium) ? '2px solid #ff9800' : '2px solid #2E7D64' }}>
                 {(section.isPremium && !userPremium) && <div style={{ position: 'absolute', top: '-12px', right: '20px', background: '#ff9800', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>⭐ PREMIUM</div>}
                 {userPremium && section.isPremium && <div style={{ position: 'absolute', top: '-12px', right: '20px', background: '#2E7D64', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>✅ UNLOCKED</div>}
                 <div style={{ fontSize: '40px' }}>{section.isPremium && !userPremium ? '⭐' : '📝'}</div>
@@ -519,7 +600,7 @@ const TakeExam = () => {
   const [result, setResult] = useState(null);
   const [showReview, setShowReview] = useState(false);
   const [timeUp, setTimeUp] = useState(false);
-  const { token } = useContext(AuthContext);
+  const { token, darkMode } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchExam = async () => {
@@ -581,8 +662,8 @@ const TakeExam = () => {
 
   if (submitted && !showReview) {
     return (
-      <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ maxWidth: '500px', width: '100%', background: 'white', borderRadius: '20px', padding: '30px', textAlign: 'center' }}>
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ maxWidth: '500px', width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', textAlign: 'center' }}>
           <h2 style={{ color: '#2E7D64' }}>Exam Results</h2>
           <p style={{ fontSize: '32px', margin: '20px 0' }}>Score: <strong style={{ color: '#2E7D64' }}>{result.score}</strong> / {result.total}</p>
           <p style={{ fontSize: '24px', marginBottom: '20px' }}>Percentage: <strong>{result.percentage}%</strong></p>
@@ -604,9 +685,9 @@ const TakeExam = () => {
   if (submitted && showReview) {
     const globalStart = (parseInt(sectionNumber) - 1) * 20;
     return (
-      <div style={{ background: '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-          <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', textAlign: 'center' }}>
+          <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', textAlign: 'center' }}>
             <h2 style={{ color: '#2E7D64' }}>Answer Review: {exam.title}</h2>
             <p>Score: {result.score}/{result.total} ({result.percentage}%)</p>
             <Link to={`/exam/${id}`}>
@@ -617,7 +698,7 @@ const TakeExam = () => {
             const userAnswer = answers[idx];
             const isCorrect = userAnswer !== undefined && userAnswer === q.correctAnswer;
             return (
-              <div key={idx} style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', borderLeft: `5px solid ${isCorrect ? '#4caf50' : '#f44336'}` }}>
+              <div key={idx} style={{ background: darkMode ? '#16213e' : 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', borderLeft: `5px solid ${isCorrect ? '#4caf50' : '#f44336'}` }}>
                 <h4>Question {globalStart + idx + 1}: {q.questionText}</h4>
                 {userAnswer === undefined && <p style={{ color: '#ff9800' }}>⚠️ Unanswered</p>}
                 {q.options.map((opt, optIdx) => (
@@ -640,10 +721,10 @@ const TakeExam = () => {
 
   const globalStart = (parseInt(sectionNumber) - 1) * 20;
   return (
-    <div style={{ background: '#f0f7f4', minHeight: '100vh' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh' }}>
       <Timer duration={questions.length} onTimeUp={handleTimeUp} />
       <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
-        <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', textAlign: 'center' }}>
+        <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', textAlign: 'center' }}>
           <h2 style={{ color: '#2E7D64', margin: 0 }}>{exam.title}</h2>
           <p>Examination {sectionNumber} - {questions.length} Questions</p>
           <p style={{ color: '#ff9800' }}>⏰ Timer: {questions.length} minute(s)</p>
@@ -718,14 +799,16 @@ const TakeExam = () => {
   );
 };
 
-// About Us Component
+// About Us Component - Original style
 const AboutUs = () => {
   const { darkMode } = useContext(AuthContext);
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', color: darkMode ? '#eee' : '#333' }}>
-        <h2 style={{ color: '#2E7D64' }}>About Us</h2>
-        <p>ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students in Nigeria.</p>
+      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', color: darkMode ? '#eee' : '#333', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 20 }}>About Us</h2>
+        <p style={{ lineHeight: 1.8, marginBottom: '20px' }}>ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students in Nigeria.</p>
+        <p style={{ lineHeight: 1.8, marginBottom: '20px' }}>Our mission is to provide high-quality, accessible exam preparation materials that help students succeed in their nursing and midwifery licensing examinations.</p>
+        <p style={{ lineHeight: 1.8, marginBottom: '20px' }}>With over 15,000 practice questions covering General Nursing, Midwifery, Pediatric Nursing, and Public Health, we are committed to excellence in nursing education.</p>
         <h3 style={{ color: '#2E7D64', marginTop: '30px' }}>Coming Soon</h3>
         <p>Dental Nursing and NCLEX Practice questions are coming soon!</p>
       </div>
@@ -733,39 +816,61 @@ const AboutUs = () => {
   );
 };
 
-// Contact Us Component
+// Contact Us Component - Original style
 const ContactUs = () => {
   const { darkMode } = useContext(AuthContext);
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', color: darkMode ? '#eee' : '#333' }}>
-        <h2 style={{ color: '#2E7D64' }}>Contact Us</h2>
-        <div><h3>📧 Email</h3><p>anaduphilip2000@gmail.com</p></div>
-        <div><h3>📞 Phone / WhatsApp</h3><p>09063908476</p></div>
-        <div><h3>💬 WhatsApp Group</h3><a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer">Click here to join</a></div>
+      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', color: darkMode ? '#eee' : '#333', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2E7D64', textAlign: 'center', marginBottom: 20 }}>Contact Us</h2>
+        <p style={{ textAlign: 'center', marginBottom: 30 }}>Have questions? We'd love to hear from you!</p>
+        <div style={{ margin: '30px 0', textAlign: 'center' }}>
+          <h3 style={{ color: '#2E7D64' }}>📧 Email</h3>
+          <p>anaduphilip2000@gmail.com</p>
+        </div>
+        <div style={{ margin: '30px 0', textAlign: 'center' }}>
+          <h3 style={{ color: '#2E7D64' }}>📞 Phone / WhatsApp</h3>
+          <p>09063908476</p>
+        </div>
+        <div style={{ margin: '30px 0', textAlign: 'center' }}>
+          <h3 style={{ color: '#2E7D64' }}>💬 WhatsApp Group</h3>
+          <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 'bold' }}>Click here to join our WhatsApp community</a>
+        </div>
       </div>
     </div>
   );
 };
 
-// Join WhatsApp Component
+// Join WhatsApp Component - Well arranged
 const JoinWhatsApp = () => {
   const { darkMode } = useContext(AuthContext);
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', textAlign: 'center' }}>
-        <div style={{ fontSize: '80px' }}>💬</div>
-        <h2 style={{ color: '#2E7D64' }}>Join Our WhatsApp Community</h2>
-        <p>Get instant updates, study tips, and connect with fellow nursing students!</p>
-        <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer">
-          <button style={{ background: '#25D366', color: 'white', padding: '14px 40px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }}>Join WhatsApp Group</button>
+      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '40px', textAlign: 'center', color: darkMode ? '#eee' : '#333', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        <div style={{ fontSize: '80px', marginBottom: 20 }}>💬</div>
+        <h2 style={{ color: '#2E7D64', marginBottom: 15 }}>Join Our WhatsApp Community</h2>
+        <p style={{ marginBottom: 30, fontSize: 16 }}>Get instant updates, study tips, and connect with fellow nursing students!</p>
+        <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: '25px', borderRadius: '15px', margin: '20px 0', textAlign: 'left' }}>
+          <h3 style={{ color: '#2E7D64', marginBottom: 15 }}>What you'll get:</h3>
+          <ul style={{ listStyle: 'none', padding: 0 }}>
+            <li style={{ marginBottom: 10 }}>✓ Daily practice questions</li>
+            <li style={{ marginBottom: 10 }}>✓ Exam tips and strategies</li>
+            <li style={{ marginBottom: 10 }}>✓ Updates on new features</li>
+            <li style={{ marginBottom: 10 }}>✓ Peer support and discussions</li>
+            <li style={{ marginBottom: 10 }}>✓ Special announcements</li>
+          </ul>
+        </div>
+        <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+          <button style={{ background: '#25D366', color: 'white', padding: '14px 40px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold', transition: 'transform 0.2s' }}>
+            Join WhatsApp Group
+          </button>
         </a>
       </div>
     </div>
   );
 };
 
-// Get Premium Component
+// Get Premium Component - Original style
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
@@ -784,15 +889,39 @@ const GetPremium = () => {
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
-      <div style={{ maxWidth: '1000px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', textAlign: 'center', color: darkMode ? '#eee' : '#333' }}>
-        <div style={{ fontSize: '64px' }}>⭐</div>
-        <h2 style={{ color: '#2E7D64' }}>Upgrade to Premium</h2>
+      <div style={{ maxWidth: '1000px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', textAlign: 'center', color: darkMode ? '#eee' : '#333', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        <div style={{ fontSize: '64px', marginBottom: 20 }}>⭐</div>
+        <h2 style={{ color: '#2E7D64', marginBottom: 10 }}>Upgrade to Premium</h2>
+        <p style={{ fontSize: '18px', marginBottom: 30 }}>Get unlimited access to all examinations and features</p>
         {user?.isPremium ? (
-          <div><h3>You are already a Premium Member!</h3></div>
+          <div style={{ background: '#e8f5e9', padding: '30px', borderRadius: '20px' }}>
+            <div style={{ fontSize: '48px', marginBottom: 10 }}>✅</div>
+            <h3 style={{ color: '#2E7D64' }}>You are already a Premium Member!</h3>
+          </div>
         ) : (
           <>
-            <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#2E7D64' }}>₦5,900 <span style={{ fontSize: '18px', color: '#666' }}>/ lifetime</span></div>
-            <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '16px 40px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold', marginTop: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', margin: '30px 0' }}>
+              <div>
+                <div style={{ fontSize: '36px', marginBottom: 10 }}>📚</div>
+                <h3>All Subjects</h3>
+              </div>
+              <div>
+                <div style={{ fontSize: '36px', marginBottom: 10 }}>📝</div>
+                <h3>All Exams</h3>
+              </div>
+              <div>
+                <div style={{ fontSize: '36px', marginBottom: 10 }}>🎯</div>
+                <h3>12,000+ Questions</h3>
+              </div>
+              <div>
+                <div style={{ fontSize: '36px', marginBottom: 10 }}>🏆</div>
+                <h3>Lifetime Access</h3>
+              </div>
+            </div>
+            <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: '20px', borderRadius: '15px', margin: '20px 0' }}>
+              <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#2E7D64' }}>₦5,900 <span style={{ fontSize: '18px', color: '#666' }}>/ lifetime</span></div>
+            </div>
+            <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '16px 40px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold', transition: 'transform 0.2s' }}>
               {loading ? 'Processing...' : 'Upgrade to Premium Now'}
             </button>
           </>
@@ -809,25 +938,30 @@ const DropdownMenu = () => {
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
-      <button onClick={() => setIsOpen(!isOpen)} style={{ background: '#2E7D64', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 16px', fontSize: '16px', cursor: 'pointer' }}>
+      <button onClick={() => setIsOpen(!isOpen)} style={{ background: '#2E7D64', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 16px', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
         ☰ Menu
       </button>
       {isOpen && (
-        <div style={{ position: 'absolute', top: '55px', right: 0, width: '260px', background: darkMode ? '#16213e' : 'white', borderRadius: '12px', boxShadow: '0 5px 20px rgba(0,0,0,0.15)', zIndex: 199, overflow: 'hidden' }}>
-          <div style={{ padding: '15px', background: '#2E7D64', color: 'white', textAlign: 'center' }}>
-            <div>{user?.email}</div>
-            {user?.isPremium && <div style={{ background: '#ff9800', display: 'inline-block', padding: '2px 10px', borderRadius: '20px', fontSize: '11px' }}>⭐ PREMIUM</div>}
+        <>
+          <div onClick={() => setIsOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 198 }} />
+          <div style={{ position: 'absolute', top: '55px', right: 0, width: '260px', background: darkMode ? '#16213e' : 'white', borderRadius: '12px', boxShadow: '0 5px 20px rgba(0,0,0,0.15)', zIndex: 199, overflow: 'hidden' }}>
+            <div style={{ padding: '15px', background: '#2E7D64', color: 'white', textAlign: 'center' }}>
+              <div style={{ fontWeight: 'bold' }}>{user?.email}</div>
+              {user?.isPremium && <div style={{ background: '#ff9800', display: 'inline-block', padding: '2px 10px', borderRadius: '20px', fontSize: '11px', marginTop: '5px' }}>⭐ PREMIUM</div>}
+            </div>
+            <div style={{ padding: '10px 0' }}>
+              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>🏠 Home</Link>
+              <Link to="/get-premium" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: '#e65100', fontWeight: 'bold', background: '#fff3e0', borderBottom: '1px solid #eee' }}>⭐ Get Premium</Link>
+              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>ℹ️ About Us</Link>
+              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>📞 Contact Us</Link>
+              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', borderBottom: '1px solid #eee' }}>💬 Join WhatsApp</Link>
+              <div onClick={() => { toggleDarkMode(); setIsOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #eee', color: darkMode ? '#eee' : '#333' }}>
+                <span style={{ fontSize: '20px' }}>{darkMode ? '☀️' : '🌙'}</span> {darkMode ? 'Light Mode' : 'Dark Mode'}
+              </div>
+              <button onClick={() => { setIsOpen(false); logout(); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: '#dc3545', fontWeight: 'bold', fontSize: '16px' }}>🚪 Logout</button>
+            </div>
           </div>
-          <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>🏠 Home</Link>
-          <Link to="/get-premium" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '12px 20px', textDecoration: 'none', color: '#e65100', fontWeight: 'bold', background: '#fff3e0', borderBottom: '1px solid #eee' }}>⭐ Get Premium</Link>
-          <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>ℹ️ About Us</Link>
-          <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>📞 Contact Us</Link>
-          <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '12px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', borderBottom: '1px solid #eee' }}>💬 Join WhatsApp</Link>
-          <div onClick={() => { toggleDarkMode(); setIsOpen(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #eee', color: darkMode ? '#eee' : '#333' }}>
-            {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-          </div>
-          <button onClick={() => { setIsOpen(false); logout(); }} style={{ width: '100%', padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer', color: '#dc3545', fontWeight: 'bold', textAlign: 'left' }}>🚪 Logout</button>
-        </div>
+        </>
       )}
     </div>
   );
