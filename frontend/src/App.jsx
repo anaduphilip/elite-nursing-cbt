@@ -178,7 +178,7 @@ const Register = () => {
   );
 };
 
-// Quiz List Component - FIXED: Maps database category to display names
+// Quiz List Component
 const QuizList = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -198,7 +198,6 @@ const QuizList = () => {
     fetchQuizzes();
   }, [token]);
 
-  // Group quizzes by display category (mapping database category to display name)
   const groupedQuizzes = quizzes.reduce((acc, quiz) => {
     let displayCategory = 'General Nursing';
     if (quiz.category === 'midwifery') displayCategory = 'Midwifery';
@@ -286,14 +285,13 @@ const QuizList = () => {
   );
 };
 
-// Category View Component - FIXED: Uses database category field directly
+// Category View Component
 const CategoryView = () => {
   const { categoryName } = useParams();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const { token } = useContext(AuthContext);
 
-  // Map URL slug to database category value
   const slugToCategory = {
     'general-nursing': 'general-nursing',
     'midwifery': 'midwifery',
@@ -306,7 +304,6 @@ const CategoryView = () => {
     const fetchQuizzes = async () => {
       try {
         const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-        // Filter by the category field from database
         const filtered = res.data.filter(q => q.category === actualCategory);
         setQuizzes(filtered);
       } catch (error) {
@@ -382,6 +379,7 @@ const ExamDetail = () => {
   const [selectedSection, setSelectedSection] = useState(null);
   const [userPremium, setUserPremium] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [lastScores, setLastScores] = useState({});
   const { token, logout } = useContext(AuthContext);
 
   useEffect(() => {
@@ -415,6 +413,12 @@ const ExamDetail = () => {
         
         const profileRes = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
         setUserPremium(profileRes.data.isPremium);
+        
+        // Load last scores from localStorage
+        const savedScores = localStorage.getItem(`exam_${id}_scores`);
+        if (savedScores) {
+          setLastScores(JSON.parse(savedScores));
+        }
       } catch (error) {
         if (error.response?.status === 401) {
           localStorage.removeItem('auth');
@@ -467,26 +471,36 @@ const ExamDetail = () => {
         
         <h2 style={{ color: '#2E7D64', marginBottom: '20px' }}>Select Examination:</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
-          {sections.map((section) => (
-            <div key={section.number} style={{ background: 'white', padding: '20px', borderRadius: '16px', textAlign: 'center', position: 'relative', border: (section.isPremium && !userPremium) ? '2px solid #ff9800' : '2px solid #2E7D64' }}>
-              {(section.isPremium && !userPremium) && <div style={{ position: 'absolute', top: '-12px', right: '20px', background: '#ff9800', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>⭐ PREMIUM</div>}
-              {userPremium && section.isPremium && <div style={{ position: 'absolute', top: '-12px', right: '20px', background: '#2E7D64', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>✅ UNLOCKED</div>}
-              <div style={{ fontSize: '40px' }}>{section.isPremium && !userPremium ? '⭐' : '📝'}</div>
-              <h3 style={{ color: '#2E7D64', marginTop: '10px' }}>Examination {section.number}</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#2E7D64', margin: '10px 0' }}>{section.count} Questions</p>
-              <p style={{ color: '#ff9800', fontWeight: 'bold' }}>⏰ {section.timeMinutes} minutes</p>
-              <button onClick={() => handleStartExam(section)} style={{ width: '100%', background: (section.isPremium && !userPremium) ? '#ff9800' : '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>
-                {(section.isPremium && !userPremium) ? '⭐ Upgrade to Access' : 'Start Exam'}
-              </button>
-            </div>
-          ))}
+          {sections.map((section) => {
+            const lastScore = lastScores[section.number];
+            return (
+              <div key={section.number} style={{ background: 'white', padding: '20px', borderRadius: '16px', textAlign: 'center', position: 'relative', border: (section.isPremium && !userPremium) ? '2px solid #ff9800' : '2px solid #2E7D64' }}>
+                {(section.isPremium && !userPremium) && <div style={{ position: 'absolute', top: '-12px', right: '20px', background: '#ff9800', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>⭐ PREMIUM</div>}
+                {userPremium && section.isPremium && <div style={{ position: 'absolute', top: '-12px', right: '20px', background: '#2E7D64', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>✅ UNLOCKED</div>}
+                <div style={{ fontSize: '40px' }}>{section.isPremium && !userPremium ? '⭐' : '📝'}</div>
+                <h3 style={{ color: '#2E7D64', marginTop: '10px' }}>Examination {section.number}</h3>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#2E7D64', margin: '10px 0' }}>{section.count} Questions</p>
+                <p style={{ color: '#ff9800', fontWeight: 'bold' }}>⏰ {section.timeMinutes} minutes</p>
+                {lastScore && (
+                  <div style={{ marginTop: '10px', padding: '8px', background: '#e8f5e9', borderRadius: '8px' }}>
+                    <span style={{ fontSize: '14px', color: '#2E7D64' }}>📊 Last Score: </span>
+                    <strong style={{ fontSize: '18px', color: '#2E7D64' }}>{lastScore.score}/{lastScore.total}</strong>
+                    <span style={{ fontSize: '14px', color: '#666' }}> ({lastScore.percentage}%)</span>
+                  </div>
+                )}
+                <button onClick={() => handleStartExam(section)} style={{ width: '100%', background: (section.isPremium && !userPremium) ? '#ff9800' : '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', marginTop: '15px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  {(section.isPremium && !userPremium) ? '⭐ Upgrade to Access' : (lastScore ? '🔄 Retake Exam' : 'Start Exam')}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
   );
 };
 
-// Take Exam Component
+// Take Exam Component - UPDATED with "Answered" tick and score saving
 const TakeExam = () => {
   const { id, sectionNumber } = useParams();
   const [exam, setExam] = useState(null);
@@ -509,6 +523,13 @@ const TakeExam = () => {
         let endIndex = startIndex + 20;
         if (endIndex > res.data.questions.length) endIndex = res.data.questions.length;
         setQuestions(res.data.questions.slice(startIndex, endIndex));
+        
+        // Reset answers when starting new attempt (retake)
+        setAnswers({});
+        setSubmitted(false);
+        setResult(null);
+        setShowReview(false);
+        setTimeUp(false);
       } catch (error) {
         alert('Error loading exam: ' + error.message);
       }
@@ -516,18 +537,39 @@ const TakeExam = () => {
     if (id) fetchExam();
   }, [id, sectionNumber, token]);
 
-  const handleAnswer = (qIndex, answerIndex) => setAnswers({ ...answers, [qIndex]: answerIndex });
-  const handleTimeUp = () => { setTimeUp(true); handleSubmit(); };
+  const handleAnswer = (qIndex, answerIndex) => {
+    setAnswers({ ...answers, [qIndex]: answerIndex });
+  };
+
+  const handleTimeUp = () => { 
+    setTimeUp(true); 
+    handleSubmit(); 
+  };
 
   const handleSubmit = () => {
     let score = 0;
     questions.forEach((question, idx) => {
-      if (answers[idx] !== undefined && answers[idx] === question.correctAnswer) score++;
+      if (answers[idx] !== undefined && answers[idx] === question.correctAnswer) {
+        score++;
+      }
     });
-    const percentage = (score / questions.length) * 100;
-    setResult({ score, total: questions.length, percentage, passed: percentage >= 70 });
+    const percentage = ((score / questions.length) * 100).toFixed(1);
+    const total = questions.length;
+    
+    setResult({ score, total, percentage, passed: percentage >= 70 });
     setSubmitted(true);
+    
+    // Save the score to localStorage
+    const savedScores = localStorage.getItem(`exam_${id}_scores`);
+    const scores = savedScores ? JSON.parse(savedScores) : {};
+    scores[sectionNumber] = { score, total, percentage };
+    localStorage.setItem(`exam_${id}_scores`, JSON.stringify(scores));
   };
+
+  // Track answered questions count
+  const answeredCount = Object.keys(answers).length;
+  const totalQuestions = questions.length;
+  const allAnswered = answeredCount === totalQuestions;
 
   if (!exam) return <LoadingSpinner />;
 
@@ -537,12 +579,16 @@ const TakeExam = () => {
         <div style={{ maxWidth: '500px', width: '100%', background: 'white', borderRadius: '20px', padding: '30px', textAlign: 'center' }}>
           <h2 style={{ color: '#2E7D64' }}>Exam Results</h2>
           <p style={{ fontSize: '32px', margin: '20px 0' }}>Score: <strong style={{ color: '#2E7D64' }}>{result.score}</strong> / {result.total}</p>
-          <p style={{ fontSize: '24px', marginBottom: '20px' }}>Percentage: <strong>{result.percentage?.toFixed(1)}%</strong></p>
-          <p style={{ fontSize: '24px', color: result.passed ? '#2E7D64' : '#dc3545', fontWeight: 'bold' }}>{result.passed ? '✓ PASSED!' : '✗ Failed'}</p>
+          <p style={{ fontSize: '24px', marginBottom: '20px' }}>Percentage: <strong>{result.percentage}%</strong></p>
+          <p style={{ fontSize: '24px', color: result.passed ? '#2E7D64' : '#dc3545', fontWeight: 'bold' }}>
+            {result.passed ? '✓ PASSED!' : '✗ Failed'}
+          </p>
           {timeUp && <p style={{ color: '#ff9800' }}>⏰ Time's up!</p>}
           <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
             <button onClick={() => setShowReview(true)} style={{ flex: 1, background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>Review Answers</button>
-            <Link to={`/exam/${id}`} style={{ flex: 1 }}><button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>Back to Exams</button></Link>
+            <Link to={`/exam/${id}`} style={{ flex: 1 }}>
+              <button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>Back to Exams</button>
+            </Link>
           </div>
         </div>
       </div>
@@ -556,7 +602,10 @@ const TakeExam = () => {
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
           <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', textAlign: 'center' }}>
             <h2 style={{ color: '#2E7D64' }}>Answer Review: {exam.title}</h2>
-            <p>Score: {result.score}/{result.total} ({result.percentage?.toFixed(1)}%)</p>
+            <p>Score: {result.score}/{result.total} ({result.percentage}%)</p>
+            <Link to={`/exam/${id}`}>
+              <button style={{ background: '#2E7D64', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', marginTop: '10px' }}>Take New Attempt →</button>
+            </Link>
           </div>
           {questions.map((q, idx) => {
             const userAnswer = answers[idx];
@@ -575,7 +624,9 @@ const TakeExam = () => {
               </div>
             );
           })}
-          <Link to={`/exam/${id}`}><button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '14px', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>Back to Examinations</button></Link>
+          <Link to={`/exam/${id}`}>
+            <button style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '14px', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>Back to Examinations</button>
+          </Link>
         </div>
       </div>
     );
@@ -590,23 +641,72 @@ const TakeExam = () => {
           <h2 style={{ color: '#2E7D64', margin: 0 }}>{exam.title}</h2>
           <p>Examination {sectionNumber} - {questions.length} Questions</p>
           <p style={{ color: '#ff9800' }}>⏰ Timer: {questions.length} minute(s)</p>
+          <div style={{ marginTop: '10px', padding: '10px', background: '#e8f5e9', borderRadius: '8px', display: 'inline-block' }}>
+            <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#2E7D64' }}>
+              📝 Answered: {answeredCount} / {totalQuestions} 
+              {allAnswered && <span style={{ marginLeft: '10px', color: '#4caf50' }}>✅ All questions answered!</span>}
+            </span>
+          </div>
         </div>
         {questions.map((q, idx) => (
           <div key={idx} style={{ background: '#2E7D64', borderRadius: '16px', padding: '20px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
               <h4 style={{ color: 'white', margin: 0 }}>Question {globalStart + idx + 1}</h4>
-              {answers[idx] !== undefined && <span style={{ background: '#ff9800', color: '#2E7D64', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>Answered</span>}
+              {answers[idx] !== undefined && (
+                <span style={{ background: '#4caf50', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  ✓ Answered
+                </span>
+              )}
             </div>
             <p style={{ color: 'white', marginBottom: '20px' }}>{q.questionText}</p>
-            {q.options.map((opt, optIdx) => (
-              <label key={optIdx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '12px', margin: '8px 0', background: answers[idx] === optIdx ? '#ff9800' : 'white', borderRadius: '10px' }}>
-                <input type="radio" name={`q${idx}`} onChange={() => handleAnswer(idx, optIdx)} checked={answers[idx] === optIdx} style={{ marginRight: '15px' }} />
-                <span style={{ fontWeight: 'bold', marginRight: '10px' }}>{String.fromCharCode(65 + optIdx)}.</span> {opt}
-              </label>
-            ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {q.options.map((opt, optIdx) => {
+                const isSelected = answers[idx] === optIdx;
+                return (
+                  <label key={optIdx} style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    cursor: 'pointer', 
+                    padding: '12px', 
+                    margin: '0',
+                    background: isSelected ? '#ff9800' : 'white', 
+                    borderRadius: '10px',
+                    transition: 'all 0.2s ease'
+                  }}>
+                    <input 
+                      type="radio" 
+                      name={`q${idx}`} 
+                      onChange={() => handleAnswer(idx, optIdx)} 
+                      checked={isSelected}
+                      style={{ marginRight: '15px', cursor: 'pointer' }} 
+                    />
+                    <span style={{ fontWeight: 'bold', marginRight: '10px' }}>{String.fromCharCode(65 + optIdx)}.</span> 
+                    <span style={{ flex: 1 }}>{opt}</span>
+                    {isSelected && <span style={{ marginLeft: '10px', fontSize: '12px', fontWeight: 'bold' }}>✓ Selected</span>}
+                  </label>
+                );
+              })}
+            </div>
           </div>
         ))}
-        <button onClick={handleSubmit} style={{ width: '100%', background: '#28a745', color: 'white', padding: '16px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold', marginBottom: '30px' }}>Submit Examination</button>
+        <button 
+          onClick={handleSubmit} 
+          disabled={!allAnswered}
+          style={{ 
+            width: '100%', 
+            background: allAnswered ? '#28a745' : '#ccc', 
+            color: 'white', 
+            padding: '16px', 
+            border: 'none', 
+            borderRadius: '50px', 
+            cursor: allAnswered ? 'pointer' : 'not-allowed', 
+            fontSize: '18px', 
+            fontWeight: 'bold', 
+            marginBottom: '30px' 
+          }}
+        >
+          {allAnswered ? 'Submit Examination' : `Please answer all ${totalQuestions} questions (${answeredCount}/${totalQuestions} answered)`}
+        </button>
       </div>
     </div>
   );
