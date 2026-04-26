@@ -202,6 +202,7 @@ const QuizList = () => {
     let displayCategory = 'General Nursing';
     if (quiz.category === 'midwifery') displayCategory = 'Midwifery';
     else if (quiz.category === 'public-health') displayCategory = 'Public Health';
+    else if (quiz.category === 'pediatric-nursing') displayCategory = 'Pediatric Nursing';
     else if (quiz.category === 'general-nursing') displayCategory = 'General Nursing';
     
     if (!acc[displayCategory]) acc[displayCategory] = [];
@@ -227,6 +228,12 @@ const QuizList = () => {
       color: '#2E7D64',
       description: 'Community and public health nursing practice questions.',
       slug: 'public-health'
+    },
+    'Pediatric Nursing': {
+      icon: '👶',
+      color: '#2E7D64',
+      description: 'Child health nursing practice questions for pediatric certification.',
+      slug: 'pediatric-nursing'
     }
   };
 
@@ -268,7 +275,6 @@ const QuizList = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
           {[
             { name: 'DENTAL NURSING', icon: '🦷', description: 'Dental nursing practice questions coming soon!' },
-            { name: 'PEDIATRIC NURSING', icon: '👶', description: 'Child health nursing questions coming soon!' },
             { name: 'NCLEX PRACTICE', icon: '🇺🇸', description: 'NCLEX-RN preparation questions coming soon!' }
           ].map((category, index) => (
             <div key={index} style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', border: '2px dashed #ff9800', opacity: 0.8, position: 'relative', overflow: 'hidden' }}>
@@ -295,7 +301,8 @@ const CategoryView = () => {
   const slugToCategory = {
     'general-nursing': 'general-nursing',
     'midwifery': 'midwifery',
-    'public-health': 'public-health'
+    'public-health': 'public-health',
+    'pediatric-nursing': 'pediatric-nursing'
   };
   
   const actualCategory = slugToCategory[categoryName] || categoryName;
@@ -323,6 +330,8 @@ const CategoryView = () => {
         return { title: 'MIDWIFERY', icon: '🤰', color: '#2E7D64', description: 'Specialized midwifery practice questions' };
       case 'public-health':
         return { title: 'PUBLIC HEALTH', icon: '🌍', color: '#2E7D64', description: 'Community and public health nursing' };
+      case 'pediatric-nursing':
+        return { title: 'PEDIATRIC NURSING', icon: '👶', color: '#2E7D64', description: 'Child health nursing practice questions' };
       default:
         return { title: 'EXAMINATIONS', icon: '📚', color: '#2E7D64', description: 'Practice questions' };
     }
@@ -414,7 +423,6 @@ const ExamDetail = () => {
         const profileRes = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
         setUserPremium(profileRes.data.isPremium);
         
-        // Load last scores from localStorage
         const savedScores = localStorage.getItem(`exam_${id}_scores`);
         if (savedScores) {
           setLastScores(JSON.parse(savedScores));
@@ -439,6 +447,7 @@ const ExamDetail = () => {
     if (exam.category === 'general-nursing') return '/category/general-nursing';
     if (exam.category === 'midwifery') return '/category/midwifery';
     if (exam.category === 'public-health') return '/category/public-health';
+    if (exam.category === 'pediatric-nursing') return '/category/pediatric-nursing';
     return '/';
   };
 
@@ -500,7 +509,7 @@ const ExamDetail = () => {
   );
 };
 
-// Take Exam Component - UPDATED with "Answered" tick and score saving
+// Take Exam Component
 const TakeExam = () => {
   const { id, sectionNumber } = useParams();
   const [exam, setExam] = useState(null);
@@ -524,7 +533,6 @@ const TakeExam = () => {
         if (endIndex > res.data.questions.length) endIndex = res.data.questions.length;
         setQuestions(res.data.questions.slice(startIndex, endIndex));
         
-        // Reset answers when starting new attempt (retake)
         setAnswers({});
         setSubmitted(false);
         setResult(null);
@@ -559,14 +567,12 @@ const TakeExam = () => {
     setResult({ score, total, percentage, passed: percentage >= 70 });
     setSubmitted(true);
     
-    // Save the score to localStorage
     const savedScores = localStorage.getItem(`exam_${id}_scores`);
     const scores = savedScores ? JSON.parse(savedScores) : {};
     scores[sectionNumber] = { score, total, percentage };
     localStorage.setItem(`exam_${id}_scores`, JSON.stringify(scores));
   };
 
-  // Track answered questions count
   const answeredCount = Object.keys(answers).length;
   const totalQuestions = questions.length;
   const allAnswered = answeredCount === totalQuestions;
@@ -719,11 +725,9 @@ const AboutUs = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', color: darkMode ? '#eee' : '#333' }}>
         <h2 style={{ color: '#2E7D64' }}>About Us</h2>
-        <p style={{ lineHeight: 1.8, marginBottom: '20px' }}>ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students in Nigeria.</p>
-        <p style={{ lineHeight: 1.8, marginBottom: '20px' }}>Our mission is to provide high-quality, accessible exam preparation materials that help students succeed in their nursing and midwifery licensing examinations.</p>
-        <p style={{ lineHeight: 1.8, marginBottom: '20px' }}>With over 12,000 practice questions covering General Nursing, Midwifery, and Public Health, we are committed to excellence in nursing education.</p>
+        <p>ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students in Nigeria.</p>
         <h3 style={{ color: '#2E7D64', marginTop: '30px' }}>Coming Soon</h3>
-        <p>Dental Nursing, Pediatric Nursing, and NCLEX Practice questions are coming soon!</p>
+        <p>Dental Nursing and NCLEX Practice questions are coming soon!</p>
       </div>
     </div>
   );
@@ -736,10 +740,9 @@ const ContactUs = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', color: darkMode ? '#eee' : '#333' }}>
         <h2 style={{ color: '#2E7D64' }}>Contact Us</h2>
-        <p>Have questions? We'd love to hear from you!</p>
-        <div style={{ margin: '30px 0' }}><h3 style={{ color: '#2E7D64' }}>📧 Email</h3><p>anaduphilip2000@gmail.com</p></div>
-        <div style={{ margin: '30px 0' }}><h3 style={{ color: '#2E7D64' }}>📞 Phone / WhatsApp</h3><p>09063908476</p></div>
-        <div style={{ margin: '30px 0' }}><h3 style={{ color: '#2E7D64' }}>💬 WhatsApp Group</h3><a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ color: '#25D366' }}>Click here to join our WhatsApp community</a></div>
+        <div><h3>📧 Email</h3><p>anaduphilip2000@gmail.com</p></div>
+        <div><h3>📞 Phone / WhatsApp</h3><p>09063908476</p></div>
+        <div><h3>💬 WhatsApp Group</h3><a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer">Click here to join</a></div>
       </div>
     </div>
   );
@@ -750,15 +753,11 @@ const JoinWhatsApp = () => {
   const { darkMode } = useContext(AuthContext);
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', textAlign: 'center', color: darkMode ? '#eee' : '#333' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', textAlign: 'center' }}>
         <div style={{ fontSize: '80px' }}>💬</div>
         <h2 style={{ color: '#2E7D64' }}>Join Our WhatsApp Community</h2>
         <p>Get instant updates, study tips, and connect with fellow nursing students!</p>
-        <div style={{ background: '#f0f7f4', padding: '20px', borderRadius: '15px', margin: '20px 0', textAlign: 'left' }}>
-          <h3 style={{ color: '#2E7D64' }}>What you'll get:</h3>
-          <ul><li>✓ Daily practice questions</li><li>✓ Exam tips and strategies</li><li>✓ Updates on new features</li><li>✓ Peer support and discussions</li><li>✓ Special announcements</li></ul>
-        </div>
-        <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+        <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer">
           <button style={{ background: '#25D366', color: 'white', padding: '14px 40px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }}>Join WhatsApp Group</button>
         </a>
       </div>
@@ -788,24 +787,14 @@ const GetPremium = () => {
       <div style={{ maxWidth: '1000px', margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: '20px', padding: '30px', textAlign: 'center', color: darkMode ? '#eee' : '#333' }}>
         <div style={{ fontSize: '64px' }}>⭐</div>
         <h2 style={{ color: '#2E7D64' }}>Upgrade to Premium</h2>
-        <p style={{ fontSize: '18px' }}>Get unlimited access to all examinations and features</p>
         {user?.isPremium ? (
-          <div style={{ background: '#e8f5e9', padding: '30px', borderRadius: '20px' }}>
-            <div style={{ fontSize: '48px' }}>✅</div>
-            <h3 style={{ color: '#2E7D64' }}>You are already a Premium Member!</h3>
-          </div>
+          <div><h3>You are already a Premium Member!</h3></div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', margin: '30px 0' }}>
-              <div><div style={{ fontSize: '36px' }}>📚</div><h3>All Subjects</h3></div>
-              <div><div style={{ fontSize: '36px' }}>📝</div><h3>All Exams</h3></div>
-              <div><div style={{ fontSize: '36px' }}>🎯</div><h3>12,000+ Questions</h3></div>
-              <div><div style={{ fontSize: '36px' }}>🏆</div><h3>Lifetime Access</h3></div>
-            </div>
-            <div style={{ background: '#f0f7f4', padding: '20px', borderRadius: '15px', margin: '20px 0' }}>
-              <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#2E7D64' }}>₦5,900 <span style={{ fontSize: '18px', color: '#666' }}>/ lifetime</span></div>
-            </div>
-            <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '16px 40px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }}>{loading ? 'Processing...' : 'Upgrade to Premium Now'}</button>
+            <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#2E7D64' }}>₦5,900 <span style={{ fontSize: '18px', color: '#666' }}>/ lifetime</span></div>
+            <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '16px 40px', border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold', marginTop: '20px' }}>
+              {loading ? 'Processing...' : 'Upgrade to Premium Now'}
+            </button>
           </>
         )}
       </div>
@@ -820,30 +809,25 @@ const DropdownMenu = () => {
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
-      <button onClick={() => setIsOpen(!isOpen)} style={{ background: '#2E7D64', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 16px', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <button onClick={() => setIsOpen(!isOpen)} style={{ background: '#2E7D64', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 16px', fontSize: '16px', cursor: 'pointer' }}>
         ☰ Menu
       </button>
       {isOpen && (
-        <>
-          <div onClick={() => setIsOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 198 }} />
-          <div style={{ position: 'absolute', top: '55px', right: 0, width: '260px', background: darkMode ? '#16213e' : 'white', borderRadius: '12px', boxShadow: '0 5px 20px rgba(0,0,0,0.15)', zIndex: 199, overflow: 'hidden' }}>
-            <div style={{ padding: '15px', background: '#2E7D64', color: 'white', textAlign: 'center' }}>
-              <div style={{ fontWeight: 'bold' }}>{user?.email}</div>
-              {user?.isPremium && <div style={{ background: '#ff9800', display: 'inline-block', padding: '2px 10px', borderRadius: '20px', fontSize: '11px', marginTop: '5px' }}>⭐ PREMIUM</div>}
-            </div>
-            <div style={{ padding: '10px 0' }}>
-              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>🏠 Home</Link>
-              <Link to="/get-premium" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: '#e65100', fontWeight: 'bold', background: '#fff3e0', borderBottom: '1px solid #eee' }}>⭐ Get Premium</Link>
-              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>ℹ️ About Us</Link>
-              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>📞 Contact Us</Link>
-              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', borderBottom: '1px solid #eee' }}>💬 Join WhatsApp</Link>
-              <div onClick={() => { toggleDarkMode(); setIsOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #eee', color: darkMode ? '#eee' : '#333' }}>
-                <span style={{ fontSize: '20px' }}>{darkMode ? '☀️' : '🌙'}</span> {darkMode ? 'Light Mode' : 'Dark Mode'}
-              </div>
-              <button onClick={() => { setIsOpen(false); logout(); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: '#dc3545', fontWeight: 'bold', fontSize: '16px' }}>🚪 Logout</button>
-            </div>
+        <div style={{ position: 'absolute', top: '55px', right: 0, width: '260px', background: darkMode ? '#16213e' : 'white', borderRadius: '12px', boxShadow: '0 5px 20px rgba(0,0,0,0.15)', zIndex: 199, overflow: 'hidden' }}>
+          <div style={{ padding: '15px', background: '#2E7D64', color: 'white', textAlign: 'center' }}>
+            <div>{user?.email}</div>
+            {user?.isPremium && <div style={{ background: '#ff9800', display: 'inline-block', padding: '2px 10px', borderRadius: '20px', fontSize: '11px' }}>⭐ PREMIUM</div>}
           </div>
-        </>
+          <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>🏠 Home</Link>
+          <Link to="/get-premium" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '12px 20px', textDecoration: 'none', color: '#e65100', fontWeight: 'bold', background: '#fff3e0', borderBottom: '1px solid #eee' }}>⭐ Get Premium</Link>
+          <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>ℹ️ About Us</Link>
+          <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '12px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', borderBottom: '1px solid #eee' }}>📞 Contact Us</Link>
+          <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '12px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', borderBottom: '1px solid #eee' }}>💬 Join WhatsApp</Link>
+          <div onClick={() => { toggleDarkMode(); setIsOpen(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #eee', color: darkMode ? '#eee' : '#333' }}>
+            {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+          </div>
+          <button onClick={() => { setIsOpen(false); logout(); }} style={{ width: '100%', padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer', color: '#dc3545', fontWeight: 'bold', textAlign: 'left' }}>🚪 Logout</button>
+        </div>
       )}
     </div>
   );
