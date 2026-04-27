@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">ELITE NURSING &amp; MIDWIFERY CBT</string>
-    <string name="title_activity_main">ELITE NURSING &amp; MIDWIFERY CBT</string>
+    <string name="app_name">ELITE Nursing &amp; Midwifery CBT</string>
+    <string name="title_activity_main">ELITE Nursing &amp; Midwifery CBT</string>
     <string name="package_name">com.elitenursing.cbt</string>
     <string name="custom_url_scheme">com.elitenursing.cbt</string>
 </resources>
