@@ -2,7 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = 'https://elite-nursing-backend.vercel.app/api';
 axios.defaults.baseURL = API_URL;
 
 const AuthContext = createContext();
@@ -117,7 +117,334 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   );
 };
 
-// Enhanced Login Component
+// Forgot Password Component
+const ForgotPassword = () => {
+  const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await axios.post('/api/forgot-password', { email });
+      setMessage(res.data.message);
+      setOtpSent(true);
+    } catch (error) {
+      setError(error.response?.data?.error || 'Failed to send reset code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await axios.post('/api/reset-password', { email, otp, newPassword });
+      setMessage(res.data.message);
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 3000);
+    } catch (error) {
+      setError(error.response?.data?.error || 'Failed to reset password');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔐</div>
+          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>Reset Password</h1>
+          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Enter your email to receive a verification code</p>
+        </div>
+
+        {message && (
+          <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+            <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>{message}</p>
+          </div>
+        )}
+        {error && (
+          <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+            <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
+          </div>
+        )}
+
+        {!otpSent ? (
+          <form onSubmit={handleSendOtp}>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
+              <input 
+                type="email" 
+                placeholder="you@example.com" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                required 
+              />
+            </div>
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              style={{ 
+                width: '100%', 
+                background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
+                color: 'white', 
+                padding: '12px', 
+                border: 'none', 
+                borderRadius: 10, 
+                cursor: 'pointer', 
+                fontWeight: 'bold', 
+                fontSize: 14,
+                opacity: isLoading ? 0.7 : 1
+              }}
+            >
+              {isLoading ? 'Sending...' : 'Send Verification Code'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleResetPassword}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Verification Code</label>
+              <input 
+                type="text" 
+                placeholder="Enter 6-digit code" 
+                value={otp} 
+                onChange={(e) => setOtp(e.target.value)} 
+                style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                required 
+              />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>New Password</label>
+              <input 
+                type="password" 
+                placeholder="Enter new password" 
+                value={newPassword} 
+                onChange={(e) => setNewPassword(e.target.value)} 
+                style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                required 
+              />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Confirm Password</label>
+              <input 
+                type="password" 
+                placeholder="Confirm new password" 
+                value={confirmPassword} 
+                onChange={(e) => setConfirmPassword(e.target.value)} 
+                style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                required 
+              />
+            </div>
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              style={{ 
+                width: '100%', 
+                background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
+                color: 'white', 
+                padding: '12px', 
+                border: 'none', 
+                borderRadius: 10, 
+                cursor: 'pointer', 
+                fontWeight: 'bold', 
+                fontSize: 14,
+                opacity: isLoading ? 0.7 : 1
+              }}
+            >
+              {isLoading ? 'Resetting...' : 'Reset Password'}
+            </button>
+          </form>
+        )}
+
+        <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <Link to="/login" style={{ color: '#1e3c72', fontSize: 13, textDecoration: 'none' }}>
+            ← Back to Login
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Email Verification Component
+const EmailVerification = () => {
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [verificationComplete, setVerificationComplete] = useState(false);
+  const { login } = useContext(AuthContext);
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await axios.post('/api/send-verification', { email });
+      setMessage(res.data.message);
+      setOtpSent(true);
+    } catch (error) {
+      setError(error.response?.data?.error || 'Failed to send verification code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await axios.post('/api/verify-email', { email, otp });
+      setMessage(res.data.message);
+      setVerificationComplete(true);
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+    } catch (error) {
+      setError(error.response?.data?.error || 'Invalid verification code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📧</div>
+          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>Email Verification</h1>
+          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Verify your email to complete registration</p>
+        </div>
+
+        {message && (
+          <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+            <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>{message}</p>
+          </div>
+        )}
+        {error && (
+          <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+            <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
+          </div>
+        )}
+
+        {!verificationComplete ? (
+          !otpSent ? (
+            <form onSubmit={handleSendOtp}>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
+                <input 
+                  type="email" 
+                  placeholder="you@example.com" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                  required 
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={isLoading}
+                style={{ 
+                  width: '100%', 
+                  background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
+                  color: 'white', 
+                  padding: '12px', 
+                  border: 'none', 
+                  borderRadius: 10, 
+                  cursor: 'pointer', 
+                  fontWeight: 'bold', 
+                  fontSize: 14,
+                  opacity: isLoading ? 0.7 : 1
+                }}
+              >
+                {isLoading ? 'Sending...' : 'Send Verification Code'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp}>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Verification Code</label>
+                <input 
+                  type="text" 
+                  placeholder="Enter 6-digit code" 
+                  value={otp} 
+                  onChange={(e) => setOtp(e.target.value)} 
+                  style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                  required 
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={isLoading}
+                style={{ 
+                  width: '100%', 
+                  background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
+                  color: 'white', 
+                  padding: '12px', 
+                  border: 'none', 
+                  borderRadius: 10, 
+                  cursor: 'pointer', 
+                  fontWeight: 'bold', 
+                  fontSize: 14,
+                  opacity: isLoading ? 0.7 : 1
+                }}
+              >
+                {isLoading ? 'Verifying...' : 'Verify Email'}
+              </button>
+            </form>
+          )
+        ) : (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+            <p style={{ color: '#2e7d32', fontWeight: 'bold' }}>Email Verified Successfully!</p>
+            <p style={{ color: '#666', fontSize: 13, marginTop: 8 }}>Redirecting to login...</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Enhanced Login Component with Forgot Password Link
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -231,6 +558,11 @@ const Login = () => {
               required 
             />
           </div>
+          <div style={{ textAlign: 'right', marginBottom: 20 }}>
+            <Link to="/forgot-password" style={{ color: '#1e3c72', fontSize: 12, textDecoration: 'none' }}>
+              Forgot Password?
+            </Link>
+          </div>
           <button 
             type="submit" 
             disabled={isLoading}
@@ -253,7 +585,7 @@ const Login = () => {
         
         <div style={{ marginTop: 20, textAlign: 'center' }}>
           <p style={{ color: '#666', fontSize: 13 }}>
-            Don't have an account? <Link to="/register" style={{ color: '#1e3c72', fontWeight: 'bold', textDecoration: 'none' }}>Create Account</Link>
+            Don't have an account? <Link to="/verify-email" style={{ color: '#1e3c72', fontWeight: 'bold', textDecoration: 'none' }}>Create Account</Link>
           </p>
         </div>
         
@@ -266,27 +598,29 @@ const Login = () => {
   );
 };
 
-// Enhanced Register Component
+// Enhanced Register Component (redirects to email verification)
 const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(true);
-  const { login } = useContext(AuthContext);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowWelcome(false), 5000);
-    return () => clearTimeout(timer);
-  }, []);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     try {
       const res = await axios.post('/api/register', { email, password });
-      login(res.data.token, res.data.user);
+      if (res.data.success) {
+        setSuccess(true);
+        localStorage.setItem('pendingVerificationEmail', email);
+        setTimeout(() => {
+          window.location.href = '/verify-email';
+        }, 2000);
+      }
     } catch (error) {
-      alert('Registration failed: ' + (error.response?.data?.error || error.message));
+      setError(error.response?.data?.error || 'Registration failed');
     } finally {
       setIsLoading(false);
     }
@@ -294,32 +628,7 @@ const Register = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', position: 'relative' }}>
-      {showWelcome && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'white',
-          borderRadius: '40px',
-          padding: '10px 20px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          animation: 'slideDown 0.5s ease'
-        }}>
-          <span style={{ fontSize: 20 }}>🎉</span>
-          <div>
-            <strong style={{ color: '#1e3c72', fontSize: 14 }}>Join ELITE Nursing & Midwifery CBT!</strong>
-            <p style={{ margin: 0, fontSize: 11, color: '#666' }}>Create your account to access 20,000+ questions</p>
-          </div>
-          <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: '#999' }}>✕</button>
-        </div>
-      )}
-      
-      <div className="login-form" style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
           <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
@@ -328,10 +637,22 @@ const Register = () => {
         </div>
         
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <h2 style={{ color: '#333', fontSize: 18, marginBottom: 4 }}>Get Started</h2>
-          <p style={{ color: '#888', fontSize: 12 }}>Create your account to begin your journey</p>
+          <h2 style={{ color: '#333', fontSize: 18, marginBottom: 4 }}>Create Account</h2>
+          <p style={{ color: '#888', fontSize: 12 }}>Sign up to begin your journey</p>
         </div>
-        
+
+        {error && (
+          <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+            <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
+          </div>
+        )}
+
+        {success && (
+          <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+            <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>Registration successful! Redirecting to email verification...</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
@@ -350,18 +671,19 @@ const Register = () => {
             <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Password</label>
             <input 
               type="password" 
-              placeholder="Create a strong password" 
+              placeholder="Create a strong password (min 6 characters)" 
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
               style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
               onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
               onBlur={(e) => e.target.style.borderColor = '#ddd'}
               required 
+              minLength="6"
             />
           </div>
           <button 
             type="submit" 
-            disabled={isLoading}
+            disabled={isLoading || success}
             style={{ 
               width: '100%', 
               background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
@@ -399,7 +721,7 @@ const Register = () => {
   );
 };
 
-// Home Page Component
+// Home Page Component (unchanged, kept as original)
 const HomePage = () => {
   const [mode, setMode] = useState('free');
   const [quizzes, setQuizzes] = useState([]);
@@ -465,7 +787,6 @@ const HomePage = () => {
           <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(12px, 4vw, 14px)' }}>Computer Based Testing Platform</p>
         </div>
 
-        {/* Mode Selection Tabs - Mobile Responsive */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '30px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => setMode('free')}
@@ -499,7 +820,6 @@ const HomePage = () => {
           </button>
         </div>
 
-        {/* Mode Description */}
         {mode === 'free' && (
           <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: '10px', textAlign: 'center', marginBottom: '24px' }}>
             <p style={{ color: '#1e3c72', margin: 0, fontSize: 'clamp(12px, 4vw, 14px)' }}>
@@ -515,7 +835,6 @@ const HomePage = () => {
           </div>
         )}
 
-        {/* Categories Grid - Mobile Responsive */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
           {Object.entries(categories).map(([category, categoryQuizzes]) => (
             <Link to={`/subjects/${category}/${mode}`} key={category} style={{ textDecoration: 'none' }}>
@@ -742,7 +1061,6 @@ const ExamList = () => {
         
         <h2 style={{ color: examColor, fontSize: '18px', marginBottom: '16px' }}>Examinations:</h2>
         
-        {/* FREE MODE: Only show Exam 1 */}
         {mode === 'free' && sections[0] && (
           <>
             <div style={{ marginBottom: '24px' }}>
@@ -773,7 +1091,6 @@ const ExamList = () => {
           </>
         )}
         
-        {/* PREMIUM MODE: Show all exams */}
         {mode === 'premium' && (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
@@ -1049,7 +1366,7 @@ const AboutUs = () => {
   );
 };
 
-// Contact Us Component - Redesigned
+// Contact Us Component
 const ContactUs = () => {
   const { darkMode } = useContext(AuthContext);
   const [name, setName] = useState('');
@@ -1191,7 +1508,7 @@ const GetPremium = () => {
   );
 };
 
-// Dropdown Menu Component with How To Use
+// Dropdown Menu Component
 const DropdownMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout, darkMode, toggleDarkMode } = useContext(AuthContext);
@@ -1237,6 +1554,8 @@ const AppContent = () => {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-email" element={<EmailVerification />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     );
