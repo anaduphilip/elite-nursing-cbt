@@ -46,7 +46,7 @@ mongoose.connect(MONGODB_URI)
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.log('MongoDB connection error:', err));
 
-// OTP Store (in production, use Redis or a database)
+// OTP Store
 const otpStore = new Map();
 
 // User Schema with name field
@@ -106,119 +106,184 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Professional Email Template
+// Professional Email Template Function
 const getEmailTemplate = (name, otp, type) => {
   const year = new Date().getFullYear();
   
-  if (type === 'verification') {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Email Verification - ELITE Nursing CBT</title>
-        <style>
-          body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .email-wrapper { background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-          .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; }
-          .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; }
-          .header p { color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px; }
-          .content { padding: 30px; }
-          .greeting { font-size: 18px; color: #333; margin-bottom: 20px; }
-          .code-container { background: #f0f7f4; border-radius: 12px; padding: 20px; text-align: center; margin: 25px 0; }
-          .code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1e3c72; font-family: monospace; }
-          .message { color: #555; line-height: 1.6; margin-bottom: 20px; }
-          .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; }
-          .button { display: inline-block; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 12px 30px; border-radius: 30px; text-decoration: none; font-weight: bold; margin-top: 15px; }
-          .warning { font-size: 12px; color: #999; margin-top: 20px; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="email-wrapper">
-            <div class="header">
-              <h1>ELITE NURSING & MIDWIFERY CBT</h1>
-              <p>Computer Based Testing Platform</p>
-            </div>
-            <div class="content">
-              <div class="greeting">Dear ${name || 'Valued User'},</div>
-              <div class="message">
-                Thank you for choosing ELITE Nursing & Midwifery CBT. Please use the verification code below to complete your registration.
-              </div>
-              <div class="code-container">
-                <div class="code">${otp}</div>
-                <p style="margin: 10px 0 0; font-size: 14px; color: #666;">This code expires in 10 minutes</p>
-              </div>
-              <div class="message">
-                If you didn't request this code, please ignore this email. Never share this code with anyone.
-              </div>
-            </div>
-            <div class="footer">
-              <p>&copy; ${year} ELITE Nursing & Midwifery CBT. All rights reserved.</p>
-              <p>Empowering nursing and midwifery excellence through quality education.</p>
-            </div>
-          </div>
+  const emailContent = type === 'verification' 
+    ? {
+        title: 'Verify Your Email Address',
+        message: `Thank you for choosing ELITE Nursing & Midwifery CBT. Please use the verification code below to complete your registration and start your journey toward nursing excellence.`,
+        buttonText: 'Verify Email',
+        note: 'This code will expire in 10 minutes for security purposes.'
+      }
+    : {
+        title: 'Reset Your Password',
+        message: `We received a request to reset your password for your ELITE Nursing & Midwifery CBT account. Use the verification code below to create a new password.`,
+        buttonText: 'Reset Password',
+        note: 'If you did not request a password reset, please ignore this email. Your password will remain unchanged.'
+      };
+  
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${emailContent.title} - ELITE Nursing CBT</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f0f7f4;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 550px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .email-card {
+      background-color: #ffffff;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      padding: 30px 20px;
+      text-align: center;
+    }
+    .header h1 {
+      color: #ffffff;
+      font-size: 22px;
+      font-weight: bold;
+      margin: 0;
+      letter-spacing: 1px;
+    }
+    .header p {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 12px;
+      margin: 8px 0 0;
+    }
+    .content {
+      padding: 30px 25px;
+    }
+    .greeting {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e3c72;
+      margin-bottom: 15px;
+    }
+    .message {
+      color: #4a5568;
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 25px;
+    }
+    .code-container {
+      background: linear-gradient(135deg, #f0f7f4 0%, #e8f0ea 100%);
+      border-radius: 16px;
+      padding: 25px 20px;
+      text-align: center;
+      margin: 25px 0;
+      border: 1px solid #d4e0d9;
+    }
+    .code-label {
+      font-size: 13px;
+      color: #5a6e5a;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+    }
+    .code {
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: 12px;
+      color: #1e3c72;
+      font-family: 'Courier New', monospace;
+      background: white;
+      display: inline-block;
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .expiry-note {
+      font-size: 12px;
+      color: #8b9a8b;
+      margin-top: 12px;
+    }
+    .divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, #cbd5e0, transparent);
+      margin: 25px 0;
+    }
+    .footer {
+      background-color: #f8f9fa;
+      padding: 20px 25px;
+      text-align: center;
+      border-top: 1px solid #e2e8f0;
+    }
+    .footer p {
+      color: #94a3b8;
+      font-size: 11px;
+      margin: 5px 0;
+    }
+    .footer .copyright {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+    }
+    @media (max-width: 480px) {
+      .code {
+        font-size: 28px;
+        letter-spacing: 8px;
+        padding: 10px 15px;
+      }
+      .content {
+        padding: 20px;
+      }
+      .header h1 {
+        font-size: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="email-card">
+      <div class="header">
+        <h1>ELITE NURSING & MIDWIFERY CBT</h1>
+        <p>Computer Based Testing Platform</p>
+      </div>
+      <div class="content">
+        <div class="greeting">Dear ${name || 'Valued User'},</div>
+        <div class="message">
+          ${emailContent.message}
         </div>
-      </body>
-      </html>
-    `;
-  } else if (type === 'password-reset') {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Password Reset - ELITE Nursing CBT</title>
-        <style>
-          body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .email-wrapper { background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-          .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; }
-          .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; }
-          .header p { color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px; }
-          .content { padding: 30px; }
-          .greeting { font-size: 18px; color: #333; margin-bottom: 20px; }
-          .code-container { background: #f0f7f4; border-radius: 12px; padding: 20px; text-align: center; margin: 25px 0; }
-          .code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1e3c72; font-family: monospace; }
-          .message { color: #555; line-height: 1.6; margin-bottom: 20px; }
-          .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; }
-          .warning { font-size: 12px; color: #999; margin-top: 20px; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="email-wrapper">
-            <div class="header">
-              <h1>ELITE NURSING & MIDWIFERY CBT</h1>
-              <p>Computer Based Testing Platform</p>
-            </div>
-            <div class="content">
-              <div class="greeting">Dear ${name || 'Valued User'},</div>
-              <div class="message">
-                We received a request to reset your password. Use the verification code below to create a new password.
-              </div>
-              <div class="code-container">
-                <div class="code">${otp}</div>
-                <p style="margin: 10px 0 0; font-size: 14px; color: #666;">This code expires in 10 minutes</p>
-              </div>
-              <div class="message">
-                If you didn't request a password reset, please ignore this email. Your password will remain unchanged.
-              </div>
-            </div>
-            <div class="footer">
-              <p>&copy; ${year} ELITE Nursing & Midwifery CBT. All rights reserved.</p>
-              <p>Empowering nursing and midwifery excellence through quality education.</p>
-            </div>
-          </div>
+        <div class="code-container">
+          <div class="code-label">Your Verification Code</div>
+          <div class="code">${otp}</div>
+          <div class="expiry-note">⏰ ${emailContent.note}</div>
         </div>
-      </body>
-      </html>
-    `;
-  }
-  return null;
+        <div class="message" style="font-size: 13px; margin-bottom: 0;">
+          If you didn't request this, please ignore this email. Never share this code with anyone for security reasons.
+        </div>
+      </div>
+      <div class="footer">
+        <p>© ${year} ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p>Empowering nursing and midwifery excellence through quality education.</p>
+        <div class="copyright">
+          <p>This is an automated message, please do not reply.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
 };
 
 // Send email function using Brevo with professional template
@@ -296,7 +361,6 @@ app.post('/api/verify-email', async (req, res) => {
       return res.status(400).json({ error: 'Invalid verification code' });
     }
     
-    // Store verified status temporarily
     otpStore.set(`verified_${email}`, { verified: true, name: stored.name });
     otpStore.delete(`verify_${email}`);
     
@@ -372,18 +436,16 @@ app.post('/api/reset-password', async (req, res) => {
 
 // ============ AUTH ROUTES ============
 
-// Register - with name
+// Register
 app.post('/api/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
     
-    // Check if email was verified
     const verifiedData = otpStore.get(`verified_${email}`);
     if (!verifiedData || !verifiedData.verified) {
       return res.status(400).json({ error: 'Please verify your email first' });
     }
     
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser && existingUser.isVerified) {
       otpStore.delete(`verified_${email}`);
@@ -495,7 +557,7 @@ app.get('/api/user/profile', async (req, res) => {
   }
 });
 
-// Check if user can access an exam
+// Check exam access
 app.post('/api/check-exam-access', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
