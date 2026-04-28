@@ -2,7 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API_URL = 'https://elite-nursing-backend.vercel.app/api';
+const API_URL = 'https://elite-nursing-backend.vercel.app';
 axios.defaults.baseURL = API_URL;
 
 const AuthContext = createContext();
