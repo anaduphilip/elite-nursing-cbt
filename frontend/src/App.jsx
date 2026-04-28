@@ -7,32 +7,59 @@ axios.defaults.baseURL = API_URL;
 
 const AuthContext = createContext();
 
-// Loading Spinner Component
-const LoadingSpinner = () => (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100vh',
-    width: '100%',
-    background: '#f0f7f4'
-  }}>
+// Loading Component with Percentage Bar
+const LoadingWithBar = ({ message = "Loading", onComplete }) => {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          if (onComplete) onComplete();
+          return 100;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 200);
+    return () => clearInterval(interval);
+  }, [onComplete]);
+
+  return (
     <div style={{
-      width: 40,
-      height: 40,
-      border: '3px solid #e0e0e0',
-      borderTop: '3px solid #1e3c72',
-      borderRadius: '50%',
-      animation: 'spin 1s linear infinite'
-    }} />
-    <style>{`
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `}</style>
-  </div>
-);
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      width: '100%',
+      background: '#f0f7f4'
+    }}>
+      <div style={{ textAlign: 'center', maxWidth: 300, width: '100%' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
+        <h2 style={{ color: '#1e3c72', fontSize: 20, marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h2>
+        <p style={{ color: '#666', fontSize: 12, marginBottom: 20 }}>Computer Based Testing Platform</p>
+        <p style={{ color: '#1e3c72', fontSize: 14, marginBottom: 10 }}>{message}...</p>
+        <div style={{
+          width: '100%',
+          height: 8,
+          background: '#e0e0e0',
+          borderRadius: 4,
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            width: `${Math.min(progress, 100)}%`,
+            height: '100%',
+            background: 'linear-gradient(90deg, #1e3c72, #2a5298)',
+            borderRadius: 4,
+            transition: 'width 0.3s ease'
+          }} />
+        </div>
+        <p style={{ color: '#1e3c72', fontSize: 12, marginTop: 10 }}>{Math.floor(Math.min(progress, 100))}%</p>
+      </div>
+    </div>
+  );
+};
 
 // Timer Component
 const Timer = ({ duration, onTimeUp }) => {
@@ -296,26 +323,41 @@ const ForgotPassword = () => {
   );
 };
 
-// Email Verification Component
-const EmailVerification = () => {
+// Enhanced Register Component with Name field and verification step
+const Register = () => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [step, setStep] = useState('form'); // 'form' or 'verify'
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [verificationComplete, setVerificationComplete] = useState(false);
+  const [message, setMessage] = useState('');
+  const [resendTimer, setResendTimer] = useState(0);
   const { login } = useContext(AuthContext);
 
-  const handleSendOtp = async (e) => {
+  useEffect(() => {
+    let timer;
+    if (resendTimer > 0) {
+      timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendTimer]);
+
+  const handleSendVerification = async (e) => {
     e.preventDefault();
+    if (!name.trim()) {
+      setError('Please enter your full name');
+      return;
+    }
     setIsLoading(true);
     setError('');
     setMessage('');
     try {
       const res = await axios.post('/api/send-verification', { email });
       setMessage(res.data.message);
-      setOtpSent(true);
+      setStep('verify');
+      setResendTimer(60);
     } catch (error) {
       setError(error.response?.data?.error || 'Failed to send verification code');
     } finally {
@@ -323,49 +365,87 @@ const EmailVerification = () => {
     }
   };
 
-  const handleVerifyOtp = async (e) => {
+  const handleVerifyAndRegister = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     setMessage('');
     try {
-      const res = await axios.post('/api/verify-email', { email, otp });
-      setMessage(res.data.message);
-      setVerificationComplete(true);
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
+      // First verify email
+      await axios.post('/api/verify-email', { email, otp });
+      
+      // Then register
+      const res = await axios.post('/api/register', { name, email, password });
+      if (res.data.success) {
+        setMessage('Registration successful! Redirecting...');
+        setTimeout(() => {
+          login(res.data.token, res.data.user);
+        }, 2000);
+      }
     } catch (error) {
-      setError(error.response?.data?.error || 'Invalid verification code');
+      setError(error.response?.data?.error || 'Verification failed');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleResendCode = async () => {
+    if (resendTimer > 0) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      const res = await axios.post('/api/send-verification', { email });
+      setMessage(res.data.message);
+      setResendTimer(60);
+    } catch (error) {
+      setError(error.response?.data?.error || 'Failed to resend code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading && step === 'form') {
+    return <LoadingWithBar message="Sending verification code" />;
+  }
+
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', position: 'relative' }}>
+      <div style={{ maxWidth: 450, width: '100%', background: 'white', borderRadius: 24, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📧</div>
-          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>Email Verification</h1>
-          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Verify your email to complete registration</p>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
+          <h1 style={{ color: '#1e3c72', fontSize: 22, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
+          <h1 style={{ color: '#1e3c72', fontSize: 22, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
+          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Computer Based Testing Platform</p>
         </div>
+        
+        {step === 'form' ? (
+          <>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <h2 style={{ color: '#333', fontSize: 20, marginBottom: 4 }}>Create Account</h2>
+              <p style={{ color: '#888', fontSize: 12 }}>Sign up to begin your journey</p>
+            </div>
 
-        {message && (
-          <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
-            <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>{message}</p>
-          </div>
-        )}
-        {error && (
-          <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
-            <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
-          </div>
-        )}
+            {error && (
+              <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+                <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
+              </div>
+            )}
 
-        {!verificationComplete ? (
-          !otpSent ? (
-            <form onSubmit={handleSendOtp}>
-              <div style={{ marginBottom: 20 }}>
+            <form onSubmit={handleSendVerification}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Full Name</label>
+                <input 
+                  type="text" 
+                  placeholder="Enter your full name" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                  style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                  required 
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
                 <input 
                   type="email" 
@@ -376,6 +456,20 @@ const EmailVerification = () => {
                   onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
                   onBlur={(e) => e.target.style.borderColor = '#ddd'}
                   required 
+                />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Password</label>
+                <input 
+                  type="password" 
+                  placeholder="Create a strong password (min 6 characters)" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                  required 
+                  minLength="6"
                 />
               </div>
               <button 
@@ -390,15 +484,32 @@ const EmailVerification = () => {
                   borderRadius: 10, 
                   cursor: 'pointer', 
                   fontWeight: 'bold', 
-                  fontSize: 14,
-                  opacity: isLoading ? 0.7 : 1
+                  fontSize: 14
                 }}
               >
-                {isLoading ? 'Sending...' : 'Send Verification Code'}
+                Verify Email
               </button>
             </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp}>
+          </>
+        ) : (
+          <>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <h2 style={{ color: '#333', fontSize: 18, marginBottom: 4 }}>Verify Your Email</h2>
+              <p style={{ color: '#888', fontSize: 12 }}>Enter the 6-digit code sent to {email}</p>
+            </div>
+
+            {message && (
+              <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+                <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>{message}</p>
+              </div>
+            )}
+            {error && (
+              <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+                <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyAndRegister}>
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Verification Code</label>
                 <input 
@@ -424,27 +535,43 @@ const EmailVerification = () => {
                   borderRadius: 10, 
                   cursor: 'pointer', 
                   fontWeight: 'bold', 
-                  fontSize: 14,
-                  opacity: isLoading ? 0.7 : 1
+                  fontSize: 14
                 }}
               >
-                {isLoading ? 'Verifying...' : 'Verify Email'}
+                {isLoading ? 'Creating Account...' : 'Create Account'}
               </button>
             </form>
-          )
-        ) : (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-            <p style={{ color: '#2e7d32', fontWeight: 'bold' }}>Email Verified Successfully!</p>
-            <p style={{ color: '#666', fontSize: 13, marginTop: 8 }}>Redirecting to login...</p>
-          </div>
+
+            <div style={{ textAlign: 'center', marginTop: 20 }}>
+              <p style={{ color: '#666', fontSize: 13 }}>
+                Didn't receive code?{" "}
+                <button 
+                  onClick={handleResendCode} 
+                  disabled={resendTimer > 0}
+                  style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    color: resendTimer > 0 ? '#999' : '#1e3c72', 
+                    fontWeight: 'bold', 
+                    cursor: resendTimer > 0 ? 'not-allowed' : 'pointer',
+                    fontSize: 13
+                  }}
+                >
+                  Resend {resendTimer > 0 ? `(${resendTimer}s)` : ''}
+                </button>
+              </p>
+              <Link to="/login" style={{ color: '#1e3c72', fontSize: 13, textDecoration: 'none', display: 'inline-block', marginTop: 10 }}>
+                ← Back to Login
+              </Link>
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 };
 
-// Enhanced Login Component with Forgot Password Link
+// Enhanced Login Component
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -469,6 +596,10 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+  if (isLoading) {
+    return <LoadingWithBar message="Logging in" />;
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', position: 'relative' }}>
@@ -508,21 +639,13 @@ const Login = () => {
             transform: translateX(-50%) translateY(0);
           }
         }
-        @media (max-width: 768px) {
-          .login-form {
-            padding: 24px !important;
-          }
-          .login-title {
-            font-size: 20px !important;
-          }
-        }
       `}</style>
 
-      <div className="login-form" style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 24, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
-          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
-          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
+          <h1 style={{ color: '#1e3c72', fontSize: 22, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
+          <h1 style={{ color: '#1e3c72', fontSize: 22, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
           <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Computer Based Testing Platform</p>
         </div>
         
@@ -565,7 +688,6 @@ const Login = () => {
           </div>
           <button 
             type="submit" 
-            disabled={isLoading}
             style={{ 
               width: '100%', 
               background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
@@ -575,141 +697,17 @@ const Login = () => {
               borderRadius: 10, 
               cursor: 'pointer', 
               fontWeight: 'bold', 
-              fontSize: 14,
-              opacity: isLoading ? 0.7 : 1
+              fontSize: 14
             }}
           >
-            {isLoading ? 'Logging in...' : 'Sign In'}
+            Sign In
           </button>
         </form>
         
         <div style={{ marginTop: 20, textAlign: 'center' }}>
           <p style={{ color: '#666', fontSize: 13 }}>
-            Don't have an account? <Link to="/verify-email" style={{ color: '#1e3c72', fontWeight: 'bold', textDecoration: 'none' }}>Create Account</Link>
+            Don't have an account? <Link to="/register" style={{ color: '#1e3c72', fontWeight: 'bold', textDecoration: 'none' }}>Create Account</Link>
           </p>
-        </div>
-        
-        <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#999' }}>© 2024 ELITE Nursing & Midwifery CBT</p>
-          <p style={{ fontSize: 11, color: '#999' }}>Over 20,000+ practice questions</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Enhanced Register Component (redirects to email verification)
-const Register = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    try {
-      const res = await axios.post('/api/register', { email, password });
-      if (res.data.success) {
-        setSuccess(true);
-        localStorage.setItem('pendingVerificationEmail', email);
-        setTimeout(() => {
-          window.location.href = '/verify-email';
-        }, 2000);
-      }
-    } catch (error) {
-      setError(error.response?.data?.error || 'Registration failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', position: 'relative' }}>
-      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
-          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
-          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
-          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Computer Based Testing Platform</p>
-        </div>
-        
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <h2 style={{ color: '#333', fontSize: 18, marginBottom: 4 }}>Create Account</h2>
-          <p style={{ color: '#888', fontSize: 12 }}>Sign up to begin your journey</p>
-        </div>
-
-        {error && (
-          <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
-            <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
-          </div>
-        )}
-
-        {success && (
-          <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
-            <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>Registration successful! Redirecting to email verification...</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
-            <input 
-              type="email" 
-              placeholder="you@example.com" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
-              onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
-              onBlur={(e) => e.target.style.borderColor = '#ddd'}
-              required 
-            />
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Password</label>
-            <input 
-              type="password" 
-              placeholder="Create a strong password (min 6 characters)" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
-              onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
-              onBlur={(e) => e.target.style.borderColor = '#ddd'}
-              required 
-              minLength="6"
-            />
-          </div>
-          <button 
-            type="submit" 
-            disabled={isLoading || success}
-            style={{ 
-              width: '100%', 
-              background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
-              color: 'white', 
-              padding: '12px', 
-              border: 'none', 
-              borderRadius: 10, 
-              cursor: 'pointer', 
-              fontWeight: 'bold', 
-              fontSize: 14,
-              opacity: isLoading ? 0.7 : 1
-            }}
-          >
-            {isLoading ? 'Creating account...' : 'Create Account'}
-          </button>
-        </form>
-        
-        <div style={{ marginTop: 20, textAlign: 'center' }}>
-          <p style={{ color: '#666', fontSize: 13 }}>
-            Already have an account? <Link to="/login" style={{ color: '#1e3c72', fontWeight: 'bold', textDecoration: 'none' }}>Sign In</Link>
-          </p>
-        </div>
-        
-        <div style={{ marginTop: 20, background: '#f0f7f4', padding: '12px', borderRadius: 10, textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#666', margin: 0 }}>✅ Free access to Exam 1 across all subjects</p>
-          <p style={{ fontSize: 11, color: '#666', margin: '4px 0 0' }}>⭐ Upgrade to Premium for full access</p>
         </div>
         
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
@@ -730,6 +728,7 @@ const HomePage = () => {
 
   useEffect(() => {
     const fetchQuizzes = async () => {
+      setLoading(true);
       try {
         const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
         setQuizzes(res.data);
@@ -775,7 +774,9 @@ const HomePage = () => {
     return names[category] || category;
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) {
+    return <LoadingWithBar message="Loading courses" />;
+  }
 
   const categories = getCategories();
 
@@ -837,7 +838,7 @@ const HomePage = () => {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
           {Object.entries(categories).map(([category, categoryQuizzes]) => (
-            <Link to={`/subjects/${category}/${mode}`} key={category} style={{ textDecoration: 'none' }}>
+            <Link to={`/courses/${category}/${mode}`} key={category} style={{ textDecoration: 'none' }}>
               <div style={{ 
                 background: darkMode ? '#16213e' : 'white', 
                 padding: '20px', 
@@ -852,13 +853,13 @@ const HomePage = () => {
               onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
                 <div style={{ fontSize: '48px', marginBottom: '10px' }}>{getCategoryIcon(category)}</div>
                 <h2 style={{ color: mode === 'free' ? '#1e3c72' : '#ff9800', fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: '8px' }}>{getCategoryName(category)}</h2>
-                <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: '13px', marginBottom: '10px' }}>{categoryQuizzes.length} subjects</p>
+                <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: '13px', marginBottom: '10px' }}>{categoryQuizzes.length} courses</p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
                   <span style={{ background: '#e8f5e9', color: '#1e3c72', padding: '3px 10px', borderRadius: '20px', fontSize: '11px' }}>🎯 Free Exam 1</span>
                   <span style={{ background: '#fff3e0', color: '#ff9800', padding: '3px 10px', borderRadius: '20px', fontSize: '11px' }}>⭐ Premium</span>
                 </div>
                 <button style={{ marginTop: '15px', background: mode === 'free' ? '#1e3c72' : '#ff9800', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '25px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', width: '100%' }}>
-                  Explore →
+                  Explore Courses →
                 </button>
               </div>
             </Link>
@@ -869,8 +870,8 @@ const HomePage = () => {
   );
 };
 
-// Subject List Component
-const SubjectList = () => {
+// Course List Component (formerly SubjectList)
+const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -884,37 +885,40 @@ const SubjectList = () => {
     'dental-nursing': { name: 'Dental Nursing', icon: '🦷', color: mode === 'free' ? '#1e3c72' : '#ff9800' }
   };
 
-  const category = categoryMap[categoryName] || { name: 'Subjects', icon: '📚', color: mode === 'free' ? '#1e3c72' : '#ff9800' };
+  const category = categoryMap[categoryName] || { name: 'Courses', icon: '📚', color: mode === 'free' ? '#1e3c72' : '#ff9800' };
 
   useEffect(() => {
-    const fetchSubjects = async () => {
+    const fetchCourses = async () => {
+      setLoading(true);
       try {
         const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
         const filtered = res.data.filter(q => q.category === categoryName);
         setQuizzes(filtered);
       } catch (error) {
-        console.error('Error fetching subjects:', error);
+        console.error('Error fetching courses:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchSubjects();
+    fetchCourses();
   }, [categoryName, token]);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) {
+    return <LoadingWithBar message={`Loading ${category.name} courses`} />;
+  }
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '16px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <Link to={`/?mode=${mode}`} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', background: category.color, color: 'white', padding: '8px 16px', borderRadius: '30px', marginBottom: '16px', fontSize: '13px' }}>
-          ← Back
+          ← Back to Categories
         </Link>
         
         <div style={{ background: `linear-gradient(135deg, ${category.color} 0%, ${mode === 'free' ? '#1a3a5c' : '#e65100'} 100%)`, borderRadius: '16px', padding: '24px', marginBottom: '24px', color: 'white', textAlign: 'center' }}>
           <div style={{ fontSize: '48px' }}>{category.icon}</div>
           <h1 style={{ margin: '8px 0 0', fontSize: 'clamp(20px, 5vw, 28px)' }}>{category.name}</h1>
           <p style={{ marginTop: '6px', fontSize: '13px' }}>{mode === 'free' ? 'FREE MODE' : 'PREMIUM MODE'}</p>
-          <p style={{ fontSize: '13px' }}>{quizzes.length} subjects available</p>
+          <p style={{ fontSize: '13px' }}>{quizzes.length} courses available</p>
         </div>
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
@@ -934,7 +938,7 @@ const SubjectList = () => {
                     <span style={{ background: '#fff3e0', color: '#ff9800', padding: '3px 10px', borderRadius: '20px', fontSize: '11px' }}>⭐ {Math.ceil(totalQuestions / 20)} Premium</span>
                   </div>
                   <button style={{ width: '100%', marginTop: '12px', background: category.color, color: 'white', border: 'none', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                    View →
+                    View Exams →
                   </button>
                 </div>
               </Link>
@@ -961,6 +965,7 @@ const ExamList = () => {
 
   useEffect(() => {
     const fetchQuiz = async () => {
+      setLoading(true);
       try {
         if (!token) return;
         const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -1030,15 +1035,17 @@ const ExamList = () => {
     window.location.href = `/take/${id}/${section.number}/${mode}`;
   };
 
-  if (loading) return <LoadingSpinner />;
-  if (!quiz) return <div style={{ textAlign: 'center', padding: '30px' }}>Quiz not found</div>;
+  if (loading) {
+    return <LoadingWithBar message="Loading examination details" />;
+  }
+  if (!quiz) return <div style={{ textAlign: 'center', padding: '30px' }}>Course not found</div>;
 
   const getCategorySlug = () => {
-    if (quiz.category === 'general-nursing') return `/subjects/general-nursing/${mode}`;
-    if (quiz.category === 'midwifery') return `/subjects/midwifery/${mode}`;
-    if (quiz.category === 'public-health') return `/subjects/public-health/${mode}`;
-    if (quiz.category === 'pediatric-nursing') return `/subjects/pediatric-nursing/${mode}`;
-    if (quiz.category === 'dental-nursing') return `/subjects/dental-nursing/${mode}`;
+    if (quiz.category === 'general-nursing') return `/courses/general-nursing/${mode}`;
+    if (quiz.category === 'midwifery') return `/courses/midwifery/${mode}`;
+    if (quiz.category === 'public-health') return `/courses/public-health/${mode}`;
+    if (quiz.category === 'pediatric-nursing') return `/courses/pediatric-nursing/${mode}`;
+    if (quiz.category === 'dental-nursing') return `/courses/dental-nursing/${mode}`;
     return '/';
   };
 
@@ -1049,7 +1056,7 @@ const ExamList = () => {
       {showPremiumModal && <PremiumModal onClose={() => setShowPremiumModal(false)} examTitle={quiz.title} sectionNumber={selectedSection?.number} />}
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         <Link to={getCategorySlug()} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', background: examColor, color: 'white', padding: '8px 16px', borderRadius: '30px', marginBottom: '16px', fontSize: '13px' }}>
-          ← Back
+          ← Back to Courses
         </Link>
         
         <div style={{ background: `linear-gradient(135deg, ${examColor} 0%, ${mode === 'free' ? '#1a3a5c' : '#e65100'} 100%)`, borderRadius: '16px', padding: '20px', marginBottom: '24px', color: 'white', textAlign: 'center' }}>
@@ -1198,7 +1205,7 @@ const TakeExam = () => {
   const totalQuestions = questions.length;
   const allAnswered = answeredCount === totalQuestions;
 
-  if (!exam) return <LoadingSpinner />;
+  if (!exam) return <LoadingWithBar message="Loading examination" />;
 
   if (submitted && !showReview) {
     return (
@@ -1311,7 +1318,7 @@ const HowToUse = () => {
         <div style={{ marginBottom: 30 }}>
           <h3 style={{ color: '#1e3c72', marginBottom: 10 }}>🆓 Free Mode</h3>
           <ul style={{ lineHeight: 1.8, color: darkMode ? '#ccc' : '#555' }}>
-            <li>✓ Access Examination 1 of ANY subject for FREE</li>
+            <li>✓ Access Examination 1 of ANY course for FREE</li>
             <li>✓ Each free exam can only be taken ONCE</li>
             <li>✓ Your score is saved and displayed</li>
             <li>✓ Review your answers after completion</li>
@@ -1322,7 +1329,7 @@ const HowToUse = () => {
         <div style={{ marginBottom: 30 }}>
           <h3 style={{ color: '#ff9800', marginBottom: 10 }}>⭐ Premium Mode</h3>
           <ul style={{ lineHeight: 1.8, color: darkMode ? '#ccc' : '#555' }}>
-            <li>✓ View ALL examinations across ALL subjects</li>
+            <li>✓ View ALL examinations across ALL courses</li>
             <li>✓ Premium badge shows which exams require upgrade</li>
             <li>✓ Subscribe for ₦5,900 to unlock everything</li>
             <li>✓ Lifetime access to 20,000+ questions</li>
@@ -1335,7 +1342,7 @@ const HowToUse = () => {
           <ul style={{ lineStyle: 'none', lineHeight: 1.8, color: darkMode ? '#ccc' : '#555' }}>
             <li>🏠 <strong>Home</strong> - Select FREE or PREMIUM mode</li>
             <li>📚 <strong>Categories</strong> - Choose your subject area</li>
-            <li>📖 <strong>Subjects</strong> - Select specific topic</li>
+            <li>📖 <strong>Courses</strong> - Select specific topic</li>
             <li>📝 <strong>Exams</strong> - Take your chosen examination</li>
             <li>⭐ <strong>Get Premium</strong> - Upgrade for full access</li>
           </ul>
@@ -1554,7 +1561,6 @@ const AppContent = () => {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/verify-email" element={<EmailVerification />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
@@ -1572,7 +1578,7 @@ const AppContent = () => {
       </nav>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/subjects/:categoryName/:mode" element={<SubjectList />} />
+        <Route path="/courses/:categoryName/:mode" element={<CourseList />} />
         <Route path="/exams/:id/:mode" element={<ExamList />} />
         <Route path="/take/:id/:sectionNumber/:mode" element={<TakeExam />} />
         <Route path="/how-to-use" element={<HowToUse />} />

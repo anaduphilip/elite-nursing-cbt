@@ -18,7 +18,6 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
@@ -31,9 +30,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 
-// Handle preflight requests
 app.options('*', cors());
-
 app.use(express.json());
 
 // Configure Brevo
@@ -52,8 +49,9 @@ mongoose.connect(MONGODB_URI)
 // OTP Store (in production, use Redis or a database)
 const otpStore = new Map();
 
-// User Schema with isVerified field
+// User Schema with name field
 const UserSchema = new mongoose.Schema({
+  name: { type: String, default: '' },
   email: { type: String, unique: true, required: true },
   password: { type: String, required: true },
   isPremium: { type: Boolean, default: false },
@@ -108,32 +106,142 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send email function using Brevo
-const sendEmail = async (to, subject, textMessage) => {
+// Professional Email Template
+const getEmailTemplate = (name, otp, type) => {
+  const year = new Date().getFullYear();
+  
+  if (type === 'verification') {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Email Verification - ELITE Nursing CBT</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .email-wrapper { background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; }
+          .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; }
+          .header p { color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px; }
+          .content { padding: 30px; }
+          .greeting { font-size: 18px; color: #333; margin-bottom: 20px; }
+          .code-container { background: #f0f7f4; border-radius: 12px; padding: 20px; text-align: center; margin: 25px 0; }
+          .code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1e3c72; font-family: monospace; }
+          .message { color: #555; line-height: 1.6; margin-bottom: 20px; }
+          .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; }
+          .button { display: inline-block; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 12px 30px; border-radius: 30px; text-decoration: none; font-weight: bold; margin-top: 15px; }
+          .warning { font-size: 12px; color: #999; margin-top: 20px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="email-wrapper">
+            <div class="header">
+              <h1>ELITE NURSING & MIDWIFERY CBT</h1>
+              <p>Computer Based Testing Platform</p>
+            </div>
+            <div class="content">
+              <div class="greeting">Dear ${name || 'Valued User'},</div>
+              <div class="message">
+                Thank you for choosing ELITE Nursing & Midwifery CBT. Please use the verification code below to complete your registration.
+              </div>
+              <div class="code-container">
+                <div class="code">${otp}</div>
+                <p style="margin: 10px 0 0; font-size: 14px; color: #666;">This code expires in 10 minutes</p>
+              </div>
+              <div class="message">
+                If you didn't request this code, please ignore this email. Never share this code with anyone.
+              </div>
+            </div>
+            <div class="footer">
+              <p>&copy; ${year} ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+              <p>Empowering nursing and midwifery excellence through quality education.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  } else if (type === 'password-reset') {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Password Reset - ELITE Nursing CBT</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f9; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .email-wrapper { background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; }
+          .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; }
+          .header p { color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px; }
+          .content { padding: 30px; }
+          .greeting { font-size: 18px; color: #333; margin-bottom: 20px; }
+          .code-container { background: #f0f7f4; border-radius: 12px; padding: 20px; text-align: center; margin: 25px 0; }
+          .code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1e3c72; font-family: monospace; }
+          .message { color: #555; line-height: 1.6; margin-bottom: 20px; }
+          .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; }
+          .warning { font-size: 12px; color: #999; margin-top: 20px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="email-wrapper">
+            <div class="header">
+              <h1>ELITE NURSING & MIDWIFERY CBT</h1>
+              <p>Computer Based Testing Platform</p>
+            </div>
+            <div class="content">
+              <div class="greeting">Dear ${name || 'Valued User'},</div>
+              <div class="message">
+                We received a request to reset your password. Use the verification code below to create a new password.
+              </div>
+              <div class="code-container">
+                <div class="code">${otp}</div>
+                <p style="margin: 10px 0 0; font-size: 14px; color: #666;">This code expires in 10 minutes</p>
+              </div>
+              <div class="message">
+                If you didn't request a password reset, please ignore this email. Your password will remain unchanged.
+              </div>
+            </div>
+            <div class="footer">
+              <p>&copy; ${year} ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+              <p>Empowering nursing and midwifery excellence through quality education.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+  return null;
+};
+
+// Send email function using Brevo with professional template
+const sendEmail = async (to, name, otp, type) => {
   try {
+    const htmlContent = getEmailTemplate(name, otp, type);
+    const textContent = type === 'verification' 
+      ? `Your ELITE Nursing & Midwifery CBT verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`
+      : `Your ELITE Nursing & Midwifery CBT password reset code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
+    
+    const subject = type === 'verification' 
+      ? 'Verify Your Email - ELITE Nursing & Midwifery CBT'
+      : 'Reset Your Password - ELITE Nursing & Midwifery CBT';
+    
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
     sendSmtpEmail.to = [{ email: to }];
     sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT' };
     sendSmtpEmail.subject = subject;
-    sendSmtpEmail.textContent = textMessage;
-    sendSmtpEmail.htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-        <div style="text-align: center;">
-          <h1 style="color: #1e3c72;">ELITE Nursing & Midwifery CBT</h1>
-        </div>
-        <div style="padding: 20px;">
-          <p>Hello,</p>
-          <p>${textMessage}</p>
-          <p style="margin-top: 20px;">Best regards,<br/>ELITE Nursing CBT Team</p>
-        </div>
-        <div style="text-align: center; padding-top: 20px; font-size: 12px; color: #999;">
-          <p>© 2024 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
-        </div>
-      </div>
-    `;
+    sendSmtpEmail.textContent = textContent;
+    sendSmtpEmail.htmlContent = htmlContent;
     
     const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
-    console.log('✅ Email sent successfully');
+    console.log('✅ Email sent successfully to:', to);
     return true;
   } catch (error) {
     console.error('❌ Email sending failed:', error.response?.body || error.message);
@@ -146,22 +254,19 @@ const sendEmail = async (to, subject, textMessage) => {
 // Send verification OTP
 app.post('/api/send-verification', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, name } = req.body;
     
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser && existingUser.isVerified) {
       return res.status(400).json({ error: 'Email already registered and verified' });
     }
     
     const otp = generateOTP();
-    const expires = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+    const expires = Date.now() + 10 * 60 * 1000;
     
-    otpStore.set(`verify_${email}`, { otp, expires });
+    otpStore.set(`verify_${email}`, { otp, expires, name });
     
-    // Send email
-    const message = `Your ELITE Nursing & Midwifery CBT verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
-    await sendEmail(email, 'Verify Your Email - ELITE Nursing CBT', message);
+    await sendEmail(email, name || 'User', otp, 'verification');
     
     console.log(`Verification OTP for ${email}: ${otp}`);
     
@@ -191,11 +296,8 @@ app.post('/api/verify-email', async (req, res) => {
       return res.status(400).json({ error: 'Invalid verification code' });
     }
     
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      await User.findOneAndUpdate({ email }, { isVerified: true });
-    }
-    
+    // Store verified status temporarily
+    otpStore.set(`verified_${email}`, { verified: true, name: stored.name });
     otpStore.delete(`verify_${email}`);
     
     res.json({ success: true, message: 'Email verified successfully! You can now complete registration.' });
@@ -220,10 +322,9 @@ app.post('/api/forgot-password', async (req, res) => {
     const otp = generateOTP();
     const expires = Date.now() + 10 * 60 * 1000;
     
-    otpStore.set(`reset_${email}`, { otp, expires });
+    otpStore.set(`reset_${email}`, { otp, expires, name: user.name || 'User' });
     
-    const message = `Your ELITE Nursing & Midwifery CBT password reset code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
-    await sendEmail(email, 'Reset Your Password - ELITE Nursing CBT', message);
+    await sendEmail(email, user.name || 'User', otp, 'password-reset');
     
     console.log(`Password reset OTP for ${email}: ${otp}`);
     
@@ -271,31 +372,48 @@ app.post('/api/reset-password', async (req, res) => {
 
 // ============ AUTH ROUTES ============
 
-// Register
+// Register - with name
 app.post('/api/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { name, email, password } = req.body;
     
+    // Check if email was verified
+    const verifiedData = otpStore.get(`verified_${email}`);
+    if (!verifiedData || !verifiedData.verified) {
+      return res.status(400).json({ error: 'Please verify your email first' });
+    }
+    
+    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser && existingUser.isVerified) {
-      return res.status(400).json({ error: 'User already exists and is verified' });
+      otpStore.delete(`verified_${email}`);
+      return res.status(400).json({ error: 'User already exists' });
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);
     
     if (existingUser && !existingUser.isVerified) {
+      existingUser.name = name || verifiedData.name;
       existingUser.password = hashedPassword;
       existingUser.isVerified = true;
       await existingUser.save();
       const token = jwt.sign({ userId: existingUser._id }, process.env.JWT_SECRET || 'elite_secret_key_2024');
-      return res.json({ success: true, token, user: { id: existingUser._id, email: existingUser.email, isPremium: existingUser.isPremium } });
+      otpStore.delete(`verified_${email}`);
+      return res.json({ success: true, token, user: { id: existingUser._id, name: existingUser.name, email: existingUser.email, isPremium: existingUser.isPremium } });
     }
     
-    const user = new User({ email, password: hashedPassword, isVerified: true });
+    const user = new User({ 
+      name: name || verifiedData.name, 
+      email, 
+      password: hashedPassword, 
+      isVerified: true 
+    });
     await user.save();
     
+    otpStore.delete(`verified_${email}`);
+    
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    res.json({ success: true, token, user: { id: user._id, email: user.email, isPremium: user.isPremium } });
+    res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email, isPremium: user.isPremium } });
   } catch (error) {
     console.error('Register error:', error);
     res.status(400).json({ error: error.message });
@@ -322,7 +440,7 @@ app.post('/api/login', async (req, res) => {
     }
     
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    res.json({ token, user: { id: user._id, email: user.email, isPremium: user.isPremium } });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, isPremium: user.isPremium } });
   } catch (error) {
     console.error('Login error:', error);
     res.status(400).json({ error: error.message });
@@ -342,10 +460,9 @@ app.post('/api/resend-verification', async (req, res) => {
     const otp = generateOTP();
     const expires = Date.now() + 10 * 60 * 1000;
     
-    otpStore.set(`verify_${email}`, { otp, expires });
+    otpStore.set(`verify_${email}`, { otp, expires, name: user?.name || 'User' });
     
-    const message = `Your ELITE Nursing & Midwifery CBT verification code is: ${otp}\n\nThis code expires in 10 minutes.`;
-    await sendEmail(email, 'Verify Your Email - ELITE Nursing CBT', message);
+    await sendEmail(email, user?.name || 'User', otp, 'verification');
     
     console.log(`Resent verification OTP for ${email}: ${otp}`);
     
@@ -365,6 +482,8 @@ app.get('/api/user/profile', async (req, res) => {
     const user = await User.findById(decoded.userId);
     
     res.json({ 
+      id: user._id,
+      name: user.name,
       isPremium: user.isPremium, 
       email: user.email,
       isVerified: user.isVerified,
