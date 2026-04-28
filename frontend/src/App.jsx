@@ -56,6 +56,7 @@ const LoadingWithBar = ({ message = "Loading", onComplete }) => {
           }} />
         </div>
         <p style={{ color: '#1e3c72', fontSize: 12, marginTop: 10 }}>{Math.floor(Math.min(progress, 100))}%</p>
+        <p style={{ color: '#999', fontSize: 10, marginTop: 20 }}>© 2024 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -354,7 +355,7 @@ const Register = () => {
     setError('');
     setMessage('');
     try {
-      const res = await axios.post('/api/send-verification', { email });
+      const res = await axios.post('/api/send-verification', { email, name });
       setMessage(res.data.message);
       setStep('verify');
       setResendTimer(60);
@@ -371,10 +372,8 @@ const Register = () => {
     setError('');
     setMessage('');
     try {
-      // First verify email
       await axios.post('/api/verify-email', { email, otp });
       
-      // Then register
       const res = await axios.post('/api/register', { name, email, password });
       if (res.data.success) {
         setMessage('Registration successful! Redirecting...');
@@ -394,7 +393,7 @@ const Register = () => {
     setIsLoading(true);
     setError('');
     try {
-      const res = await axios.post('/api/send-verification', { email });
+      const res = await axios.post('/api/send-verification', { email, name });
       setMessage(res.data.message);
       setResendTimer(60);
     } catch (error) {
@@ -490,6 +489,12 @@ const Register = () => {
                 Verify Email
               </button>
             </form>
+            
+            <div style={{ marginTop: 20, textAlign: 'center' }}>
+              <Link to="/login" style={{ color: '#1e3c72', fontSize: 13, textDecoration: 'none' }}>
+                ← Back to Login
+              </Link>
+            </div>
           </>
         ) : (
           <>
@@ -566,12 +571,18 @@ const Register = () => {
             </div>
           </>
         )}
+        
+        {/* Footer messages same as login page */}
+        <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, color: '#999' }}>© 2024 ELITE Nursing & Midwifery CBT</p>
+          <p style={{ fontSize: 11, color: '#999' }}>Over 20,000+ practice questions</p>
+        </div>
       </div>
     </div>
   );
 };
 
-// Enhanced Login Component
+// Enhanced Login Component with mobile-responsive popup
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -611,20 +622,24 @@ const Login = () => {
           transform: 'translateX(-50%)',
           background: 'white',
           borderRadius: '40px',
-          padding: '10px 20px',
+          padding: '12px 24px',
           boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
           zIndex: 1000,
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
-          animation: 'slideDown 0.5s ease'
+          gap: '12px',
+          animation: 'slideDown 0.5s ease',
+          maxWidth: '90%',
+          width: 'auto',
+          flexWrap: 'wrap',
+          justifyContent: 'center'
         }}>
-          <span style={{ fontSize: 20 }}>👋</span>
-          <div>
+          <span style={{ fontSize: 24 }}>👋</span>
+          <div style={{ textAlign: 'center' }}>
             <strong style={{ color: '#1e3c72', fontSize: 14 }}>Welcome to ELITE Nursing & Midwifery CBT!</strong>
-            <p style={{ margin: 0, fontSize: 11, color: '#666' }}>Sign in to continue your learning journey</p>
+            <p style={{ margin: 0, fontSize: 12, color: '#666' }}>Sign in to continue your learning journey</p>
           </div>
-          <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: '#999' }}>✕</button>
+          <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#999', padding: '0 8px' }}>✕</button>
         </div>
       )}
       
@@ -637,6 +652,12 @@ const Login = () => {
           to {
             opacity: 1;
             transform: translateX(-50%) translateY(0);
+          }
+        }
+        @media (max-width: 480px) {
+          .login-popup {
+            width: 90%;
+            padding: 10px 16px;
           }
         }
       `}</style>
@@ -724,7 +745,7 @@ const HomePage = () => {
   const [mode, setMode] = useState('free');
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { token, darkMode, user } = useContext(AuthContext);
+  const { token, darkMode, user, logout } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchQuizzes = async () => {
@@ -870,7 +891,7 @@ const HomePage = () => {
   );
 };
 
-// Course List Component (formerly SubjectList)
+// Course List Component
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [quizzes, setQuizzes] = useState([]);
@@ -1515,13 +1536,60 @@ const GetPremium = () => {
   );
 };
 
-// Dropdown Menu Component
+// Dropdown Menu Component with logout confirmation
 const DropdownMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { user, logout, darkMode, toggleDarkMode } = useContext(AuthContext);
+
+  const handleLogoutClick = () => {
+    setIsOpen(false);
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    logout();
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
+  };
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
+      {showLogoutConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 24,
+            maxWidth: 300,
+            width: '90%',
+            textAlign: 'center',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🚪</div>
+            <h3 style={{ color: '#1e3c72', marginBottom: 8 }}>Confirm Logout</h3>
+            <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>Are you sure you want to logout?</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button onClick={cancelLogout} style={{ padding: '8px 20px', background: '#6c757d', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
+              <button onClick={confirmLogout} style={{ padding: '8px 20px', background: '#dc3545', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
       <button onClick={() => setIsOpen(!isOpen)} style={{ background: '#1e3c72', color: 'white', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 14, cursor: 'pointer' }}>
         ☰ Menu
       </button>
@@ -1543,7 +1611,7 @@ const DropdownMenu = () => {
               <div onClick={() => { toggleDarkMode(); setIsOpen(false); }} style={{ display: 'block', padding: '8px 16px', cursor: 'pointer', borderBottom: '1px solid #eee', color: darkMode ? '#eee' : '#333', fontSize: 13 }}>
                 {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
               </div>
-              <button onClick={() => { setIsOpen(false); logout(); }} style={{ width: '100%', padding: '8px 16px', background: 'none', border: 'none', cursor: 'pointer', color: '#dc3545', fontWeight: 'bold', textAlign: 'left', fontSize: 13 }}>🚪 Logout</button>
+              <button onClick={handleLogoutClick} style={{ width: '100%', padding: '8px 16px', background: 'none', border: 'none', cursor: 'pointer', color: '#dc3545', fontWeight: 'bold', textAlign: 'left', fontSize: 13 }}>🚪 Logout</button>
             </div>
           </div>
         </>
