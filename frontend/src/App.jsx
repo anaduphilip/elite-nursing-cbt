@@ -721,7 +721,7 @@ const Register = () => {
   );
 };
 
-// Home Page Component (unchanged, kept as original)
+// Home Page Component
 const HomePage = () => {
   const [mode, setMode] = useState('free');
   const [quizzes, setQuizzes] = useState([]);
