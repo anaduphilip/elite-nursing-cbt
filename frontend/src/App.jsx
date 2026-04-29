@@ -690,13 +690,15 @@ const Register = () => {
   );
 };
 
-// Login Component with Popup Welcome Message
+// Login Component with Force Logout Option
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForceLogoutDialog, setShowForceLogoutDialog] = useState(false);
+  const [pendingCredentials, setPendingCredentials] = useState(null);
   const { login } = useContext(AuthContext);
 
   useEffect(() => {
@@ -711,10 +713,39 @@ const Login = () => {
       const res = await axios.post('/api/login', { email, password });
       login(res.data.token, res.data.user);
     } catch (error) {
-      alert('Login failed: ' + (error.response?.data?.error || error.message));
+      const errorMsg = error.response?.data?.error || error.message;
+      if (errorMsg.includes('already logged in on another device')) {
+        setPendingCredentials({ email, password });
+        setShowForceLogoutDialog(true);
+      } else {
+        alert('Login failed: ' + errorMsg);
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleForceLogout = async () => {
+    setIsLoading(true);
+    try {
+      const res = await axios.post('/api/force-logout', { email: pendingCredentials.email });
+      if (res.data.success) {
+        // Now try to login again
+        const loginRes = await axios.post('/api/login', { email: pendingCredentials.email, password: pendingCredentials.password });
+        login(loginRes.data.token, loginRes.data.user);
+      }
+    } catch (error) {
+      alert('Failed to force logout from other device. Please try again later.');
+    } finally {
+      setIsLoading(false);
+      setShowForceLogoutDialog(false);
+      setPendingCredentials(null);
+    }
+  };
+
+  const cancelForceLogout = () => {
+    setShowForceLogoutDialog(false);
+    setPendingCredentials(null);
   };
 
   if (isLoading) {
@@ -723,7 +754,46 @@ const Login = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
-      {showWelcome && (
+      {showForceLogoutDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 20,
+            padding: 28,
+            maxWidth: 400,
+            width: '90%',
+            textAlign: 'center',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+            <h2 style={{ color: '#1e3c72', marginBottom: 8 }}>Already Logged In Elsewhere</h2>
+            <p style={{ color: '#666', marginBottom: 20 }}>
+              You are already logged in on another device. Would you like to log out from that device and continue here?
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button onClick={cancelForceLogout} style={{ background: '#6c757d', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                Cancel
+              </button>
+              <button onClick={handleForceLogout} style={{ background: '#dc3545', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                Logout from Other Device
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {showWelcome && !showForceLogoutDialog && (
         <div style={{
           position: 'fixed',
           top: '20px',
