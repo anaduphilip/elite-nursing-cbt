@@ -1,4 +1,4 @@
-// Force DNS resolution to use Google DNS - FIXES VERCEL DNS ISSUE
+// Force DNS resolution to use Google DNS
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
@@ -87,6 +87,7 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   isPremium: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
   purchaseDate: Date,
   purchasedExams: [{
     examId: String,
@@ -129,8 +130,17 @@ const QuizSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Contact Schema
+const ContactSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  message: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+
 const User = mongoose.model('User', UserSchema);
 const Quiz = mongoose.model('Quiz', QuizSchema);
+const Contact = mongoose.model('Contact', ContactSchema);
 
 // Helper function to generate OTP
 const generateOTP = () => {
@@ -162,125 +172,24 @@ const getEmailTemplate = (name, otp, type) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${emailContent.title} - ELITE Nursing CBT</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background-color: #f0f7f4;
-      line-height: 1.5;
-    }
-    .container {
-      max-width: 550px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    .email-card {
-      background-color: #ffffff;
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.1);
-    }
-    .header {
-      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-      padding: 30px 20px;
-      text-align: center;
-    }
-    .header h1 {
-      color: #ffffff;
-      font-size: 22px;
-      font-weight: bold;
-      margin: 0;
-      letter-spacing: 1px;
-    }
-    .header p {
-      color: rgba(255, 255, 255, 0.9);
-      font-size: 12px;
-      margin: 8px 0 0;
-    }
-    .content {
-      padding: 30px 25px;
-    }
-    .greeting {
-      font-size: 18px;
-      font-weight: 600;
-      color: #1e3c72;
-      margin-bottom: 15px;
-    }
-    .message {
-      color: #4a5568;
-      font-size: 15px;
-      line-height: 1.6;
-      margin-bottom: 25px;
-    }
-    .code-container {
-      background: linear-gradient(135deg, #f0f7f4 0%, #e8f0ea 100%);
-      border-radius: 16px;
-      padding: 25px 20px;
-      text-align: center;
-      margin: 25px 0;
-      border: 1px solid #d4e0d9;
-    }
-    .code-label {
-      font-size: 13px;
-      color: #5a6e5a;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      margin-bottom: 10px;
-    }
-    .code {
-      font-size: 42px;
-      font-weight: 800;
-      letter-spacing: 12px;
-      color: #1e3c72;
-      font-family: 'Courier New', monospace;
-      background: white;
-      display: inline-block;
-      padding: 12px 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    .expiry-note {
-      font-size: 12px;
-      color: #8b9a8b;
-      margin-top: 12px;
-    }
-    .divider {
-      height: 1px;
-      background: linear-gradient(to right, transparent, #cbd5e0, transparent);
-      margin: 25px 0;
-    }
-    .footer {
-      background-color: #f8f9fa;
-      padding: 20px 25px;
-      text-align: center;
-      border-top: 1px solid #e2e8f0;
-    }
-    .footer p {
-      color: #94a3b8;
-      font-size: 11px;
-      margin: 5px 0;
-    }
-    .footer .copyright {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid #e2e8f0;
-    }
-    @media (max-width: 480px) {
-      .code {
-        font-size: 28px;
-        letter-spacing: 8px;
-        padding: 10px 15px;
-      }
-      .content {
-        padding: 20px;
-      }
-      .header h1 {
-        font-size: 18px;
-      }
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f0f7f4; line-height: 1.5; }
+    .container { max-width: 550px; margin: 0 auto; padding: 20px; }
+    .email-card { background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.1); }
+    .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; }
+    .header h1 { color: #ffffff; font-size: 22px; font-weight: bold; margin: 0; letter-spacing: 1px; }
+    .header p { color: rgba(255, 255, 255, 0.9); font-size: 12px; margin: 8px 0 0; }
+    .content { padding: 30px 25px; }
+    .greeting { font-size: 18px; font-weight: 600; color: #1e3c72; margin-bottom: 15px; }
+    .message { color: #4a5568; font-size: 15px; line-height: 1.6; margin-bottom: 25px; }
+    .code-container { background: linear-gradient(135deg, #f0f7f4 0%, #e8f0ea 100%); border-radius: 16px; padding: 25px 20px; text-align: center; margin: 25px 0; border: 1px solid #d4e0d9; }
+    .code-label { font-size: 13px; color: #5a6e5a; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+    .code { font-size: 42px; font-weight: 800; letter-spacing: 12px; color: #1e3c72; font-family: 'Courier New', monospace; background: white; display: inline-block; padding: 12px 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .expiry-note { font-size: 12px; color: #8b9a8b; margin-top: 12px; }
+    .footer { background-color: #f8f9fa; padding: 20px 25px; text-align: center; border-top: 1px solid #e2e8f0; }
+    .footer p { color: #94a3b8; font-size: 11px; margin: 5px 0; }
+    .footer .copyright { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+    @media (max-width: 480px) { .code { font-size: 28px; letter-spacing: 8px; padding: 10px 15px; } .content { padding: 20px; } .header h1 { font-size: 18px; } }
   </style>
 </head>
 <body>
@@ -292,24 +201,72 @@ const getEmailTemplate = (name, otp, type) => {
       </div>
       <div class="content">
         <div class="greeting">Dear ${name || 'Valued User'},</div>
-        <div class="message">
-          ${emailContent.message}
-        </div>
+        <div class="message">${emailContent.message}</div>
         <div class="code-container">
           <div class="code-label">Your Verification Code</div>
           <div class="code">${otp}</div>
           <div class="expiry-note">⏰ ${emailContent.note}</div>
         </div>
-        <div class="message" style="font-size: 13px; margin-bottom: 0;">
-          If you didn't request this, please ignore this email. Never share this code with anyone for security reasons.
-        </div>
+        <div class="message" style="font-size: 13px; margin-bottom: 0;">If you didn't request this, please ignore this email. Never share this code with anyone for security reasons.</div>
       </div>
       <div class="footer">
         <p>© ${year} ELITE Nursing & Midwifery CBT. All rights reserved.</p>
         <p>Empowering nursing and midwifery excellence through quality education.</p>
-        <div class="copyright">
-          <p>This is an automated message, please do not reply.</p>
+        <div class="copyright"><p>This is an automated message, please do not reply.</p></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+};
+
+// Contact Email Template
+const getContactEmailTemplate = (name, email, message) => {
+  const year = new Date().getFullYear();
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Contact Message - ELITE Nursing CBT</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f0f7f4; line-height: 1.5; }
+    .container { max-width: 550px; margin: 0 auto; padding: 20px; }
+    .email-card { background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.1); }
+    .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; }
+    .header h1 { color: #ffffff; font-size: 22px; font-weight: bold; margin: 0; }
+    .header p { color: rgba(255, 255, 255, 0.9); font-size: 12px; margin: 8px 0 0; }
+    .content { padding: 30px 25px; }
+    .greeting { font-size: 18px; font-weight: 600; color: #1e3c72; margin-bottom: 15px; }
+    .message-box { background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 20px 0; border-left: 4px solid #1e3c72; }
+    .contact-details { margin: 20px 0; }
+    .contact-details p { margin: 8px 0; }
+    .footer { background-color: #f8f9fa; padding: 20px 25px; text-align: center; border-top: 1px solid #e2e8f0; }
+    .footer p { color: #94a3b8; font-size: 11px; margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="email-card">
+      <div class="header">
+        <h1>ELITE NURSING & MIDWIFERY CBT</h1>
+        <p>Computer Based Testing Platform</p>
+      </div>
+      <div class="content">
+        <div class="greeting">New Contact Message</div>
+        <div class="contact-details">
+          <p><strong>From:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
         </div>
+        <div class="message-box">
+          <p><strong>Message:</strong></p>
+          <p style="margin-top: 10px;">${message}</p>
+        </div>
+      </div>
+      <div class="footer">
+        <p>© ${year} ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p>This message was sent from your website's contact form.</p>
       </div>
     </div>
   </div>
@@ -344,6 +301,107 @@ const sendEmail = async (to, name, otp, type) => {
     return false;
   }
 };
+
+// Send contact notification to admin
+const sendContactNotification = async (name, email, message) => {
+  try {
+    const htmlContent = getContactEmailTemplate(name, email, message);
+    const textContent = `New contact message from ${name} (${email}):\n\n${message}`;
+    
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: 'anaduphilip2000@gmail.com' }];
+    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT' };
+    sendSmtpEmail.subject = `New Contact Message from ${name}`;
+    sendSmtpEmail.textContent = textContent;
+    sendSmtpEmail.htmlContent = htmlContent;
+    
+    const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log('✅ Contact notification sent to admin');
+    return true;
+  } catch (error) {
+    console.error('❌ Contact notification failed:', error.response?.body || error.message);
+    return false;
+  }
+};
+
+// Contact endpoint
+app.post('/api/contact', async (req, res) => {
+  try {
+    const { name, email, message } = req.body;
+    
+    // Save to database
+    const contact = new Contact({ name, email, message });
+    await contact.save();
+    
+    // Send email notification to admin
+    await sendContactNotification(name, email, message);
+    
+    res.json({ success: true, message: 'Message sent successfully' });
+  } catch (error) {
+    console.error('Contact error:', error);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// ============ ADMIN ROUTES ============
+
+// Middleware to check if user is admin
+const isAdmin = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    const user = await User.findById(decoded.userId);
+    if (user.email !== 'anaduphilip2000@gmail.com') {
+      return res.status(403).json({ error: 'Admin access only' });
+    }
+    req.userId = decoded.userId;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// Get all users (admin only)
+app.get('/api/admin/users', isAdmin, async (req, res) => {
+  try {
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all contact messages (admin only)
+app.get('/api/admin/contacts', isAdmin, async (req, res) => {
+  try {
+    const contacts = await Contact.find().sort({ createdAt: -1 });
+    res.json(contacts);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle user premium status (admin only)
+app.post('/api/admin/toggle-premium', isAdmin, async (req, res) => {
+  try {
+    const { userId, isPremium } = req.body;
+    await User.findByIdAndUpdate(userId, { isPremium });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete user (admin only)
+app.delete('/api/admin/users/:userId', isAdmin, async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.userId);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // ============ TEST ENDPOINTS ============
 
