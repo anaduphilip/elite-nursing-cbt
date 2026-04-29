@@ -79,7 +79,7 @@ mongoose.connection.on('disconnected', () => {
 // OTP Store
 const otpStore = new Map();
 
-// User Schema
+// User Schema with session token
 const UserSchema = new mongoose.Schema({
   name: { type: String, default: '' },
   email: { type: String, unique: true, required: true },
@@ -87,6 +87,8 @@ const UserSchema = new mongoose.Schema({
   isPremium: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
+  currentSessionToken: { type: String, default: null },
+  lastLoginAt: { type: Date, default: null },
   purchaseDate: Date,
   purchasedExams: [{
     examId: String,
@@ -144,6 +146,11 @@ const Contact = mongoose.model('Contact', ContactSchema);
 // Helper function
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Generate unique session token
+const generateSessionToken = () => {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
 
 // Professional Email Template
@@ -241,6 +248,104 @@ const sendEmail = async (to, name, otp, type) => {
   }
 };
 
+// Contact Email Template
+const getContactEmailTemplate = (name, email, message) => {
+  const year = new Date().getFullYear();
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>New Contact Message - ELITE Nursing CBT</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f0f7f4; }
+    .container { max-width: 550px; margin: 0 auto; padding: 20px; }
+    .email-card { background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 35px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; }
+    .header h1 { color: white; font-size: 22px; }
+    .content { padding: 30px 25px; }
+    .message-box { background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 20px 0; border-left: 4px solid #1e3c72; }
+    .footer { background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0; }
+    .footer p { color: #94a3b8; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="email-card">
+      <div class="header">
+        <h1>ELITE NURSING & MIDWIFERY CBT</h1>
+        <p>Computer Based Testing Platform</p>
+      </div>
+      <div class="content">
+        <h2>New Contact Message</h2>
+        <p><strong>From:</strong> ${name} (${email})</p>
+        <div class="message-box">
+          <p><strong>Message:</strong></p>
+          <p style="margin-top: 10px;">${message}</p>
+        </div>
+      </div>
+      <div class="footer">
+        <p>© ${year} ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+};
+
+// Reply Email Template
+const getReplyEmailTemplate = (name, originalMessage, reply) => {
+  const year = new Date().getFullYear();
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Response to your message - ELITE Nursing CBT</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f0f7f4; }
+    .container { max-width: 550px; margin: 0 auto; padding: 20px; }
+    .email-card { background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 35px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; }
+    .header h1 { color: white; font-size: 22px; }
+    .content { padding: 30px 25px; }
+    .original-box { background: #f8f9fa; border-radius: 12px; padding: 15px; margin: 15px 0; border-left: 4px solid #6c757d; }
+    .reply-box { background: #e8f5e9; border-radius: 12px; padding: 15px; margin: 15px 0; border-left: 4px solid #28a745; }
+    .footer { background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0; }
+    .footer p { color: #94a3b8; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="email-card">
+      <div class="header">
+        <h1>ELITE NURSING & MIDWIFERY CBT</h1>
+        <p>Computer Based Testing Platform</p>
+      </div>
+      <div class="content">
+        <h2>Response to Your Message</h2>
+        <p>Dear ${name},</p>
+        <p>Thank you for reaching out to us. Here is our response:</p>
+        <div class="reply-box">
+          <p><strong>Our Response:</strong></p>
+          <p style="margin-top: 10px;">${reply}</p>
+        </div>
+        <div class="original-box">
+          <p><strong>Your Original Message:</strong></p>
+          <p style="margin-top: 10px;">${originalMessage}</p>
+        </div>
+        <p>If you have any further questions, feel free to reach out again.</p>
+        <p>Best regards,<br/>ELITE Nursing CBT Support Team</p>
+      </div>
+      <div class="footer">
+        <p>© ${year} ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+};
+
 // ============ ADMIN MIDDLEWARE ============
 const isAdmin = async (req, res, next) => {
   try {
@@ -296,6 +401,30 @@ app.delete('/api/admin/users/:userId', isAdmin, async (req, res) => {
   }
 });
 
+// Admin reply to contact message
+app.post('/api/admin/reply-message', isAdmin, async (req, res) => {
+  try {
+    const { to, name, originalMessage, reply } = req.body;
+    
+    const htmlContent = getReplyEmailTemplate(name, originalMessage, reply);
+    const textContent = `Response to your message:\n\n${reply}\n\nOriginal message: ${originalMessage}`;
+    
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: to }];
+    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT Support' };
+    sendSmtpEmail.subject = `Response to your message - ELITE Nursing CBT`;
+    sendSmtpEmail.textContent = textContent;
+    sendSmtpEmail.htmlContent = htmlContent;
+    
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Reply sent to ${to}`);
+    res.json({ success: true, message: 'Reply sent successfully' });
+  } catch (error) {
+    console.error('Reply error:', error);
+    res.status(500).json({ error: 'Failed to send reply' });
+  }
+});
+
 // ============ CONTACT ROUTE ============
 app.post('/api/contact', async (req, res) => {
   try {
@@ -304,11 +433,13 @@ app.post('/api/contact', async (req, res) => {
     await contact.save();
     
     // Send email notification to admin
+    const htmlContent = getContactEmailTemplate(name, email, message);
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
     sendSmtpEmail.to = [{ email: 'anaduphilip2000@gmail.com' }];
     sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT' };
     sendSmtpEmail.subject = `New Contact Message from ${name}`;
     sendSmtpEmail.textContent = `From: ${name} (${email})\n\nMessage: ${message}`;
+    sendSmtpEmail.htmlContent = htmlContent;
     await apiInstance.sendTransacEmail(sendSmtpEmail);
     
     res.json({ success: true });
@@ -400,15 +531,26 @@ app.post('/api/register', async (req, res) => {
       existingUser.name = name || verifiedData.name;
       existingUser.password = hashedPassword;
       existingUser.isVerified = true;
+      const sessionToken = generateSessionToken();
+      existingUser.currentSessionToken = sessionToken;
+      existingUser.lastLoginAt = new Date();
       await existingUser.save();
-      const token = jwt.sign({ userId: existingUser._id }, process.env.JWT_SECRET || 'elite_secret_key_2024');
+      const token = jwt.sign({ userId: existingUser._id, sessionToken }, process.env.JWT_SECRET || 'elite_secret_key_2024');
       otpStore.delete(`verified_${email}`);
       return res.json({ success: true, token, user: { id: existingUser._id, name: existingUser.name, email, isPremium: existingUser.isPremium } });
     }
-    const user = new User({ name: name || verifiedData.name, email, password: hashedPassword, isVerified: true });
+    const sessionToken = generateSessionToken();
+    const user = new User({ 
+      name: name || verifiedData.name, 
+      email, 
+      password: hashedPassword, 
+      isVerified: true,
+      currentSessionToken: sessionToken,
+      lastLoginAt: new Date()
+    });
     await user.save();
     otpStore.delete(`verified_${email}`);
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    const token = jwt.sign({ userId: user._id, sessionToken }, process.env.JWT_SECRET || 'elite_secret_key_2024');
     res.json({ success: true, token, user: { id: user._id, name: user.name, email, isPremium: user.isPremium } });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -423,10 +565,51 @@ app.post('/api/login', async (req, res) => {
     if (!user.isVerified) return res.status(400).json({ error: 'Email not verified' });
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid password' });
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    
+    // Check if user is already logged in on another device
+    if (user.currentSessionToken) {
+      return res.status(401).json({ error: 'You are already logged in on another device. Please log out from that device first.' });
+    }
+    
+    const sessionToken = generateSessionToken();
+    user.currentSessionToken = sessionToken;
+    user.lastLoginAt = new Date();
+    await user.save();
+    
+    const token = jwt.sign({ userId: user._id, sessionToken }, process.env.JWT_SECRET || 'elite_secret_key_2024');
     res.json({ token, user: { id: user._id, name: user.name, email, isPremium: user.isPremium } });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+// Logout endpoint - clears session token
+app.post('/api/logout', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(200).json({ success: true });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    await User.findByIdAndUpdate(decoded.userId, { currentSessionToken: null });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(200).json({ success: true });
+  }
+});
+
+// Verify session endpoint (called on each page load)
+app.get('/api/verify-session', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(401).json({ error: 'User not found' });
+    if (user.currentSessionToken !== decoded.sessionToken) {
+      return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
+    }
+    res.json({ valid: true, user: { id: user._id, name: user.name, email: user.email, isPremium: user.isPremium } });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
   }
 });
 
