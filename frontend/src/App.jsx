@@ -307,7 +307,7 @@ const ForgotPassword = () => {
           </form>
         ) : (
           <form onSubmit={handleResetPassword}>
-            <div style={{ marginBottom: 16}>
+            <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Verification Code</label>
               <input 
                 type="text" 
