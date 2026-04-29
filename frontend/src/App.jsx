@@ -83,7 +83,7 @@ const PasswordInput = ({ value, onChange, placeholder, id }) => {
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        style={{ width: '100%', padding: '14px 16px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none', transition: 'all 0.3s' }}
+        style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
         onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
         onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
         required 
@@ -93,13 +93,13 @@ const PasswordInput = ({ value, onChange, placeholder, id }) => {
         onClick={() => setShowPassword(!showPassword)}
         style={{
           position: 'absolute',
-          right: 16,
+          right: 12,
           top: '50%',
           transform: 'translateY(-50%)',
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          fontSize: 20,
+          fontSize: 18,
           padding: 0,
           margin: 0,
           color: '#888'
@@ -253,34 +253,34 @@ const ForgotPassword = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div style={{ maxWidth: 450, width: '100%', background: 'white', borderRadius: 24, padding: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+      <div style={{ maxWidth: 450, width: '100%', background: 'white', borderRadius: 24, padding: 32, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 52, marginBottom: 16 }}>🔐</div>
-          <h2 style={{ color: '#1e3c72', fontSize: 24, marginBottom: 8, fontWeight: 'bold' }}>Reset Password</h2>
-          <p style={{ color: '#666', fontSize: 14 }}>Enter your email to receive a verification code</p>
+          <h1 style={{ color: '#1e3c72', fontSize: 22, margin: 0, fontWeight: 'bold' }}>Reset Password</h1>
+          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Enter your email to receive a verification code</p>
         </div>
 
         {message && (
-          <div style={{ background: '#e8f5e9', padding: 14, borderRadius: 12, marginBottom: 20, textAlign: 'center' }}>
-            <p style={{ color: '#2e7d32', margin: 0, fontSize: 14 }}>{message}</p>
+          <div style={{ background: '#e8f5e9', padding: 12, borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+            <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>{message}</p>
           </div>
         )}
         {error && (
-          <div style={{ background: '#ffebee', padding: 14, borderRadius: 12, marginBottom: 20, textAlign: 'center' }}>
-            <p style={{ color: '#c62828', margin: 0, fontSize: 14 }}>{error}</p>
+          <div style={{ background: '#ffebee', padding: 12, borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+            <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
           </div>
         )}
 
         {!otpSent ? (
           <form onSubmit={handleSendOtp}>
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, color: '#333', fontSize: 14, fontWeight: 500 }}>Email Address</label>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
               <input 
                 type="email" 
                 placeholder="you@example.com" 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
-                style={{ width: '100%', padding: '14px 16px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none' }}
+                style={{ width: '100%', padding: '12px 14px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                 onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
                 onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                 required 
@@ -293,12 +293,12 @@ const ForgotPassword = () => {
                 width: '100%', 
                 background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
                 color: 'white', 
-                padding: '14px', 
+                padding: '12px', 
                 border: 'none', 
-                borderRadius: 12, 
+                borderRadius: 10, 
                 cursor: 'pointer', 
                 fontWeight: 'bold', 
-                fontSize: 16,
+                fontSize: 14,
                 opacity: isLoading ? 0.7 : 1
               }}
             >
@@ -307,49 +307,49 @@ const ForgotPassword = () => {
           </form>
         ) : (
           <form onSubmit={handleResetPassword}>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', marginBottom: 8, color: '#333', fontSize: 14, fontWeight: 500 }}>Verification Code</label>
+            <div style={{ marginBottom: 16}>
+              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Verification Code</label>
               <input 
                 type="text" 
                 placeholder="Enter 6-digit code" 
                 value={otp} 
                 onChange={(e) => setOtp(e.target.value)} 
-                style={{ width: '100%', padding: '14px 16px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none' }}
+                style={{ width: '100%', padding: '12px 14px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                 onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
                 onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                 required 
               />
             </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', marginBottom: 8, color: '#333', fontSize: 14, fontWeight: 500 }}>New Password</label>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>New Password</label>
               <div style={{ position: 'relative' }}>
                 <input 
                   type={showNewPassword ? 'text' : 'password'}
                   placeholder="Enter new password" 
                   value={newPassword} 
                   onChange={(e) => setNewPassword(e.target.value)} 
-                  style={{ width: '100%', padding: '14px 16px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none' }}
+                  style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                   onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
                   onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                   required 
                 />
-                <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888' }}>{showNewPassword ? '🙈' : '👁️'}</button>
+                <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showNewPassword ? '🙈' : '👁️'}</button>
               </div>
             </div>
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, color: '#333', fontSize: 14, fontWeight: 500 }}>Confirm Password</label>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Confirm Password</label>
               <div style={{ position: 'relative' }}>
                 <input 
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Confirm new password" 
                   value={confirmPassword} 
                   onChange={(e) => setConfirmPassword(e.target.value)} 
-                  style={{ width: '100%', padding: '14px 16px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none' }}
+                  style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                   onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
                   onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                   required 
                 />
-                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888' }}>{showConfirmPassword ? '🙈' : '👁️'}</button>
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showConfirmPassword ? '🙈' : '👁️'}</button>
               </div>
             </div>
             <button 
@@ -359,12 +359,12 @@ const ForgotPassword = () => {
                 width: '100%', 
                 background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
                 color: 'white', 
-                padding: '14px', 
+                padding: '12px', 
                 border: 'none', 
-                borderRadius: 12, 
+                borderRadius: 10, 
                 cursor: 'pointer', 
                 fontWeight: 'bold', 
-                fontSize: 16,
+                fontSize: 14,
                 opacity: isLoading ? 0.7 : 1
               }}
             >
@@ -373,17 +373,20 @@ const ForgotPassword = () => {
           </form>
         )}
 
-        <div style={{ marginTop: 24, textAlign: 'center' }}>
-          <Link to="/login" style={{ color: '#1e3c72', fontSize: 14, textDecoration: 'none' }}>
+        <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <Link to="/login" style={{ color: '#1e3c72', fontSize: 13, textDecoration: 'none' }}>
             ← Back to Login
           </Link>
+        </div>
+        <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
         </div>
       </div>
     </div>
   );
 };
 
-// Register Component
+// Register Component with Popup Welcome Message
 const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -395,7 +398,13 @@ const Register = () => {
   const [message, setMessage] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
   const { login } = useContext(AuthContext);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowWelcome(false), 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     let timer;
@@ -467,70 +476,108 @@ const Register = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div style={{ maxWidth: 480, width: '100%', background: 'white', borderRadius: 28, padding: 40, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🎓</div>
-          <h1 style={{ color: '#1e3c72', fontSize: 26, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
-          <h1 style={{ color: '#1e3c72', fontSize: 26, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
-          <p style={{ color: '#666', fontSize: 14, marginTop: 8 }}>Computer Based Testing Platform</p>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
+      {showWelcome && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'white',
+          borderRadius: '40px',
+          padding: '10px 20px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          animation: 'slideDown 0.5s ease'
+        }}>
+          <span style={{ fontSize: 20 }}>🎉</span>
+          <div>
+            <strong style={{ color: '#1e3c72', fontSize: 14 }}>Join ELITE Nursing & Midwifery CBT!</strong>
+            <p style={{ margin: 0, fontSize: 11, color: '#666' }}>Create your account to access 20,000+ questions</p>
+          </div>
+          <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: '#999' }}>✕</button>
+        </div>
+      )}
+      
+      <style>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-100px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+      `}</style>
+
+      <div style={{ maxWidth: 450, width: '100%', background: 'white', borderRadius: 24, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
+          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
+          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
+          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Computer Based Testing Platform</p>
         </div>
         
         {step === 'form' ? (
           <>
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <h2 style={{ color: '#333', fontSize: 22, marginBottom: 4 }}>Create Account</h2>
-              <p style={{ color: '#888', fontSize: 14 }}>Sign up to begin your journey</p>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <h2 style={{ color: '#333', fontSize: 18, marginBottom: 4 }}>Create Account</h2>
+              <p style={{ color: '#888', fontSize: 12 }}>Sign up to begin your journey</p>
             </div>
 
             {error && (
-              <div style={{ background: '#ffebee', padding: 14, borderRadius: 12, marginBottom: 20, textAlign: 'center' }}>
-                <p style={{ color: '#c62828', margin: 0, fontSize: 14 }}>{error}</p>
+              <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+                <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
               </div>
             )}
 
             <form onSubmit={handleSendVerification}>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', marginBottom: 8, color: '#333', fontSize: 14, fontWeight: 500 }}>Full Name</label>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Full Name</label>
                 <input 
                   type="text" 
                   placeholder="Enter your full name" 
                   value={name} 
                   onChange={(e) => setName(e.target.value)} 
-                  style={{ width: '100%', padding: '14px 16px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none' }}
+                  style={{ width: '100%', padding: '12px 14px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                  required 
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
+                <input 
+                  type="email" 
+                  placeholder="you@example.com" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  style={{ width: '100%', padding: '12px 14px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                   onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
                   onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                   required 
                 />
               </div>
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', marginBottom: 8, color: '#333', fontSize: 14, fontWeight: 500 }}>Email Address</label>
-                <input 
-                  type="email" 
-                  placeholder="you@example.com" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
-                  style={{ width: '100%', padding: '14px 16px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none' }}
-                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                  required 
-                />
-              </div>
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ display: 'block', marginBottom: 8, color: '#333', fontSize: 14, fontWeight: 500 }}>Password</label>
+                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Password</label>
                 <div style={{ position: 'relative' }}>
                   <input 
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Create a strong password (min 6 characters)" 
                     value={password} 
                     onChange={(e) => setPassword(e.target.value)} 
-                    style={{ width: '100%', padding: '14px 16px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none' }}
+                    style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                     onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
                     onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                     required 
                     minLength="6"
                   />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888' }}>{showPassword ? '🙈' : '👁️'}</button>
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showPassword ? '🙈' : '👁️'}</button>
                 </div>
               </div>
               <button 
@@ -540,51 +587,51 @@ const Register = () => {
                   width: '100%', 
                   background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
                   color: 'white', 
-                  padding: '14px', 
+                  padding: '12px', 
                   border: 'none', 
-                  borderRadius: 12, 
+                  borderRadius: 10, 
                   cursor: 'pointer', 
                   fontWeight: 'bold', 
-                  fontSize: 16
+                  fontSize: 14
                 }}
               >
                 Verify Email
               </button>
             </form>
             
-            <div style={{ marginTop: 24, textAlign: 'center' }}>
-              <Link to="/login" style={{ color: '#1e3c72', fontSize: 14, textDecoration: 'none' }}>
+            <div style={{ marginTop: 20, textAlign: 'center' }}>
+              <Link to="/login" style={{ color: '#1e3c72', fontSize: 13, textDecoration: 'none' }}>
                 ← Back to Login
               </Link>
             </div>
           </>
         ) : (
           <>
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <h2 style={{ color: '#333', fontSize: 20, marginBottom: 4 }}>Verify Your Email</h2>
-              <p style={{ color: '#888', fontSize: 14 }}>Enter the 6-digit code sent to {email}</p>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <h2 style={{ color: '#333', fontSize: 18, marginBottom: 4 }}>Verify Your Email</h2>
+              <p style={{ color: '#888', fontSize: 12 }}>Enter the 6-digit code sent to {email}</p>
             </div>
 
             {message && (
-              <div style={{ background: '#e8f5e9', padding: 14, borderRadius: 12, marginBottom: 20, textAlign: 'center' }}>
-                <p style={{ color: '#2e7d32', margin: 0, fontSize: 14 }}>{message}</p>
+              <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+                <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>{message}</p>
               </div>
             )}
             {error && (
-              <div style={{ background: '#ffebee', padding: 14, borderRadius: 12, marginBottom: 20, textAlign: 'center' }}>
-                <p style={{ color: '#c62828', margin: 0, fontSize: 14 }}>{error}</p>
+              <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+                <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
               </div>
             )}
 
             <form onSubmit={handleVerifyAndRegister}>
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ display: 'block', marginBottom: 8, color: '#333', fontSize: 14, fontWeight: 500 }}>Verification Code</label>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Verification Code</label>
                 <input 
                   type="text" 
                   placeholder="Enter 6-digit code" 
                   value={otp} 
                   onChange={(e) => setOtp(e.target.value)} 
-                  style={{ width: '100%', padding: '14px 16px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none' }}
+                  style={{ width: '100%', padding: '12px 14px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                   onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
                   onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                   required 
@@ -597,20 +644,20 @@ const Register = () => {
                   width: '100%', 
                   background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
                   color: 'white', 
-                  padding: '14px', 
+                  padding: '12px', 
                   border: 'none', 
-                  borderRadius: 12, 
+                  borderRadius: 10, 
                   cursor: 'pointer', 
                   fontWeight: 'bold', 
-                  fontSize: 16
+                  fontSize: 14
                 }}
               >
                 {isLoading ? 'Creating Account...' : 'Create Account'}
               </button>
             </form>
 
-            <div style={{ textAlign: 'center', marginTop: 24 }}>
-              <p style={{ color: '#666', fontSize: 14 }}>
+            <div style={{ textAlign: 'center', marginTop: 20 }}>
+              <p style={{ color: '#666', fontSize: 13 }}>
                 Didn't receive code?{" "}
                 <button 
                   onClick={handleResendCode} 
@@ -621,21 +668,29 @@ const Register = () => {
                     color: resendTimer > 0 ? '#999' : '#1e3c72', 
                     fontWeight: 'bold', 
                     cursor: resendTimer > 0 ? 'not-allowed' : 'pointer',
-                    fontSize: 14
+                    fontSize: 13
                   }}
                 >
                   Resend {resendTimer > 0 ? `(${resendTimer}s)` : ''}
                 </button>
               </p>
+              <Link to="/login" style={{ color: '#1e3c72', fontSize: 13, textDecoration: 'none', display: 'inline-block', marginTop: 10 }}>
+                ← Back to Login
+              </Link>
             </div>
           </>
         )}
+        
+        <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT</p>
+          <p style={{ fontSize: 11, color: '#999' }}>Over 20,000+ practice questions</p>
+        </div>
       </div>
     </div>
   );
 };
 
-// Login Component
+// Login Component with Popup Welcome Message
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -656,8 +711,7 @@ const Login = () => {
       const res = await axios.post('/api/login', { email, password });
       login(res.data.token, res.data.user);
     } catch (error) {
-      const errorMsg = error.response?.data?.error || error.message;
-      alert('Login failed: ' + errorMsg);
+      alert('Login failed: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsLoading(false);
     }
@@ -668,52 +722,90 @@ const Login = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div style={{ maxWidth: 480, width: '100%', background: 'white', borderRadius: 28, padding: 40, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>📚</div>
-          <h1 style={{ color: '#1e3c72', fontSize: 26, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
-          <h1 style={{ color: '#1e3c72', fontSize: 26, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
-          <p style={{ color: '#666', fontSize: 14, marginTop: 8 }}>Computer Based Testing Platform</p>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
+      {showWelcome && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'white',
+          borderRadius: '40px',
+          padding: '10px 20px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          animation: 'slideDown 0.5s ease'
+        }}>
+          <span style={{ fontSize: 20 }}>👋</span>
+          <div>
+            <strong style={{ color: '#1e3c72', fontSize: 14 }}>Welcome to ELITE Nursing & Midwifery CBT!</strong>
+            <p style={{ margin: 0, fontSize: 11, color: '#666' }}>Sign in to continue your learning journey</p>
+          </div>
+          <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: '#999' }}>✕</button>
         </div>
-        
+      )}
+      
+      <style>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-100px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+      `}</style>
+
+      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 24, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h2 style={{ color: '#333', fontSize: 22, marginBottom: 4 }}>Welcome Back</h2>
-          <p style={{ color: '#888', fontSize: 14 }}>Sign in to continue your preparation</p>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
+          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
+          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
+          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Computer Based Testing Platform</p>
         </div>
         
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', marginBottom: 8, color: '#333', fontSize: 14, fontWeight: 500 }}>Email Address</label>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <h2 style={{ color: '#333', fontSize: 18, marginBottom: 4 }}>Welcome Back</h2>
+          <p style={{ color: '#888', fontSize: 12 }}>Sign in to continue your preparation</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ marginBottom: 16, width: '100%' }}>
+            <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
             <input 
               type="email" 
               placeholder="you@example.com" 
               value={email} 
               onChange={(e) => setEmail(e.target.value)} 
-              style={{ width: '100%', padding: '14px 16px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none' }}
+              style={{ width: '100%', padding: '12px 14px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
               onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
               onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
               required 
             />
           </div>
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', marginBottom: 8, color: '#333', fontSize: 14, fontWeight: 500 }}>Password</label>
-            <div style={{ position: 'relative' }}>
+          <div style={{ marginBottom: 20, width: '100%' }}>
+            <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Password</label>
+            <div style={{ position: 'relative', width: '100%' }}>
               <input 
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password" 
+                placeholder="••••••••" 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
-                style={{ width: '100%', padding: '14px 16px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 12, fontSize: 16, outline: 'none' }}
+                style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                 onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
                 onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                 required 
               />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888' }}>{showPassword ? '🙈' : '👁️'}</button>
+              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showPassword ? '🙈' : '👁️'}</button>
             </div>
           </div>
-          <div style={{ textAlign: 'right', marginBottom: 24 }}>
-            <Link to="/forgot-password" style={{ color: '#1e3c72', fontSize: 14, textDecoration: 'none' }}>
+          <div style={{ textAlign: 'right', marginBottom: 20, width: '100%' }}>
+            <Link to="/forgot-password" style={{ color: '#1e3c72', fontSize: 12, textDecoration: 'none' }}>
               Forgot Password?
             </Link>
           </div>
@@ -723,22 +815,27 @@ const Login = () => {
               width: '100%', 
               background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
               color: 'white', 
-              padding: '14px', 
+              padding: '12px', 
               border: 'none', 
-              borderRadius: 12, 
+              borderRadius: 10, 
               cursor: 'pointer', 
               fontWeight: 'bold', 
-              fontSize: 16
+              fontSize: 14
             }}
           >
             Sign In
           </button>
         </form>
         
-        <div style={{ marginTop: 24, textAlign: 'center' }}>
-          <p style={{ color: '#666', fontSize: 14 }}>
+        <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <p style={{ color: '#666', fontSize: 13 }}>
             Don't have an account? <Link to="/register" style={{ color: '#1e3c72', fontWeight: 'bold', textDecoration: 'none' }}>Create Account</Link>
           </p>
+        </div>
+        
+        <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT</p>
+          <p style={{ fontSize: 11, color: '#999' }}>Over 20,000+ practice questions</p>
         </div>
       </div>
     </div>
@@ -1524,13 +1621,13 @@ const ContactUs = () => {
           
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 16 }}>
-              <input type="text" placeholder="Your Name" value={name} onChange={(e) => setName(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333' }} />
+              <input type="text" placeholder="Your Name" value={name} onChange={(e) => setName(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} />
             </div>
             <div style={{ marginBottom: 16 }}>
-              <input type="email" placeholder="Your Email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333' }} />
+              <input type="email" placeholder="Your Email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} />
             </div>
             <div style={{ marginBottom: 20 }}>
-              <textarea placeholder="Your Message" value={message} onChange={(e) => setMessage(e.target.value)} required rows="4" style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, resize: 'vertical', background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333' }} />
+              <textarea placeholder="Your Message" value={message} onChange={(e) => setMessage(e.target.value)} required rows="4" style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, resize: 'vertical', background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} />
             </div>
             <button type="submit" disabled={loading} style={{ width: '100%', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', color: 'white', padding: '12px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, opacity: loading ? 0.7 : 1 }}>
               {loading ? 'Sending...' : 'Send Message'}
@@ -1769,7 +1866,7 @@ const AdminPanel = () => {
                         value={replyMessage}
                         onChange={(e) => setReplyMessage(e.target.value)}
                         rows="4"
-                        style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, marginBottom: 12 }}
+                        style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }}
                       />
                       <div style={{ display: 'flex', gap: 12 }}>
                         <button onClick={() => sendReply(c.email, c.name, c.message)} disabled={sendingReply} style={{ background: '#28a745', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}>
