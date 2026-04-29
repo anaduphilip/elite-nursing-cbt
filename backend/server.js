@@ -4,6 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const dns = require('dns');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 require('dotenv').config();
 
@@ -40,9 +41,14 @@ apiKey.apiKey = process.env.BREVO_API_KEY;
 
 const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
-// MongoDB connection
+// ============ MONGODB CONNECTION WITH OPTIONS ============
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/quizzapp';
-mongoose.connect(MONGODB_URI)
+
+mongoose.connect(MONGODB_URI, {
+  serverSelectionTimeoutMS: 30000,
+  connectTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+})
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.log('MongoDB connection error:', err));
 
@@ -314,7 +320,16 @@ const sendEmail = async (to, name, otp, type) => {
   }
 };
 
-// ============ TEST ENVIRONMENT ENDPOINT ============
+// ============ TEST ENDPOINTS ============
+
+// DNS test endpoint
+app.get('/api/test-dns', (req, res) => {
+  dns.lookup('cluster0.jrviuka.mongodb.net', (err, address) => {
+    res.json({ error: err ? err.message : null, address });
+  });
+});
+
+// Environment test endpoint
 app.get('/api/test-env', (req, res) => {
   const uri = process.env.MONGODB_URI;
   const dbName = uri ? uri.split('/').pop()?.split('?')[0] : 'none';
