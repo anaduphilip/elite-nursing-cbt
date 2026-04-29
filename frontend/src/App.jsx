@@ -338,7 +338,7 @@ const ForgotPassword = () => {
   );
 };
 
-// Enhanced Register Component
+// Register Component
 const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -594,7 +594,7 @@ const Register = () => {
   );
 };
 
-// Enhanced Login Component
+// Login Component
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -657,20 +657,8 @@ const Login = () => {
       
       <style>{`
         @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateX(-50%) translateY(-100px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-          }
-        }
-        @media (max-width: 480px) {
-          .login-popup {
-            width: 90%;
-            padding: 10px 16px;
-          }
+          from { opacity: 0; transform: translateX(-50%) translateY(-100px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
       `}</style>
 
@@ -1560,7 +1548,9 @@ const GetPremium = () => {
   const handlePayment = async () => {
     setLoading(true);
     try {
-      const response = await axios.post('/api/initialize-payment', { email: user?.email, amount: 5900 }, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await axios.post('/api/initialize-payment', { email: user?.email, amount: 5900 }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       localStorage.setItem('payment_reference', response.data.reference);
       window.location.href = response.data.authorization_url;
     } catch (error) {
@@ -1608,7 +1598,7 @@ const AdminPanel = () => {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('users');
-  const { token, user, logout } = useContext(AuthContext);
+  const { token, user, darkMode } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchData = async () => {
