@@ -513,6 +513,19 @@ app.post('/api/reset-password', async (req, res) => {
   }
 });
 
+// ============ FORCE LOGOUT ROUTE ============
+app.post('/api/force-logout', async (req, res) => {
+  try {
+    const { email } = req.body;
+    await User.findOneAndUpdate({ email }, { currentSessionToken: null });
+    console.log(`✅ Force logged out from all devices for: ${email}`);
+    res.json({ success: true, message: 'Logged out from all other devices' });
+  } catch (error) {
+    console.error('Force logout error:', error);
+    res.status(500).json({ error: 'Failed to force logout' });
+  }
+});
+
 // ============ AUTH ROUTES ============
 app.post('/api/register', async (req, res) => {
   try {
