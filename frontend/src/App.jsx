@@ -33,7 +33,8 @@ const LoadingWithBar = ({ message = "Loading", onComplete }) => {
       alignItems: 'center',
       height: '100vh',
       width: '100%',
-      background: '#f0f7f4'
+      background: '#f0f7f4',
+      position: 'relative'
     }}>
       <div style={{ textAlign: 'center', maxWidth: 300, width: '100%' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
@@ -56,7 +57,15 @@ const LoadingWithBar = ({ message = "Loading", onComplete }) => {
           }} />
         </div>
         <p style={{ color: '#1e3c72', fontSize: 12, marginTop: 10 }}>{Math.floor(Math.min(progress, 100))}%</p>
-        <p style={{ color: '#999', fontSize: 10, marginTop: 20 }}>© 2024 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
+      <div style={{
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        textAlign: 'center'
+      }}>
+        <p style={{ color: '#999', fontSize: 10 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -198,6 +207,8 @@ const ForgotPassword = () => {
     }
   };
 
+  if (isLoading) return <LoadingWithBar message="Processing" />;
+
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
       <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 20, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
@@ -319,17 +330,20 @@ const ForgotPassword = () => {
             ← Back to Login
           </Link>
         </div>
+        <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        </div>
       </div>
     </div>
   );
 };
 
-// Enhanced Register Component with Name field and verification step
+// Enhanced Register Component
 const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [step, setStep] = useState('form'); // 'form' or 'verify'
+  const [step, setStep] = useState('form');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -373,7 +387,6 @@ const Register = () => {
     setMessage('');
     try {
       await axios.post('/api/verify-email', { email, otp });
-      
       const res = await axios.post('/api/register', { name, email, password });
       if (res.data.success) {
         setMessage('Registration successful! Redirecting...');
@@ -408,7 +421,7 @@ const Register = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', position: 'relative' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
       <div style={{ maxWidth: 450, width: '100%', background: 'white', borderRadius: 24, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
@@ -572,9 +585,8 @@ const Register = () => {
           </>
         )}
         
-        {/* Footer messages same as login page */}
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#999' }}>© 2024 ELITE Nursing & Midwifery CBT</p>
+          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT</p>
           <p style={{ fontSize: 11, color: '#999' }}>Over 20,000+ practice questions</p>
         </div>
       </div>
@@ -582,7 +594,7 @@ const Register = () => {
   );
 };
 
-// Enhanced Login Component with mobile-responsive popup
+// Enhanced Login Component
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -732,7 +744,7 @@ const Login = () => {
         </div>
         
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#999' }}>© 2024 ELITE Nursing & Midwifery CBT</p>
+          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT</p>
           <p style={{ fontSize: 11, color: '#999' }}>Over 20,000+ practice questions</p>
         </div>
       </div>
@@ -745,7 +757,7 @@ const HomePage = () => {
   const [mode, setMode] = useState('free');
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { token, darkMode, user, logout } = useContext(AuthContext);
+  const { token, darkMode, user } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchQuizzes = async () => {
@@ -887,6 +899,9 @@ const HomePage = () => {
           ))}
         </div>
       </div>
+      <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+        <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
     </div>
   );
 };
@@ -966,6 +981,9 @@ const CourseList = () => {
             );
           })}
         </div>
+      </div>
+      <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+        <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -1147,6 +1165,9 @@ const ExamList = () => {
           </div>
         )}
       </div>
+      <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+        <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
     </div>
   );
 };
@@ -1251,6 +1272,9 @@ const TakeExam = () => {
             <Link to={`/exams/${id}/${mode}`} style={{ flex: 1 }}><button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '10px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Back</button></Link>
           </div>
         </div>
+        <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+          <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        </div>
       </div>
     );
   }
@@ -1281,6 +1305,9 @@ const TakeExam = () => {
             );
           })}
           <Link to={`/exams/${id}/${mode}`}><button style={{ width: '100%', background: '#1e3c72', color: 'white', padding: '12px', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>Back to Exams</button></Link>
+        </div>
+        <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+          <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
         </div>
       </div>
     );
@@ -1322,6 +1349,9 @@ const TakeExam = () => {
         <button onClick={handleSubmit} disabled={!allAnswered} style={{ width: '100%', background: allAnswered ? '#28a745' : '#ccc', color: 'white', padding: '12px', border: 'none', borderRadius: '25px', cursor: allAnswered ? 'pointer' : 'not-allowed', fontSize: '14px', fontWeight: 'bold', marginBottom: '16px' }}>
           {allAnswered ? 'Submit Exam' : `Answer all (${answeredCount}/${totalQuestions})`}
         </button>
+      </div>
+      <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+        <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -1373,6 +1403,9 @@ const HowToUse = () => {
           <p style={{ color: '#ff9800', fontWeight: 'bold', margin: 0 }}>Need help? Contact us via WhatsApp or Email!</p>
         </div>
       </div>
+      <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+        <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
     </div>
   );
 };
@@ -1390,6 +1423,9 @@ const AboutUs = () => {
         <h3 style={{ color: '#ff9800', marginTop: 30 }}>Coming Soon</h3>
         <p>NCLEX Practice questions are coming soon!</p>
       </div>
+      <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+        <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
     </div>
   );
 };
@@ -1401,17 +1437,25 @@ const ContactUs = () => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSubmitted(false);
     try {
+      await axios.post('/api/contact', { name, email, message });
       setSubmitted(true);
       setName('');
       setEmail('');
       setMessage('');
       setTimeout(() => setSubmitted(false), 5000);
     } catch (error) {
-      alert('Failed to send message. Please try again.');
+      setError('Failed to send message. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1443,6 +1487,18 @@ const ContactUs = () => {
         
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
           <h3 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20, fontSize: 18 }}>Send us a Message</h3>
+          
+          {error && (
+            <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+              <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
+            </div>
+          )}
+          {submitted && (
+            <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+              <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>✅ Message sent successfully! We'll respond soon.</p>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 15 }}>
               <input type="text" placeholder="Your Name" value={name} onChange={(e) => setName(e.target.value)} required style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, background: darkMode ? '#1a1a2e' : 'white', color: darkMode ? 'white' : '#333' }} />
@@ -1453,10 +1509,14 @@ const ContactUs = () => {
             <div style={{ marginBottom: 20 }}>
               <textarea placeholder="Your Message" value={message} onChange={(e) => setMessage(e.target.value)} required rows="4" style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, resize: 'vertical', background: darkMode ? '#1a1a2e' : 'white', color: darkMode ? 'white' : '#333' }} />
             </div>
-            <button type="submit" style={{ width: '100%', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', color: 'white', padding: '12px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Send Message</button>
+            <button type="submit" disabled={loading} style={{ width: '100%', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', color: 'white', padding: '12px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, opacity: loading ? 0.7 : 1 }}>
+              {loading ? 'Sending...' : 'Send Message'}
+            </button>
           </form>
-          {submitted && <div style={{ marginTop: 15, padding: 10, background: '#e8f5e9', borderRadius: 8, textAlign: 'center' }}><p style={{ color: '#1e3c72', margin: 0, fontSize: 13 }}>✅ Message sent! We'll respond soon.</p></div>}
         </div>
+      </div>
+      <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+        <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -1484,6 +1544,9 @@ const JoinWhatsApp = () => {
         <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
           <button style={{ background: '#25D366', color: 'white', padding: '12px 30px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>Join WhatsApp Group</button>
         </a>
+      </div>
+      <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+        <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -1532,11 +1595,132 @@ const GetPremium = () => {
           </>
         )}
       </div>
+      <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+        <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
     </div>
   );
 };
 
-// Dropdown Menu Component with logout confirmation
+// Admin Panel Component
+const AdminPanel = () => {
+  const [users, setUsers] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('users');
+  const { token, user, logout } = useContext(AuthContext);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [usersRes, contactsRes] = await Promise.all([
+          axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        setUsers(usersRes.data);
+        setContacts(contactsRes.data);
+      } catch (error) {
+        if (error.response?.status === 403) {
+          alert('Admin access only');
+          window.location.href = '/';
+        } else {
+          console.error('Error fetching admin data:', error);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (user?.email === 'anaduphilip2000@gmail.com') {
+      fetchData();
+    } else {
+      alert('Admin access only');
+      window.location.href = '/';
+    }
+  }, [token, user]);
+
+  const togglePremium = async (userId, currentStatus) => {
+    try {
+      await axios.post('/api/admin/toggle-premium', 
+        { userId, isPremium: !currentStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setUsers(users.map(u => 
+        u._id === userId ? { ...u, isPremium: !currentStatus } : u
+      ));
+    } catch (error) {
+      alert('Failed to update user status');
+    }
+  };
+
+  const deleteUser = async (userId) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        await axios.delete(`/api/admin/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+        setUsers(users.filter(u => u._id !== userId));
+      } catch (error) {
+        alert('Failed to delete user');
+      }
+    }
+  };
+
+  if (loading) return <LoadingWithBar message="Loading admin panel" />;
+
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+          <h1 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>Admin Panel</h1>
+          
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20, borderBottom: '1px solid #ddd', paddingBottom: 10 }}>
+            <button onClick={() => setActiveTab('users')} style={{ background: activeTab === 'users' ? '#1e3c72' : 'transparent', color: activeTab === 'users' ? 'white' : '#1e3c72', padding: '8px 20px', border: '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer' }}>Users ({users.length})</button>
+            <button onClick={() => setActiveTab('contacts')} style={{ background: activeTab === 'contacts' ? '#1e3c72' : 'transparent', color: activeTab === 'contacts' ? 'white' : '#1e3c72', padding: '8px 20px', border: '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer' }}>Contact Messages ({contacts.length})</button>
+          </div>
+
+          {activeTab === 'users' && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
+                {users.map(u => (
+                  <div key={u._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 16, borderRadius: 12, border: '1px solid #ddd' }}>
+                    <p><strong>Name:</strong> {u.name || 'N/A'}</p>
+                    <p><strong>Email:</strong> {u.email}</p>
+                    <p><strong>Premium:</strong> {u.isPremium ? '✅ Yes' : '❌ No'}</p>
+                    <p><strong>Verified:</strong> {u.isVerified ? '✅ Yes' : '❌ No'}</p>
+                    <p><strong>Joined:</strong> {new Date(u.createdAt).toLocaleDateString()}</p>
+                    <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                      <button onClick={() => togglePremium(u._id, u.isPremium)} style={{ background: u.isPremium ? '#dc3545' : '#28a745', color: 'white', padding: '6px 12px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+                        {u.isPremium ? 'Remove Premium' : 'Make Premium'}
+                      </button>
+                      <button onClick={() => deleteUser(u._id)} style={{ background: '#dc3545', color: 'white', padding: '6px 12px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Delete User</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'contacts' && (
+            <div>
+              {contacts.map(c => (
+                <div key={c._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 16, borderRadius: 12, marginBottom: 16, border: '1px solid #ddd' }}>
+                  <p><strong>From:</strong> {c.name} ({c.email})</p>
+                  <p><strong>Message:</strong> {c.message}</p>
+                  <p><strong>Received:</strong> {new Date(c.createdAt).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ textAlign: 'center', padding: '16px', marginTop: '20px' }}>
+        <p style={{ color: '#999', fontSize: 11 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
+    </div>
+  );
+};
+
+// Dropdown Menu Component
 const DropdownMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -1555,6 +1739,8 @@ const DropdownMenu = () => {
   const cancelLogout = () => {
     setShowLogoutConfirm(false);
   };
+
+  const isAdmin = user?.email === 'anaduphilip2000@gmail.com';
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
@@ -1598,7 +1784,7 @@ const DropdownMenu = () => {
           <div onClick={() => setIsOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 198 }} />
           <div style={{ position: 'absolute', top: '45px', right: 0, width: 220, background: darkMode ? '#16213e' : 'white', borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 199, overflow: 'hidden' }}>
             <div style={{ padding: '12px', background: '#1e3c72', color: 'white', textAlign: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 'bold' }}>{user?.email?.split('@')[0]}</div>
+              <div style={{ fontSize: 13, fontWeight: 'bold' }}>{user?.name || user?.email?.split('@')[0]}</div>
               {user?.isPremium && <div style={{ background: '#ff9800', display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, marginTop: 4 }}>⭐ PREMIUM</div>}
             </div>
             <div style={{ padding: '8px 0' }}>
@@ -1608,6 +1794,7 @@ const DropdownMenu = () => {
               <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '8px 16px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>ℹ️ About Us</Link>
               <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '8px 16px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>📞 Contact Us</Link>
               <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '8px 16px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid #eee' }}>💬 Join WhatsApp</Link>
+              {isAdmin && <Link to="/admin" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '8px 16px', textDecoration: 'none', color: '#dc3545', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid #eee', background: '#ffebee' }}>👑 Admin Panel</Link>}
               <div onClick={() => { toggleDarkMode(); setIsOpen(false); }} style={{ display: 'block', padding: '8px 16px', cursor: 'pointer', borderBottom: '1px solid #eee', color: darkMode ? '#eee' : '#333', fontSize: 13 }}>
                 {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
               </div>
@@ -1654,6 +1841,7 @@ const AppContent = () => {
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/whatsapp" element={<JoinWhatsApp />} />
+        <Route path="/admin" element={<AdminPanel />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
