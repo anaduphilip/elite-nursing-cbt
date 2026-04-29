@@ -71,6 +71,46 @@ const LoadingWithBar = ({ message = "Loading", onComplete }) => {
   );
 };
 
+// Password Input with Eye Icon
+const PasswordInput = ({ value, onChange, placeholder, id }) => {
+  const [showPassword, setShowPassword] = useState(false);
+
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <input 
+        type={showPassword ? 'text' : 'password'}
+        id={id}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+        onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+        onBlur={(e) => e.target.style.borderColor = '#ddd'}
+        required 
+      />
+      <button
+        type="button"
+        onClick={() => setShowPassword(!showPassword)}
+        style={{
+          position: 'absolute',
+          right: 12,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: 18,
+          padding: 0,
+          margin: 0,
+          color: '#888'
+        }}
+      >
+        {showPassword ? '👁️' : '👁️‍🗨️'}
+      </button>
+    </div>
+  );
+};
+
 // Timer Component
 const Timer = ({ duration, onTimeUp }) => {
   const [timeLeft, setTimeLeft] = useState(duration * 60);
@@ -164,6 +204,8 @@ const ForgotPassword = () => {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
@@ -280,29 +322,35 @@ const ForgotPassword = () => {
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>New Password</label>
-              <input 
-                type="password" 
-                placeholder="Enter new password" 
-                value={newPassword} 
-                onChange={(e) => setNewPassword(e.target.value)} 
-                style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
-                onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
-                onBlur={(e) => e.target.style.borderColor = '#ddd'}
-                required 
-              />
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type={showNewPassword ? 'text' : 'password'}
+                  placeholder="Enter new password" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)} 
+                  style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                  required 
+                />
+                <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showNewPassword ? '👁️' : '👁️‍🗨️'}</button>
+              </div>
             </div>
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Confirm Password</label>
-              <input 
-                type="password" 
-                placeholder="Confirm new password" 
-                value={confirmPassword} 
-                onChange={(e) => setConfirmPassword(e.target.value)} 
-                style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
-                onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
-                onBlur={(e) => e.target.style.borderColor = '#ddd'}
-                required 
-              />
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Confirm new password" 
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword(e.target.value)} 
+                  style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                  required 
+                />
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</button>
+              </div>
             </div>
             <button 
               type="submit" 
@@ -349,6 +397,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useContext(AuthContext);
 
   useEffect(() => {
@@ -472,17 +521,20 @@ const Register = () => {
               </div>
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Password</label>
-                <input 
-                  type="password" 
-                  placeholder="Create a strong password (min 6 characters)" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
-                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
-                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
-                  required 
-                  minLength="6"
-                />
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Create a strong password (min 6 characters)" 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)} 
+                    style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                    onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                    onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                    required 
+                    minLength="6"
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showPassword ? '👁️' : '👁️‍🗨️'}</button>
+                </div>
               </div>
               <button 
                 type="submit" 
@@ -600,6 +652,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useContext(AuthContext);
 
   useEffect(() => {
@@ -691,16 +744,19 @@ const Login = () => {
           </div>
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Password</label>
-            <input 
-              type="password" 
-              placeholder="••••••••" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
-              onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
-              onBlur={(e) => e.target.style.borderColor = '#ddd'}
-              required 
-            />
+            <div style={{ position: 'relative' }}>
+              <input 
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, outline: 'none' }}
+                onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                required 
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showPassword ? '👁️' : '👁️‍🗨️'}</button>
+            </div>
           </div>
           <div style={{ textAlign: 'right', marginBottom: 20 }}>
             <Link to="/forgot-password" style={{ color: '#1e3c72', fontSize: 12, textDecoration: 'none' }}>
@@ -1592,12 +1648,15 @@ const GetPremium = () => {
   );
 };
 
-// Admin Panel Component
+// Admin Panel Component with Reply Feature
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('users');
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
   const { token, user, darkMode } = useContext(AuthContext);
 
   useEffect(() => {
@@ -1655,6 +1714,29 @@ const AdminPanel = () => {
     }
   };
 
+  const sendReply = async (contactEmail, contactName, originalMessage) => {
+    if (!replyMessage.trim()) {
+      alert('Please enter a reply message');
+      return;
+    }
+    setSendingReply(true);
+    try {
+      await axios.post('/api/admin/reply-message', {
+        to: contactEmail,
+        name: contactName,
+        originalMessage: originalMessage,
+        reply: replyMessage
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      alert('Reply sent successfully!');
+      setReplyingTo(null);
+      setReplyMessage('');
+    } catch (error) {
+      alert('Failed to send reply: ' + (error.response?.data?.error || 'Unknown error'));
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
   if (loading) return <LoadingWithBar message="Loading admin panel" />;
 
   return (
@@ -1697,6 +1779,25 @@ const AdminPanel = () => {
                   <p><strong>From:</strong> {c.name} ({c.email})</p>
                   <p><strong>Message:</strong> {c.message}</p>
                   <p><strong>Received:</strong> {new Date(c.createdAt).toLocaleString()}</p>
+                  {replyingTo === c._id ? (
+                    <div style={{ marginTop: 15 }}>
+                      <textarea
+                        placeholder="Type your reply here..."
+                        value={replyMessage}
+                        onChange={(e) => setReplyMessage(e.target.value)}
+                        rows="4"
+                        style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, marginBottom: 10 }}
+                      />
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button onClick={() => sendReply(c.email, c.name, c.message)} disabled={sendingReply} style={{ background: '#28a745', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+                          {sendingReply ? 'Sending...' : 'Send Reply'}
+                        </button>
+                        <button onClick={() => { setReplyingTo(null); setReplyMessage(''); }} style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setReplyingTo(c._id)} style={{ marginTop: 10, background: '#1e3c72', color: 'white', padding: '6px 12px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>📧 Reply to Message</button>
+                  )}
                 </div>
               ))}
             </div>
