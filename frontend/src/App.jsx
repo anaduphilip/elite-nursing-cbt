@@ -781,8 +781,12 @@ const Login = () => {
               You are already logged in on another device. Would you like to log out from that device and continue here?
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button onClick={cancelForceLogout} style={{ background: '#6c757d', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Cancel</button>
-              <button onClick={handleForceLogout} style={{ background: '#dc3545', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Logout from Other Device</button>
+              <button onClick={cancelForceLogout} style={{ background: '#6c757d', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                Cancel
+              </button>
+              <button onClick={handleForceLogout} style={{ background: '#dc3545', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                Logout from Other Device
+              </button>
             </div>
           </div>
         </div>
@@ -1327,7 +1331,7 @@ const ExamList = () => {
   );
 };
 
-// Take Exam Component - Fixed with copyright at bottom
+// Take Exam Component - Fixed copyright position to bottom of page
 const TakeExam = () => {
   const { id, sectionNumber, mode } = useParams();
   const [exam, setExam] = useState(null);
@@ -1404,11 +1408,10 @@ const TakeExam = () => {
 
   if (!exam) return <LoadingWithBar message="Loading examination" />;
 
-  // Results page with copyright at bottom - FIXED
   if (submitted && !showReview) {
     return (
-      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ maxWidth: 450, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center', marginBottom: 20 }}>
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+        <div style={{ maxWidth: 450, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
           <h2 style={{ color: '#1e3c72', fontSize: 24 }}>Exam Results</h2>
           <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: '#1e3c72' }}>{result.score}</strong> / {result.total}</p>
           <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{result.percentage}%</strong></p>
@@ -1421,7 +1424,7 @@ const TakeExam = () => {
             <div style={{ marginTop: 20, padding: 16, background: '#fff3e0', borderRadius: 12 }}>
               <p style={{ color: '#ff9800', fontWeight: 'bold', margin: 0, fontSize: 14 }}>🎯 Great job completing the free exam!</p>
               <p style={{ color: '#666', marginTop: 8, fontSize: 13 }}>Upgrade to Premium to retake and unlock all exams!</p>
-              <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 12, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now (₦5,900)</button></Link>
+              <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now (₦5,900)</button></Link>
             </div>
           )}
           
@@ -1430,7 +1433,8 @@ const TakeExam = () => {
             <Link to={`/exams/${id}/${mode}`}><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Back to Exams</button></Link>
           </div>
         </div>
-        <div style={{ textAlign: 'center', padding: '20px', marginTop: 0 }}>
+        {/* Copyright moved to bottom of page, outside the result card */}
+        <div style={{ textAlign: 'center', padding: '20px', marginTop: 20, width: '100%' }}>
           <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
         </div>
       </div>
@@ -1440,8 +1444,8 @@ const TakeExam = () => {
   if (submitted && showReview) {
     const globalStart = (parseInt(sectionNumber) - 1) * 20;
     return (
-      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, maxWidth: 800, margin: '0 auto', width: '100%' }}>
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
             <h2 style={{ color: '#1e3c72', fontSize: 22 }}>Answer Review</h2>
             <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
@@ -1474,9 +1478,9 @@ const TakeExam = () => {
 
   const globalStart = (parseInt(sectionNumber) - 1) * 20;
   return (
-    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh' }}>
       <Timer duration={questions.length} onTimeUp={handleTimeUp} />
-      <div style={{ flex: 1, padding: '20px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
+      <div style={{ padding: '20px', maxWidth: 900, margin: '0 auto' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
           <h2 style={{ color: '#1e3c72', margin: 0, fontSize: 20 }}>{exam.title}</h2>
           <p style={{ fontSize: 14, marginTop: 4 }}>Exam {sectionNumber} - {questions.length} Questions | ⏰ {questions.length} minutes</p>
@@ -1536,7 +1540,7 @@ const TakeExam = () => {
           {allAnswered ? 'Submit Examination' : `Please answer all questions (${answeredCount}/${totalQuestions})`}
         </button>
       </div>
-      <div style={{ textAlign: 'center', padding: '20px', marginTop: 0 }}>
+      <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
@@ -1548,8 +1552,8 @@ const HowToUse = () => {
   const { darkMode } = useContext(AuthContext);
   
   return (
-    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>📖 How To Use ELITE CBT</h2>
         
         <div style={{ marginBottom: 30 }}>
@@ -1600,8 +1604,8 @@ const HowToUse = () => {
 const AboutUs = () => {
   const { darkMode } = useContext(AuthContext);
   return (
-    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>About Us</h2>
         <p style={{ lineHeight: 1.8, marginBottom: 20, color: darkMode ? '#ccc' : '#555' }}>ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students in Nigeria.</p>
         <p style={{ lineHeight: 1.8, marginBottom: 20, color: darkMode ? '#ccc' : '#555' }}>Our mission is to provide high-quality, accessible exam preparation materials that help students succeed in their nursing and midwifery licensing examinations.</p>
@@ -1646,8 +1650,8 @@ const ContactUs = () => {
   };
 
   return (
-    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, maxWidth: 900, margin: '0 auto', width: '100%' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, marginBottom: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>Get in Touch</h2>
           <p style={{ textAlign: 'center', marginBottom: 30, color: darkMode ? '#ccc' : '#666' }}>We'd love to hear from you! Choose your preferred way to reach us.</p>
@@ -1712,8 +1716,8 @@ const ContactUs = () => {
 const JoinWhatsApp = () => {
   const { darkMode } = useContext(AuthContext);
   return (
-    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, maxWidth: 500, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 500, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>💬</div>
         <h2 style={{ color: '#1e3c72', marginBottom: 10 }}>Join Our WhatsApp Community</h2>
         <p style={{ marginBottom: 20, fontSize: 14 }}>Get instant updates, study tips, and connect with fellow nursing students!</p>
@@ -1758,8 +1762,8 @@ const GetPremium = () => {
   };
 
   return (
-    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, maxWidth: 900, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
         <h2 style={{ color: '#1e3c72' }}>Upgrade to Premium</h2>
         <p style={{ marginBottom: 20 }}>Get unlimited access to all examinations and features</p>
@@ -1888,8 +1892,8 @@ const AdminPanel = () => {
   }
 
   return (
-    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
           <h1 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20, fontSize: 28 }}>Admin Panel</h1>
           
@@ -2056,6 +2060,7 @@ const DropdownMenu = () => {
 const AppContent = () => {
   const { token, darkMode } = useContext(AuthContext);
 
+  // Verify session on page load
   useEffect(() => {
     const verifySession = async () => {
       if (token) {
@@ -2085,7 +2090,7 @@ const AppContent = () => {
   }
 
   return (
-    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh' }}>
       <nav style={{ background: darkMode ? '#16213e' : 'white', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.1)', position: 'sticky', top: 0, zIndex: 100 }}>
         <div>
           <h1 style={{ color: '#1e3c72', fontSize: 'clamp(16px, 4vw, 20px)', margin: 0 }}>ELITE NURSING & MIDWIFERY CBT</h1>
@@ -2093,21 +2098,19 @@ const AppContent = () => {
         </div>
         <DropdownMenu />
       </nav>
-      <div style={{ flex: 1 }}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/courses/:categoryName/:mode" element={<CourseList />} />
-          <Route path="/exams/:id/:mode" element={<ExamList />} />
-          <Route path="/take/:id/:sectionNumber/:mode" element={<TakeExam />} />
-          <Route path="/how-to-use" element={<HowToUse />} />
-          <Route path="/get-premium" element={<GetPremium />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/contact" element={<ContactUs />} />
-          <Route path="/whatsapp" element={<JoinWhatsApp />} />
-          <Route path="/admin" element={<AdminPanel />} />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/courses/:categoryName/:mode" element={<CourseList />} />
+        <Route path="/exams/:id/:mode" element={<ExamList />} />
+        <Route path="/take/:id/:sectionNumber/:mode" element={<TakeExam />} />
+        <Route path="/how-to-use" element={<HowToUse />} />
+        <Route path="/get-premium" element={<GetPremium />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/contact" element={<ContactUs />} />
+        <Route path="/whatsapp" element={<JoinWhatsApp />} />
+        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
     </div>
   );
 };
@@ -2143,6 +2146,7 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
+  // Session verification and payment callback
   useEffect(() => {
     const verifySession = async () => {
       if (auth.token) {
