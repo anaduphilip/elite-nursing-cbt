@@ -41,7 +41,7 @@ apiKey.apiKey = process.env.BREVO_API_KEY;
 const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // MongoDB connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://anaduphilip090_db_user:vpPyvn5OLz9QRrlc@cluster0.jrviuka.mongodb.net/quizzapp';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/quizzapp';
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.log('MongoDB connection error:', err));
@@ -313,6 +313,18 @@ const sendEmail = async (to, name, otp, type) => {
     return false;
   }
 };
+
+// ============ TEST ENVIRONMENT ENDPOINT ============
+app.get('/api/test-env', (req, res) => {
+  const uri = process.env.MONGODB_URI;
+  const dbName = uri ? uri.split('/').pop()?.split('?')[0] : 'none';
+  res.json({ 
+    hasUri: !!uri, 
+    uriStart: uri ? uri.substring(0, 30) + '...' : 'none',
+    dbName: dbName,
+    mongodbState: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
 
 // ============ EMAIL VERIFICATION ROUTES ============
 
