@@ -1,10 +1,13 @@
+// Force DNS resolution to use Google DNS - FIXES VERCEL DNS ISSUE
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
-const dns = require('dns');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 require('dotenv').config();
 
@@ -41,16 +44,38 @@ apiKey.apiKey = process.env.BREVO_API_KEY;
 
 const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
-// ============ MONGODB CONNECTION WITH OPTIONS ============
+// ============ MONGODB CONNECTION WITH RETRY LOGIC ============
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/quizzapp';
 
-mongoose.connect(MONGODB_URI, {
-  serverSelectionTimeoutMS: 30000,
-  connectTimeoutMS: 30000,
-  socketTimeoutMS: 45000,
-})
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch(err => console.log('MongoDB connection error:', err));
+const connectWithRetry = () => {
+  console.log('🔄 Attempting to connect to MongoDB...');
+  mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 30000,
+    connectTimeoutMS: 30000,
+    socketTimeoutMS: 45000,
+    family: 4,
+    retryWrites: true,
+    w: 'majority'
+  })
+  .then(() => console.log('✅ MongoDB connected successfully'))
+  .catch(err => {
+    console.log('❌ MongoDB connection error:', err.message);
+    console.log('🔄 Retrying in 5 seconds...');
+    setTimeout(connectWithRetry, 5000);
+  });
+};
+
+connectWithRetry();
+
+// Monitor connection events
+mongoose.connection.on('error', err => {
+  console.log('MongoDB connection error event:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB disconnected. Attempting to reconnect...');
+  setTimeout(connectWithRetry, 5000);
+});
 
 // OTP Store
 const otpStore = new Map();
@@ -324,6 +349,7 @@ const sendEmail = async (to, name, otp, type) => {
 
 // DNS test endpoint
 app.get('/api/test-dns', (req, res) => {
+  const dns = require('dns');
   dns.lookup('cluster0.jrviuka.mongodb.net', (err, address) => {
     res.json({ error: err ? err.message : null, address });
   });
