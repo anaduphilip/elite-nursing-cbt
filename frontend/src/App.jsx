@@ -2140,7 +2140,7 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
-  // FIXED: Payment verification - properly updates premium status
+    // FIXED: Payment verification - properly updates premium status
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const reference = params.get('reference') || params.get('trxref');
@@ -2150,10 +2150,14 @@ function App() {
     if (paymentRef && auth.user?.id) {
       const verifyPayment = async () => {
         try {
+          console.log('Verifying payment:', paymentRef, 'for user:', auth.user?.id);
+          
           const response = await axios.post('/api/verify-payment', { 
             reference: paymentRef, 
             userId: auth.user?.id 
           });
+          
+          console.log('Verification response:', response.data);
           
           if (response.data.success) {
             alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
@@ -2172,7 +2176,7 @@ function App() {
             // Clear URL parameters and reload
             window.location.href = '/';
           } else {
-            alert('Payment verification failed. Please contact support if you were charged.');
+            alert('Payment verification failed: ' + (response.data.error || 'Unknown error') + '. Please contact support if you were charged.');
           }
         } catch (error) { 
           console.error('Verification error:', error);
