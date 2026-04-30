@@ -89,6 +89,7 @@ const UserSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   currentSessionToken: { type: String, default: null },
   lastLoginAt: { type: Date, default: null },
+  flutterwaveRef: { type: String, default: null },
   purchaseDate: Date,
   purchasedExams: [{
     examId: String,
@@ -152,7 +153,7 @@ const generateSessionToken = () => {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
 
-// Email Templates (simplified for brevity)
+// Email function
 const sendEmail = async (to, name, otp, type) => {
   try {
     const subject = type === 'verification' ? 'Verify Your Email - ELITE Nursing CBT' : 'Reset Your Password - ELITE Nursing CBT';
@@ -167,6 +168,39 @@ const sendEmail = async (to, name, otp, type) => {
     return true;
   } catch (error) {
     console.error('❌ Email failed:', error.response?.body || error.message);
+    return false;
+  }
+};
+
+// Contact email template
+const sendContactEmail = async (name, email, message) => {
+  try {
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: 'anaduphilip2000@gmail.com' }];
+    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT' };
+    sendSmtpEmail.subject = `New Contact Message from ${name}`;
+    sendSmtpEmail.textContent = `From: ${name} (${email})\n\nMessage: ${message}`;
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    return true;
+  } catch (error) {
+    console.error('Contact email failed:', error);
+    return false;
+  }
+};
+
+// Reply email template
+const sendReplyEmail = async (to, name, originalMessage, reply) => {
+  try {
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: to }];
+    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT Support' };
+    sendSmtpEmail.subject = `Response to your message - ELITE Nursing CBT`;
+    sendSmtpEmail.textContent = `Dear ${name},\n\nThank you for reaching out to us.\n\nOur Response: ${reply}\n\nYour Original Message: ${originalMessage}\n\nBest regards,\nELITE Nursing CBT Support Team`;
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Reply sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error('Reply email failed:', error);
     return false;
   }
 };
@@ -227,13 +261,7 @@ app.delete('/api/admin/users/:userId', isAdmin, async (req, res) => {
 app.post('/api/admin/reply-message', isAdmin, async (req, res) => {
   try {
     const { to, name, originalMessage, reply } = req.body;
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    sendSmtpEmail.to = [{ email: to }];
-    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT Support' };
-    sendSmtpEmail.subject = `Response to your message - ELITE Nursing CBT`;
-    sendSmtpEmail.textContent = `Response to your message:\n\n${reply}\n\nOriginal message: ${originalMessage}`;
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
-    console.log(`✅ Reply sent to ${to}`);
+    await sendReplyEmail(to, name, originalMessage, reply);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to send reply' });
@@ -246,14 +274,10 @@ app.post('/api/contact', async (req, res) => {
     const { name, email, message } = req.body;
     const contact = new Contact({ name, email, message });
     await contact.save();
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    sendSmtpEmail.to = [{ email: 'anaduphilip2000@gmail.com' }];
-    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT' };
-    sendSmtpEmail.subject = `New Contact Message from ${name}`;
-    sendSmtpEmail.textContent = `From: ${name} (${email})\n\nMessage: ${message}`;
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    await sendContactEmail(name, email, message);
     res.json({ success: true });
   } catch (error) {
+    console.error('Contact error:', error);
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
@@ -290,7 +314,7 @@ app.post('/api/verify-email', async (req, res) => {
 
 app.post('/api/forgot-password', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email } = req.body；
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ error: 'No account found' });
     const otp = generateOTP();
@@ -473,10 +497,16 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
   }
 });
 
-// ============ PAYMENT ROUTES - FIXED ============
+// ============ PAYMENT ROUTES ============
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount, userId, planType, examId, examTitle, sectionNumber } = req.body;
+    
+    if (!userId) {
+      console.error('Payment initialization failed: userId is missing');
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+    
     const tx_ref = `ELITE-${Date.now()}-${userId}-${Math.random().toString(36).substring(2, 8)}`;
     
     console.log(`💰 Initializing payment: ${tx_ref} for user ${userId}, amount: ${amount}`);
@@ -493,6 +523,7 @@ app.post('/api/initialize-payment', async (req, res) => {
     });
     
     await User.findByIdAndUpdate(userId, { 
+      flutterwaveRef: tx_ref,
       $push: { 
         transactions: { 
           reference: tx_ref, 
@@ -514,7 +545,6 @@ app.post('/api/initialize-payment', async (req, res) => {
   }
 });
 
-// FIXED: Payment verification endpoint
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const { reference, userId } = req.body;
@@ -552,16 +582,15 @@ app.post('/api/verify-payment', async (req, res) => {
               purchaseDate: new Date()
             }
           },
-          $set: { 'transactions.$[elem].status': 'completed' }
+          $set: { 'transactions.$[elem].status': 'completed', flutterwaveRef: null }
         }, { arrayFilters: [{ 'elem.reference': reference }] });
         console.log(`✅ Single exam unlocked for user: ${user.email}`);
         return res.json({ success: true, isPremium: false, message: 'Exam unlocked successfully' });
       } else {
-        // Unlock everything - set isPremium to true
         await User.findByIdAndUpdate(userId, { 
           isPremium: true, 
           purchaseDate: new Date(),
-          $set: { 'transactions.$[elem].status': 'completed' }
+          $set: { 'transactions.$[elem].status': 'completed', flutterwaveRef: null }
         }, { arrayFilters: [{ 'elem.reference': reference }] });
         console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} (paid ₦${transactionData?.amount}) ✅✅✅`);
         return res.json({ success: true, isPremium: true, message: 'Premium activated successfully' });
