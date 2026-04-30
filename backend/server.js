@@ -314,7 +314,7 @@ app.post('/api/verify-email', async (req, res) => {
 
 app.post('/api/forgot-password', async (req, res) => {
   try {
-    const { email } = req.body；
+    const { email } = req.body;
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ error: 'No account found' });
     const otp = generateOTP();
