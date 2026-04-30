@@ -799,6 +799,77 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
+// ============ NEW: GET PENDING PAYMENT ============
+app.get('/api/pending-payment', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Find most recent pending transaction
+    const pendingTransaction = user.transactions.filter(t => t.status === 'pending').sort((a, b) => b.date - a.date)[0];
+    
+    if (pendingTransaction) {
+      return res.json({ 
+        hasPending: true, 
+        reference: pendingTransaction.reference,
+        amount: pendingTransaction.amount,
+        date: pendingTransaction.date
+      });
+    }
+    
+    res.json({ hasPending: false });
+  } catch (error) {
+    console.error('Error checking pending payment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ NEW: MANUAL VERIFY PAYMENT ============
+app.post('/api/manual-verify', async (req, res) => {
+  try {
+    const { reference } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    if (!reference) {
+      return res.status(400).json({ error: 'Reference is required' });
+    }
+    
+    // Verify with Flutterwave
+    const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
+      headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }
+    });
+    
+    const transactionData = response.data.data;
+    console.log(`📊 Manual verification - Flutterwave status: ${transactionData?.status}`);
+    
+    if (transactionData?.status === 'successful') {
+      // Update user to premium
+      await User.findByIdAndUpdate(user._id, { 
+        isPremium: true, 
+        purchaseDate: new Date(),
+        $set: { 'transactions.$[elem].status': 'completed' }
+      }, { arrayFilters: [{ 'elem.reference': reference }] });
+      
+      console.log(`✅✅✅ MANUAL PREMIUM ACTIVATED for user: ${user.email} ✅✅✅`);
+      return res.json({ success: true, message: 'Premium activated successfully!' });
+    } else {
+      return res.json({ success: false, message: 'Payment not successful yet. Status: ' + transactionData?.status });
+    }
+  } catch (error) {
+    console.error('Manual verification error:', error);
+    res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
 // Admin manual premium activation
 app.post('/api/admin/activate-premium', isAdmin, async (req, res) => {
   try {
