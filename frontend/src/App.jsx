@@ -1754,10 +1754,48 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component
+// Get Premium Component - WITH AUTO-CHECK FOR PENDING PAYMENTS
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+
+  // Auto-check for pending payment when component loads
+  useEffect(() => {
+    const checkPendingPayment = async () => {
+      if (user?.id && !user?.isPremium) {
+        setChecking(true);
+        try {
+          // Check if user has any pending transaction
+          const response = await axios.get('/api/pending-payment', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (response.data.hasPending) {
+            console.log('Found pending payment:', response.data.reference);
+            // Try to verify it
+            const verifyResponse = await axios.post('/api/verify-payment', {
+              reference: response.data.reference,
+              userId: user.id
+            }, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            if (verifyResponse.data.success) {
+              alert('✅ Payment found! Your account has been upgraded to PREMIUM!');
+              window.location.reload();
+            }
+          }
+        } catch (error) {
+          console.error('Error checking pending payment:', error);
+        } finally {
+          setChecking(false);
+        }
+      }
+    };
+    
+    checkPendingPayment();
+  }, [user, token]);
 
   const handlePayment = async () => {
     if (!user?.id) {
@@ -1796,6 +1834,13 @@ const GetPremium = () => {
         <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
         <h2 style={{ color: '#1e3c72' }}>Upgrade to Premium</h2>
         <p style={{ marginBottom: 20 }}>Get unlimited access to all examinations and features</p>
+        
+        {checking && (
+          <div style={{ marginBottom: 20, padding: 10, background: '#fff3e0', borderRadius: 8 }}>
+            <p>Checking for pending payments...</p>
+          </div>
+        )}
+        
         {user?.isPremium ? (
           <div style={{ background: '#e8f5e9', padding: 20, borderRadius: 16 }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
@@ -2087,107 +2132,6 @@ const DropdownMenu = () => {
   );
 };
 
-// Payment Callback Component - NEW
-const PaymentCallback = () => {
-  const { token, user } = useContext(AuthContext);
-  const [status, setStatus] = useState('verifying');
-  const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    const verifyPayment = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const reference = urlParams.get('reference') || urlParams.get('trxref');
-      
-      console.log('Payment Callback - Reference:', reference);
-      console.log('Payment Callback - User:', user);
-      
-      if (!reference) {
-        setStatus('error');
-        setMessage('No payment reference found');
-        return;
-      }
-      
-      if (!user?.id) {
-        setStatus('error');
-        setMessage('Please log in to verify payment');
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 3000);
-        return;
-      }
-      
-      try {
-        const response = await axios.post('/api/verify-payment', {
-          reference: reference,
-          userId: user.id
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        console.log('Verification response:', response.data);
-        
-        if (response.data.success) {
-          setStatus('success');
-          setMessage('Payment successful! Your account has been upgraded to PREMIUM!');
-          // Update local storage
-          const updatedUser = { ...user, isPremium: true };
-          localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 3000);
-        } else {
-          setStatus('error');
-          setMessage('Payment verification failed: ' + (response.data.error || 'Unknown error'));
-        }
-      } catch (error) {
-        console.error('Verification error:', error);
-        setStatus('error');
-        setMessage('Payment verification failed. Please contact support.');
-      }
-    };
-    
-    if (user) {
-      verifyPayment();
-    }
-  }, [user, token]);
-  
-  return (
-    <div style={{ minHeight: '100vh', background: '#f0f7f4', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 400, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-        {status === 'verifying' && (
-          <>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
-            <h2 style={{ color: '#1e3c72' }}>Verifying Payment...</h2>
-            <p>Please wait while we confirm your payment.</p>
-            <LoadingWithBar message="Verifying" />
-          </>
-        )}
-        {status === 'success' && (
-          <>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>✅</div>
-            <h2 style={{ color: '#2e7d32' }}>Payment Successful!</h2>
-            <p>{message}</p>
-            <p>Redirecting you to the home page...</p>
-          </>
-        )}
-        {status === 'error' && (
-          <>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>❌</div>
-            <h2 style={{ color: '#dc3545' }}>Verification Failed</h2>
-            <p>{message}</p>
-            <Link to="/">
-              <button style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>Go to Home</button>
-            </Link>
-            <Link to="/get-premium">
-              <button style={{ background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 10 }}>Try Again</button>
-            </Link>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
 // Main App Component
 const AppContent = () => {
   const { token, darkMode } = useContext(AuthContext);
@@ -2215,7 +2159,6 @@ const AppContent = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/payment-callback" element={<PaymentCallback />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     );
@@ -2241,7 +2184,6 @@ const AppContent = () => {
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/whatsapp" element={<JoinWhatsApp />} />
         <Route path="/admin" element={<AdminPanel />} />
-        <Route path="/payment-callback" element={<PaymentCallback />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
