@@ -690,7 +690,7 @@ const Register = () => {
   );
 };
 
-// Login Component with Force Logout Option
+// Login Component with Popup Welcome Message
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1331,7 +1331,7 @@ const ExamList = () => {
   );
 };
 
-// Take Exam Component - Fixed copyright position to bottom of page
+// Take Exam Component - FIXED: Exam result page centered with display flex, alignItems center, justifyContent center
 const TakeExam = () => {
   const { id, sectionNumber, mode } = useParams();
   const [exam, setExam] = useState(null);
@@ -1433,7 +1433,6 @@ const TakeExam = () => {
             <Link to={`/exams/${id}/${mode}`}><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Back to Exams</button></Link>
           </div>
         </div>
-        {/* Copyright moved to bottom of page, outside the result card */}
         <div style={{ textAlign: 'center', padding: '20px', marginTop: 20, width: '100%' }}>
           <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
         </div>
@@ -2060,7 +2059,6 @@ const DropdownMenu = () => {
 const AppContent = () => {
   const { token, darkMode } = useContext(AuthContext);
 
-  // Verify session on page load
   useEffect(() => {
     const verifySession = async () => {
       if (token) {
@@ -2146,7 +2144,6 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
-  // Session verification and payment callback
   useEffect(() => {
     const verifySession = async () => {
       if (auth.token) {
