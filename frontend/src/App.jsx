@@ -2144,22 +2144,8 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
+  // FIXED: Payment verification - properly updates premium status
   useEffect(() => {
-    const verifySession = async () => {
-      if (auth.token) {
-        try {
-          await axios.get('/api/verify-session', { headers: { Authorization: `Bearer ${auth.token}` } });
-        } catch (error) {
-          if (error.response?.data?.error === 'Session expired. You have been logged out from another device.') {
-            alert('You have been logged out because you logged in on another device.');
-            logout();
-            window.location.href = '/login';
-          }
-        }
-      }
-    };
-    verifySession();
-
     const params = new URLSearchParams(window.location.search);
     const reference = params.get('reference') || params.get('trxref');
     const storedReference = localStorage.getItem('payment_reference');
@@ -2168,19 +2154,38 @@ function App() {
     if (paymentRef && auth.user?.id) {
       const verifyPayment = async () => {
         try {
-          const response = await axios.post('/api/verify-payment', { reference: paymentRef, userId: auth.user?.id });
+          const response = await axios.post('/api/verify-payment', { 
+            reference: paymentRef, 
+            userId: auth.user?.id 
+          });
+          
           if (response.data.success) {
             alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
             localStorage.removeItem('payment_reference');
-            setAuth({ ...auth, user: { ...auth.user, isPremium: true } });
-            localStorage.setItem('auth', JSON.stringify({ ...auth, user: { ...auth.user, isPremium: true } }));
+            
+            // Update the local auth state to reflect premium status
+            const updatedUser = { ...auth.user, isPremium: true };
+            setAuth({ ...auth, user: updatedUser });
+            localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
+            
+            // Also update axios default headers
+            if (auth.token) {
+              axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
+            }
+            
+            // Clear URL parameters and reload
             window.location.href = '/';
+          } else {
+            alert('Payment verification failed. Please contact support if you were charged.');
           }
-        } catch (error) { console.error('Verification error:', error); }
+        } catch (error) { 
+          console.error('Verification error:', error);
+          alert('Payment verification failed. Please contact support if you were charged.');
+        }
       };
       verifyPayment();
     }
-  }, [auth.token, auth.user?.id]);
+  }, [auth.user?.id]);
 
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
