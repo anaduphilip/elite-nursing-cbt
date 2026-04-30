@@ -2176,21 +2176,17 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
-  // FIXED: Payment verification - ONLY runs when returning from Flutterwave with a reference
+  // Payment verification - ONLY runs when returning from Flutterwave
   useEffect(() => {
-    // Get reference from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const reference = urlParams.get('reference') || urlParams.get('trxref');
-    
-    // Get stored reference from localStorage
     const storedReference = localStorage.getItem('payment_reference');
     
-    // ONLY run if there's a reference in the URL AND it matches stored reference
-    // This ensures we only verify AFTER a payment, not on every page load
+    // Only proceed if we have a reference in the URL that matches stored reference
     if (reference && storedReference && reference === storedReference && auth.user?.id) {
       const verifyPayment = async () => {
         try {
-          console.log('🔍 Verifying payment:', reference, 'for user:', auth.user?.id);
+          console.log('🔍 Verifying payment:', reference);
           
           const response = await axios.post('/api/verify-payment', { 
             reference: reference, 
@@ -2203,7 +2199,7 @@ function App() {
             alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
             localStorage.removeItem('payment_reference');
             
-            // Clear URL parameters without reloading
+            // Clear URL parameters
             window.history.replaceState({}, document.title, window.location.pathname);
             
             // Update user state
