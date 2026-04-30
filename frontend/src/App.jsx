@@ -1,13 +1,13 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API_URL = 'https://elite-nursing-cbt.onrender.com';
+const API_URL = 'https://elite-nursing-backend.onrender.com';
 axios.defaults.baseURL = API_URL;
 
 const AuthContext = createContext();
 
-// Loading Component with Percentage Bar
+// Loading Component
 const LoadingWithBar = ({ message = "Loading", onComplete }) => {
   const [progress, setProgress] = useState(0);
 
@@ -160,8 +160,6 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
     
     setLoading(true);
     try {
-      console.log('User ID for payment:', user.id);
-      
       const response = await axios.post('/api/initialize-payment', { 
         email: user.email, 
         amount: 100,
@@ -174,7 +172,6 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      localStorage.setItem('payment_reference', response.data.reference);
       window.location.href = response.data.authorization_url;
     } catch (error) {
       console.error('Payment error:', error);
@@ -1754,81 +1751,55 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component - WITH AUTOMATIC PAYMENT VERIFICATION
+// Get Premium Component - SIMPLE: Shows message based on URL parameter
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
+  const [searchParams] = useSearchParams();
+  const paymentStatus = searchParams.get('payment');
+  const [showMessage, setShowMessage] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
 
-  // AUTOMATIC PAYMENT VERIFICATION - runs every time this page loads
   useEffect(() => {
-    const autoVerifyPayment = async () => {
-      // Check if user is not premium and there's a stored reference
-      if (user?.id && !user?.isPremium) {
-        const storedReference = localStorage.getItem('payment_reference');
-        if (storedReference) {
-          setVerifying(true);
-          try {
-            console.log('Auto-verifying payment:', storedReference);
-            const response = await axios.post('/api/verify-payment', {
-              reference: storedReference,
-              userId: user.id
-            }, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            
-            if (response.data.success) {
-              alert('✅ Payment verified! Your account has been upgraded to PREMIUM!');
-              localStorage.removeItem('payment_reference');
-              const updatedUser = { ...user, isPremium: true };
-              localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
-              window.location.reload();
-            }
-          } catch (error) {
-            console.error('Auto-verification error:', error);
-          } finally {
-            setVerifying(false);
+    if (paymentStatus === 'success') {
+      setMessage('✅ Payment successful! Your account has been upgraded to PREMIUM!');
+      setMessageType('success');
+      setShowMessage(true);
+      // Refresh user data
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 3000);
+    } else if (paymentStatus === 'failed') {
+      setMessage('❌ Payment verification failed. Please contact support.');
+      setMessageType('error');
+      setShowMessage(true);
+    } else if (paymentStatus === 'error') {
+      setMessage('⚠️ An error occurred. Please contact support.');
+      setMessageType('error');
+      setShowMessage(true);
+    }
+    
+    // Also check user's premium status from backend
+    const checkPremiumStatus = async () => {
+      if (token) {
+        try {
+          const response = await axios.get('/api/payment-status', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (response.data.isPremium && !user?.isPremium) {
+            // Update local state
+            const updatedUser = { ...user, isPremium: true };
+            localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
+            window.location.reload();
           }
+        } catch (error) {
+          console.error('Error checking premium status:', error);
         }
       }
     };
-    
-    autoVerifyPayment();
-  }, [user, token]);
-
-  // Also check URL parameters for payment reference
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const reference = urlParams.get('reference') || urlParams.get('trxref');
-    
-    if (reference && user?.id && !user?.isPremium) {
-      setVerifying(true);
-      const verifyFromUrl = async () => {
-        try {
-          console.log('Verifying payment from URL:', reference);
-          const response = await axios.post('/api/verify-payment', {
-            reference: reference,
-            userId: user.id
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          if (response.data.success) {
-            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
-            localStorage.removeItem('payment_reference');
-            const updatedUser = { ...user, isPremium: true };
-            localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
-            window.location.href = '/get-premium';
-          }
-        } catch (error) {
-          console.error('URL verification error:', error);
-        } finally {
-          setVerifying(false);
-        }
-      };
-      verifyFromUrl();
-    }
-  }, [user, token]);
+    checkPremiumStatus();
+  }, [paymentStatus, token, user]);
 
   const handlePayment = async () => {
     if (!user?.id) {
@@ -1850,7 +1821,6 @@ const GetPremium = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      localStorage.setItem('payment_reference', response.data.reference);
       window.location.href = response.data.authorization_url;
     } catch (error) {
       console.error('Payment error:', error);
@@ -1866,10 +1836,16 @@ const GetPremium = () => {
         <h2 style={{ color: '#1e3c72' }}>Upgrade to Premium</h2>
         <p style={{ marginBottom: 20 }}>Get unlimited access to all examinations and features</p>
         
-        {verifying && (
-          <div style={{ marginBottom: 20, padding: 10, background: '#fff3e0', borderRadius: 8 }}>
-            <p>Verifying your payment... Please wait.</p>
-            <LoadingWithBar message="Verifying payment" />
+        {showMessage && (
+          <div style={{ 
+            marginBottom: 20, 
+            padding: 15, 
+            borderRadius: 10, 
+            background: messageType === 'success' ? '#d4edda' : '#f8d7da',
+            color: messageType === 'success' ? '#155724' : '#721c24',
+            border: `1px solid ${messageType === 'success' ? '#c3e6cb' : '#f5c6cb'}`
+          }}>
+            {message}
           </div>
         )}
         
