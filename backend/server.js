@@ -580,7 +580,6 @@ app.post('/api/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid password' });
     
-    // Check if user is already logged in on another device
     if (user.currentSessionToken) {
       return res.status(401).json({ error: 'You are already logged in on another device. Please log out from that device first.' });
     }
@@ -597,7 +596,6 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Logout endpoint - clears session token
 app.post('/api/logout', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -610,7 +608,6 @@ app.post('/api/logout', async (req, res) => {
   }
 });
 
-// Verify session endpoint (called on each page load)
 app.get('/api/verify-session', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -709,7 +706,7 @@ app.post('/api/initialize-payment', async (req, res) => {
       tx_ref: tx_ref,
       amount: amount,
       currency: "NGN",
-      redirect_url: "https://elite-nursing-cbt.vercel.app/payment-callback",
+      redirect_url: "https://elite-nursing-cbt.vercel.app",
       customer: { email: email, name: email },
       customizations: { 
         title: "ELITE Nursing CBT", 
@@ -722,7 +719,6 @@ app.post('/api/initialize-payment', async (req, res) => {
       }
     });
     
-    // Store transaction reference
     await User.findByIdAndUpdate(userId, {
       $push: { 
         transactions: { 
@@ -758,16 +754,20 @@ app.post('/api/verify-payment', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing reference or userId' });
     }
     
-    // Find the user
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
     
-    // Check if already premium
     if (user.isPremium) {
       console.log(`✅ User ${user.email} is already premium`);
       return res.json({ success: true, isPremium: true, message: 'Already premium' });
+    }
+    
+    // Find the transaction
+    const transaction = user.transactions.find(t => t.reference === reference);
+    if (!transaction) {
+      return res.json({ success: false, error: 'Transaction not found' });
     }
     
     // Verify with Flutterwave
@@ -779,12 +779,10 @@ app.post('/api/verify-payment', async (req, res) => {
     console.log(`📊 FLUTTERWAVE RESPONSE - Status: ${transactionData?.status}, Amount: ${transactionData?.amount}`);
     
     if (transactionData?.status === 'successful') {
-      // Update user to premium
-      await User.findByIdAndUpdate(userId, { 
-        isPremium: true, 
-        purchaseDate: new Date(),
-        $set: { 'transactions.$[elem].status': 'completed' }
-      }, { arrayFilters: [{ 'elem.reference': reference }] });
+      user.isPremium = true;
+      user.purchaseDate = new Date();
+      transaction.status = 'completed';
+      await user.save();
       
       console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} (paid ₦${transactionData?.amount}) ✅✅✅`);
       return res.json({ success: true, isPremium: true, message: 'Premium activated successfully' });
@@ -795,6 +793,34 @@ app.post('/api/verify-payment', async (req, res) => {
   } catch (error) {
     console.error('❌ Payment verification error:', error.response?.data || error.message);
     res.status(500).json({ success: false, error: 'Verification failed: ' + error.message });
+  }
+});
+
+// Get pending payment endpoint
+app.get('/api/pending-payment', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    const pendingTransaction = user.transactions.filter(t => t.status === 'pending').sort((a, b) => b.date - a.date)[0];
+    
+    if (pendingTransaction) {
+      return res.json({ 
+        hasPending: true, 
+        reference: pendingTransaction.reference,
+        amount: pendingTransaction.amount,
+        date: pendingTransaction.date
+      });
+    }
+    
+    res.json({ hasPending: false });
+  } catch (error) {
+    console.error('Error checking pending payment:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
