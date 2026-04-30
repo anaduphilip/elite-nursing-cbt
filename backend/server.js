@@ -695,7 +695,9 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount, userId, planType, examId, examTitle, sectionNumber } = req.body;
-    const tx_ref = `ELITE-${Date.now()}-${userId}`;
+    const tx_ref = `ELITE-${Date.now()}-${userId}-${Math.random().toString(36).substring(2, 8)}`;
+    
+    console.log(`💰 Initializing payment: ${tx_ref} for user ${userId}, amount: ${amount}`);
     
     const response = await axios.post('https://api.flutterwave.com/v3/payments', {
       tx_ref: tx_ref,
@@ -737,16 +739,16 @@ app.post('/api/initialize-payment', async (req, res) => {
   }
 });
 
-// FIXED: Payment verification endpoint
+// FIXED: Payment verification endpoint - UPDATED
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const { reference, userId } = req.body;
     
+    console.log(`🔍 Verifying payment for reference: ${reference}, userId: ${userId}`);
+    
     if (!reference || !userId) {
       return res.status(400).json({ success: false, error: 'Missing reference or userId' });
     }
-    
-    console.log(`🔍 Verifying payment for reference: ${reference}, userId: ${userId}`);
     
     // Verify with Flutterwave
     const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
@@ -754,7 +756,7 @@ app.post('/api/verify-payment', async (req, res) => {
     });
     
     const transactionData = response.data.data;
-    console.log(`📊 Flutterwave status: ${transactionData?.status}`);
+    console.log(`📊 Flutterwave status: ${transactionData?.status}, amount: ${transactionData?.amount}`);
     
     if (transactionData?.status === 'successful') {
       // Find the user
@@ -763,44 +765,38 @@ app.post('/api/verify-payment', async (req, res) => {
         return res.status(404).json({ success: false, error: 'User not found' });
       }
       
-      // Find the transaction
-      const transaction = user.transactions.find(t => t.reference === reference);
-      
-      if (transaction && transaction.planType === 'single') {
-        // Unlock single exam
-        await User.findByIdAndUpdate(userId, {
-          $push: {
-            purchasedExams: {
-              examId: transaction.examId,
-              examTitle: transaction.examTitle,
-              sectionNumber: transaction.sectionNumber,
-              purchaseDate: new Date()
-            }
-          },
-          $set: { 'transactions.$[elem].status': 'completed' }
-        }, { arrayFilters: [{ 'elem.reference': reference }] });
-        console.log(`✅ Single exam unlocked for user: ${user.email}`);
-        return res.json({ success: true, isPremium: false, message: 'Exam unlocked successfully' });
-      } else {
-        // Unlock everything - set isPremium to true
-        await User.findByIdAndUpdate(userId, { 
+      // Update user to premium - SIMPLIFIED
+      const updatedUser = await User.findByIdAndUpdate(
+        userId, 
+        { 
           isPremium: true, 
-          purchaseDate: new Date(),
-          $set: { 'transactions.$[elem].status': 'completed' }
-        }, { 
-          arrayFilters: [{ 'elem.reference': reference }],
-          new: true 
-        });
-        console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} (paid ₦${transactionData?.amount}) ✅✅✅`);
-        return res.json({ success: true, isPremium: true, message: 'Premium activated successfully' });
-      }
+          purchaseDate: new Date()
+        }, 
+        { new: true }
+      );
+      
+      // Also update the transaction status
+      await User.updateOne(
+        { _id: userId, 'transactions.reference': reference },
+        { $set: { 'transactions.$.status': 'completed' } }
+      );
+      
+      console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} (paid ₦${transactionData?.amount}) ✅✅✅`);
+      console.log(`User ${user.email} isPremium is now: ${updatedUser.isPremium}`);
+      
+      return res.json({ 
+        success: true, 
+        isPremium: true, 
+        message: 'Premium activated successfully',
+        user: { id: updatedUser._id, email: updatedUser.email, isPremium: updatedUser.isPremium }
+      });
     } else {
       console.log('Payment verification failed - status not successful');
       return res.json({ success: false, error: 'Payment not successful' });
     }
   } catch (error) {
     console.error('Payment verification error:', error.response?.data || error.message);
-    res.status(500).json({ success: false, error: 'Verification failed' });
+    res.status(500).json({ success: false, error: 'Verification failed: ' + error.message });
   }
 });
 
