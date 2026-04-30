@@ -152,15 +152,27 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   const { token, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
 
-  const handlePayment = async () => {
+    const handlePayment = async () => {
     setLoading(true);
     try {
-      const response = await axios.post('/api/initialize-payment', { email: user?.email, amount: 100 }, {
+      console.log('User ID for payment:', user?.id);
+      
+      const response = await axios.post('/api/initialize-payment', { 
+        email: user?.email, 
+        amount: 100,
+        userId: user?.id,
+        planType: examTitle ? 'single' : 'premium',
+        examId: examTitle ? window.location.pathname.split('/')[2] : null,
+        examTitle: examTitle || null,
+        sectionNumber: sectionNumber || null
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
       localStorage.setItem('payment_reference', response.data.reference);
       window.location.href = response.data.authorization_url;
     } catch (error) {
+      console.error('Payment error:', error);
       alert('Payment initialization failed. Please try again.');
       setLoading(false);
     }
@@ -181,7 +193,7 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         <p style={{ fontSize: 15, marginBottom: 10 }}><strong>{examTitle}</strong> is premium content.</p>
         <p style={{ fontSize: 14, marginBottom: 15, color: '#666' }}>Upgrade to unlock ALL premium exams!</p>
         <div style={{ fontSize: 28, fontWeight: 'bold', color: '#1e3c72', margin: '15px 0' }}>
-          ₦5,900 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime</span>
+          ₦100 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime</span>
         </div>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <button onClick={onClose} style={{ flex: 1, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: '500', fontSize: 14 }}>Cancel</button>
