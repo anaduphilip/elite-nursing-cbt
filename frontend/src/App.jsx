@@ -2176,78 +2176,59 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
-  // FIXED: Payment verification - properly handles callback and updates premium status
+  // FIXED: Payment verification - ONLY runs when returning from Flutterwave with a reference
   useEffect(() => {
+    // Get reference from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const reference = urlParams.get('reference') || urlParams.get('trxref');
-    const storedReference = localStorage.getItem('payment_reference');
-    const paymentRef = reference || storedReference;
     
-    // Only run verification if there's a payment reference AND user is logged in
-    if (paymentRef && auth.user?.id) {
-      // Check if we've already processed this payment
-      const processedKey = `payment_processed_${paymentRef}`;
-      if (localStorage.getItem(processedKey)) {
-        // Already processed, just clean up
-        localStorage.removeItem('payment_reference');
-        // Clear URL parameters
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return;
-      }
-      
+    // Get stored reference from localStorage
+    const storedReference = localStorage.getItem('payment_reference');
+    
+    // ONLY run if there's a reference in the URL AND it matches stored reference
+    // This ensures we only verify AFTER a payment, not on every page load
+    if (reference && storedReference && reference === storedReference && auth.user?.id) {
       const verifyPayment = async () => {
         try {
-          console.log('🔍 Verifying payment:', paymentRef, 'for user:', auth.user?.id);
+          console.log('🔍 Verifying payment:', reference, 'for user:', auth.user?.id);
           
           const response = await axios.post('/api/verify-payment', { 
-            reference: paymentRef, 
+            reference: reference, 
             userId: auth.user?.id 
           });
           
           console.log('📡 Verification response:', response.data);
           
           if (response.data.success) {
-            // Mark as processed to avoid duplicate verification
-            localStorage.setItem(processedKey, 'true');
+            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
             localStorage.removeItem('payment_reference');
             
-            // Show success message
-            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
+            // Clear URL parameters without reloading
+            window.history.replaceState({}, document.title, window.location.pathname);
             
-            // Update user state with premium status
+            // Update user state
             const updatedUser = { ...auth.user, isPremium: true };
             setAuth({ ...auth, user: updatedUser });
             localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
             
-            // Update axios headers
-            if (auth.token) {
-              axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
-            }
-            
-            // Clear URL parameters and reload to show updated status
-            window.history.replaceState({}, document.title, window.location.pathname);
-            
-            // Refresh the page to reflect premium status
+            // Refresh to show premium status
             window.location.reload();
           } else {
-            console.error('Verification failed:', response.data.error);
-            alert('Payment verification failed: ' + (response.data.error || 'Unknown error') + '. Please contact support if you were charged.');
+            alert('Payment verification failed: ' + (response.data.error || 'Unknown error'));
             localStorage.removeItem('payment_reference');
-            // Clear URL parameters
             window.history.replaceState({}, document.title, window.location.pathname);
           }
         } catch (error) { 
-          console.error('❌ Verification error:', error.response?.data || error.message);
+          console.error('❌ Verification error:', error);
           alert('Payment verification failed. Please contact support if you were charged.');
           localStorage.removeItem('payment_reference');
-          // Clear URL parameters
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       };
       
       verifyPayment();
     }
-  }, [auth.user?.id, auth.token]);
+  }, [auth.user?.id]);
 
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
