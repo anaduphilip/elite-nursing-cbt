@@ -2087,6 +2087,107 @@ const DropdownMenu = () => {
   );
 };
 
+// Payment Callback Component - NEW
+const PaymentCallback = () => {
+  const { token, user } = useContext(AuthContext);
+  const [status, setStatus] = useState('verifying');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const verifyPayment = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const reference = urlParams.get('reference') || urlParams.get('trxref');
+      
+      console.log('Payment Callback - Reference:', reference);
+      console.log('Payment Callback - User:', user);
+      
+      if (!reference) {
+        setStatus('error');
+        setMessage('No payment reference found');
+        return;
+      }
+      
+      if (!user?.id) {
+        setStatus('error');
+        setMessage('Please log in to verify payment');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 3000);
+        return;
+      }
+      
+      try {
+        const response = await axios.post('/api/verify-payment', {
+          reference: reference,
+          userId: user.id
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        console.log('Verification response:', response.data);
+        
+        if (response.data.success) {
+          setStatus('success');
+          setMessage('Payment successful! Your account has been upgraded to PREMIUM!');
+          // Update local storage
+          const updatedUser = { ...user, isPremium: true };
+          localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 3000);
+        } else {
+          setStatus('error');
+          setMessage('Payment verification failed: ' + (response.data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Verification error:', error);
+        setStatus('error');
+        setMessage('Payment verification failed. Please contact support.');
+      }
+    };
+    
+    if (user) {
+      verifyPayment();
+    }
+  }, [user, token]);
+  
+  return (
+    <div style={{ minHeight: '100vh', background: '#f0f7f4', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: 'white', borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 400, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        {status === 'verifying' && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
+            <h2 style={{ color: '#1e3c72' }}>Verifying Payment...</h2>
+            <p>Please wait while we confirm your payment.</p>
+            <LoadingWithBar message="Verifying" />
+          </>
+        )}
+        {status === 'success' && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 20 }}>✅</div>
+            <h2 style={{ color: '#2e7d32' }}>Payment Successful!</h2>
+            <p>{message}</p>
+            <p>Redirecting you to the home page...</p>
+          </>
+        )}
+        {status === 'error' && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 20 }}>❌</div>
+            <h2 style={{ color: '#dc3545' }}>Verification Failed</h2>
+            <p>{message}</p>
+            <Link to="/">
+              <button style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>Go to Home</button>
+            </Link>
+            <Link to="/get-premium">
+              <button style={{ background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 10 }}>Try Again</button>
+            </Link>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Main App Component
 const AppContent = () => {
   const { token, darkMode } = useContext(AuthContext);
@@ -2114,6 +2215,7 @@ const AppContent = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/payment-callback" element={<PaymentCallback />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     );
@@ -2139,6 +2241,7 @@ const AppContent = () => {
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/whatsapp" element={<JoinWhatsApp />} />
         <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/payment-callback" element={<PaymentCallback />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
@@ -2175,62 +2278,6 @@ function App() {
   if (auth.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
-
-  // SIMPLIFIED: Payment verification - automatically checks for reference in URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const reference = urlParams.get('reference') || urlParams.get('trxref');
-    
-    // If there's a reference in the URL and user is logged in, verify payment automatically
-    if (reference && auth.user?.id) {
-      const processedKey = `payment_processed_${reference}`;
-      
-      // Check if already processed
-      if (localStorage.getItem(processedKey)) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return;
-      }
-      
-      const verifyPayment = async () => {
-        try {
-          console.log('🔍 Verifying payment:', reference);
-          
-          const response = await axios.post('/api/verify-payment', { 
-            reference: reference, 
-            userId: auth.user?.id 
-          });
-          
-          console.log('📡 Verification response:', response.data);
-          
-          if (response.data.success) {
-            localStorage.setItem(processedKey, 'true');
-            localStorage.removeItem('payment_reference');
-            
-            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
-            
-            // Update user state
-            const updatedUser = { ...auth.user, isPremium: true };
-            setAuth({ ...auth, user: updatedUser });
-            localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
-            
-            // Clear URL parameters
-            window.history.replaceState({}, document.title, window.location.pathname);
-            
-            // Refresh to show premium status
-            window.location.reload();
-          } else {
-            console.log('Verification failed:', response.data.error);
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        } catch (error) { 
-          console.error('❌ Verification error:', error);
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      };
-      
-      verifyPayment();
-    }
-  }, [auth.user?.id]);
 
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
