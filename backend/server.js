@@ -450,7 +450,7 @@ app.post('/api/initialize-payment', async (req, res) => {
       tx_ref: tx_ref,
       amount: amount,
       currency: "NGN",
-      redirect_url: `https://elite-nursing-backend.onrender.com/api/payment-callback`,
+      redirect_url: `https://elite-nursing-cbt.onrender.com/api/payment-callback`,
       customer: { email: email, name: email },
       customizations: { 
         title: "ELITE Nursing CBT", 
