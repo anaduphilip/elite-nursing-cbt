@@ -18,7 +18,7 @@ const allowedOrigins = [
   'https://elite-nursing-cbt.vercel.app',
   'http://localhost:5173',
   'http://localhost:5000',
-  'https://elite-nursing-backend.vercel.app'
+  'https://elite-nursing-backend.onrender.com'
 ];
 
 app.use(cors({
@@ -46,18 +46,11 @@ apiKey.apiKey = process.env.BREVO_API_KEY;
 const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // ============ MONGODB CONNECTION ============
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/quizzapp';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://anaduphilip090_db_user:vpPyvn5OLz9QRrlc@cluster0.jrviuka.mongodb.net/quizapp?retryWrites=true&w=majority';
 
 const connectWithRetry = () => {
   console.log('🔄 Attempting to connect to MongoDB...');
-  mongoose.connect(MONGODB_URI, {
-    serverSelectionTimeoutMS: 30000,
-    connectTimeoutMS: 30000,
-    socketTimeoutMS: 45000,
-    family: 4,
-    retryWrites: true,
-    w: 'majority'
-  })
+  mongoose.connect(MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected successfully'))
   .catch(err => {
     console.log('❌ MongoDB connection error:', err.message);
@@ -66,15 +59,6 @@ const connectWithRetry = () => {
 };
 
 connectWithRetry();
-
-mongoose.connection.on('error', err => {
-  console.log('MongoDB connection error event:', err.message);
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB disconnected. Attempting to reconnect...');
-  setTimeout(connectWithRetry, 5000);
-});
 
 // OTP Store
 const otpStore = new Map();
@@ -144,16 +128,26 @@ const User = mongoose.model('User', UserSchema);
 const Quiz = mongoose.model('Quiz', QuizSchema);
 const Contact = mongoose.model('Contact', ContactSchema);
 
-// Helper function
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+// Helper functions
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+const generateSessionToken = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+// ============ ADMIN MIDDLEWARE ============
+const isAdmin = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    const user = await User.findById(decoded.userId);
+    if (user.email !== 'anaduphilip2000@gmail.com') return res.status(403).json({ error: 'Admin access only' });
+    req.userId = decoded.userId;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
 };
 
-const generateSessionToken = () => {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-};
-
-// Email function
+// ============ EMAIL ROUTES ============
 const sendEmail = async (to, name, otp, type) => {
   try {
     const subject = type === 'verification' ? 'Verify Your Email - ELITE Nursing CBT' : 'Reset Your Password - ELITE Nursing CBT';
@@ -169,54 +163,6 @@ const sendEmail = async (to, name, otp, type) => {
   } catch (error) {
     console.error('❌ Email failed:', error.response?.body || error.message);
     return false;
-  }
-};
-
-// Contact email template
-const sendContactEmail = async (name, email, message) => {
-  try {
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    sendSmtpEmail.to = [{ email: 'anaduphilip2000@gmail.com' }];
-    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT' };
-    sendSmtpEmail.subject = `New Contact Message from ${name}`;
-    sendSmtpEmail.textContent = `From: ${name} (${email})\n\nMessage: ${message}`;
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
-    return true;
-  } catch (error) {
-    console.error('Contact email failed:', error);
-    return false;
-  }
-};
-
-// Reply email template
-const sendReplyEmail = async (to, name, originalMessage, reply) => {
-  try {
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    sendSmtpEmail.to = [{ email: to }];
-    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT Support' };
-    sendSmtpEmail.subject = `Response to your message - ELITE Nursing CBT`;
-    sendSmtpEmail.textContent = `Dear ${name},\n\nThank you for reaching out to us.\n\nOur Response: ${reply}\n\nYour Original Message: ${originalMessage}\n\nBest regards,\nELITE Nursing CBT Support Team`;
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
-    console.log(`✅ Reply sent to ${to}`);
-    return true;
-  } catch (error) {
-    console.error('Reply email failed:', error);
-    return false;
-  }
-};
-
-// ============ ADMIN MIDDLEWARE ============
-const isAdmin = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    const user = await User.findById(decoded.userId);
-    if (user.email !== 'anaduphilip2000@gmail.com') return res.status(403).json({ error: 'Admin access only' });
-    req.userId = decoded.userId;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
   }
 };
 
@@ -261,7 +207,12 @@ app.delete('/api/admin/users/:userId', isAdmin, async (req, res) => {
 app.post('/api/admin/reply-message', isAdmin, async (req, res) => {
   try {
     const { to, name, originalMessage, reply } = req.body;
-    await sendReplyEmail(to, name, originalMessage, reply);
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: to }];
+    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT Support' };
+    sendSmtpEmail.subject = `Response to your message - ELITE Nursing CBT`;
+    sendSmtpEmail.textContent = `Dear ${name},\n\nResponse: ${reply}\n\nOriginal: ${originalMessage}`;
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to send reply' });
@@ -274,10 +225,8 @@ app.post('/api/contact', async (req, res) => {
     const { name, email, message } = req.body;
     const contact = new Contact({ name, email, message });
     await contact.save();
-    await sendContactEmail(name, email, message);
     res.json({ success: true });
   } catch (error) {
-    console.error('Contact error:', error);
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
@@ -439,22 +388,7 @@ app.get('/api/user/profile', async (req, res) => {
     if (!token) return res.status(401).json({ error: 'No token' });
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
     const user = await User.findById(decoded.userId);
-    res.json({ id: user._id, name: user.name, isPremium: user.isPremium, email: user.email, isVerified: user.isVerified });
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
-  }
-});
-
-app.post('/api/check-exam-access', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token' });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    const user = await User.findById(decoded.userId);
-    const { examId, sectionNumber } = req.body;
-    if (user.isPremium) return res.json({ hasAccess: true });
-    const hasPurchased = user.purchasedExams.some(p => p.examId === examId && p.sectionNumber === sectionNumber);
-    res.json({ hasAccess: hasPurchased });
+    res.json({ id: user._id, name: user.name, isPremium: user.isPremium, email: user.email });
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' });
   }
@@ -480,24 +414,7 @@ app.get('/api/quizzes/:quizId', async (req, res) => {
   }
 });
 
-app.post('/api/quizzes/:quizId/submit', async (req, res) => {
-  try {
-    const quiz = await Quiz.findById(req.params.quizId);
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
-    const { answers } = req.body;
-    let score = 0, total = 0;
-    quiz.questions.forEach((q, i) => {
-      total += q.points || 1;
-      if (answers[i] === q.correctAnswer) score += q.points || 1;
-    });
-    const percentage = (score / total) * 100;
-    res.json({ score, total, percentage, passed: percentage >= 70 });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// ============ PAYMENT ROUTES ============
+// ============ PAYMENT ROUTES - FIXED ============
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount, userId, planType, examId, examTitle, sectionNumber } = req.body;
@@ -515,15 +432,14 @@ app.post('/api/initialize-payment', async (req, res) => {
       tx_ref: tx_ref,
       amount: amount,
       currency: "NGN",
-      redirect_url: "https://elite-nursing-cbt.vercel.app/payment-callback",
-      customer: { email: email, name: email },
+      redirect_url: "https://elite-nursing-cbt.vercel.app",
+      customer: { email: email },
       customizations: { title: "ELITE Nursing CBT", description: planType === 'single' ? `Exam ${sectionNumber} Access` : "Complete Package" }
     }, {
       headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`, 'Content-Type': 'application/json' }
     });
     
     await User.findByIdAndUpdate(userId, { 
-      flutterwaveRef: tx_ref,
       $push: { 
         transactions: { 
           reference: tx_ref, 
@@ -569,32 +485,20 @@ app.post('/api/verify-payment', async (req, res) => {
         return res.status(404).json({ success: false, error: 'User not found' });
       }
       
-      // Find the transaction
-      const transaction = user.transactions.find(t => t.reference === reference);
-      
-      if (transaction && transaction.planType === 'single') {
-        await User.findByIdAndUpdate(userId, {
-          $push: {
-            purchasedExams: {
-              examId: transaction.examId,
-              examTitle: transaction.examTitle,
-              sectionNumber: transaction.sectionNumber,
-              purchaseDate: new Date()
-            }
-          },
-          $set: { 'transactions.$[elem].status': 'completed', flutterwaveRef: null }
-        }, { arrayFilters: [{ 'elem.reference': reference }] });
-        console.log(`✅ Single exam unlocked for user: ${user.email}`);
-        return res.json({ success: true, isPremium: false, message: 'Exam unlocked successfully' });
-      } else {
-        await User.findByIdAndUpdate(userId, { 
-          isPremium: true, 
-          purchaseDate: new Date(),
-          $set: { 'transactions.$[elem].status': 'completed', flutterwaveRef: null }
-        }, { arrayFilters: [{ 'elem.reference': reference }] });
-        console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} (paid ₦${transactionData?.amount}) ✅✅✅`);
-        return res.json({ success: true, isPremium: true, message: 'Premium activated successfully' });
+      // Check if already premium
+      if (user.isPremium) {
+        return res.json({ success: true, isPremium: true, message: 'Already premium' });
       }
+      
+      // Update user to premium
+      await User.findByIdAndUpdate(userId, { 
+        isPremium: true, 
+        purchaseDate: new Date(),
+        $set: { 'transactions.$[elem].status': 'completed' }
+      }, { arrayFilters: [{ 'elem.reference': reference }] });
+      
+      console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} (paid ₦${transactionData?.amount}) ✅✅✅`);
+      return res.json({ success: true, isPremium: true, message: 'Premium activated successfully' });
     } else {
       console.log('Payment verification failed - status not successful');
       return res.json({ success: false, error: 'Payment not successful' });
@@ -624,7 +528,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // ============ START SERVER ============
@@ -632,5 +536,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 http://localhost:${PORT}`);
-  console.log(`📚 MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
 });
