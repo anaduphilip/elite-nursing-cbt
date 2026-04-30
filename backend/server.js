@@ -17,7 +17,8 @@ const app = express();
 const allowedOrigins = [
   'https://elite-nursing-cbt.vercel.app',
   'http://localhost:5173',
-  'http://localhost:5000'
+  'http://localhost:5000',
+  'https://elite-nursing-backend.vercel.app'
 ];
 
 app.use(cors({
@@ -690,22 +691,45 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
   }
 });
 
-// ============ PAYMENT ROUTES ============
+// ============ PAYMENT ROUTES - FIXED ============
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount, userId, planType, examId, examTitle, sectionNumber } = req.body;
     const tx_ref = `ELITE-${Date.now()}-${userId}`;
+    
     const response = await axios.post('https://api.flutterwave.com/v3/payments', {
-      tx_ref, amount, currency: "NGN",
+      tx_ref: tx_ref,
+      amount: amount,
+      currency: "NGN",
       redirect_url: "https://elite-nursing-cbt.vercel.app/payment-callback",
-      customer: { email, name: email },
-      customizations: { title: "ELITE Nursing CBT", description: planType === 'single' ? `Exam ${sectionNumber} Access` : "Complete Package" }
+      customer: { email: email, name: email },
+      customizations: { 
+        title: "ELITE Nursing CBT", 
+        description: planType === 'single' ? `Exam ${sectionNumber} Access` : "Complete Package" 
+      }
     }, {
-      headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`, 'Content-Type': 'application/json' }
+      headers: { 
+        Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`, 
+        'Content-Type': 'application/json' 
+      }
     });
+    
+    // Store transaction reference
     await User.findByIdAndUpdate(userId, {
-      $push: { transactions: { reference: tx_ref, amount, status: 'pending', planType, examId, examTitle, sectionNumber, date: new Date() } }
+      $push: { 
+        transactions: { 
+          reference: tx_ref, 
+          amount: amount, 
+          status: 'pending', 
+          planType: planType, 
+          examId: examId, 
+          examTitle: examTitle, 
+          sectionNumber: sectionNumber, 
+          date: new Date() 
+        } 
+      }
     });
+    
     res.json({ authorization_url: response.data.data.link, reference: tx_ref });
   } catch (error) {
     console.error('Payment initialization error:', error.response?.data || error.message);
@@ -713,29 +737,30 @@ app.post('/api/initialize-payment', async (req, res) => {
   }
 });
 
-// ============ FIXED PAYMENT VERIFICATION ROUTE ============
+// FIXED: Payment verification endpoint
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const { reference, userId } = req.body;
     
     if (!reference || !userId) {
-      return res.status(400).json({ error: 'Missing reference or userId' });
+      return res.status(400).json({ success: false, error: 'Missing reference or userId' });
     }
     
-    console.log(`Verifying payment for reference: ${reference}, userId: ${userId}`);
+    console.log(`🔍 Verifying payment for reference: ${reference}, userId: ${userId}`);
     
     // Verify with Flutterwave
     const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
       headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }
     });
     
-    console.log('Flutterwave response status:', response.data.data?.status);
+    const transactionData = response.data.data;
+    console.log(`📊 Flutterwave status: ${transactionData?.status}`);
     
-    if (response.data.data?.status === 'successful') {
+    if (transactionData?.status === 'successful') {
       // Find the user
       const user = await User.findById(userId);
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return res.status(404).json({ success: false, error: 'User not found' });
       }
       
       // Find the transaction
@@ -755,9 +780,10 @@ app.post('/api/verify-payment', async (req, res) => {
           $set: { 'transactions.$[elem].status': 'completed' }
         }, { arrayFilters: [{ 'elem.reference': reference }] });
         console.log(`✅ Single exam unlocked for user: ${user.email}`);
+        return res.json({ success: true, isPremium: false, message: 'Exam unlocked successfully' });
       } else {
         // Unlock everything - set isPremium to true
-        const updatedUser = await User.findByIdAndUpdate(userId, { 
+        await User.findByIdAndUpdate(userId, { 
           isPremium: true, 
           purchaseDate: new Date(),
           $set: { 'transactions.$[elem].status': 'completed' }
@@ -765,17 +791,16 @@ app.post('/api/verify-payment', async (req, res) => {
           arrayFilters: [{ 'elem.reference': reference }],
           new: true 
         });
-        console.log(`✅ Premium activated for user: ${updatedUser.email}`);
+        console.log(`✅ Premium activated for user: ${user.email}`);
+        return res.json({ success: true, isPremium: true, message: 'Premium activated successfully' });
       }
-      
-      res.json({ success: true, isPremium: true });
     } else {
       console.log('Payment verification failed - status not successful');
-      res.json({ success: false, error: 'Payment not successful' });
+      return res.json({ success: false, error: 'Payment not successful' });
     }
   } catch (error) {
     console.error('Payment verification error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Verification failed', details: error.message });
+    res.status(500).json({ success: false, error: 'Verification failed' });
   }
 });
 
