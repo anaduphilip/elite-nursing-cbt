@@ -155,7 +155,7 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   const handlePayment = async () => {
     setLoading(true);
     try {
-      const response = await axios.post('/api/initialize-payment', { email: user?.email, amount: 5900 }, {
+      const response = await axios.post('/api/initialize-payment', { email: user?.email, amount: 100 }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       localStorage.setItem('payment_reference', response.data.reference);
@@ -1745,7 +1745,7 @@ const GetPremium = () => {
   const handlePayment = async () => {
     setLoading(true);
     try {
-      const response = await axios.post('/api/initialize-payment', { email: user?.email, amount: 5900 }, {
+      const response = await axios.post('/api/initialize-payment', { email: user?.email, amount: 100 }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       localStorage.setItem('payment_reference', response.data.reference);
