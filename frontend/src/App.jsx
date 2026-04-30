@@ -1754,47 +1754,80 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component - WITH AUTO-CHECK FOR PENDING PAYMENTS
+// Get Premium Component - WITH AUTOMATIC PAYMENT VERIFICATION
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
-  // Auto-check for pending payment when component loads
+  // AUTOMATIC PAYMENT VERIFICATION - runs every time this page loads
   useEffect(() => {
-    const checkPendingPayment = async () => {
+    const autoVerifyPayment = async () => {
+      // Check if user is not premium and there's a stored reference
       if (user?.id && !user?.isPremium) {
-        setChecking(true);
-        try {
-          // Check if user has any pending transaction
-          const response = await axios.get('/api/pending-payment', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          if (response.data.hasPending) {
-            console.log('Found pending payment:', response.data.reference);
-            // Try to verify it
-            const verifyResponse = await axios.post('/api/verify-payment', {
-              reference: response.data.reference,
+        const storedReference = localStorage.getItem('payment_reference');
+        if (storedReference) {
+          setVerifying(true);
+          try {
+            console.log('Auto-verifying payment:', storedReference);
+            const response = await axios.post('/api/verify-payment', {
+              reference: storedReference,
               userId: user.id
             }, {
               headers: { Authorization: `Bearer ${token}` }
             });
             
-            if (verifyResponse.data.success) {
-              alert('✅ Payment found! Your account has been upgraded to PREMIUM!');
+            if (response.data.success) {
+              alert('✅ Payment verified! Your account has been upgraded to PREMIUM!');
+              localStorage.removeItem('payment_reference');
+              const updatedUser = { ...user, isPremium: true };
+              localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
               window.location.reload();
             }
+          } catch (error) {
+            console.error('Auto-verification error:', error);
+          } finally {
+            setVerifying(false);
           }
-        } catch (error) {
-          console.error('Error checking pending payment:', error);
-        } finally {
-          setChecking(false);
         }
       }
     };
     
-    checkPendingPayment();
+    autoVerifyPayment();
+  }, [user, token]);
+
+  // Also check URL parameters for payment reference
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const reference = urlParams.get('reference') || urlParams.get('trxref');
+    
+    if (reference && user?.id && !user?.isPremium) {
+      setVerifying(true);
+      const verifyFromUrl = async () => {
+        try {
+          console.log('Verifying payment from URL:', reference);
+          const response = await axios.post('/api/verify-payment', {
+            reference: reference,
+            userId: user.id
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (response.data.success) {
+            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
+            localStorage.removeItem('payment_reference');
+            const updatedUser = { ...user, isPremium: true };
+            localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
+            window.location.href = '/get-premium';
+          }
+        } catch (error) {
+          console.error('URL verification error:', error);
+        } finally {
+          setVerifying(false);
+        }
+      };
+      verifyFromUrl();
+    }
   }, [user, token]);
 
   const handlePayment = async () => {
@@ -1805,8 +1838,6 @@ const GetPremium = () => {
     
     setLoading(true);
     try {
-      console.log('User ID for payment:', user.id);
-      
       const response = await axios.post('/api/initialize-payment', { 
         email: user.email, 
         amount: 100,
@@ -1835,9 +1866,10 @@ const GetPremium = () => {
         <h2 style={{ color: '#1e3c72' }}>Upgrade to Premium</h2>
         <p style={{ marginBottom: 20 }}>Get unlimited access to all examinations and features</p>
         
-        {checking && (
+        {verifying && (
           <div style={{ marginBottom: 20, padding: 10, background: '#fff3e0', borderRadius: 8 }}>
-            <p>Checking for pending payments...</p>
+            <p>Verifying your payment... Please wait.</p>
+            <LoadingWithBar message="Verifying payment" />
           </div>
         )}
         
