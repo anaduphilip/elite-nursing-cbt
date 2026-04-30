@@ -80,7 +80,7 @@ mongoose.connection.on('disconnected', () => {
 // OTP Store
 const otpStore = new Map();
 
-// User Schema
+// User Schema with session token
 const UserSchema = new mongoose.Schema({
   name: { type: String, default: '' },
   email: { type: String, unique: true, required: true },
@@ -90,7 +90,6 @@ const UserSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   currentSessionToken: { type: String, default: null },
   lastLoginAt: { type: Date, default: null },
-  flutterwaveRef: { type: String, default: null },
   purchaseDate: Date,
   purchasedExams: [{
     examId: String,
@@ -150,6 +149,7 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+// Generate unique session token
 const generateSessionToken = () => {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
@@ -580,6 +580,7 @@ app.post('/api/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid password' });
     
+    // Check if user is already logged in on another device
     if (user.currentSessionToken) {
       return res.status(401).json({ error: 'You are already logged in on another device. Please log out from that device first.' });
     }
@@ -596,6 +597,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Logout endpoint - clears session token
 app.post('/api/logout', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -608,6 +610,7 @@ app.post('/api/logout', async (req, res) => {
   }
 });
 
+// Verify session endpoint (called on each page load)
 app.get('/api/verify-session', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -688,7 +691,7 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
   }
 });
 
-// ============ PAYMENT ROUTES - SIMPLIFIED ============
+// ============ PAYMENT ROUTES - FIXED ============
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount, userId, planType, examId, examTitle, sectionNumber } = req.body;
@@ -706,7 +709,7 @@ app.post('/api/initialize-payment', async (req, res) => {
       tx_ref: tx_ref,
       amount: amount,
       currency: "NGN",
-      redirect_url: "https://elite-nursing-cbt.vercel.app",
+      redirect_url: "https://elite-nursing-cbt.vercel.app/payment-callback",
       customer: { email: email, name: email },
       customizations: { 
         title: "ELITE Nursing CBT", 
@@ -744,12 +747,12 @@ app.post('/api/initialize-payment', async (req, res) => {
   }
 });
 
-// SIMPLIFIED: Payment verification endpoint - directly checks and upgrades
+// FIXED: Payment verification endpoint
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const { reference, userId } = req.body;
     
-    console.log(`🔍 Verifying payment: reference=${reference}, userId=${userId}`);
+    console.log(`🔍 VERIFYING PAYMENT - Reference: ${reference}, UserId: ${userId}`);
     
     if (!reference || !userId) {
       return res.status(400).json({ success: false, error: 'Missing reference or userId' });
@@ -773,7 +776,7 @@ app.post('/api/verify-payment', async (req, res) => {
     });
     
     const transactionData = response.data.data;
-    console.log(`📊 Flutterwave status: ${transactionData?.status}, amount: ${transactionData?.amount}`);
+    console.log(`📊 FLUTTERWAVE RESPONSE - Status: ${transactionData?.status}, Amount: ${transactionData?.amount}`);
     
     if (transactionData?.status === 'successful') {
       // Update user to premium
@@ -786,12 +789,12 @@ app.post('/api/verify-payment', async (req, res) => {
       console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} (paid ₦${transactionData?.amount}) ✅✅✅`);
       return res.json({ success: true, isPremium: true, message: 'Premium activated successfully' });
     } else {
-      console.log('Payment verification failed - status not successful');
-      return res.json({ success: false, error: 'Payment not successful' });
+      console.log(`❌ Payment verification failed - Status: ${transactionData?.status}`);
+      return res.json({ success: false, error: `Payment not successful. Status: ${transactionData?.status}` });
     }
   } catch (error) {
-    console.error('Payment verification error:', error.response?.data || error.message);
-    res.status(500).json({ success: false, error: 'Verification failed' });
+    console.error('❌ Payment verification error:', error.response?.data || error.message);
+    res.status(500).json({ success: false, error: 'Verification failed: ' + error.message });
   }
 });
 
