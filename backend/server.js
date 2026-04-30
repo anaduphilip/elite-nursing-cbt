@@ -80,7 +80,7 @@ mongoose.connection.on('disconnected', () => {
 // OTP Store
 const otpStore = new Map();
 
-// User Schema with session token
+// User Schema
 const UserSchema = new mongoose.Schema({
   name: { type: String, default: '' },
   email: { type: String, unique: true, required: true },
@@ -150,7 +150,6 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Generate unique session token
 const generateSessionToken = () => {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
@@ -581,7 +580,6 @@ app.post('/api/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid password' });
     
-    // Check if user is already logged in on another device
     if (user.currentSessionToken) {
       return res.status(401).json({ error: 'You are already logged in on another device. Please log out from that device first.' });
     }
@@ -598,7 +596,6 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Logout endpoint - clears session token
 app.post('/api/logout', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -611,7 +608,6 @@ app.post('/api/logout', async (req, res) => {
   }
 });
 
-// Verify session endpoint (called on each page load)
 app.get('/api/verify-session', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -692,7 +688,7 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
   }
 });
 
-// ============ PAYMENT ROUTES - FIXED ============
+// ============ PAYMENT ROUTES - SIMPLIFIED ============
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount, userId, planType, examId, examTitle, sectionNumber } = req.body;
@@ -748,7 +744,7 @@ app.post('/api/initialize-payment', async (req, res) => {
   }
 });
 
-// FIXED: Payment verification endpoint
+// SIMPLIFIED: Payment verification endpoint - directly checks and upgrades
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const { reference, userId } = req.body;
@@ -796,77 +792,6 @@ app.post('/api/verify-payment', async (req, res) => {
   } catch (error) {
     console.error('Payment verification error:', error.response?.data || error.message);
     res.status(500).json({ success: false, error: 'Verification failed' });
-  }
-});
-
-// ============ NEW: GET PENDING PAYMENT ============
-app.get('/api/pending-payment', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token' });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    const user = await User.findById(decoded.userId);
-    
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    
-    // Find most recent pending transaction
-    const pendingTransaction = user.transactions.filter(t => t.status === 'pending').sort((a, b) => b.date - a.date)[0];
-    
-    if (pendingTransaction) {
-      return res.json({ 
-        hasPending: true, 
-        reference: pendingTransaction.reference,
-        amount: pendingTransaction.amount,
-        date: pendingTransaction.date
-      });
-    }
-    
-    res.json({ hasPending: false });
-  } catch (error) {
-    console.error('Error checking pending payment:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ NEW: MANUAL VERIFY PAYMENT ============
-app.post('/api/manual-verify', async (req, res) => {
-  try {
-    const { reference } = req.body;
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token' });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    const user = await User.findById(decoded.userId);
-    
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    
-    if (!reference) {
-      return res.status(400).json({ error: 'Reference is required' });
-    }
-    
-    // Verify with Flutterwave
-    const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
-      headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }
-    });
-    
-    const transactionData = response.data.data;
-    console.log(`📊 Manual verification - Flutterwave status: ${transactionData?.status}`);
-    
-    if (transactionData?.status === 'successful') {
-      // Update user to premium
-      await User.findByIdAndUpdate(user._id, { 
-        isPremium: true, 
-        purchaseDate: new Date(),
-        $set: { 'transactions.$[elem].status': 'completed' }
-      }, { arrayFilters: [{ 'elem.reference': reference }] });
-      
-      console.log(`✅✅✅ MANUAL PREMIUM ACTIVATED for user: ${user.email} ✅✅✅`);
-      return res.json({ success: true, message: 'Premium activated successfully!' });
-    } else {
-      return res.json({ success: false, message: 'Payment not successful yet. Status: ' + transactionData?.status });
-    }
-  } catch (error) {
-    console.error('Manual verification error:', error);
-    res.status(500).json({ error: 'Verification failed' });
   }
 });
 
