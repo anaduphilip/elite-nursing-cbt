@@ -781,12 +781,8 @@ const Login = () => {
               You are already logged in on another device. Would you like to log out from that device and continue here?
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button onClick={cancelForceLogout} style={{ background: '#6c757d', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-                Cancel
-              </button>
-              <button onClick={handleForceLogout} style={{ background: '#dc3545', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-                Logout from Other Device
-              </button>
+              <button onClick={cancelForceLogout} style={{ background: '#6c757d', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Cancel</button>
+              <button onClick={handleForceLogout} style={{ background: '#dc3545', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Logout from Other Device</button>
             </div>
           </div>
         </div>
@@ -1331,7 +1327,7 @@ const ExamList = () => {
   );
 };
 
-// Take Exam Component - FIXED: Exam result page centered with display flex, alignItems center, justifyContent center
+// Take Exam Component - FIXED: Exam result page centered
 const TakeExam = () => {
   const { id, sectionNumber, mode } = useParams();
   const [exam, setExam] = useState(null);
