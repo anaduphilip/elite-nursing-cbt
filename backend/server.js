@@ -483,7 +483,6 @@ app.post('/api/verify-email', async (req, res) => {
 });
 
 // ============ FORGOT PASSWORD ============
-// FIXED: Removed the invalid Chinese semicolon character
 app.post('/api/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
