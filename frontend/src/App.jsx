@@ -147,20 +147,25 @@ const Timer = ({ duration, onTimeUp }) => {
   );
 };
 
-// Premium Modal Component
+// Premium Modal Component - FIXED
 const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   const { token, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
 
-    const handlePayment = async () => {
+  const handlePayment = async () => {
+    if (!user?.id) {
+      alert('Please log in again to make payment.');
+      return;
+    }
+    
     setLoading(true);
     try {
-      console.log('User ID for payment:', user?.id);
+      console.log('User ID for payment:', user.id);
       
       const response = await axios.post('/api/initialize-payment', { 
-        email: user?.email, 
+        email: user.email, 
         amount: 100,
-        userId: user?.id,
+        userId: user.id,
         planType: examTitle ? 'single' : 'premium',
         examId: examTitle ? window.location.pathname.split('/')[2] : null,
         examTitle: examTitle || null,
@@ -192,13 +197,13 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         <h2 style={{ color: '#1e3c72', fontSize: 22, margin: '10px 0' }}>Premium Required</h2>
         <p style={{ fontSize: 15, marginBottom: 10 }}><strong>{examTitle}</strong> is premium content.</p>
         <p style={{ fontSize: 14, marginBottom: 15, color: '#666' }}>Upgrade to unlock ALL premium exams!</p>
-        <div style={{ fontSize: 28, fontWeight: 'bold', color: '#1e3c72', margin: '15px 0' }}>
-          ₦100 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime</span>
+        <div style={{ fontSize: 25, fontWeight: 'bold', color: '#1e3c72', margin: '15px 0' }}>
+          ₦100 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime (Test Price)</span>
         </div>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <button onClick={onClose} style={{ flex: 1, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: '500', fontSize: 14 }}>Cancel</button>
           <button onClick={handlePayment} disabled={loading} style={{ flex: 1, background: '#ff9800', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-            {loading ? 'Processing...' : 'Pay ₦5,900'}
+            {loading ? 'Processing...' : 'Pay ₦100'}
           </button>
         </div>
       </div>
@@ -398,7 +403,7 @@ const ForgotPassword = () => {
   );
 };
 
-// Register Component with Popup Welcome Message
+// Register Component
 const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -702,7 +707,7 @@ const Register = () => {
   );
 };
 
-// Login Component with Popup Welcome Message
+// Login Component
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1298,7 +1303,7 @@ const ExamList = () => {
             </div>
             
             <div style={{ textAlign: 'center', padding: 28, background: '#fff3e0', borderRadius: 16, marginBottom: 20 }}>
-              <p style={{ color: '#ff9800', fontWeight: 'bold', fontSize: 16 }}>⭐ Unlock ALL premium exams and retakes for ₦5,900 (Lifetime)!</p>
+              <p style={{ color: '#ff9800', fontWeight: 'bold', fontSize: 16 }}>⭐ Unlock ALL premium exams and retakes for ₦100 (Test Price - Lifetime)!</p>
               <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 12 }}>Upgrade Now →</button></Link>
             </div>
           </>
@@ -1325,7 +1330,7 @@ const ExamList = () => {
             </div>
             {!userPremium && (
               <div style={{ marginTop: 24, textAlign: 'center', padding: 20, background: '#fff3e0', borderRadius: 16 }}>
-                <p style={{ color: '#ff9800', fontSize: 14 }}>⭐ Upgrade to access all examinations!</p>
+                <p style={{ color: '#ff9800', fontSize: 14 }}>⭐ Upgrade to access all examinations for ₦100 (Test Price)!</p>
                 <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 8 }}>Upgrade Now →</button></Link>
               </div>
             )}
@@ -1339,7 +1344,7 @@ const ExamList = () => {
   );
 };
 
-// Take Exam Component - FIXED: Exam result page centered
+// Take Exam Component
 const TakeExam = () => {
   const { id, sectionNumber, mode } = useParams();
   const [exam, setExam] = useState(null);
@@ -1431,8 +1436,8 @@ const TakeExam = () => {
           {showUpgradeMessage && mode === 'free' && (
             <div style={{ marginTop: 20, padding: 16, background: '#fff3e0', borderRadius: 12 }}>
               <p style={{ color: '#ff9800', fontWeight: 'bold', margin: 0, fontSize: 14 }}>🎯 Great job completing the free exam!</p>
-              <p style={{ color: '#666', marginTop: 8, fontSize: 13 }}>Upgrade to Premium to retake and unlock all exams!</p>
-              <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now (₦5,900)</button></Link>
+              <p style={{ color: '#666', marginTop: 8, fontSize: 13 }}>Upgrade to Premium for only ₦100 (Test Price) to retake and unlock all exams!</p>
+              <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now (₦100)</button></Link>
             </div>
           )}
           
@@ -1579,7 +1584,7 @@ const HowToUse = () => {
           <ul style={{ lineHeight: 1.8, color: darkMode ? '#ccc' : '#555', paddingLeft: 20 }}>
             <li>✓ View ALL examinations across ALL courses</li>
             <li>✓ Premium badge shows which exams require upgrade</li>
-            <li>✓ Subscribe for ₦5,900 to unlock everything</li>
+            <li>✓ Upgrade for only ₦100 (Test Price) to unlock everything</li>
             <li>✓ Lifetime access to 20,000+ questions</li>
             <li>✓ Unlimited exam retakes</li>
           </ul>
@@ -1592,7 +1597,7 @@ const HowToUse = () => {
             <li>📚 <strong>Categories</strong> - Choose your subject area</li>
             <li>📖 <strong>Courses</strong> - Select specific topic</li>
             <li>📝 <strong>Exams</strong> - Take your chosen examination</li>
-            <li>⭐ <strong>Get Premium</strong> - Upgrade for full access</li>
+            <li>⭐ <strong>Get Premium</strong> - Upgrade for full access (₦100 Test Price)</li>
           </ul>
         </div>
         
@@ -1749,20 +1754,37 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component
+// Get Premium Component - FIXED
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
+    if (!user?.id) {
+      alert('Please log in again to make payment.');
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await axios.post('/api/initialize-payment', { email: user?.email, amount: 100 }, {
+      console.log('User ID for payment:', user.id);
+      
+      const response = await axios.post('/api/initialize-payment', { 
+        email: user.email, 
+        amount: 100,
+        userId: user.id,
+        planType: 'premium',
+        examId: null,
+        examTitle: null,
+        sectionNumber: null
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
       localStorage.setItem('payment_reference', response.data.reference);
       window.location.href = response.data.authorization_url;
     } catch (error) {
+      console.error('Payment error:', error);
       alert('Payment initialization failed. Please try again.');
       setLoading(false);
     }
@@ -1788,9 +1810,11 @@ const GetPremium = () => {
               <div><div style={{ fontSize: 36, marginBottom: 8 }}>🏆</div><h3 style={{ fontSize: 14 }}>Lifetime Access</h3></div>
             </div>
             <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: 16, borderRadius: 12, margin: 20 }}>
-              <div style={{ fontSize: 28, fontWeight: 'bold', color: '#1e3c72' }}>₦5,900 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime</span></div>
+              <div style={{ fontSize: 28, fontWeight: 'bold', color: '#1e3c72' }}>₦100 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime (Test Price)</span></div>
             </div>
-            <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>{loading ? 'Processing...' : 'Upgrade Now'}</button>
+            <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>
+              {loading ? 'Processing...' : 'Pay ₦100 (Test)'}
+            </button>
           </>
         )}
       </div>
@@ -1930,7 +1954,7 @@ const AdminPanel = () => {
           )}
 
           {activeTab === 'contacts' && (
-            <div>
+            <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
               {contacts.map(c => (
                 <div key={c._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, marginBottom: 16, border: '1px solid #e0e0e0' }}>
                   <p><strong>From:</strong> {c.name} ({c.email})</p>
@@ -2152,7 +2176,7 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
-    // FIXED: Payment verification - properly updates premium status
+  // Payment verification
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const reference = params.get('reference') || params.get('trxref');
@@ -2175,17 +2199,14 @@ function App() {
             alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
             localStorage.removeItem('payment_reference');
             
-            // Update the local auth state to reflect premium status
             const updatedUser = { ...auth.user, isPremium: true };
             setAuth({ ...auth, user: updatedUser });
             localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
             
-            // Also update axios default headers
             if (auth.token) {
               axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
             }
             
-            // Clear URL parameters and reload
             window.location.href = '/';
           } else {
             alert('Payment verification failed: ' + (response.data.error || 'Unknown error') + '. Please contact support if you were charged.');
