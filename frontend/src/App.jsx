@@ -7,7 +7,7 @@ axios.defaults.baseURL = API_URL;
 
 const AuthContext = createContext();
 
-// Loading Component
+// Loading Component with Percentage Bar
 const LoadingWithBar = ({ message = "Loading", onComplete }) => {
   const [progress, setProgress] = useState(0);
 
@@ -147,10 +147,36 @@ const Timer = ({ duration, onTimeUp }) => {
   );
 };
 
-// Premium Modal Component
+// Premium Modal Component - WITH AUTO VERIFICATION
 const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   const { token, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  // Auto-verify when modal opens (if returning from payment)
+  useEffect(() => {
+    const autoVerify = async () => {
+      const reference = searchParams.get('reference') || searchParams.get('trxref');
+      if (reference && user?.id && !user?.isPremium) {
+        try {
+          console.log('Auto-verifying payment from modal:', reference);
+          const response = await axios.post('/api/verify-payment', {
+            reference: reference,
+            userId: user.id
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (response.data.success) {
+            alert('✅ Payment successful! Your account has been upgraded!');
+            window.location.reload();
+          }
+        } catch (error) {
+          console.error('Auto-verify error:', error);
+        }
+      }
+    };
+    autoVerify();
+  }, [searchParams, user, token]);
 
   const handlePayment = async () => {
     if (!user?.id) {
@@ -160,6 +186,8 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
     
     setLoading(true);
     try {
+      console.log('User ID for payment:', user.id);
+      
       const response = await axios.post('/api/initialize-payment', { 
         email: user.email, 
         amount: 100,
@@ -172,6 +200,7 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      localStorage.setItem('payment_reference', response.data.reference);
       window.location.href = response.data.authorization_url;
     } catch (error) {
       console.error('Payment error:', error);
@@ -1751,55 +1780,53 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component - SIMPLE: Shows message based on URL parameter
+// Get Premium Component - WITH AUTOMATIC PAYMENT VERIFICATION
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [searchParams] = useSearchParams();
-  const paymentStatus = searchParams.get('payment');
-  const [showMessage, setShowMessage] = useState(false);
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState('');
 
+  // AUTOMATIC: Check URL for payment reference when page loads
   useEffect(() => {
-    if (paymentStatus === 'success') {
-      setMessage('✅ Payment successful! Your account has been upgraded to PREMIUM!');
-      setMessageType('success');
-      setShowMessage(true);
-      // Refresh user data
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 3000);
-    } else if (paymentStatus === 'failed') {
-      setMessage('❌ Payment verification failed. Please contact support.');
-      setMessageType('error');
-      setShowMessage(true);
-    } else if (paymentStatus === 'error') {
-      setMessage('⚠️ An error occurred. Please contact support.');
-      setMessageType('error');
-      setShowMessage(true);
-    }
-    
-    // Also check user's premium status from backend
-    const checkPremiumStatus = async () => {
-      if (token) {
+    const autoVerifyPayment = async () => {
+      // Get reference from URL (when returning from Flutterwave)
+      const reference = searchParams.get('reference') || searchParams.get('trxref');
+      
+      console.log('Checking for payment reference in URL:', reference);
+      console.log('Current user premium status:', user?.isPremium);
+      
+      if (reference && user?.id && !user?.isPremium) {
+        setVerifying(true);
         try {
-          const response = await axios.get('/api/payment-status', {
+          console.log('Auto-verifying payment:', reference);
+          const response = await axios.post('/api/verify-payment', {
+            reference: reference,
+            userId: user.id
+          }, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          if (response.data.isPremium && !user?.isPremium) {
-            // Update local state
+          
+          console.log('Verification response:', response.data);
+          
+          if (response.data.success) {
+            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
+            // Update local storage
             const updatedUser = { ...user, isPremium: true };
             localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
+            // Reload to show premium status
             window.location.reload();
           }
         } catch (error) {
-          console.error('Error checking premium status:', error);
+          console.error('Auto-verification error:', error);
+        } finally {
+          setVerifying(false);
         }
       }
     };
-    checkPremiumStatus();
-  }, [paymentStatus, token, user]);
+    
+    autoVerifyPayment();
+  }, [searchParams, user, token]);
 
   const handlePayment = async () => {
     if (!user?.id) {
@@ -1821,6 +1848,7 @@ const GetPremium = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      localStorage.setItem('payment_reference', response.data.reference);
       window.location.href = response.data.authorization_url;
     } catch (error) {
       console.error('Payment error:', error);
@@ -1836,16 +1864,9 @@ const GetPremium = () => {
         <h2 style={{ color: '#1e3c72' }}>Upgrade to Premium</h2>
         <p style={{ marginBottom: 20 }}>Get unlimited access to all examinations and features</p>
         
-        {showMessage && (
-          <div style={{ 
-            marginBottom: 20, 
-            padding: 15, 
-            borderRadius: 10, 
-            background: messageType === 'success' ? '#d4edda' : '#f8d7da',
-            color: messageType === 'success' ? '#155724' : '#721c24',
-            border: `1px solid ${messageType === 'success' ? '#c3e6cb' : '#f5c6cb'}`
-          }}>
-            {message}
+        {verifying && (
+          <div style={{ marginBottom: 20, padding: 10, background: '#fff3e0', borderRadius: 8 }}>
+            <p>Verifying your payment... Please wait.</p>
           </div>
         )}
         
