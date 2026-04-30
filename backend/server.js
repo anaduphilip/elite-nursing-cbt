@@ -708,33 +708,74 @@ app.post('/api/initialize-payment', async (req, res) => {
     });
     res.json({ authorization_url: response.data.data.link, reference: tx_ref });
   } catch (error) {
+    console.error('Payment initialization error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Payment initialization failed' });
   }
 });
 
+// ============ FIXED PAYMENT VERIFICATION ROUTE ============
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const { reference, userId } = req.body;
+    
+    if (!reference || !userId) {
+      return res.status(400).json({ error: 'Missing reference or userId' });
+    }
+    
+    console.log(`Verifying payment for reference: ${reference}, userId: ${userId}`);
+    
+    // Verify with Flutterwave
     const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
       headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }
     });
-    if (response.data.data.status === 'successful') {
+    
+    console.log('Flutterwave response status:', response.data.data?.status);
+    
+    if (response.data.data?.status === 'successful') {
+      // Find the user
       const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Find the transaction
       const transaction = user.transactions.find(t => t.reference === reference);
+      
       if (transaction && transaction.planType === 'single') {
+        // Unlock single exam
         await User.findByIdAndUpdate(userId, {
-          $push: { purchasedExams: { examId: transaction.examId, examTitle: transaction.examTitle, sectionNumber: transaction.sectionNumber, purchaseDate: new Date() } },
+          $push: {
+            purchasedExams: {
+              examId: transaction.examId,
+              examTitle: transaction.examTitle,
+              sectionNumber: transaction.sectionNumber,
+              purchaseDate: new Date()
+            }
+          },
           $set: { 'transactions.$[elem].status': 'completed' }
         }, { arrayFilters: [{ 'elem.reference': reference }] });
+        console.log(`✅ Single exam unlocked for user: ${user.email}`);
       } else {
-        await User.findByIdAndUpdate(userId, { isPremium: true, purchaseDate: new Date(), $set: { 'transactions.$[elem].status': 'completed' } }, { arrayFilters: [{ 'elem.reference': reference }] });
+        // Unlock everything - set isPremium to true
+        const updatedUser = await User.findByIdAndUpdate(userId, { 
+          isPremium: true, 
+          purchaseDate: new Date(),
+          $set: { 'transactions.$[elem].status': 'completed' }
+        }, { 
+          arrayFilters: [{ 'elem.reference': reference }],
+          new: true 
+        });
+        console.log(`✅ Premium activated for user: ${updatedUser.email}`);
       }
-      res.json({ success: true });
+      
+      res.json({ success: true, isPremium: true });
     } else {
-      res.json({ success: false });
+      console.log('Payment verification failed - status not successful');
+      res.json({ success: false, error: 'Payment not successful' });
     }
   } catch (error) {
-    res.status(500).json({ error: 'Verification failed' });
+    console.error('Payment verification error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Verification failed', details: error.message });
   }
 });
 
