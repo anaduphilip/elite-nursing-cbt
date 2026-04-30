@@ -1754,12 +1754,10 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component - WITH MANUAL PAYMENT VERIFICATION BUTTON
+// Get Premium Component
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
-  const [checkingPayment, setCheckingPayment] = useState(false);
-  const [pendingPayment, setPendingPayment] = useState(null);
 
   const handlePayment = async () => {
     if (!user?.id) {
@@ -1792,59 +1790,6 @@ const GetPremium = () => {
     }
   };
 
-  const checkPendingPayment = async () => {
-    setCheckingPayment(true);
-    try {
-      const response = await axios.get('/api/pending-payment', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.hasPending) {
-        setPendingPayment(response.data);
-        alert(`Pending payment found! Reference: ${response.data.reference}\nAmount: ₦${response.data.amount}\n\nClick "Verify Now" to check if payment was successful.`);
-      } else {
-        alert('No pending payments found.');
-        setPendingPayment(null);
-      }
-    } catch (error) {
-      console.error('Error checking payment:', error);
-      alert('Error checking payment status');
-    } finally {
-      setCheckingPayment(false);
-    }
-  };
-
-  const manualVerify = async () => {
-    if (!pendingPayment?.reference) {
-      alert('No pending payment to verify');
-      return;
-    }
-    
-    setCheckingPayment(true);
-    try {
-      const response = await axios.post('/api/manual-verify', {
-        reference: pendingPayment.reference
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.success) {
-        alert('✅ Payment verified! Your account has been upgraded to PREMIUM!');
-        // Update user state
-        const updatedUser = { ...user, isPremium: true };
-        localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
-        window.location.reload();
-      } else {
-        alert('Verification failed: ' + response.data.message);
-      }
-    } catch (error) {
-      console.error('Manual verification error:', error);
-      alert('Error verifying payment');
-    } finally {
-      setCheckingPayment(false);
-    }
-  };
-
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
@@ -1870,44 +1815,6 @@ const GetPremium = () => {
             <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>
               {loading ? 'Processing...' : 'Pay ₦100 (Test)'}
             </button>
-            
-            <div style={{ marginTop: 20 }}>
-              <hr style={{ margin: '20px 0', borderColor: '#e0e0e0' }} />
-              <p style={{ color: '#666', fontSize: 14, marginBottom: 15 }}>Already made a payment? Check status below:</p>
-              <button
-                onClick={checkPendingPayment}
-                disabled={checkingPayment}
-                style={{
-                  background: '#6c757d',
-                  color: 'white',
-                  padding: '10px 20px',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  marginRight: 10
-                }}
-              >
-                {checkingPayment ? 'Checking...' : '🔍 Check Pending Payment'}
-              </button>
-              
-              {pendingPayment && (
-                <button
-                  onClick={manualVerify}
-                  style={{
-                    background: '#28a745',
-                    color: 'white',
-                    padding: '10px 20px',
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontSize: 14
-                  }}
-                >
-                  ✅ Verify Now
-                </button>
-              )}
-            </div>
           </>
         )}
       </div>
@@ -2269,13 +2176,21 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
-  // Payment verification - only runs when returning from Flutterwave with a reference in URL
+  // SIMPLIFIED: Payment verification - automatically checks for reference in URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const reference = urlParams.get('reference') || urlParams.get('trxref');
-    const storedReference = localStorage.getItem('payment_reference');
     
-    if (reference && storedReference && reference === storedReference && auth.user?.id) {
+    // If there's a reference in the URL and user is logged in, verify payment automatically
+    if (reference && auth.user?.id) {
+      const processedKey = `payment_processed_${reference}`;
+      
+      // Check if already processed
+      if (localStorage.getItem(processedKey)) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+      
       const verifyPayment = async () => {
         try {
           console.log('🔍 Verifying payment:', reference);
@@ -2288,25 +2203,27 @@ function App() {
           console.log('📡 Verification response:', response.data);
           
           if (response.data.success) {
-            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
+            localStorage.setItem(processedKey, 'true');
             localStorage.removeItem('payment_reference');
             
-            window.history.replaceState({}, document.title, window.location.pathname);
+            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
             
+            // Update user state
             const updatedUser = { ...auth.user, isPremium: true };
             setAuth({ ...auth, user: updatedUser });
             localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
             
+            // Clear URL parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Refresh to show premium status
             window.location.reload();
           } else {
-            alert('Payment verification failed: ' + (response.data.error || 'Unknown error'));
-            localStorage.removeItem('payment_reference');
+            console.log('Verification failed:', response.data.error);
             window.history.replaceState({}, document.title, window.location.pathname);
           }
         } catch (error) { 
           console.error('❌ Verification error:', error);
-          alert('Payment verification failed. Please contact support if you were charged.');
-          localStorage.removeItem('payment_reference');
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       };
