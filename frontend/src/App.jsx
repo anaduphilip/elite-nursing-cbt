@@ -2176,13 +2176,16 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
-  // Payment verification - ONLY runs when returning from Flutterwave
+  // FIXED: Payment verification - only runs when returning from Flutterwave with a reference in URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const reference = urlParams.get('reference') || urlParams.get('trxref');
     const storedReference = localStorage.getItem('payment_reference');
     
-    // Only proceed if we have a reference in the URL that matches stored reference
+    // Only run verification if:
+    // 1. There's a reference in the URL (coming back from Flutterwave)
+    // 2. AND it matches the stored reference
+    // 3. AND user is logged in
     if (reference && storedReference && reference === storedReference && auth.user?.id) {
       const verifyPayment = async () => {
         try {
