@@ -2,7 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API_URL = 'https://elite-nursing-cbt.onrender.com';
+const API_URL = 'https://elite-nursing-backend.onrender.com';
 axios.defaults.baseURL = API_URL;
 
 const AuthContext = createContext();
@@ -2176,20 +2176,22 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
 
-  // Payment verification
+  // FIXED: Payment verification - only runs when coming from Flutterwave callback
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const reference = params.get('reference') || params.get('trxref');
-    const storedReference = localStorage.getItem('payment_reference');
-    const paymentRef = reference || storedReference;
+    // Check if we're returning from Flutterwave payment
+    const urlParams = new URLSearchParams(window.location.search);
+    const reference = urlParams.get('reference') || urlParams.get('trxref');
     
-    if (paymentRef && auth.user?.id) {
+    // Only run verification if there's a reference in the URL AND we have stored payment reference
+    const storedReference = localStorage.getItem('payment_reference');
+    
+    if (reference && storedReference && reference === storedReference && auth.user?.id) {
       const verifyPayment = async () => {
         try {
-          console.log('Verifying payment:', paymentRef, 'for user:', auth.user?.id);
+          console.log('Verifying payment:', reference, 'for user:', auth.user?.id);
           
           const response = await axios.post('/api/verify-payment', { 
-            reference: paymentRef, 
+            reference: reference, 
             userId: auth.user?.id 
           });
           
@@ -2199,21 +2201,29 @@ function App() {
             alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
             localStorage.removeItem('payment_reference');
             
+            // Clear the URL parameters without reloading
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Update the local auth state to reflect premium status
             const updatedUser = { ...auth.user, isPremium: true };
             setAuth({ ...auth, user: updatedUser });
             localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
             
+            // Also update axios default headers
             if (auth.token) {
               axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
             }
             
-            window.location.href = '/';
+            // Refresh the page to show premium status
+            window.location.reload();
           } else {
             alert('Payment verification failed: ' + (response.data.error || 'Unknown error') + '. Please contact support if you were charged.');
+            localStorage.removeItem('payment_reference');
           }
         } catch (error) { 
           console.error('Verification error:', error);
           alert('Payment verification failed. Please contact support if you were charged.');
+          localStorage.removeItem('payment_reference');
         }
       };
       verifyPayment();
