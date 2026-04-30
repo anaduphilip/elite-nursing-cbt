@@ -2,7 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API_URL = 'https://elite-nursing-backend.onrender.com';
+const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
 
 const AuthContext = createContext();
