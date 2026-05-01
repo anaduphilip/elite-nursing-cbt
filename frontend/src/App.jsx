@@ -1825,30 +1825,31 @@ const GetPremium = () => {
   );
 };
 
-// Payment Return Component - Handles Flutterwave redirect automatically
+// Payment Return Component - WITH RETRY MECHANISM
 const PaymentReturn = () => {
   const { token, user } = useContext(AuthContext);
   const [status, setStatus] = useState('verifying');
+  const [message, setMessage] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const verifyPaymentOnReturn = async () => {
+    const verifyPaymentWithRetry = async () => {
       const reference = searchParams.get('reference');
       
-      console.log('Payment Return Page - Reference:', reference);
-      console.log('Payment Return Page - User:', user);
+      console.log(`Payment Return - Reference: ${reference}, Retry: ${retryCount}`);
       
       if (!reference) {
         setStatus('error');
+        setMessage('No payment reference found');
         return;
       }
       
       if (!user?.id) {
         setStatus('error');
-        setTimeout(() => {
-          navigate('/login');
-        }, 3000);
+        setMessage('Please log in to verify payment');
+        setTimeout(() => navigate('/login'), 3000);
         return;
       }
       
@@ -1864,42 +1865,70 @@ const PaymentReturn = () => {
         
         if (response.data.success) {
           setStatus('success');
-          // Update local storage
+          setMessage('Payment successful! Your account has been upgraded to PREMIUM!');
           const updatedUser = { ...user, isPremium: true };
           localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
-          setTimeout(() => {
-            navigate('/get-premium');
-          }, 3000);
+          setTimeout(() => navigate('/get-premium'), 3000);
+        } else if (response.data.pending) {
+          setStatus('pending');
+          setMessage(response.data.message);
+        } else if (response.data.error === 'Transaction not found' && retryCount < 10) {
+          // Retry after delay - transaction not ready yet
+          console.log(`Transaction not found, retrying in 2 seconds... (${retryCount + 1}/10)`);
+          setTimeout(() => setRetryCount(prev => prev + 1), 2000);
         } else {
           setStatus('failed');
+          setMessage(response.data.error || 'Payment verification failed');
         }
       } catch (error) {
         console.error('Verification error:', error);
-        setStatus('failed');
+        if (retryCount < 10) {
+          console.log(`Error occurred, retrying in 3 seconds... (${retryCount + 1}/10)`);
+          setTimeout(() => setRetryCount(prev => prev + 1), 3000);
+        } else {
+          setStatus('failed');
+          setMessage('Payment verification failed after multiple attempts. Please contact support.');
+        }
       }
     };
     
-    if (user) {
-      verifyPaymentOnReturn();
-    } else {
-      // Wait for user to be loaded
-      const timer = setTimeout(() => {
-        if (user) {
-          verifyPaymentOnReturn();
-        }
-      }, 2000);
-      return () => clearTimeout(timer);
+    verifyPaymentWithRetry();
+  }, [searchParams, user, token, navigate, retryCount]);
+
+  const checkPaymentManually = async () => {
+    const reference = searchParams.get('reference');
+    if (!reference) return;
+    
+    try {
+      const response = await axios.post('/api/verify-payment', {
+        reference: reference,
+        userId: user.id
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        alert('✅ Payment confirmed! Your account has been upgraded to PREMIUM!');
+        const updatedUser = { ...user, isPremium: true };
+        localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
+        navigate('/get-premium');
+      } else {
+        alert('Payment still pending. Please check back later.');
+      }
+    } catch (error) {
+      alert('Error checking payment status');
     }
-  }, [searchParams, user, token, navigate]);
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: '#f0f7f4', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 400, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+      <div style={{ background: 'white', borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 450, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         {status === 'verifying' && (
           <>
             <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
             <h2 style={{ color: '#1e3c72' }}>Verifying Payment...</h2>
             <p>Please wait while we confirm your payment.</p>
+            <p style={{ fontSize: 12, color: '#666', marginTop: 10 }}>Attempt {retryCount + 1}/10</p>
             <LoadingWithBar message="Verifying" />
           </>
         )}
@@ -1907,17 +1936,37 @@ const PaymentReturn = () => {
           <>
             <div style={{ fontSize: 48, marginBottom: 20 }}>✅</div>
             <h2 style={{ color: '#2e7d32' }}>Payment Successful!</h2>
-            <p>Your account has been upgraded to PREMIUM!</p>
+            <p>{message}</p>
             <p>Redirecting you to the premium page...</p>
+          </>
+        )}
+        {status === 'pending' && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 20 }}>⏰</div>
+            <h2 style={{ color: '#ff9800' }}>Payment Processing</h2>
+            <p>{message}</p>
+            <button onClick={checkPaymentManually} style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>
+              Check Status Now
+            </button>
+            <Link to="/">
+              <button style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 10 }}>
+                Go to Home
+              </button>
+            </Link>
           </>
         )}
         {status === 'failed' && (
           <>
             <div style={{ fontSize: 48, marginBottom: 20 }}>❌</div>
             <h2 style={{ color: '#dc3545' }}>Verification Failed</h2>
-            <p>We couldn't verify your payment automatically.</p>
+            <p>{message}</p>
+            <button onClick={checkPaymentManually} style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>
+              Try Again
+            </button>
             <Link to="/get-premium">
-              <button style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>Go to Get Premium</button>
+              <button style={{ background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 10 }}>
+                Go to Get Premium
+              </button>
             </Link>
           </>
         )}
@@ -1925,7 +1974,7 @@ const PaymentReturn = () => {
           <>
             <div style={{ fontSize: 48, marginBottom: 20 }}>⚠️</div>
             <h2 style={{ color: '#ff9800' }}>Please Log In</h2>
-            <p>Please log in to complete your payment verification.</p>
+            <p>{message}</p>
             <Link to="/login">
               <button style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>Go to Login</button>
             </Link>
