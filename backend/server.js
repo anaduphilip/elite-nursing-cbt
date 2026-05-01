@@ -692,7 +692,9 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
   }
 });
 
-// ============ PAYMENT ROUTES - FIXED FLUTTERWAVE INTEGRATION ============
+// ============ PAYMENT ROUTES - CLEAN VERSION ============
+
+// Initialize payment
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount, userId, planType, examId, examTitle, sectionNumber } = req.body;
@@ -702,8 +704,8 @@ app.post('/api/initialize-payment', async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' });
     }
     
-    // Generate unique reference
-    const tx_ref = `ELITE-${Date.now()}-${userId}-${crypto.randomBytes(4).toString('hex')}`;
+    // Generate unique reference for this transaction
+    const tx_ref = `ELITE-${Date.now()}-${userId}-${Math.random().toString(36).substring(2, 8)}`;
     
     console.log(`💰 INITIALIZING PAYMENT: ${tx_ref} for user ${userId}, amount: ${amount}`);
     
@@ -712,7 +714,7 @@ app.post('/api/initialize-payment', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Store transaction BEFORE payment
+    // Store transaction with tx_ref
     user.transactions.push({
       reference: tx_ref,
       amount: amount,
@@ -737,8 +739,7 @@ app.post('/api/initialize-payment', async (req, res) => {
       },
       customizations: { 
         title: "ELITE Nursing CBT", 
-        description: planType === 'single' ? `Exam ${sectionNumber} Access` : "Complete Premium Package",
-        logo: "https://elite-nursing-cbt.vercel.app/logo.png"
+        description: planType === 'single' ? `Exam ${sectionNumber} Access` : "Complete Premium Package"
       }
     }, {
       headers: { 
@@ -747,12 +748,11 @@ app.post('/api/initialize-payment', async (req, res) => {
       }
     });
     
-    console.log(`✅ Payment initialized successfully, redirect URL: ${response.data.data.link}`);
+    console.log(`✅ Payment initialized, redirect URL: ${response.data.data.link}`);
     
-    // Store the reference in a separate collection or return it
     res.json({ 
       authorization_url: response.data.data.link, 
-      reference: tx_ref 
+      reference: tx_ref
     });
     
   } catch (error) {
@@ -761,7 +761,7 @@ app.post('/api/initialize-payment', async (req, res) => {
   }
 });
 
-// FIXED: Payment verification endpoint - Better Flutterwave integration
+// Payment verification endpoint
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const { reference, userId } = req.body;
@@ -769,17 +769,15 @@ app.post('/api/verify-payment', async (req, res) => {
     console.log(`🔍 VERIFYING PAYMENT - Reference: ${reference}, UserId: ${userId}`);
     
     if (!reference || !userId) {
-      console.log(`Missing reference or userId`);
       return res.status(400).json({ success: false, error: 'Missing reference or userId' });
     }
     
     const user = await User.findById(userId);
     if (!user) {
-      console.log(`User not found: ${userId}`);
       return res.status(404).json({ success: false, error: 'User not found' });
     }
     
-    // If user is already premium, return success immediately
+    // If already premium, return success
     if (user.isPremium) {
       console.log(`✅ User ${user.email} is already premium`);
       return res.json({ success: true, isPremium: true, message: 'Already premium' });
@@ -792,63 +790,57 @@ app.post('/api/verify-payment', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Transaction not found' });
     }
     
-    // If transaction already completed, upgrade user
-    if (transaction.status === 'completed') {
-      if (!user.isPremium) {
-        user.isPremium = true;
-        user.purchaseDate = new Date();
-        await user.save();
-      }
-      return res.json({ success: true, isPremium: true, message: 'Premium activated' });
-    }
+    console.log(`Transaction found - Amount: ${transaction.amount}, Status: ${transaction.status}`);
     
     // Verify with Flutterwave
     console.log(`Calling Flutterwave API for verification...`);
-    try {
-      const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
-        headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }
-      });
+    
+    const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
+      headers: { 
+        Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+    
+    const transactionData = response.data.data;
+    console.log(`📊 FLUTTERWAVE RESPONSE - Status: ${transactionData?.status}, Amount: ${transactionData?.amount}`);
+    
+    if (transactionData?.status === 'successful') {
+      // Update user to premium
+      user.isPremium = true;
+      user.purchaseDate = new Date();
+      transaction.status = 'completed';
+      await user.save();
       
-      const transactionData = response.data.data;
-      console.log(`📊 FLUTTERWAVE RESPONSE - Status: ${transactionData?.status}, Amount: ${transactionData?.amount}`);
+      console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} ✅✅✅`);
+      return res.json({ success: true, isPremium: true, message: 'Premium activated successfully!' });
       
-      if (transactionData?.status === 'successful') {
-        // Update user to premium
-        user.isPremium = true;
-        user.purchaseDate = new Date();
-        transaction.status = 'completed';
-        await user.save();
-        
-        console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} (Amount: ₦${transactionData?.amount}) ✅✅✅`);
-        return res.json({ success: true, isPremium: true, message: 'Premium activated successfully' });
-        
-      } else if (transactionData?.status === 'pending') {
-        console.log(`⏰ Payment still pending for reference: ${reference}`);
-        return res.json({ success: false, pending: true, message: 'Payment is still processing. Please wait.' });
-        
-      } else {
-        console.log(`❌ Payment verification failed - Status: ${transactionData?.status}`);
-        return res.json({ success: false, error: `Payment not successful. Status: ${transactionData?.status}` });
-      }
+    } else if (transactionData?.status === 'pending') {
+      console.log(`⏰ Payment still pending for reference: ${reference}`);
+      return res.json({ success: false, pending: true, message: 'Payment is still processing. Please wait a few moments.' });
       
-    } catch (flutterwaveError) {
-      console.log(`Flutterwave API error: ${flutterwaveError.response?.data?.message || flutterwaveError.message}`);
-      
-      // If Flutterwave says transaction not found, it might be delayed
-      if (flutterwaveError.response?.data?.message?.includes('No transaction was found')) {
-        return res.json({ 
-          success: false, 
-          pending: true, 
-          message: 'Transaction not found yet. Flutterwave may be delayed. Please wait a few moments.' 
-        });
-      }
-      
-      return res.json({ success: false, error: flutterwaveError.response?.data?.message || 'Verification failed' });
+    } else {
+      console.log(`❌ Payment verification failed - Status: ${transactionData?.status}`);
+      return res.json({ success: false, error: `Payment status: ${transactionData?.status}. Please contact support.` });
     }
     
   } catch (error) {
-    console.error('❌ Payment verification error:', error.message);
-    res.status(200).json({ success: false, error: 'Verification failed: ' + error.message });
+    console.error('❌ Payment verification error:', error.response?.data || error.message);
+    
+    // Check if the transaction exists in Flutterwave but we couldn't verify
+    if (error.response?.status === 404) {
+      return res.json({ 
+        success: false, 
+        pending: true, 
+        message: 'Transaction ID not found in Flutterwave. Please check if payment was completed.' 
+      });
+    }
+    
+    res.status(200).json({ 
+      success: false, 
+      error: 'Verification failed: ' + (error.response?.data?.message || error.message) 
+    });
   }
 });
 
