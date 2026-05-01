@@ -1825,18 +1825,39 @@ const GetPremium = () => {
   );
 };
 
-// Payment Return Component - WITH RETRY MECHANISM
+// Payment Return Component - FIXED VERSION (No external dependencies)
 const PaymentReturn = () => {
-  const { token, user } = useContext(AuthContext);
+  const { token, user, login } = useContext(AuthContext);
   const [status, setStatus] = useState('verifying');
   const [message, setMessage] = useState('');
   const [retryCount, setRetryCount] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  // Progress animation for verifying state
   useEffect(() => {
-    const verifyPaymentWithRetry = async () => {
-      const reference = searchParams.get('reference');
+    if (status === 'verifying') {
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) return 90;
+          return prev + Math.random() * 15;
+        });
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    const verifyPayment = async () => {
+      // Try to get reference from multiple sources
+      let reference = searchParams.get('reference') || searchParams.get('trxref');
+      
+      // Also check localStorage
+      const storedRef = localStorage.getItem('payment_reference');
+      if (!reference && storedRef) {
+        reference = storedRef;
+      }
       
       console.log(`Payment Return - Reference: ${reference}, Retry: ${retryCount}`);
       
@@ -1846,7 +1867,24 @@ const PaymentReturn = () => {
         return;
       }
       
-      if (!user?.id) {
+      // Get user from localStorage if not in context
+      let currentUser = user;
+      let currentToken = token;
+      
+      if (!currentUser || !currentToken) {
+        const savedAuth = localStorage.getItem('auth');
+        if (savedAuth) {
+          try {
+            const auth = JSON.parse(savedAuth);
+            currentUser = auth.user;
+            currentToken = auth.token;
+          } catch (e) {
+            console.error('Error parsing auth:', e);
+          }
+        }
+      }
+      
+      if (!currentUser?.id) {
         setStatus('error');
         setMessage('Please log in to verify payment');
         setTimeout(() => navigate('/login'), 3000);
@@ -1854,11 +1892,13 @@ const PaymentReturn = () => {
       }
       
       try {
+        console.log(`Sending verification request for reference: ${reference}, userId: ${currentUser.id}`);
+        
         const response = await axios.post('/api/verify-payment', {
           reference: reference,
-          userId: user.id
+          userId: currentUser.id
         }, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${currentToken}` }
         });
         
         console.log('Verification response:', response.data);
@@ -1866,19 +1906,30 @@ const PaymentReturn = () => {
         if (response.data.success) {
           setStatus('success');
           setMessage('Payment successful! Your account has been upgraded to PREMIUM!');
-          const updatedUser = { ...user, isPremium: true };
-          localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
+          
+          // Clear stored reference
+          localStorage.removeItem('payment_reference');
+          
+          // Update user in localStorage and context
+          const updatedUser = { ...currentUser, isPremium: true };
+          localStorage.setItem('auth', JSON.stringify({ token: currentToken, user: updatedUser }));
+          
+          // Update context if login function exists
+          if (login && currentToken) {
+            login(currentToken, updatedUser);
+          }
+          
           setTimeout(() => navigate('/get-premium'), 3000);
         } else if (response.data.pending) {
           setStatus('pending');
-          setMessage(response.data.message);
-        } else if (response.data.error === 'Transaction not found' && retryCount < 10) {
-          // Retry after delay - transaction not ready yet
-          console.log(`Transaction not found, retrying in 2 seconds... (${retryCount + 1}/10)`);
-          setTimeout(() => setRetryCount(prev => prev + 1), 2000);
+          setMessage(response.data.message || 'Payment is still processing. Please check back in a few minutes.');
+        } else if (retryCount < 10) {
+          // Retry after delay
+          console.log(`Verification failed, retrying in 3 seconds... (${retryCount + 1}/10)`);
+          setTimeout(() => setRetryCount(prev => prev + 1), 3000);
         } else {
           setStatus('failed');
-          setMessage(response.data.error || 'Payment verification failed');
+          setMessage(response.data.error || 'Payment verification failed. Please contact support.');
         }
       } catch (error) {
         console.error('Verification error:', error);
@@ -1887,38 +1938,87 @@ const PaymentReturn = () => {
           setTimeout(() => setRetryCount(prev => prev + 1), 3000);
         } else {
           setStatus('failed');
-          setMessage('Payment verification failed after multiple attempts. Please contact support.');
+          setMessage('Payment verification failed after multiple attempts. Please contact support on WhatsApp: 09063908476');
         }
       }
     };
     
-    verifyPaymentWithRetry();
-  }, [searchParams, user, token, navigate, retryCount]);
+    verifyPayment();
+  }, [searchParams, user, token, navigate, login, retryCount]);
 
   const checkPaymentManually = async () => {
-    const reference = searchParams.get('reference');
-    if (!reference) return;
+    let reference = searchParams.get('reference') || searchParams.get('trxref');
+    const storedRef = localStorage.getItem('payment_reference');
+    if (!reference && storedRef) {
+      reference = storedRef;
+    }
+    
+    if (!reference) {
+      alert('No payment reference found');
+      return;
+    }
+    
+    // Get user from localStorage
+    let currentUser = user;
+    let currentToken = token;
+    if (!currentUser || !currentToken) {
+      const savedAuth = localStorage.getItem('auth');
+      if (savedAuth) {
+        try {
+          const auth = JSON.parse(savedAuth);
+          currentUser = auth.user;
+          currentToken = auth.token;
+        } catch (e) {
+          console.error('Error parsing auth:', e);
+        }
+      }
+    }
+    
+    if (!currentUser?.id) {
+      alert('Please log in first');
+      navigate('/login');
+      return;
+    }
     
     try {
       const response = await axios.post('/api/verify-payment', {
         reference: reference,
-        userId: user.id
+        userId: currentUser.id
       }, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${currentToken}` }
       });
       
       if (response.data.success) {
         alert('✅ Payment confirmed! Your account has been upgraded to PREMIUM!');
-        const updatedUser = { ...user, isPremium: true };
-        localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
+        const updatedUser = { ...currentUser, isPremium: true };
+        localStorage.setItem('auth', JSON.stringify({ token: currentToken, user: updatedUser }));
+        localStorage.removeItem('payment_reference');
+        if (login && currentToken) login(currentToken, updatedUser);
         navigate('/get-premium');
       } else {
-        alert('Payment still pending. Please check back later.');
+        alert(response.data.error || 'Payment still pending. Please check back later.');
       }
     } catch (error) {
-      alert('Error checking payment status');
+      console.error('Manual check error:', error);
+      alert('Error checking payment status. Please contact support.');
     }
   };
+
+  // Simple loading component inline
+  const SimpleLoader = () => (
+    <div style={{ marginTop: 20 }}>
+      <div style={{ width: '100%', height: 8, background: '#e0e0e0', borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{ 
+          width: `${Math.min(progress, 100)}%`, 
+          height: '100%', 
+          background: 'linear-gradient(90deg, #1e3c72, #2a5298)', 
+          borderRadius: 4,
+          transition: 'width 0.3s ease'
+        }} />
+      </div>
+      <p style={{ fontSize: 12, color: '#666', marginTop: 10 }}>{Math.floor(Math.min(progress, 100))}%</p>
+    </div>
+  );
 
   return (
     <div style={{ minHeight: '100vh', background: '#f0f7f4', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
@@ -1929,7 +2029,7 @@ const PaymentReturn = () => {
             <h2 style={{ color: '#1e3c72' }}>Verifying Payment...</h2>
             <p>Please wait while we confirm your payment.</p>
             <p style={{ fontSize: 12, color: '#666', marginTop: 10 }}>Attempt {retryCount + 1}/10</p>
-            <LoadingWithBar message="Verifying" />
+            <SimpleLoader />
           </>
         )}
         {status === 'success' && (
@@ -1984,7 +2084,6 @@ const PaymentReturn = () => {
     </div>
   );
 };
-
 // Admin Panel Component
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
