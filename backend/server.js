@@ -761,7 +761,7 @@ app.post('/api/initialize-payment', async (req, res) => {
   }
 });
 
-// FIXED: Payment verification endpoint - Direct Flutterwave verification
+// FIXED: Payment verification endpoint - Better Flutterwave integration
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const { reference, userId } = req.body;
@@ -792,82 +792,63 @@ app.post('/api/verify-payment', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Transaction not found' });
     }
     
+    // If transaction already completed, upgrade user
+    if (transaction.status === 'completed') {
+      if (!user.isPremium) {
+        user.isPremium = true;
+        user.purchaseDate = new Date();
+        await user.save();
+      }
+      return res.json({ success: true, isPremium: true, message: 'Premium activated' });
+    }
+    
     // Verify with Flutterwave
     console.log(`Calling Flutterwave API for verification...`);
-    const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
-      headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }
-    });
-    
-    const transactionData = response.data.data;
-    console.log(`📊 FLUTTERWAVE RESPONSE - Status: ${transactionData?.status}, Amount: ${transactionData?.amount}`);
-    
-    if (transactionData?.status === 'successful') {
-      // Update user to premium
-      user.isPremium = true;
-      user.purchaseDate = new Date();
-      transaction.status = 'completed';
-      await user.save();
+    try {
+      const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
+        headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }
+      });
       
-      console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} (Amount: ₦${transactionData?.amount}) ✅✅✅`);
-      return res.json({ success: true, isPremium: true, message: 'Premium activated successfully' });
+      const transactionData = response.data.data;
+      console.log(`📊 FLUTTERWAVE RESPONSE - Status: ${transactionData?.status}, Amount: ${transactionData?.amount}`);
       
-    } else if (transactionData?.status === 'pending') {
-      console.log(`⏰ Payment still pending for reference: ${reference}`);
-      return res.json({ success: false, pending: true, message: 'Payment is still processing. Please check back in a few minutes.' });
+      if (transactionData?.status === 'successful') {
+        // Update user to premium
+        user.isPremium = true;
+        user.purchaseDate = new Date();
+        transaction.status = 'completed';
+        await user.save();
+        
+        console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} (Amount: ₦${transactionData?.amount}) ✅✅✅`);
+        return res.json({ success: true, isPremium: true, message: 'Premium activated successfully' });
+        
+      } else if (transactionData?.status === 'pending') {
+        console.log(`⏰ Payment still pending for reference: ${reference}`);
+        return res.json({ success: false, pending: true, message: 'Payment is still processing. Please wait.' });
+        
+      } else {
+        console.log(`❌ Payment verification failed - Status: ${transactionData?.status}`);
+        return res.json({ success: false, error: `Payment not successful. Status: ${transactionData?.status}` });
+      }
       
-    } else {
-      console.log(`❌ Payment verification failed - Status: ${transactionData?.status}`);
-      return res.json({ success: false, error: `Payment not successful. Status: ${transactionData?.status}. Please try again.` });
+    } catch (flutterwaveError) {
+      console.log(`Flutterwave API error: ${flutterwaveError.response?.data?.message || flutterwaveError.message}`);
+      
+      // If Flutterwave says transaction not found, it might be delayed
+      if (flutterwaveError.response?.data?.message?.includes('No transaction was found')) {
+        return res.json({ 
+          success: false, 
+          pending: true, 
+          message: 'Transaction not found yet. Flutterwave may be delayed. Please wait a few moments.' 
+        });
+      }
+      
+      return res.json({ success: false, error: flutterwaveError.response?.data?.message || 'Verification failed' });
     }
     
   } catch (error) {
-    console.error('❌ Payment verification error:', error.response?.data || error.message);
-    // Check if transaction exists in Flutterwave but we couldn't verify
-    if (error.response?.data?.message?.includes('No transaction was found')) {
-      return res.status(200).json({ success: false, pending: true, message: 'Transaction not found yet. Please wait a few moments and try again.' });
-    }
-    res.status(200).json({ success: false, error: 'Verification failed: ' + (error.response?.data?.message || error.message) });
-  }
-});
-
-// Check payment status manually (for users to retry)
-app.post('/api/check-payment-status', async (req, res) => {
-  try {
-    const { reference, userId } = req.body;
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.json({ success: false, error: 'User not found' });
-    }
-    
-    const transaction = user.transactions.find(t => t.reference === reference);
-    if (!transaction) {
-      return res.json({ success: false, error: 'Transaction not found' });
-    }
-    
-    if (transaction.status === 'completed' || user.isPremium) {
-      return res.json({ success: true, isPremium: true });
-    }
-    
-    // Verify with Flutterwave again
-    const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
-      headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }
-    });
-    
-    const transactionData = response.data.data;
-    
-    if (transactionData?.status === 'successful') {
-      user.isPremium = true;
-      transaction.status = 'completed';
-      await user.save();
-      return res.json({ success: true, isPremium: true });
-    }
-    
-    return res.json({ success: false, status: transactionData?.status });
-    
-  } catch (error) {
-    console.error('Check payment error:', error);
-    res.json({ success: false, error: error.message });
+    console.error('❌ Payment verification error:', error.message);
+    res.status(200).json({ success: false, error: 'Verification failed: ' + error.message });
   }
 });
 
