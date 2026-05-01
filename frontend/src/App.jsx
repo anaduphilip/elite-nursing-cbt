@@ -1825,7 +1825,7 @@ const GetPremium = () => {
   );
 };
 
-// Payment Return Component - FIXED VERSION (No external dependencies)
+// Payment Return Component - FIXED VERSION with better error handling
 const PaymentReturn = () => {
   const { token, user, login } = useContext(AuthContext);
   const [status, setStatus] = useState('verifying');
@@ -1835,7 +1835,7 @@ const PaymentReturn = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Progress animation for verifying state
+  // Progress animation
   useEffect(() => {
     if (status === 'verifying') {
       const interval = setInterval(() => {
@@ -1850,11 +1850,10 @@ const PaymentReturn = () => {
 
   useEffect(() => {
     const verifyPayment = async () => {
-      // Try to get reference from multiple sources
+      // Get reference from URL or localStorage
       let reference = searchParams.get('reference') || searchParams.get('trxref');
-      
-      // Also check localStorage
       const storedRef = localStorage.getItem('payment_reference');
+      
       if (!reference && storedRef) {
         reference = storedRef;
       }
@@ -1867,7 +1866,7 @@ const PaymentReturn = () => {
         return;
       }
       
-      // Get user from localStorage if not in context
+      // Get current user
       let currentUser = user;
       let currentToken = token;
       
@@ -1892,7 +1891,7 @@ const PaymentReturn = () => {
       }
       
       try {
-        console.log(`Sending verification request for reference: ${reference}, userId: ${currentUser.id}`);
+        console.log(`Sending verification request...`);
         
         const response = await axios.post('/api/verify-payment', {
           reference: reference,
@@ -1906,15 +1905,11 @@ const PaymentReturn = () => {
         if (response.data.success) {
           setStatus('success');
           setMessage('Payment successful! Your account has been upgraded to PREMIUM!');
-          
-          // Clear stored reference
           localStorage.removeItem('payment_reference');
           
-          // Update user in localStorage and context
           const updatedUser = { ...currentUser, isPremium: true };
           localStorage.setItem('auth', JSON.stringify({ token: currentToken, user: updatedUser }));
           
-          // Update context if login function exists
           if (login && currentToken) {
             login(currentToken, updatedUser);
           }
@@ -1922,23 +1917,24 @@ const PaymentReturn = () => {
           setTimeout(() => navigate('/get-premium'), 3000);
         } else if (response.data.pending) {
           setStatus('pending');
-          setMessage(response.data.message || 'Payment is still processing. Please check back in a few minutes.');
-        } else if (retryCount < 10) {
-          // Retry after delay
-          console.log(`Verification failed, retrying in 3 seconds... (${retryCount + 1}/10)`);
-          setTimeout(() => setRetryCount(prev => prev + 1), 3000);
+          setMessage(response.data.message || 'Payment is still processing.');
+        } else if (retryCount < 15) {
+          // Retry with exponential backoff
+          const delay = Math.min(3000 * Math.pow(1.5, retryCount), 15000);
+          console.log(`Retrying in ${delay/1000} seconds... (${retryCount + 1}/15)`);
+          setTimeout(() => setRetryCount(prev => prev + 1), delay);
         } else {
           setStatus('failed');
           setMessage(response.data.error || 'Payment verification failed. Please contact support.');
         }
       } catch (error) {
         console.error('Verification error:', error);
-        if (retryCount < 10) {
-          console.log(`Error occurred, retrying in 3 seconds... (${retryCount + 1}/10)`);
-          setTimeout(() => setRetryCount(prev => prev + 1), 3000);
+        if (retryCount < 15) {
+          const delay = Math.min(3000 * Math.pow(1.5, retryCount), 15000);
+          setTimeout(() => setRetryCount(prev => prev + 1), delay);
         } else {
           setStatus('failed');
-          setMessage('Payment verification failed after multiple attempts. Please contact support on WhatsApp: 09063908476');
+          setMessage('Payment verification failed. Please contact support on WhatsApp: 09063908476');
         }
       }
     };
@@ -1958,7 +1954,6 @@ const PaymentReturn = () => {
       return;
     }
     
-    // Get user from localStorage
     let currentUser = user;
     let currentToken = token;
     if (!currentUser || !currentToken) {
@@ -1968,9 +1963,7 @@ const PaymentReturn = () => {
           const auth = JSON.parse(savedAuth);
           currentUser = auth.user;
           currentToken = auth.token;
-        } catch (e) {
-          console.error('Error parsing auth:', e);
-        }
+        } catch (e) {}
       }
     }
     
@@ -1981,14 +1974,14 @@ const PaymentReturn = () => {
     }
     
     try {
-      const response = await axios.post('/api/verify-payment', {
+      const response = await axios.post('/api/check-payment-status', {
         reference: reference,
         userId: currentUser.id
       }, {
         headers: { Authorization: `Bearer ${currentToken}` }
       });
       
-      if (response.data.success) {
+      if (response.data.success && response.data.isPremium) {
         alert('✅ Payment confirmed! Your account has been upgraded to PREMIUM!');
         const updatedUser = { ...currentUser, isPremium: true };
         localStorage.setItem('auth', JSON.stringify({ token: currentToken, user: updatedUser }));
@@ -1996,15 +1989,13 @@ const PaymentReturn = () => {
         if (login && currentToken) login(currentToken, updatedUser);
         navigate('/get-premium');
       } else {
-        alert(response.data.error || 'Payment still pending. Please check back later.');
+        alert('Payment not confirmed yet. Please check back in a few minutes.');
       }
     } catch (error) {
-      console.error('Manual check error:', error);
       alert('Error checking payment status. Please contact support.');
     }
   };
 
-  // Simple loading component inline
   const SimpleLoader = () => (
     <div style={{ marginTop: 20 }}>
       <div style={{ width: '100%', height: 8, background: '#e0e0e0', borderRadius: 4, overflow: 'hidden' }}>
@@ -2028,7 +2019,7 @@ const PaymentReturn = () => {
             <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
             <h2 style={{ color: '#1e3c72' }}>Verifying Payment...</h2>
             <p>Please wait while we confirm your payment.</p>
-            <p style={{ fontSize: 12, color: '#666', marginTop: 10 }}>Attempt {retryCount + 1}/10</p>
+            <p style={{ fontSize: 12, color: '#666', marginTop: 10 }}>Attempt {retryCount + 1}/15</p>
             <SimpleLoader />
           </>
         )}
