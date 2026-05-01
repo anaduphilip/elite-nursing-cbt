@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link, useParams, useSearchParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
@@ -147,36 +147,10 @@ const Timer = ({ duration, onTimeUp }) => {
   );
 };
 
-// Premium Modal Component - WITH AUTO VERIFICATION
+// Premium Modal Component
 const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   const { token, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
-  const [searchParams] = useSearchParams();
-
-  // Auto-verify when modal opens (if returning from payment)
-  useEffect(() => {
-    const autoVerify = async () => {
-      const reference = searchParams.get('reference') || searchParams.get('trxref');
-      if (reference && user?.id && !user?.isPremium) {
-        try {
-          console.log('Auto-verifying payment from modal:', reference);
-          const response = await axios.post('/api/verify-payment', {
-            reference: reference,
-            userId: user.id
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (response.data.success) {
-            alert('✅ Payment successful! Your account has been upgraded!');
-            window.location.reload();
-          }
-        } catch (error) {
-          console.error('Auto-verify error:', error);
-        }
-      }
-    };
-    autoVerify();
-  }, [searchParams, user, token]);
 
   const handlePayment = async () => {
     if (!user?.id) {
@@ -1780,53 +1754,10 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component - WITH AUTOMATIC PAYMENT VERIFICATION
+// Get Premium Component
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [searchParams] = useSearchParams();
-
-  // AUTOMATIC: Check URL for payment reference when page loads
-  useEffect(() => {
-    const autoVerifyPayment = async () => {
-      // Get reference from URL (when returning from Flutterwave)
-      const reference = searchParams.get('reference') || searchParams.get('trxref');
-      
-      console.log('Checking for payment reference in URL:', reference);
-      console.log('Current user premium status:', user?.isPremium);
-      
-      if (reference && user?.id && !user?.isPremium) {
-        setVerifying(true);
-        try {
-          console.log('Auto-verifying payment:', reference);
-          const response = await axios.post('/api/verify-payment', {
-            reference: reference,
-            userId: user.id
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          console.log('Verification response:', response.data);
-          
-          if (response.data.success) {
-            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
-            // Update local storage
-            const updatedUser = { ...user, isPremium: true };
-            localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
-            // Reload to show premium status
-            window.location.reload();
-          }
-        } catch (error) {
-          console.error('Auto-verification error:', error);
-        } finally {
-          setVerifying(false);
-        }
-      }
-    };
-    
-    autoVerifyPayment();
-  }, [searchParams, user, token]);
 
   const handlePayment = async () => {
     if (!user?.id) {
@@ -1836,6 +1767,8 @@ const GetPremium = () => {
     
     setLoading(true);
     try {
+      console.log('User ID for payment:', user.id);
+      
       const response = await axios.post('/api/initialize-payment', { 
         email: user.email, 
         amount: 100,
@@ -1863,13 +1796,6 @@ const GetPremium = () => {
         <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
         <h2 style={{ color: '#1e3c72' }}>Upgrade to Premium</h2>
         <p style={{ marginBottom: 20 }}>Get unlimited access to all examinations and features</p>
-        
-        {verifying && (
-          <div style={{ marginBottom: 20, padding: 10, background: '#fff3e0', borderRadius: 8 }}>
-            <p>Verifying your payment... Please wait.</p>
-          </div>
-        )}
-        
         {user?.isPremium ? (
           <div style={{ background: '#e8f5e9', padding: 20, borderRadius: 16 }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
@@ -1894,6 +1820,117 @@ const GetPremium = () => {
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
+    </div>
+  );
+};
+
+// Payment Return Component - Handles Flutterwave redirect automatically
+const PaymentReturn = () => {
+  const { token, user } = useContext(AuthContext);
+  const [status, setStatus] = useState('verifying');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const verifyPaymentOnReturn = async () => {
+      const reference = searchParams.get('reference');
+      
+      console.log('Payment Return Page - Reference:', reference);
+      console.log('Payment Return Page - User:', user);
+      
+      if (!reference) {
+        setStatus('error');
+        return;
+      }
+      
+      if (!user?.id) {
+        setStatus('error');
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
+        return;
+      }
+      
+      try {
+        const response = await axios.post('/api/verify-payment', {
+          reference: reference,
+          userId: user.id
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        console.log('Verification response:', response.data);
+        
+        if (response.data.success) {
+          setStatus('success');
+          // Update local storage
+          const updatedUser = { ...user, isPremium: true };
+          localStorage.setItem('auth', JSON.stringify({ token, user: updatedUser }));
+          setTimeout(() => {
+            navigate('/get-premium');
+          }, 3000);
+        } else {
+          setStatus('failed');
+        }
+      } catch (error) {
+        console.error('Verification error:', error);
+        setStatus('failed');
+      }
+    };
+    
+    if (user) {
+      verifyPaymentOnReturn();
+    } else {
+      // Wait for user to be loaded
+      const timer = setTimeout(() => {
+        if (user) {
+          verifyPaymentOnReturn();
+        }
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, user, token, navigate]);
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f0f7f4', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: 'white', borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 400, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        {status === 'verifying' && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
+            <h2 style={{ color: '#1e3c72' }}>Verifying Payment...</h2>
+            <p>Please wait while we confirm your payment.</p>
+            <LoadingWithBar message="Verifying" />
+          </>
+        )}
+        {status === 'success' && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 20 }}>✅</div>
+            <h2 style={{ color: '#2e7d32' }}>Payment Successful!</h2>
+            <p>Your account has been upgraded to PREMIUM!</p>
+            <p>Redirecting you to the premium page...</p>
+          </>
+        )}
+        {status === 'failed' && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 20 }}>❌</div>
+            <h2 style={{ color: '#dc3545' }}>Verification Failed</h2>
+            <p>We couldn't verify your payment automatically.</p>
+            <Link to="/get-premium">
+              <button style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>Go to Get Premium</button>
+            </Link>
+          </>
+        )}
+        {status === 'error' && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 20 }}>⚠️</div>
+            <h2 style={{ color: '#ff9800' }}>Please Log In</h2>
+            <p>Please log in to complete your payment verification.</p>
+            <Link to="/login">
+              <button style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>Go to Login</button>
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );
@@ -2188,6 +2225,7 @@ const AppContent = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/payment-return" element={<PaymentReturn />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     );
@@ -2213,6 +2251,7 @@ const AppContent = () => {
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/whatsapp" element={<JoinWhatsApp />} />
         <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/payment-return" element={<PaymentReturn />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
