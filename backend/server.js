@@ -691,7 +691,7 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
   }
 });
 
-// ============ PAYMENT ROUTES - FIXED (Only these changed) ============
+// ============ PAYMENT ROUTES - FIXED ============
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount, userId, planType, examId, examTitle, sectionNumber } = req.body;
@@ -709,7 +709,7 @@ app.post('/api/initialize-payment', async (req, res) => {
       tx_ref: tx_ref,
       amount: amount,
       currency: "NGN",
-      redirect_url: "https://elite-nursing-cbt.vercel.app/get-premium",
+      redirect_url: `https://elite-nursing-cbt.vercel.app/payment-return?reference=${tx_ref}`,
       customer: { email: email, name: email },
       customizations: { 
         title: "ELITE Nursing CBT", 
