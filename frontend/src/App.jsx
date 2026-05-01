@@ -164,7 +164,7 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
       
       const response = await axios.post('/api/initialize-payment', { 
         email: user.email, 
-        amount: 100,
+        amount: 5900,
         userId: user.id,
         planType: examTitle ? 'single' : 'premium',
         examId: examTitle ? window.location.pathname.split('/')[2] : null,
@@ -198,12 +198,12 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         <p style={{ fontSize: 15, marginBottom: 10 }}><strong>{examTitle}</strong> is premium content.</p>
         <p style={{ fontSize: 14, marginBottom: 15, color: '#666' }}>Upgrade to unlock ALL premium exams!</p>
         <div style={{ fontSize: 25, fontWeight: 'bold', color: '#1e3c72', margin: '15px 0' }}>
-          ₦100 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime (Test Price)</span>
+          ₦5,900 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime</span>
         </div>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <button onClick={onClose} style={{ flex: 1, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: '500', fontSize: 14 }}>Cancel</button>
           <button onClick={handlePayment} disabled={loading} style={{ flex: 1, background: '#ff9800', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-            {loading ? 'Processing...' : 'Pay ₦100'}
+            {loading ? 'Processing...' : 'Pay ₦5,900'}
           </button>
         </div>
       </div>
@@ -1303,7 +1303,7 @@ const ExamList = () => {
             </div>
             
             <div style={{ textAlign: 'center', padding: 28, background: '#fff3e0', borderRadius: 16, marginBottom: 20 }}>
-              <p style={{ color: '#ff9800', fontWeight: 'bold', fontSize: 16 }}>⭐ Unlock ALL premium exams and retakes for ₦100 (Test Price - Lifetime)!</p>
+              <p style={{ color: '#ff9800', fontWeight: 'bold', fontSize: 16 }}>⭐ Unlock ALL premium exams and retakes for ₦5,900 (Lifetime Access)!</p>
               <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 12 }}>Upgrade Now →</button></Link>
             </div>
           </>
@@ -1330,7 +1330,7 @@ const ExamList = () => {
             </div>
             {!userPremium && (
               <div style={{ marginTop: 24, textAlign: 'center', padding: 20, background: '#fff3e0', borderRadius: 16 }}>
-                <p style={{ color: '#ff9800', fontSize: 14 }}>⭐ Upgrade to access all examinations for ₦100 (Test Price)!</p>
+                <p style={{ color: '#ff9800', fontSize: 14 }}>⭐ Upgrade to access all examinations for ₦5,900 (Lifetime Access)!</p>
                 <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 8 }}>Upgrade Now →</button></Link>
               </div>
             )}
@@ -1436,8 +1436,8 @@ const TakeExam = () => {
           {showUpgradeMessage && mode === 'free' && (
             <div style={{ marginTop: 20, padding: 16, background: '#fff3e0', borderRadius: 12 }}>
               <p style={{ color: '#ff9800', fontWeight: 'bold', margin: 0, fontSize: 14 }}>🎯 Great job completing the free exam!</p>
-              <p style={{ color: '#666', marginTop: 8, fontSize: 13 }}>Upgrade to Premium for only ₦100 (Test Price) to retake and unlock all exams!</p>
-              <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now (₦100)</button></Link>
+              <p style={{ color: '#666', marginTop: 8, fontSize: 13 }}>Upgrade to Premium for only ₦5,900 (Lifetime Access) to retake and unlock all exams!</p>
+              <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now (₦5,900)</button></Link>
             </div>
           )}
           
@@ -1584,7 +1584,7 @@ const HowToUse = () => {
           <ul style={{ lineHeight: 1.8, color: darkMode ? '#ccc' : '#555', paddingLeft: 20 }}>
             <li>✓ View ALL examinations across ALL courses</li>
             <li>✓ Premium badge shows which exams require upgrade</li>
-            <li>✓ Upgrade for only ₦100 (Test Price) to unlock everything</li>
+            <li>✓ Upgrade for only ₦5,900 (Lifetime Access) to unlock everything</li>
             <li>✓ Lifetime access to 20,000+ questions</li>
             <li>✓ Unlimited exam retakes</li>
           </ul>
@@ -1597,7 +1597,7 @@ const HowToUse = () => {
             <li>📚 <strong>Categories</strong> - Choose your subject area</li>
             <li>📖 <strong>Courses</strong> - Select specific topic</li>
             <li>📝 <strong>Exams</strong> - Take your chosen examination</li>
-            <li>⭐ <strong>Get Premium</strong> - Upgrade for full access (₦100 Test Price)</li>
+            <li>⭐ <strong>Get Premium</strong> - Upgrade for full access (₦5,900 Lifetime Access)</li>
           </ul>
         </div>
         
@@ -1771,7 +1771,7 @@ const GetPremium = () => {
       
       const response = await axios.post('/api/initialize-payment', { 
         email: user.email, 
-        amount: 100,
+        amount: 5900,
         userId: user.id,
         planType: 'premium',
         examId: null,
@@ -1810,10 +1810,10 @@ const GetPremium = () => {
               <div><div style={{ fontSize: 36, marginBottom: 8 }}>🏆</div><h3 style={{ fontSize: 14 }}>Lifetime Access</h3></div>
             </div>
             <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: 16, borderRadius: 12, margin: 20 }}>
-              <div style={{ fontSize: 28, fontWeight: 'bold', color: '#1e3c72' }}>₦100 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime (Test Price)</span></div>
+              <div style={{ fontSize: 28, fontWeight: 'bold', color: '#1e3c72' }}>₦5,900 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime</span></div>
             </div>
             <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>
-              {loading ? 'Processing...' : 'Pay ₦100 (Test)'}
+              {loading ? 'Processing...' : 'Pay ₦5,900'}
             </button>
           </>
         )}
@@ -1920,7 +1920,6 @@ const PaymentReturn = () => {
           setTimeout(() => navigate('/get-premium'), 3000);
         } else if (response.data.pending) {
           if (retryCount < 20) {
-            // Exponential backoff: start with 4 seconds, max 15 seconds
             const delay = Math.min(4000 * Math.pow(1.2, retryCount), 15000);
             console.log(`Payment pending, retrying in ${delay/1000} seconds... (${retryCount + 1}/20)`);
             setTimeout(() => setRetryCount(prev => prev + 1), delay);
@@ -2068,6 +2067,7 @@ const PaymentReturn = () => {
     </div>
   );
 };
+
 // Admin Panel Component
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
@@ -2171,15 +2171,15 @@ const AdminPanel = () => {
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
           <h1 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20, fontSize: 28 }}>Admin Panel</h1>
           
-          <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '2px solid #e0e0e0', paddingBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '2px solid #e0e0e0', paddingBottom: 12, justifyContent: 'center' }}>
             <button onClick={() => setActiveTab('users')} style={{ background: activeTab === 'users' ? '#1e3c72' : 'transparent', color: activeTab === 'users' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'users' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Users ({users.length})</button>
             <button onClick={() => setActiveTab('contacts')} style={{ background: activeTab === 'contacts' ? '#1e3c72' : 'transparent', color: activeTab === 'contacts' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'contacts' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Contact Messages ({contacts.length})</button>
           </div>
 
           {activeTab === 'users' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 20 }}>
               {users.map(u => (
-                <div key={u._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, border: '1px solid #e0e0e0' }}>
+                <div key={u._id} style={{ width: '350px', background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, border: '1px solid #e0e0e0' }}>
                   <p><strong>Name:</strong> {u.name || 'N/A'}</p>
                   <p><strong>Email:</strong> {u.email}</p>
                   <p><strong>Premium:</strong> {u.isPremium ? '✅ Yes' : '❌ No'}</p>
