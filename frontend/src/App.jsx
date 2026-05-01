@@ -1825,7 +1825,7 @@ const GetPremium = () => {
   );
 };
 
-// Payment Return Component - Optimized for Flutterwave
+// Payment Return Component - Captures transaction_id from URL
 const PaymentReturn = () => {
   const { token, user, login } = useContext(AuthContext);
   const [status, setStatus] = useState('verifying');
@@ -1850,23 +1850,24 @@ const PaymentReturn = () => {
 
   useEffect(() => {
     const verifyPayment = async () => {
-      // Get reference from URL or localStorage
-      let reference = searchParams.get('reference') || searchParams.get('trxref');
+      // Get parameters from URL: tx_ref (reference) and transaction_id
+      let tx_ref = searchParams.get('reference') || searchParams.get('tx_ref');
+      let transaction_id = searchParams.get('transaction_id') || searchParams.get('id');
       const storedRef = localStorage.getItem('payment_reference');
       
-      if (!reference && storedRef) {
-        reference = storedRef;
+      if (!tx_ref && storedRef) {
+        tx_ref = storedRef;
       }
       
-      console.log(`Payment Return - Reference: ${reference}, Retry: ${retryCount}`);
+      console.log(`Payment Return - tx_ref: ${tx_ref}, transaction_id: ${transaction_id}, Retry: ${retryCount}`);
       
-      if (!reference) {
+      if (!tx_ref && !transaction_id) {
         setStatus('error');
         setMessage('No payment reference found');
         return;
       }
       
-      // Get current user
+      // Get current user from context or localStorage
       let currentUser = user;
       let currentToken = token;
       
@@ -1891,10 +1892,11 @@ const PaymentReturn = () => {
       }
       
       try {
-        console.log(`Sending verification request... Attempt ${retryCount + 1}/30`);
+        console.log(`Sending verification request... Attempt ${retryCount + 1}/20`);
         
         const response = await axios.post('/api/verify-payment', {
-          reference: reference,
+          reference: tx_ref,
+          transactionId: transaction_id,  // Send the numeric ID if available
           userId: currentUser.id
         }, {
           headers: { Authorization: `Bearer ${currentToken}` }
@@ -1917,42 +1919,27 @@ const PaymentReturn = () => {
           
           setTimeout(() => navigate('/get-premium'), 3000);
         } else if (response.data.pending) {
-          // Still pending - will retry automatically
-          if (retryCount < 30) {
-            // Longer delay for Flutterwave - 4 seconds initial, then increasing
+          if (retryCount < 20) {
+            // Exponential backoff: start with 4 seconds, max 15 seconds
             const delay = Math.min(4000 * Math.pow(1.2, retryCount), 15000);
-            console.log(`Payment pending, retrying in ${delay/1000} seconds... (${retryCount + 1}/30)`);
+            console.log(`Payment pending, retrying in ${delay/1000} seconds... (${retryCount + 1}/20)`);
             setTimeout(() => setRetryCount(prev => prev + 1), delay);
           } else {
             setStatus('pending');
-            setMessage(response.data.message || 'Payment is still processing. You can check status manually.');
+            setMessage(response.data.message || 'Payment is still processing. Please check back later.');
           }
-        } else if (response.data.message === 'Transaction not found yet. Please wait a few moments and try again.') {
-          // Flutterwave needs more time
-          if (retryCount < 30) {
-            const delay = Math.min(5000 * Math.pow(1.1, retryCount), 20000);
-            console.log(`Transaction not found, retrying in ${delay/1000} seconds... (${retryCount + 1}/30)`);
-            setTimeout(() => setRetryCount(prev => prev + 1), delay);
-          } else {
-            setStatus('failed');
-            setMessage('Payment verification taking too long. Please click "Check Status" below.');
-          }
-        } else if (retryCount < 30) {
-          const delay = Math.min(3000 * Math.pow(1.2, retryCount), 15000);
-          console.log(`Verification pending, retrying in ${delay/1000} seconds... (${retryCount + 1}/30)`);
-          setTimeout(() => setRetryCount(prev => prev + 1), delay);
         } else {
           setStatus('failed');
           setMessage(response.data.error || 'Payment verification failed. Please contact support.');
         }
       } catch (error) {
         console.error('Verification error:', error);
-        if (retryCount < 30) {
+        if (retryCount < 20) {
           const delay = Math.min(4000 * Math.pow(1.2, retryCount), 15000);
           setTimeout(() => setRetryCount(prev => prev + 1), delay);
         } else {
           setStatus('failed');
-          setMessage('Payment verification failed. Please contact support on WhatsApp: 09063908476');
+          setMessage('Payment verification failed after multiple attempts. Please contact support on WhatsApp: 09063908476');
         }
       }
     };
@@ -1961,13 +1948,12 @@ const PaymentReturn = () => {
   }, [searchParams, user, token, navigate, login, retryCount]);
 
   const checkPaymentManually = async () => {
-    let reference = searchParams.get('reference') || searchParams.get('trxref');
+    let tx_ref = searchParams.get('reference') || searchParams.get('tx_ref');
+    let transaction_id = searchParams.get('transaction_id') || searchParams.get('id');
     const storedRef = localStorage.getItem('payment_reference');
-    if (!reference && storedRef) {
-      reference = storedRef;
-    }
+    if (!tx_ref && storedRef) tx_ref = storedRef;
     
-    if (!reference) {
+    if (!tx_ref && !transaction_id) {
       alert('No payment reference found');
       return;
     }
@@ -1994,10 +1980,9 @@ const PaymentReturn = () => {
     setStatus('verifying');
     setRetryCount(0);
     setProgress(0);
-    
-    // Reset the verification process
+    // Force re-run effect by resetting state
     setTimeout(() => {
-      // This will trigger the useEffect again with new retryCount
+      // The useEffect will run again because retryCount changed
     }, 100);
   };
 
@@ -2012,7 +1997,7 @@ const PaymentReturn = () => {
           transition: 'width 0.5s ease'
         }} />
       </div>
-      <p style={{ fontSize: 13, color: '#666', marginTop: 12 }}>Attempt {retryCount + 1}/30 - Please wait...</p>
+      <p style={{ fontSize: 13, color: '#666', marginTop: 12 }}>Attempt {retryCount + 1}/20 - Please wait...</p>
     </div>
   );
 
