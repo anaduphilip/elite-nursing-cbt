@@ -691,7 +691,7 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
   }
 });
 
-// ============ FLUTTERWAVE PAYMENT ROUTES - CORRECTED ============
+// ============ PAYMENT ROUTES - ADDED/REPLACED ============
 app.post('/api/initialize-payment', async (req, res) => {
   try {
     const { email, amount, userId, planType, examId, examTitle, sectionNumber } = req.body;
@@ -746,7 +746,7 @@ app.post('/api/initialize-payment', async (req, res) => {
   }
 });
 
-// Payment verification endpoint
+// FIXED: Payment verification endpoint
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const { reference, userId } = req.body;
