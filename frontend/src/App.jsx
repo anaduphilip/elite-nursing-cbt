@@ -1825,7 +1825,7 @@ const GetPremium = () => {
   );
 };
 
-// Payment Return Component - FIXED VERSION with better error handling
+// Payment Return Component - Optimized for Flutterwave
 const PaymentReturn = () => {
   const { token, user, login } = useContext(AuthContext);
   const [status, setStatus] = useState('verifying');
@@ -1840,10 +1840,10 @@ const PaymentReturn = () => {
     if (status === 'verifying') {
       const interval = setInterval(() => {
         setProgress(prev => {
-          if (prev >= 90) return 90;
-          return prev + Math.random() * 15;
+          if (prev >= 95) return 95;
+          return prev + 2;
         });
-      }, 500);
+      }, 200);
       return () => clearInterval(interval);
     }
   }, [status]);
@@ -1891,7 +1891,7 @@ const PaymentReturn = () => {
       }
       
       try {
-        console.log(`Sending verification request...`);
+        console.log(`Sending verification request... Attempt ${retryCount + 1}/30`);
         
         const response = await axios.post('/api/verify-payment', {
           reference: reference,
@@ -1903,6 +1903,7 @@ const PaymentReturn = () => {
         console.log('Verification response:', response.data);
         
         if (response.data.success) {
+          setProgress(100);
           setStatus('success');
           setMessage('Payment successful! Your account has been upgraded to PREMIUM!');
           localStorage.removeItem('payment_reference');
@@ -1916,12 +1917,29 @@ const PaymentReturn = () => {
           
           setTimeout(() => navigate('/get-premium'), 3000);
         } else if (response.data.pending) {
-          setStatus('pending');
-          setMessage(response.data.message || 'Payment is still processing.');
-        } else if (retryCount < 15) {
-          // Retry with exponential backoff
-          const delay = Math.min(3000 * Math.pow(1.5, retryCount), 15000);
-          console.log(`Retrying in ${delay/1000} seconds... (${retryCount + 1}/15)`);
+          // Still pending - will retry automatically
+          if (retryCount < 30) {
+            // Longer delay for Flutterwave - 4 seconds initial, then increasing
+            const delay = Math.min(4000 * Math.pow(1.2, retryCount), 15000);
+            console.log(`Payment pending, retrying in ${delay/1000} seconds... (${retryCount + 1}/30)`);
+            setTimeout(() => setRetryCount(prev => prev + 1), delay);
+          } else {
+            setStatus('pending');
+            setMessage(response.data.message || 'Payment is still processing. You can check status manually.');
+          }
+        } else if (response.data.message === 'Transaction not found yet. Please wait a few moments and try again.') {
+          // Flutterwave needs more time
+          if (retryCount < 30) {
+            const delay = Math.min(5000 * Math.pow(1.1, retryCount), 20000);
+            console.log(`Transaction not found, retrying in ${delay/1000} seconds... (${retryCount + 1}/30)`);
+            setTimeout(() => setRetryCount(prev => prev + 1), delay);
+          } else {
+            setStatus('failed');
+            setMessage('Payment verification taking too long. Please click "Check Status" below.');
+          }
+        } else if (retryCount < 30) {
+          const delay = Math.min(3000 * Math.pow(1.2, retryCount), 15000);
+          console.log(`Verification pending, retrying in ${delay/1000} seconds... (${retryCount + 1}/30)`);
           setTimeout(() => setRetryCount(prev => prev + 1), delay);
         } else {
           setStatus('failed');
@@ -1929,8 +1947,8 @@ const PaymentReturn = () => {
         }
       } catch (error) {
         console.error('Verification error:', error);
-        if (retryCount < 15) {
-          const delay = Math.min(3000 * Math.pow(1.5, retryCount), 15000);
+        if (retryCount < 30) {
+          const delay = Math.min(4000 * Math.pow(1.2, retryCount), 15000);
           setTimeout(() => setRetryCount(prev => prev + 1), delay);
         } else {
           setStatus('failed');
@@ -1973,41 +1991,28 @@ const PaymentReturn = () => {
       return;
     }
     
-    try {
-      const response = await axios.post('/api/check-payment-status', {
-        reference: reference,
-        userId: currentUser.id
-      }, {
-        headers: { Authorization: `Bearer ${currentToken}` }
-      });
-      
-      if (response.data.success && response.data.isPremium) {
-        alert('✅ Payment confirmed! Your account has been upgraded to PREMIUM!');
-        const updatedUser = { ...currentUser, isPremium: true };
-        localStorage.setItem('auth', JSON.stringify({ token: currentToken, user: updatedUser }));
-        localStorage.removeItem('payment_reference');
-        if (login && currentToken) login(currentToken, updatedUser);
-        navigate('/get-premium');
-      } else {
-        alert('Payment not confirmed yet. Please check back in a few minutes.');
-      }
-    } catch (error) {
-      alert('Error checking payment status. Please contact support.');
-    }
+    setStatus('verifying');
+    setRetryCount(0);
+    setProgress(0);
+    
+    // Reset the verification process
+    setTimeout(() => {
+      // This will trigger the useEffect again with new retryCount
+    }, 100);
   };
 
   const SimpleLoader = () => (
     <div style={{ marginTop: 20 }}>
-      <div style={{ width: '100%', height: 8, background: '#e0e0e0', borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ width: '100%', height: 10, background: '#e0e0e0', borderRadius: 5, overflow: 'hidden' }}>
         <div style={{ 
           width: `${Math.min(progress, 100)}%`, 
           height: '100%', 
           background: 'linear-gradient(90deg, #1e3c72, #2a5298)', 
-          borderRadius: 4,
-          transition: 'width 0.3s ease'
+          borderRadius: 5,
+          transition: 'width 0.5s ease'
         }} />
       </div>
-      <p style={{ fontSize: 12, color: '#666', marginTop: 10 }}>{Math.floor(Math.min(progress, 100))}%</p>
+      <p style={{ fontSize: 13, color: '#666', marginTop: 12 }}>Attempt {retryCount + 1}/30 - Please wait...</p>
     </div>
   );
 
@@ -2016,31 +2021,31 @@ const PaymentReturn = () => {
       <div style={{ background: 'white', borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 450, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         {status === 'verifying' && (
           <>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
+            <div style={{ fontSize: 52, marginBottom: 20 }}>⏳</div>
             <h2 style={{ color: '#1e3c72' }}>Verifying Payment...</h2>
-            <p>Please wait while we confirm your payment.</p>
-            <p style={{ fontSize: 12, color: '#666', marginTop: 10 }}>Attempt {retryCount + 1}/15</p>
+            <p style={{ color: '#666', marginTop: 8 }}>Please wait while we confirm your Flutterwave payment.</p>
+            <p style={{ fontSize: 13, color: '#ff9800', marginTop: 8 }}>This may take up to 30 seconds.</p>
             <SimpleLoader />
           </>
         )}
         {status === 'success' && (
           <>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>✅</div>
+            <div style={{ fontSize: 52, marginBottom: 20 }}>✅</div>
             <h2 style={{ color: '#2e7d32' }}>Payment Successful!</h2>
-            <p>{message}</p>
+            <p style={{ fontSize: 16, margin: '15px 0' }}>{message}</p>
             <p>Redirecting you to the premium page...</p>
           </>
         )}
         {status === 'pending' && (
           <>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>⏰</div>
+            <div style={{ fontSize: 52, marginBottom: 20 }}>⏰</div>
             <h2 style={{ color: '#ff9800' }}>Payment Processing</h2>
-            <p>{message}</p>
-            <button onClick={checkPaymentManually} style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>
+            <p style={{ margin: '15px 0' }}>{message}</p>
+            <button onClick={checkPaymentManually} style={{ background: '#1e3c72', color: 'white', padding: '12px 28px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', marginTop: 15 }}>
               Check Status Now
             </button>
             <Link to="/">
-              <button style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 10 }}>
+              <button style={{ background: '#6c757d', color: 'white', padding: '12px 28px', border: 'none', borderRadius: 30, cursor: 'pointer', marginTop: 10 }}>
                 Go to Home
               </button>
             </Link>
@@ -2048,26 +2053,29 @@ const PaymentReturn = () => {
         )}
         {status === 'failed' && (
           <>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>❌</div>
+            <div style={{ fontSize: 52, marginBottom: 20 }}>❌</div>
             <h2 style={{ color: '#dc3545' }}>Verification Failed</h2>
-            <p>{message}</p>
-            <button onClick={checkPaymentManually} style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>
+            <p style={{ margin: '15px 0' }}>{message}</p>
+            <button onClick={checkPaymentManually} style={{ background: '#1e3c72', color: 'white', padding: '12px 28px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', marginTop: 15 }}>
               Try Again
             </button>
             <Link to="/get-premium">
-              <button style={{ background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 10 }}>
+              <button style={{ background: '#ff9800', color: 'white', padding: '12px 28px', border: 'none', borderRadius: 30, cursor: 'pointer', marginTop: 10 }}>
                 Go to Get Premium
               </button>
             </Link>
+            <div style={{ marginTop: 20, padding: 12, background: '#fff3e0', borderRadius: 12 }}>
+              <p style={{ fontSize: 12, color: '#666' }}>Contact support on WhatsApp: <strong style={{ color: '#25D366' }}>09063908476</strong></p>
+            </div>
           </>
         )}
         {status === 'error' && (
           <>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>⚠️</div>
+            <div style={{ fontSize: 52, marginBottom: 20 }}>⚠️</div>
             <h2 style={{ color: '#ff9800' }}>Please Log In</h2>
             <p>{message}</p>
             <Link to="/login">
-              <button style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 20 }}>Go to Login</button>
+              <button style={{ background: '#1e3c72', color: 'white', padding: '12px 28px', border: 'none', borderRadius: 30, cursor: 'pointer', marginTop: 20 }}>Go to Login</button>
             </Link>
           </>
         )}
