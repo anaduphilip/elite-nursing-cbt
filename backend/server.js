@@ -692,7 +692,7 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
   }
 });
 
-// ============ PAYMENT ROUTES - FIXED WITH FLUTTERWAVE ID ============
+// ============ PAYMENT ROUTES - USING TRANSACTION ID ONLY ============
 
 // Initialize payment
 app.post('/api/initialize-payment', async (req, res) => {
@@ -704,48 +704,36 @@ app.post('/api/initialize-payment', async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' });
     }
     
-    // Generate unique reference for this transaction
     const tx_ref = `ELITE-${Date.now()}-${userId}-${Math.random().toString(36).substring(2, 8)}`;
-    
     console.log(`💰 INITIALIZING PAYMENT: ${tx_ref} for user ${userId}, amount: ${amount}`);
     
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
     
-    // Initialize payment with Flutterwave FIRST to get the ID
+    // Initialize payment with Flutterwave
     const response = await axios.post('https://api.flutterwave.com/v3/payments', {
-      tx_ref: tx_ref,
-      amount: amount,
+      tx_ref,
+      amount,
       currency: "NGN",
       redirect_url: `https://elite-nursing-cbt.vercel.app/payment-return?reference=${tx_ref}`,
-      customer: { 
-        email: email, 
-        name: user.name || email 
-      },
-      customizations: { 
-        title: "ELITE Nursing CBT", 
+      customer: { email, name: user.name || email },
+      customizations: {
+        title: "ELITE Nursing CBT",
         description: planType === 'single' ? `Exam ${sectionNumber} Access` : "Complete Premium Package"
       }
     }, {
-      headers: { 
-        Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`, 
-        'Content-Type': 'application/json' 
-      }
+      headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`, 'Content-Type': 'application/json' }
     });
     
     const flutterwaveLink = response.data.data.link;
     const flutterwaveId = response.data.data.id;
-    
     console.log(`✅ Payment initialized, Flutterwave ID: ${flutterwaveId}`);
-    console.log(`✅ Redirect URL: ${flutterwaveLink}`);
     
     // Store transaction with both tx_ref and flutterwaveId
     user.transactions.push({
       reference: tx_ref,
       flutterwaveId: flutterwaveId,
-      amount: amount,
+      amount,
       status: 'pending',
       planType: planType || 'premium',
       examId: examId || null,
@@ -755,124 +743,71 @@ app.post('/api/initialize-payment', async (req, res) => {
     });
     await user.save();
     
-    res.json({ 
-      authorization_url: flutterwaveLink, 
-      reference: tx_ref,
-      flutterwaveId: flutterwaveId
-    });
+    res.json({ authorization_url: flutterwaveLink, reference: tx_ref, flutterwaveId });
     
   } catch (error) {
     console.error('❌ Payment initialization error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Payment initialization failed: ' + (error.response?.data?.message || error.message) });
+    res.status(500).json({ error: 'Payment initialization failed' });
   }
 });
 
-// Payment verification endpoint - Uses stored flutterwaveId
+// Payment verification endpoint - uses transactionId (numeric ID)
 app.post('/api/verify-payment', async (req, res) => {
   try {
-    const { reference, userId } = req.body;
+    const { reference, transactionId, userId } = req.body;
     
-    console.log(`🔍 VERIFYING PAYMENT - Reference: ${reference}, UserId: ${userId}`);
+    console.log(`🔍 VERIFYING - Reference: ${reference}, TransactionId: ${transactionId}, UserId: ${userId}`);
     
-    if (!reference || !userId) {
+    if ((!reference && !transactionId) || !userId) {
       return res.status(400).json({ success: false, error: 'Missing reference or userId' });
     }
     
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-    
-    // If already premium, return success
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
     if (user.isPremium) {
-      console.log(`✅ User ${user.email} is already premium`);
-      return res.json({ success: true, isPremium: true, message: 'Already premium' });
+      console.log(`✅ User already premium`);
+      return res.json({ success: true, isPremium: true });
     }
     
-    // Find the transaction
+    // Find transaction by reference
     const transaction = user.transactions.find(t => t.reference === reference);
     if (!transaction) {
       console.log(`Transaction not found for reference: ${reference}`);
       return res.status(404).json({ success: false, error: 'Transaction not found' });
     }
     
-    console.log(`Transaction found - Amount: ${transaction.amount}, Status: ${transaction.status}, FlutterwaveId: ${transaction.flutterwaveId}`);
+    // Use the provided transactionId (numeric) or fallback to stored flutterwaveId
+    const verifyId = transactionId || transaction.flutterwaveId;
+    if (!verifyId) {
+      return res.json({ success: false, pending: true, message: 'No transaction ID available' });
+    }
     
-    // Use the stored Flutterwave ID for verification
-    const verifyId = transaction.flutterwaveId || reference;
+    console.log(`Verifying with Flutterwave ID: ${verifyId}`);
+    const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${verifyId}/verify`, {
+      headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` },
+      timeout: 30000
+    });
     
-    console.log(`Calling Flutterwave API for verification with ID: ${verifyId}`);
+    const txData = response.data.data;
+    console.log(`📊 Flutterwave status: ${txData?.status}, amount: ${txData?.amount}`);
     
-    try {
-      const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${verifyId}/verify`, {
-        headers: { 
-          Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 30000
-      });
-      
-      const transactionData = response.data.data;
-      console.log(`📊 FLUTTERWAVE RESPONSE - Status: ${transactionData?.status}, Amount: ${transactionData?.amount}`);
-      
-      if (transactionData?.status === 'successful') {
-        // Update user to premium
-        user.isPremium = true;
-        user.purchaseDate = new Date();
-        transaction.status = 'completed';
-        await user.save();
-        
-        console.log(`✅✅✅ PREMIUM ACTIVATED for user: ${user.email} ✅✅✅`);
-        return res.json({ success: true, isPremium: true, message: 'Premium activated successfully!' });
-        
-      } else if (transactionData?.status === 'pending') {
-        console.log(`⏰ Payment still pending for reference: ${reference}`);
-        return res.json({ success: false, pending: true, message: 'Payment is still processing. Please wait a few moments.' });
-        
-      } else {
-        console.log(`❌ Payment verification failed - Status: ${transactionData?.status}`);
-        return res.json({ success: false, error: `Payment status: ${transactionData?.status}. Please contact support.` });
-      }
-      
-    } catch (apiError) {
-      console.log(`Flutterwave API error: ${apiError.response?.data?.message || apiError.message}`);
-      
-      // If transaction not found with ID, try searching by tx_ref
-      if (apiError.response?.status === 404) {
-        console.log(`Attempting to search by tx_ref: ${reference}`);
-        try {
-          const searchResponse = await axios.get(`https://api.flutterwave.com/v3/transactions?tx_ref=${reference}`, {
-            headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }
-          });
-          
-          if (searchResponse.data.data && searchResponse.data.data.length > 0) {
-            const foundTx = searchResponse.data.data[0];
-            console.log(`Found transaction by tx_ref - Status: ${foundTx.status}, ID: ${foundTx.id}`);
-            
-            if (foundTx.status === 'successful') {
-              user.isPremium = true;
-              user.purchaseDate = new Date();
-              transaction.status = 'completed';
-              transaction.flutterwaveId = foundTx.id;
-              await user.save();
-              return res.json({ success: true, isPremium: true, message: 'Premium activated successfully!' });
-            }
-          }
-        } catch (searchError) {
-          console.log(`Search error: ${searchError.message}`);
-        }
-      }
-      
-      return res.json({ 
-        success: false, 
-        pending: true, 
-        message: 'Transaction not found yet. Please wait a few moments and try again.' 
-      });
+    if (txData?.status === 'successful') {
+      user.isPremium = true;
+      user.purchaseDate = new Date();
+      transaction.status = 'completed';
+      transaction.flutterwaveId = txData.id;
+      await user.save();
+      console.log(`✅✅ PREMIUM ACTIVATED for: ${user.email} ✅✅`);
+      return res.json({ success: true, isPremium: true });
+    } else if (txData?.status === 'pending') {
+      return res.json({ success: false, pending: true, message: 'Payment still processing' });
+    } else {
+      return res.json({ success: false, error: `Payment status: ${txData?.status}` });
     }
     
   } catch (error) {
-    console.error('❌ Payment verification error:', error.message);
-    res.status(200).json({ success: false, error: 'Verification failed. Please contact support.' });
+    console.error('Verification error:', error.response?.data || error.message);
+    res.status(200).json({ success: false, error: 'Verification failed. Contact support.' });
   }
 });
 // Admin manual premium activation
