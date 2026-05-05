@@ -19,7 +19,11 @@ const allowedOrigins = [
   'https://elite-nursing-cbt.vercel.app',
   'http://localhost:5173',
   'http://localhost:5000',
-  'https://elite-nursing-backend.onrender.com'
+  'https://elite-nursing-backend.onrender.com',
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
+  'http://capacitor://localhost'
 ];
 
 app.use(cors({
