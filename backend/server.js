@@ -701,7 +701,7 @@ app.post('/api/quizzes/:quizId/submit', async (req, res) => {
 // Initialize payment
 app.post('/api/initialize-payment', async (req, res) => {
   try {
-    const { email, amount, userId, planType, examId, examTitle, sectionNumber } = req.body;
+    const { email, amount, userId, planType, examId, examTitle, sectionNumber, redirect_url } = req.body;
     
     if (!userId) {
       console.error('❌ Payment initialization failed: userId is missing');
@@ -714,12 +714,15 @@ app.post('/api/initialize-payment', async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     
+    // Use provided redirect_url or fallback to default
+    const finalRedirectUrl = redirect_url || `https://elite-nursing-cbt.vercel.app/payment-return?reference=${tx_ref}`;
+    
     // Initialize payment with Flutterwave
     const response = await axios.post('https://api.flutterwave.com/v3/payments', {
       tx_ref,
       amount,
       currency: "NGN",
-      redirect_url: `https://elite-nursing-cbt.vercel.app/payment-return?reference=${tx_ref}`,
+      redirect_url: finalRedirectUrl,
       customer: { email, name: user.name || email },
       customizations: {
         title: "ELITE Nursing CBT",
