@@ -1,6 +1,9 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Browser } from '@capacitor/browser';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -147,7 +150,7 @@ const Timer = ({ duration, onTimeUp }) => {
   );
 };
 
-// Premium Modal Component
+// Premium Modal Component (updated for in-app payment)
 const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   const { token, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
@@ -157,25 +160,40 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
       alert('Please log in again to make payment.');
       return;
     }
-    
+
     setLoading(true);
     try {
       console.log('User ID for payment:', user.id);
-      
-      const response = await axios.post('/api/initialize-payment', { 
-        email: user.email, 
+
+      // Determine redirect URL based on platform
+      const isNative = Capacitor.isNativePlatform();
+      const redirectUrl = isNative
+        ? 'https://elite-nursing-cbt.vercel.app/payment-success.html'
+        : 'https://elite-nursing-cbt.vercel.app/payment-return';
+
+      const response = await axios.post('/api/initialize-payment', {
+        email: user.email,
         amount: 5900,
         userId: user.id,
         planType: examTitle ? 'single' : 'premium',
         examId: examTitle ? window.location.pathname.split('/')[2] : null,
         examTitle: examTitle || null,
-        sectionNumber: sectionNumber || null
+        sectionNumber: sectionNumber || null,
+        redirect_url: redirectUrl
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       localStorage.setItem('payment_reference', response.data.reference);
-      window.location.href = response.data.authorization_url;
+
+      if (isNative) {
+        // Open payment in in-app browser (Chrome Custom Tab)
+        await Browser.open({ url: response.data.authorization_url });
+        localStorage.setItem('waiting_for_payment', 'true');
+      } else {
+        // Web: normal redirect
+        window.location.href = response.data.authorization_url;
+      }
     } catch (error) {
       console.error('Payment error:', error);
       alert('Payment initialization failed. Please try again.');
@@ -1754,7 +1772,7 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component
+// Get Premium Component (updated for in-app payment)
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
@@ -1764,25 +1782,37 @@ const GetPremium = () => {
       alert('Please log in again to make payment.');
       return;
     }
-    
+
     setLoading(true);
     try {
       console.log('User ID for payment:', user.id);
-      
-      const response = await axios.post('/api/initialize-payment', { 
-        email: user.email, 
+
+      const isNative = Capacitor.isNativePlatform();
+      const redirectUrl = isNative
+        ? 'https://elite-nursing-cbt.vercel.app/payment-success.html'
+        : 'https://elite-nursing-cbt.vercel.app/payment-return';
+
+      const response = await axios.post('/api/initialize-payment', {
+        email: user.email,
         amount: 5900,
         userId: user.id,
         planType: 'premium',
         examId: null,
         examTitle: null,
-        sectionNumber: null
+        sectionNumber: null,
+        redirect_url: redirectUrl
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       localStorage.setItem('payment_reference', response.data.reference);
-      window.location.href = response.data.authorization_url;
+
+      if (isNative) {
+        await Browser.open({ url: response.data.authorization_url });
+        localStorage.setItem('waiting_for_payment', 'true');
+      } else {
+        window.location.href = response.data.authorization_url;
+      }
     } catch (error) {
       console.error('Payment error:', error);
       alert('Payment initialization failed. Please try again.');
@@ -2420,6 +2450,93 @@ function App() {
   if (auth.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
+
+  // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
+  // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
+useEffect(() => {
+  // Only proceed if there's an ongoing payment intent
+  const waitingForPayment = localStorage.getItem('waiting_for_payment');
+  if (waitingForPayment !== 'true') return;
+
+  const params = new URLSearchParams(window.location.search);
+  const reference = params.get('reference') || params.get('trxref');
+  const storedReference = localStorage.getItem('payment_reference');
+  const paymentRef = reference || storedReference;
+  
+  if (paymentRef && auth.user?.id) {
+    const verifyPayment = async () => {
+      try {
+        console.log('Verifying payment:', paymentRef, 'for user:', auth.user?.id);
+        const response = await axios.post('/api/verify-payment', { 
+          reference: paymentRef, 
+          userId: auth.user?.id 
+        });
+        console.log('Verification response:', response.data);
+        
+        if (response.data.success) {
+          alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
+          localStorage.removeItem('payment_reference');
+          const updatedUser = { ...auth.user, isPremium: true };
+          setAuth({ ...auth, user: updatedUser });
+          localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
+          if (auth.token) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
+          }
+          window.location.href = '/';
+        } else {
+          alert('Payment verification failed: ' + (response.data.error || 'Unknown error') + '. Please contact support if you were charged.');
+        }
+      } catch (error) { 
+        console.error('Verification error:', error);
+        alert('Payment verification failed. Please contact support if you were charged.');
+      } finally {
+        localStorage.removeItem('waiting_for_payment');
+        localStorage.removeItem('payment_reference');
+      }
+    };
+    verifyPayment();
+  }
+}, [auth.user?.id]);
+
+  // ========== 2. NEW: Listen for app coming to foreground (Android only) ==========
+  // Only change the listener line
+useEffect(() => {
+  if (!Capacitor.isNativePlatform()) return;
+
+  const handleAppStateChange = async (state) => {
+    if (state.isActive) {
+      const pendingRef = localStorage.getItem('payment_reference');
+      const waiting = localStorage.getItem('waiting_for_payment');
+
+      if (waiting === 'true' && pendingRef && auth.user?.id) {
+        localStorage.removeItem('waiting_for_payment');
+        try {
+          const response = await axios.post('/api/verify-payment', {
+            reference: pendingRef,
+            userId: auth.user.id
+          });
+          if (response.data.success) {
+            alert('✅ Payment successful! Your account is now PREMIUM.');
+            const updatedUser = { ...auth.user, isPremium: true };
+            setAuth({ ...auth, user: updatedUser });
+            localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
+            window.location.reload();
+          } else {
+            alert('Payment verification failed. Please contact support if you were charged.');
+          }
+        } catch (err) {
+          console.error('Verification error:', err);
+          alert('Could not verify payment. Please contact support.');
+        } finally {
+          localStorage.removeItem('payment_reference');
+        }
+      }
+    }
+  };
+
+  const listener = CapacitorApp.addListener('appStateChange', handleAppStateChange);
+  return () => listener.remove();
+}, [auth.user?.id, auth.token]);
 
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>

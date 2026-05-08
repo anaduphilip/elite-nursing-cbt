@@ -1,5 +1,15 @@
 {
   "appId": "com.elitenursing.cbt",
   "appName": "ELITE Nursing & Midwifery CBT",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "url": "https://elite-nursing-cbt.vercel.app",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  }
 }
