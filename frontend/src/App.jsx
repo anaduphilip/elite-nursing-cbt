@@ -1114,7 +1114,7 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – CSS Grid, global cache, no overlap
+// Course List Component – CSS Grid, increased gap, no overlap, global cache
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
@@ -1212,19 +1212,28 @@ const CourseList = () => {
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
         </div>
 
-        {/* CSS Grid – no overlap, responsive */}
+        {/* CSS Grid – increased gap, bottom margin, no overlap */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: '24px',
-          marginBottom: '40px'
+          gap: '32px',
+          marginBottom: '50px'
         }}>
           {displayData.map(item => {
             if (isTopicView) {
               // Course card
               return (
                 <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div style={{ 
+                    background: darkMode ? '#16213e' : 'white', 
+                    padding: 20, 
+                    borderRadius: 16, 
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    height: '100%',
+                    wordBreak: 'break-word'
+                  }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{item.topic}</h3>
                     <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{item.quizCount} exam sets, {item.totalQuestions} total questions</p>
@@ -1255,7 +1264,16 @@ const CourseList = () => {
 
               return (
                 <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div style={{ 
+                    background: darkMode ? '#16213e' : 'white', 
+                    padding: 20, 
+                    borderRadius: 16, 
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    height: '100%',
+                    wordBreak: 'break-word'
+                  }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
                     <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{quiz.description?.substring(0, 80)}...</p>
@@ -1271,6 +1289,7 @@ const CourseList = () => {
           })}
         </div>
 
+        {/* Upgrade button (free mode, not in topic view) */}
         {mode === 'free' && !currentTopic && (
           <div style={{ textAlign: 'center', marginTop: 20, marginBottom: 40 }}>
             <Link to="/get-premium">
@@ -1281,6 +1300,7 @@ const CourseList = () => {
           </div>
         )}
 
+        {/* Copyright */}
         <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
           <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
         </div>
