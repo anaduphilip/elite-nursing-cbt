@@ -1096,7 +1096,7 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – supports topic grouping
+// Course List Component – shows topics first, then direct exam links
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
@@ -1114,7 +1114,6 @@ const CourseList = () => {
 
   const category = categoryMap[categoryName] || { name: 'Courses', icon: '📚', color: mode === 'free' ? '#1e3c72' : '#ff9800' };
 
-  // Get topic from URL if present
   const urlParams = new URLSearchParams(window.location.search);
   const currentTopic = urlParams.get('topic');
 
@@ -1126,12 +1125,18 @@ const CourseList = () => {
         let filtered = res.data.filter(q => q.category === categoryName);
 
         if (currentTopic) {
-          // Second level: show actual quizzes under this topic
+          // Show actual quizzes under this topic
           const topicQuizzes = filtered.filter(q => q.topic === currentTopic);
+          // Sort by start number (extracted from title)
+          topicQuizzes.sort((a, b) => {
+            const numA = parseInt(a.title.match(/\d+/)?.[0] || 0);
+            const numB = parseInt(b.title.match(/\d+/)?.[0] || 0);
+            return numA - numB;
+          });
           setDisplayData(topicQuizzes);
           setIsTopicView(false);
         } else {
-          // First level: group by topic
+          // Group by topic
           const topicMap = new Map();
           filtered.forEach(quiz => {
             const topic = quiz.topic || 'General';
@@ -1154,9 +1159,7 @@ const CourseList = () => {
     fetchData();
   }, [categoryName, token, currentTopic]);
 
-  if (loading) {
-    return <LoadingWithBar message={`Loading ${category.name} courses`} />;
-  }
+  if (loading) return <LoadingWithBar message={`Loading ${category.name} courses`} />;
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -1191,23 +1194,23 @@ const CourseList = () => {
                 </Link>
               );
             } else {
-              // Actual quiz card (same as before)
+              // Actual quiz card – direct link to take exam (section 1)
               const quiz = item;
               const totalQuestions = quiz.questions?.length || 0;
-              const hasTakenExam1 = localStorage.getItem(`exam_${quiz._id}_taken`) === 'true';
+              const isFree = !quiz.isPremium;
               return (
-                <Link to={`/exams/${quiz._id}/${mode}`} key={quiz._id} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', opacity: (mode === 'free' && hasTakenExam1) ? 0.7 : 1 }}>
+                <Link to={`/take/${quiz._id}/1/${mode}`} key={quiz._id} style={{ textDecoration: 'none' }}>
+                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
                     <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{quiz.description?.substring(0, 80)}...</p>
                     <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
                     <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                      <span style={{ background: '#e8f5e9', color: '#1e3c72', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 Exam 1 Free</span>
-                      <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ {Math.ceil(totalQuestions / 20)} Premium</span>
+                      <span style={{ background: '#e8f5e9', color: '#1e3c72', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 {isFree ? 'Free Exam' : 'Premium'}</span>
+                      {!isFree && <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ Premium</span>}
                     </div>
                     <button style={{ width: '100%', marginTop: 14, background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-                      View Exams →
+                      Start Exam →
                     </button>
                   </div>
                 </Link>
@@ -1222,7 +1225,6 @@ const CourseList = () => {
     </div>
   );
 };
-
 // Exam List Component
 const ExamList = () => {
   const { id, mode } = useParams();
@@ -1406,7 +1408,7 @@ const ExamList = () => {
   );
 };
 
-// Take Exam Component
+// Take Exam Component – with premium check
 const TakeExam = () => {
   const { id, sectionNumber, mode } = useParams();
   const [exam, setExam] = useState(null);
@@ -1417,13 +1419,26 @@ const TakeExam = () => {
   const [showReview, setShowReview] = useState(false);
   const [timeUp, setTimeUp] = useState(false);
   const [showUpgradeMessage, setShowUpgradeMessage] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [premiumBlocked, setPremiumBlocked] = useState(false);
   const { token, darkMode } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchExam = async () => {
       try {
+        setLoading(true);
         const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         setExam(res.data);
+        
+        // Premium check: if mode is 'premium' and quiz is premium, verify user is premium
+        if (mode === 'premium' && res.data.isPremium) {
+          const profileRes = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
+          if (!profileRes.data.isPremium) {
+            setPremiumBlocked(true);
+            setLoading(false);
+            return;
+          }
+        }
         
         const sectionNum = parseInt(sectionNumber);
         const startIndex = (sectionNum - 1) * 20;
@@ -1437,12 +1452,15 @@ const TakeExam = () => {
         setShowReview(false);
         setTimeUp(false);
         setShowUpgradeMessage(false);
+        setPremiumBlocked(false);
       } catch (error) {
         alert('Error loading exam: ' + error.message);
+      } finally {
+        setLoading(false);
       }
     };
-    if (id) fetchExam();
-  }, [id, sectionNumber, token]);
+    if (id && token) fetchExam();
+  }, [id, sectionNumber, token, mode]);
 
   const handleAnswer = (qIndex, answerIndex) => {
     setAnswers({ ...answers, [qIndex]: answerIndex });
@@ -1481,7 +1499,25 @@ const TakeExam = () => {
   const totalQuestions = questions.length;
   const allAnswered = answeredCount === totalQuestions;
 
-  if (!exam) return <LoadingWithBar message="Loading examination" />;
+  if (loading) return <LoadingWithBar message="Loading examination" />;
+  if (premiumBlocked) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
+          <h2 style={{ color: '#1e3c72' }}>Premium Required</h2>
+          <p>This exam is premium content. Please upgrade to access it.</p>
+          <Link to="/get-premium">
+            <button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+              Upgrade Now
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!exam) return <div>Exam not found</div>;
 
   if (submitted && !showReview) {
     return (
@@ -1505,7 +1541,7 @@ const TakeExam = () => {
           
           <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center' }}>
             <button onClick={() => setShowReview(true)} style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Review Answers</button>
-            <Link to={`/exams/${id}/${mode}`}><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Back to Exams</button></Link>
+            <Link to={`/courses/${exam.category}/${mode}`}><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Back to Topics</button></Link>
           </div>
         </div>
         <div style={{ textAlign: 'center', padding: '20px', marginTop: 20, width: '100%' }}>
@@ -1523,7 +1559,7 @@ const TakeExam = () => {
           <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
             <h2 style={{ color: '#1e3c72', fontSize: 22 }}>Answer Review</h2>
             <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
-            <Link to={`/exams/${id}/${mode}`}><button style={{ background: '#1e3c72', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Exams</button></Link>
+            <Link to={`/courses/${exam.category}/${mode}`}><button style={{ background: '#1e3c72', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Topics</button></Link>
           </div>
           {questions.map((q, idx) => {
             const userAnswer = answers[idx];
@@ -1541,7 +1577,7 @@ const TakeExam = () => {
               </div>
             );
           })}
-          <Link to={`/exams/${id}/${mode}`}><button style={{ width: '100%', marginTop: 20, background: '#1e3c72', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Back to Exams</button></Link>
+          <Link to={`/courses/${exam.category}/${mode}`}><button style={{ width: '100%', marginTop: 20, background: '#1e3c72', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Back to Topics</button></Link>
         </div>
         <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
           <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
@@ -1620,7 +1656,6 @@ const TakeExam = () => {
     </div>
   );
 };
-
 // How To Use Component
 const HowToUse = () => {
   const { darkMode } = useContext(AuthContext);
