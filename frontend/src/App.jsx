@@ -1096,13 +1096,16 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – no cache, safe and simple
+// Course List Component – fast, no overlap, correct terms
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
   const [isTopicView, setIsTopicView] = useState(true);
   const [loading, setLoading] = useState(true);
   const { token, darkMode } = useContext(AuthContext);
+
+  // In‑memory cache (lives while the page is open)
+  const cacheRef = useRef(null);
 
   const categoryMap = {
     'general-nursing': { name: 'General Nursing', icon: '🩺', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
@@ -1120,9 +1123,16 @@ const CourseList = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-        const quizzesData = res.data;
-        
+        let quizzesData = null;
+        // Use cached data if available
+        if (cacheRef.current) {
+          quizzesData = cacheRef.current;
+        } else {
+          const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
+          quizzesData = res.data;
+          cacheRef.current = quizzesData; // store for future
+        }
+
         let filtered = quizzesData.filter(q => q.category === categoryName);
 
         if (currentTopic) {
@@ -1151,7 +1161,6 @@ const CourseList = () => {
         }
       } catch (error) {
         console.error('Error fetching courses:', error);
-        setDisplayData([]);
       } finally {
         setLoading(false);
       }
@@ -1169,14 +1178,14 @@ const CourseList = () => {
   };
 
   if (loading) {
-    const loadingMsg = currentTopic ? 'Loading exams...' : 'Loading topics...';
+    const loadingMsg = currentTopic ? 'Loading exams...' : 'Loading courses...';
     return <LoadingWithBar message={loadingMsg} />;
   }
 
   if (displayData.length === 0) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
-        <p>No topics or exams found for {category.name}. Please try again later.</p>
+        <p>No {isTopicView ? 'courses' : 'exams'} found for {category.name}. Please try again later.</p>
         <button onClick={() => window.location.reload()} style={{ marginTop: 20, padding: '10px 20px', background: '#1e3c72', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
           Refresh
         </button>
@@ -1194,21 +1203,23 @@ const CourseList = () => {
             {currentTopic ? currentTopic : category.name}
           </h1>
           <p style={{ marginTop: 8, fontSize: 14 }}>{mode === 'free' ? 'FREE MODE' : 'PREMIUM MODE'}</p>
-          <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'topics' : 'exam sets'} available</p>
+          <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
         </div>
 
-        {/* Flexbox grid */}
+        {/* Flexbox grid – fixed width cards prevent overlap */}
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
           gap: '24px',
           justifyContent: 'center',
+          alignItems: 'stretch',
           marginBottom: '40px'
         }}>
           {displayData.map(item => {
             if (isTopicView) {
+              // Course card (formerly "topic")
               return (
-                <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none', flex: '1 1 300px', minWidth: '280px', maxWidth: '350px', margin: '0' }}>
+                <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none', width: '300px', flexShrink: 0 }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{item.topic}</h3>
@@ -1220,6 +1231,7 @@ const CourseList = () => {
                 </Link>
               );
             } else {
+              // Exam set card
               const quiz = item;
               const totalQuestions = quiz.questions?.length || 0;
               const lastScore = getLastScore(quiz._id);
@@ -1238,7 +1250,7 @@ const CourseList = () => {
               }
 
               return (
-                <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none', flex: '1 1 300px', minWidth: '280px', maxWidth: '350px', margin: '0' }}>
+                <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none', width: '300px', flexShrink: 0 }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
@@ -1270,6 +1282,7 @@ const CourseList = () => {
         </div>
       </div>
 
+      {/* Floating Back Button */}
       <Link to={currentTopic ? `/courses/${categoryName}/${mode}` : `/?mode=${mode}`}>
         <button style={{
           position: 'fixed',
@@ -1287,7 +1300,7 @@ const CourseList = () => {
           boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
           zIndex: 1000
         }}>
-          ← {currentTopic ? 'Back to Topics' : 'Back to Categories'}
+          ← {currentTopic ? 'Back to Courses' : 'Back to Categories'}
         </button>
       </Link>
     </div>
