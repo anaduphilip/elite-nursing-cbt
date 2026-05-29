@@ -168,35 +168,50 @@ const Timer = ({ duration, onTimeUp }) => {
   );
 };
 
-// Premium Modal Component (updated for in-app payment)
+// Premium Modal Component with detailed error logging
 const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   const { token, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
-    // --- FIX: Use localStorage as fallback for WebView ---
+    // --- Step 1: Check auth and log everything ---
+    console.log('=== PAYMENT INITIALIZATION START ===');
+    console.log('Context token:', token);
+    console.log('Context user:', user);
+    
+    // Fallback to localStorage
     let auth = null;
     try {
       auth = JSON.parse(localStorage.getItem('auth'));
-    } catch (e) {}
+      console.log('localStorage auth:', auth);
+    } catch (e) {
+      console.error('Error parsing localStorage auth:', e);
+    }
+    
     const effectiveToken = token || auth?.token;
     const effectiveUser = user || auth?.user;
-
+    
+    console.log('Effective token exists?', !!effectiveToken);
+    console.log('Effective user:', effectiveUser);
+    
     if (!effectiveUser?.id) {
+      console.error('No user ID found');
       alert('Please log in again to make payment.');
       return;
     }
 
     setLoading(true);
     try {
-      console.log('User ID for payment:', effectiveUser.id);
-
       const isNative = Capacitor.isNativePlatform();
+      console.log('Is native platform:', isNative);
+      
       const redirectUrl = isNative
         ? 'https://elite-nursing-cbt.vercel.app/payment-success.html'
         : 'https://elite-nursing-cbt.vercel.app/payment-return';
-
-      const response = await axios.post('/api/initialize-payment', {
+      
+      console.log('Redirect URL:', redirectUrl);
+      
+      const requestPayload = {
         email: effectiveUser.email,
         amount: 5900,
         userId: effectiveUser.id,
@@ -205,27 +220,48 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         examTitle: examTitle || null,
         sectionNumber: sectionNumber || null,
         redirect_url: redirectUrl
-      }, {
+      };
+      console.log('Request payload:', requestPayload);
+      
+      console.log('Making POST request to /api/initialize-payment...');
+      const response = await axios.post('/api/initialize-payment', requestPayload, {
         headers: { Authorization: `Bearer ${effectiveToken}` },
-        withCredentials: true   // additional safety for credentials
+        withCredentials: true
       });
-
+      
+      console.log('Payment initialization response:', response.data);
+      
       localStorage.setItem('payment_reference', response.data.reference);
-
+      
       if (isNative) {
+        console.log('Opening in-app browser with URL:', response.data.authorization_url);
         await Browser.open({ url: response.data.authorization_url });
         localStorage.setItem('waiting_for_payment', 'true');
       } else {
+        console.log('Redirecting to:', response.data.authorization_url);
         window.location.href = response.data.authorization_url;
       }
     } catch (error) {
-      console.error('Payment error:', error);
-      alert('Payment initialization failed. Please try again.');
+      console.error('=== PAYMENT ERROR DETAILS ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error response status:', error.response?.status);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error response headers:', error.response?.headers);
+      console.error('Error config:', error.config);
+      
+      let errorMsg = 'Payment initialization failed. Please try again.';
+      if (error.response?.data?.error) {
+        errorMsg += ' ' + error.response.data.error;
+      } else if (error.message) {
+        errorMsg += ' ' + error.message;
+      }
+      alert(errorMsg);
       setLoading(false);
     }
   };
 
-  // --- The JSX return is unchanged ---
+  // --- The JSX return remains the same ---
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
