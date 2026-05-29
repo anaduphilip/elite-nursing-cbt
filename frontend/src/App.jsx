@@ -1096,7 +1096,7 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – final with floating back button
+// Course List Component – organized tiles, floating back button at bottom center
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
@@ -1124,7 +1124,6 @@ const CourseList = () => {
         let filtered = res.data.filter(q => q.category === categoryName);
 
         if (currentTopic) {
-          // Show quiz sets under this topic
           let topicQuizzes = filtered.filter(q => q.topic === currentTopic);
           topicQuizzes.sort((a, b) => {
             const numA = parseInt(a.title.match(/\d+/)?.[0] || 0);
@@ -1135,7 +1134,6 @@ const CourseList = () => {
           setDisplayData(topicQuizzes);
           setIsTopicView(false);
         } else {
-          // Group by topic – count topics, not quiz sets
           const topicMap = new Map();
           filtered.forEach(quiz => {
             const topic = quiz.topic || 'General';
@@ -1167,14 +1165,13 @@ const CourseList = () => {
     return null;
   };
 
-  // Loading message
   if (loading) {
     const loadingMsg = currentTopic ? 'Loading exams...' : 'Loading topics...';
     return <LoadingWithBar message={loadingMsg} />;
   }
 
   return (
-    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', position: 'relative' }}>
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${category.color} 0%, ${mode === 'free' ? '#1a3a5c' : '#e65100'} 100%)`, borderRadius: 20, padding: 32, marginBottom: 28, color: 'white', textAlign: 'center' }}>
@@ -1186,8 +1183,8 @@ const CourseList = () => {
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'topics' : 'exam sets'} available</p>
         </div>
         
-        {/* Grid of cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
+        {/* Grid – organized cards with equal height */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24, alignItems: 'stretch' }}>
           {displayData.map(item => {
             if (isTopicView) {
               // Topic card
@@ -1240,7 +1237,7 @@ const CourseList = () => {
           })}
         </div>
 
-        {/* Upgrade button below grid (only in free mode, not in topic view) */}
+        {/* Upgrade button (free mode, not in topic view) */}
         {mode === 'free' && !currentTopic && (
           <div style={{ textAlign: 'center', marginTop: 40 }}>
             <Link to="/get-premium">
@@ -1257,12 +1254,13 @@ const CourseList = () => {
         </div>
       </div>
 
-      {/* Floating Back Button */}
+      {/* Floating Back Button at Bottom Center */}
       <Link to={currentTopic ? `/courses/${categoryName}/${mode}` : `/?mode=${mode}`}>
         <button style={{
           position: 'fixed',
           bottom: '20px',
-          right: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
           background: '#6c757d',
           color: 'white',
           border: 'none',
