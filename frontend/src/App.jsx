@@ -1096,7 +1096,7 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – organized tiles with flexbox (no overlap)
+// Course List Component – final version with 2-hour cache, flexbox layout, no overlap
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
@@ -1111,6 +1111,7 @@ const CourseList = () => {
     'pediatric-nursing': { name: 'Pediatric Nursing', icon: '👶', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
     'dental-nursing': { name: 'Dental Nursing', icon: '🦷', color: mode === 'free' ? '#1e3c72' : '#ff9800' }
   };
+
   const category = categoryMap[categoryName] || { name: 'Courses', icon: '📚', color: mode === 'free' ? '#1e3c72' : '#ff9800' };
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -1120,8 +1121,33 @@ const CourseList = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-        let filtered = res.data.filter(q => q.category === categoryName);
+        // Cache key for quizzes
+        const cacheKey = 'all_quizzes';
+        const cached = localStorage.getItem(cacheKey);
+        let quizzesData = null;
+
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            // Check expiry (2 hours)
+            if (parsed.expiry && parsed.expiry > Date.now()) {
+              quizzesData = parsed.data;
+            }
+          } catch (e) {
+            console.warn('Cache parse error', e);
+          }
+        }
+
+        if (!quizzesData) {
+          const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
+          quizzesData = res.data;
+          localStorage.setItem(cacheKey, JSON.stringify({
+            data: quizzesData,
+            expiry: Date.now() + 2 * 60 * 60 * 1000 // 2 hours
+          }));
+        }
+
+        let filtered = quizzesData.filter(q => q.category === categoryName);
 
         if (currentTopic) {
           let topicQuizzes = filtered.filter(q => q.topic === currentTopic);
@@ -1182,14 +1208,20 @@ const CourseList = () => {
           <p style={{ marginTop: 8, fontSize: 14 }}>{mode === 'free' ? 'FREE MODE' : 'PREMIUM MODE'}</p>
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'topics' : 'exam sets'} available</p>
         </div>
-        
-        {/* Flexbox layout – no overlap */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', justifyContent: 'center' }}>
+
+        {/* Flexbox grid – no overlap, equal card heights */}
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '24px',
+          justifyContent: 'center',
+          marginBottom: '40px'
+        }}>
           {displayData.map(item => {
             if (isTopicView) {
               // Topic card
               return (
-                <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none', flex: '1 1 300px', minWidth: '280px', maxWidth: '350px' }}>
+                <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none', flex: '1 1 300px', minWidth: '280px', maxWidth: '350px', margin: '0' }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{item.topic}</h3>
@@ -1206,11 +1238,11 @@ const CourseList = () => {
               const totalQuestions = quiz.questions?.length || 0;
               const lastScore = getLastScore(quiz._id);
               const hasTakenFree = localStorage.getItem(`exam_${quiz._id}_taken`) === 'true';
-              
+
               let buttonText = 'Start Exam →';
               let buttonLink = `/take/${quiz._id}/1/${mode}`;
               let buttonColor = category.color;
-              
+
               if (mode === 'free') {
                 if (hasTakenFree) {
                   buttonText = '⭐ Upgrade to Retake';
@@ -1218,9 +1250,9 @@ const CourseList = () => {
                   buttonColor = '#ff9800';
                 }
               }
-              
+
               return (
-                <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none', flex: '1 1 300px', minWidth: '280px', maxWidth: '350px' }}>
+                <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none', flex: '1 1 300px', minWidth: '280px', maxWidth: '350px', margin: '0' }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
@@ -1239,7 +1271,7 @@ const CourseList = () => {
 
         {/* Upgrade button (free mode, not in topic view) */}
         {mode === 'free' && !currentTopic && (
-          <div style={{ textAlign: 'center', marginTop: 40 }}>
+          <div style={{ textAlign: 'center', marginTop: 20, marginBottom: 40 }}>
             <Link to="/get-premium">
               <button style={{ background: '#ff9800', color: 'white', padding: '14px 32px', border: 'none', borderRadius: 50, cursor: 'pointer', fontWeight: 'bold', fontSize: 16 }}>
                 ⭐ Upgrade to Premium (₦5,900)
