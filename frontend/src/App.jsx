@@ -174,42 +174,48 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
   const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
-    if (!user?.id) {
+    // --- FIX: Use localStorage as fallback for WebView ---
+    let auth = null;
+    try {
+      auth = JSON.parse(localStorage.getItem('auth'));
+    } catch (e) {}
+    const effectiveToken = token || auth?.token;
+    const effectiveUser = user || auth?.user;
+
+    if (!effectiveUser?.id) {
       alert('Please log in again to make payment.');
       return;
     }
 
     setLoading(true);
     try {
-      console.log('User ID for payment:', user.id);
+      console.log('User ID for payment:', effectiveUser.id);
 
-      // Determine redirect URL based on platform
       const isNative = Capacitor.isNativePlatform();
       const redirectUrl = isNative
         ? 'https://elite-nursing-cbt.vercel.app/payment-success.html'
         : 'https://elite-nursing-cbt.vercel.app/payment-return';
 
       const response = await axios.post('/api/initialize-payment', {
-        email: user.email,
+        email: effectiveUser.email,
         amount: 5900,
-        userId: user.id,
+        userId: effectiveUser.id,
         planType: examTitle ? 'single' : 'premium',
         examId: examTitle ? window.location.pathname.split('/')[2] : null,
         examTitle: examTitle || null,
         sectionNumber: sectionNumber || null,
         redirect_url: redirectUrl
       }, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${effectiveToken}` },
+        withCredentials: true   // additional safety for credentials
       });
 
       localStorage.setItem('payment_reference', response.data.reference);
 
       if (isNative) {
-        // Open payment in in-app browser (Chrome Custom Tab)
         await Browser.open({ url: response.data.authorization_url });
         localStorage.setItem('waiting_for_payment', 'true');
       } else {
-        // Web: normal redirect
         window.location.href = response.data.authorization_url;
       }
     } catch (error) {
@@ -219,6 +225,7 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
     }
   };
 
+  // --- The JSX return is unchanged ---
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
