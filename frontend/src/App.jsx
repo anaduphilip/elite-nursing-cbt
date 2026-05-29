@@ -1096,15 +1096,22 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – filters by mode: free shows only free exams, premium shows all
+// Course List Component – with free/premium mode, one‑time free attempt, and score display
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
   const [isTopicView, setIsTopicView] = useState(true);
   const [loading, setLoading] = useState(true);
-  const { token, darkMode } = useContext(AuthContext);
+  const { token, darkMode, user } = useContext(AuthContext);
 
-  const categoryMap = { /* same as before */ };
+  const categoryMap = {
+    'general-nursing': { name: 'General Nursing', icon: '🩺', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
+    'midwifery': { name: 'Midwifery', icon: '🤰', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
+    'public-health': { name: 'Public Health', icon: '🌍', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
+    'pediatric-nursing': { name: 'Pediatric Nursing', icon: '👶', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
+    'dental-nursing': { name: 'Dental Nursing', icon: '🦷', color: mode === 'free' ? '#1e3c72' : '#ff9800' }
+  };
+
   const category = categoryMap[categoryName] || { name: 'Courses', icon: '📚', color: mode === 'free' ? '#1e3c72' : '#ff9800' };
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -1118,22 +1125,28 @@ const CourseList = () => {
         let filtered = res.data.filter(q => q.category === categoryName);
 
         if (currentTopic) {
-          // Show actual quizzes under this topic
+          // Show quiz sets under this topic
           let topicQuizzes = filtered.filter(q => q.topic === currentTopic);
-          // Sort by start number
+          // Sort by start number (extracted from title)
           topicQuizzes.sort((a, b) => {
             const numA = parseInt(a.title.match(/\d+/)?.[0] || 0);
             const numB = parseInt(b.title.match(/\d+/)?.[0] || 0);
             return numA - numB;
           });
-          // **FILTER BY MODE**: free mode only shows isPremium === false
+
           if (mode === 'free') {
-            topicQuizzes = topicQuizzes.filter(q => !q.isPremium);
+            // Free mode: show only the first quiz set (lowest number)
+            if (topicQuizzes.length > 0) {
+              topicQuizzes = [topicQuizzes[0]];
+            } else {
+              topicQuizzes = [];
+            }
           }
+          // For premium mode, show all (no filter)
           setDisplayData(topicQuizzes);
           setIsTopicView(false);
         } else {
-          // Group by topic
+          // Group by topic (first level)
           const topicMap = new Map();
           filtered.forEach(quiz => {
             const topic = quiz.topic || 'General';
@@ -1154,7 +1167,17 @@ const CourseList = () => {
       }
     };
     fetchData();
-  }, [categoryName, token, currentTopic, mode]); // mode added as dependency
+  }, [categoryName, token, currentTopic, mode]);
+
+  // Helper to get last score for a quiz
+  const getLastScore = (quizId) => {
+    const scores = localStorage.getItem(`exam_${quizId}_scores`);
+    if (scores) {
+      const parsed = JSON.parse(scores);
+      if (parsed[1]) return parsed[1]; // section 1
+    }
+    return null;
+  };
 
   if (loading) return <LoadingWithBar message={`Loading ${category.name} courses`} />;
 
@@ -1177,7 +1200,7 @@ const CourseList = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
           {displayData.map(item => {
             if (isTopicView) {
-              // Topic card – no change
+              // Topic card
               return (
                 <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none' }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
@@ -1194,21 +1217,44 @@ const CourseList = () => {
               // Quiz card
               const quiz = item;
               const totalQuestions = quiz.questions?.length || 0;
-              const isFree = !quiz.isPremium;
+              const lastScore = getLastScore(quiz._id);
+              const hasTakenFree = localStorage.getItem(`exam_${quiz._id}_taken`) === 'true';
+              
+              // Determine if the exam is accessible in current mode
+              let isAccessible = false;
+              let buttonText = 'Start Exam →';
+              let buttonLink = `/take/${quiz._id}/1/${mode}`;
+              let disabled = false;
+              
+              if (mode === 'free') {
+                // Free mode: only one attempt allowed, then need premium to retake
+                if (hasTakenFree) {
+                  // Already taken: show upgrade button
+                  buttonText = '⭐ Upgrade to Retake';
+                  buttonLink = '/get-premium';
+                } else {
+                  isAccessible = true;
+                }
+              } else { // premium mode
+                // In premium mode, always show Start Exam (access will be checked inside TakeExam)
+                isAccessible = true;
+              }
+              
               return (
-                <Link to={`/take/${quiz._id}/1/${mode}`} key={quiz._id} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none' }}>
+                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', opacity: (mode === 'free' && hasTakenFree) ? 0.7 : 1 }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
                     <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{quiz.description?.substring(0, 80)}...</p>
                     <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
+                    {lastScore && <p style={{ fontSize: 13, color: '#ff9800', marginTop: 4 }}>📊 Last Score: {lastScore.score}/{lastScore.total} ({lastScore.percentage}%)</p>}
                     <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                       <span style={{ background: '#e8f5e9', color: '#1e3c72', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>
-                        {isFree ? '🎯 Free Exam' : '⭐ Premium'}
+                        {mode === 'free' ? '🎯 Free Exam' : '⭐ Premium'}
                       </span>
                     </div>
-                    <button style={{ width: '100%', marginTop: 14, background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-                      Start Exam →
+                    <button style={{ width: '100%', marginTop: 14, background: (mode === 'free' && hasTakenFree) ? '#ff9800' : category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                      {buttonText}
                     </button>
                   </div>
                 </Link>
@@ -1407,7 +1453,7 @@ const ExamList = () => {
   );
 };
 
-// Take Exam Component – with premium check
+// Take Exam Component – with free once restriction, premium mode requiring premium, and time per question
 const TakeExam = () => {
   const { id, sectionNumber, mode } = useParams();
   const [exam, setExam] = useState(null);
@@ -1417,20 +1463,30 @@ const TakeExam = () => {
   const [result, setResult] = useState(null);
   const [showReview, setShowReview] = useState(false);
   const [timeUp, setTimeUp] = useState(false);
-  const [showUpgradeMessage, setShowUpgradeMessage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [premiumBlocked, setPremiumBlocked] = useState(false);
-  const { token, darkMode } = useContext(AuthContext);
+  const { token, darkMode, user } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchExam = async () => {
       try {
         setLoading(true);
         const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        setExam(res.data);
+        const examData = res.data;
+        setExam(examData);
         
-        // Premium check: if mode is 'premium' and quiz is premium, verify user is premium
-        if (mode === 'premium' && res.data.isPremium) {
+        // --- Access control ---
+        if (mode === 'free') {
+          // Free mode: allow only if not already taken
+          const hasTaken = localStorage.getItem(`exam_${id}_taken`) === 'true';
+          if (hasTaken) {
+            alert('You have already taken this free exam. Upgrade to Premium to retake.');
+            window.location.href = '/get-premium';
+            setLoading(false);
+            return;
+          }
+        } else { // premium mode
+          // Premium mode: require user to be premium
           const profileRes = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
           if (!profileRes.data.isPremium) {
             setPremiumBlocked(true);
@@ -1439,22 +1495,17 @@ const TakeExam = () => {
           }
         }
         
-        const sectionNum = parseInt(sectionNumber);
-        const startIndex = (sectionNum - 1) * 20;
-        let endIndex = startIndex + 20;
-        if (endIndex > res.data.questions.length) endIndex = res.data.questions.length;
-        setQuestions(res.data.questions.slice(startIndex, endIndex));
+        // Extract the questions (there is only one section: sectionNumber=1)
+        const allQuestions = examData.questions;
+        setQuestions(allQuestions);
         
         setAnswers({});
         setSubmitted(false);
         setResult(null);
         setShowReview(false);
         setTimeUp(false);
-        setShowUpgradeMessage(false);
-        setPremiumBlocked(false);
       } catch (error) {
         alert('Error loading exam: ' + error.message);
-      } finally {
         setLoading(false);
       }
     };
@@ -1483,14 +1534,15 @@ const TakeExam = () => {
     setResult({ score, total, percentage, passed: percentage >= 70 });
     setSubmitted(true);
     
+    // Save score
     const savedScores = localStorage.getItem(`exam_${id}_scores`);
     const scores = savedScores ? JSON.parse(savedScores) : {};
-    scores[sectionNumber] = { score, total, percentage };
+    scores[1] = { score, total, percentage };
     localStorage.setItem(`exam_${id}_scores`, JSON.stringify(scores));
     
-    if (mode === 'free' && sectionNumber === '1') {
+    // Mark as taken if free mode
+    if (mode === 'free') {
       localStorage.setItem(`exam_${id}_taken`, 'true');
-      setTimeout(() => setShowUpgradeMessage(true), 2000);
     }
   };
 
@@ -1499,13 +1551,14 @@ const TakeExam = () => {
   const allAnswered = answeredCount === totalQuestions;
 
   if (loading) return <LoadingWithBar message="Loading examination" />;
+  
   if (premiumBlocked) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
           <h2 style={{ color: '#1e3c72' }}>Premium Required</h2>
-          <p>This exam is premium content. Please upgrade to access it.</p>
+          <p>This exam is only available in Premium Mode. Please upgrade to access it.</p>
           <Link to="/get-premium">
             <button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
               Upgrade Now
@@ -1530,10 +1583,10 @@ const TakeExam = () => {
           </p>
           {timeUp && <p style={{ color: '#ff9800' }}>⏰ Time's up!</p>}
           
-          {showUpgradeMessage && mode === 'free' && (
+          {mode === 'free' && (
             <div style={{ marginTop: 20, padding: 16, background: '#fff3e0', borderRadius: 12 }}>
-              <p style={{ color: '#ff9800', fontWeight: 'bold', margin: 0, fontSize: 14 }}>🎯 Great job completing the free exam!</p>
-              <p style={{ color: '#666', marginTop: 8, fontSize: 13 }}>Upgrade to Premium for only ₦5,900 (Lifetime Access) to retake and unlock all exams!</p>
+              <p style={{ color: '#ff9800', fontWeight: 'bold', margin: 0, fontSize: 14 }}>📢 You have completed the free exam!</p>
+              <p style={{ color: '#666', marginTop: 8, fontSize: 13 }}>Upgrade to Premium to retake and unlock all exams.</p>
               <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now (₦5,900)</button></Link>
             </div>
           )}
@@ -1551,7 +1604,6 @@ const TakeExam = () => {
   }
 
   if (submitted && showReview) {
-    const globalStart = (parseInt(sectionNumber) - 1) * 20;
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
@@ -1565,7 +1617,7 @@ const TakeExam = () => {
             const isCorrect = userAnswer !== undefined && userAnswer === q.correctAnswer;
             return (
               <div key={idx} style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 12, padding: 16, marginBottom: 12, borderLeft: `5px solid ${isCorrect ? '#4caf50' : '#f44336'}` }}>
-                <h4 style={{ fontSize: 15, marginBottom: 10 }}>Q{globalStart + idx + 1}: {q.questionText}</h4>
+                <h4 style={{ fontSize: 15, marginBottom: 10 }}>Q{idx+1}: {q.questionText}</h4>
                 {q.options.map((opt, optIdx) => (
                   <div key={optIdx} style={{ padding: '10px 12px', margin: '6px 0', background: optIdx === q.correctAnswer ? '#c8e6c9' : (optIdx === userAnswer ? '#ffcdd2' : '#f5f5f5'), borderRadius: 10, fontSize: 14 }}>
                     <span style={{ fontWeight: 'bold', marginRight: 10 }}>{String.fromCharCode(65 + optIdx)}.</span> {opt}
@@ -1585,14 +1637,15 @@ const TakeExam = () => {
     );
   }
 
-  const globalStart = (parseInt(sectionNumber) - 1) * 20;
+  // Active exam view
+  const timerDuration = questions.length; // each question = 1 minute
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh' }}>
-      <Timer duration={questions.length} onTimeUp={handleTimeUp} />
+      <Timer duration={timerDuration} onTimeUp={handleTimeUp} />
       <div style={{ padding: '20px', maxWidth: 900, margin: '0 auto' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
           <h2 style={{ color: '#1e3c72', margin: 0, fontSize: 20 }}>{exam.title}</h2>
-          <p style={{ fontSize: 14, marginTop: 4 }}>Exam {sectionNumber} - {questions.length} Questions | ⏰ {questions.length} minutes</p>
+          <p style={{ fontSize: 14, marginTop: 4 }}>{questions.length} Questions | ⏰ {timerDuration} minute(s)</p>
           <div style={{ marginTop: 10, padding: '8px 16px', background: '#e8f5e9', borderRadius: 30, display: 'inline-block' }}>
             <span style={{ fontSize: 14, fontWeight: 'bold', color: '#1e3c72' }}>📝 Answered: {answeredCount}/{totalQuestions} {allAnswered && '✅ All answered!'}</span>
           </div>
@@ -1600,7 +1653,7 @@ const TakeExam = () => {
         {questions.map((q, idx) => (
           <div key={idx} style={{ background: '#1e3c72', borderRadius: 16, padding: 20, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h4 style={{ color: 'white', margin: 0, fontSize: 16 }}>Question {globalStart + idx + 1}</h4>
+              <h4 style={{ color: 'white', margin: 0, fontSize: 16 }}>Question {idx+1}</h4>
               {answers[idx] !== undefined && <span style={{ background: '#4caf50', color: 'white', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>✓ Answered</span>}
             </div>
             <p style={{ color: 'white', marginBottom: 16, fontSize: 15 }}>{q.questionText}</p>
@@ -1655,6 +1708,7 @@ const TakeExam = () => {
     </div>
   );
 };
+
 // How To Use Component
 const HowToUse = () => {
   const { darkMode } = useContext(AuthContext);
