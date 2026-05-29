@@ -1114,7 +1114,7 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – uses global cache, no overlap, correct terms
+// Course List Component – CSS Grid, global cache, no overlap
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
@@ -1138,9 +1138,7 @@ const CourseList = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Use the global cached function
         const quizzesData = await getCachedQuizzes(token);
-
         let filtered = quizzesData.filter(q => q.category === categoryName);
 
         if (currentTopic) {
@@ -1214,20 +1212,18 @@ const CourseList = () => {
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
         </div>
 
-        {/* Flexbox grid – fixed width cards prevent overlap */}
+        {/* CSS Grid – no overlap, responsive */}
         <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
           gap: '24px',
-          justifyContent: 'center',
-          alignItems: 'stretch',
           marginBottom: '40px'
         }}>
           {displayData.map(item => {
             if (isTopicView) {
-              // Course card (formerly "topic")
+              // Course card
               return (
-                <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none', width: '300px', flexShrink: 0 }}>
+                <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none' }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{item.topic}</h3>
@@ -1258,7 +1254,7 @@ const CourseList = () => {
               }
 
               return (
-                <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none', width: '300px', flexShrink: 0 }}>
+                <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none' }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
