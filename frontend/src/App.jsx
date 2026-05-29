@@ -1453,7 +1453,7 @@ const ExamList = () => {
   );
 };
 
-// Take Exam Component – with free once restriction, premium mode requiring premium, and time per question
+// Take Exam Component – final version
 const TakeExam = () => {
   const { id, sectionNumber, mode } = useParams();
   const [exam, setExam] = useState(null);
@@ -1477,7 +1477,6 @@ const TakeExam = () => {
         
         // --- Access control ---
         if (mode === 'free') {
-          // Free mode: allow only if not already taken
           const hasTaken = localStorage.getItem(`exam_${id}_taken`) === 'true';
           if (hasTaken) {
             alert('You have already taken this free exam. Upgrade to Premium to retake.');
@@ -1486,7 +1485,6 @@ const TakeExam = () => {
             return;
           }
         } else { // premium mode
-          // Premium mode: require user to be premium
           const profileRes = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
           if (!profileRes.data.isPremium) {
             setPremiumBlocked(true);
@@ -1495,10 +1493,8 @@ const TakeExam = () => {
           }
         }
         
-        // Extract the questions (there is only one section: sectionNumber=1)
-        const allQuestions = examData.questions;
-        setQuestions(allQuestions);
-        
+        // All questions (sectionNumber is always 1 now)
+        setQuestions(examData.questions);
         setAnswers({});
         setSubmitted(false);
         setResult(null);
@@ -1540,7 +1536,6 @@ const TakeExam = () => {
     scores[1] = { score, total, percentage };
     localStorage.setItem(`exam_${id}_scores`, JSON.stringify(scores));
     
-    // Mark as taken if free mode
     if (mode === 'free') {
       localStorage.setItem(`exam_${id}_taken`, 'true');
     }
@@ -1552,18 +1547,28 @@ const TakeExam = () => {
 
   if (loading) return <LoadingWithBar message="Loading examination" />;
   
+  // Premium blocked screen with two buttons
   if (premiumBlocked) {
+    // Get category from exam or from URL (fallback)
+    const backCategory = exam?.category || (window.location.pathname.split('/')[2] || 'general-nursing');
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
           <h2 style={{ color: '#1e3c72' }}>Premium Required</h2>
           <p>This exam is only available in Premium Mode. Please upgrade to access it.</p>
-          <Link to="/get-premium">
-            <button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
-              Upgrade Now
-            </button>
-          </Link>
+          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+            <Link to={`/courses/${backCategory}/${mode}`} style={{ flex: 1 }}>
+              <button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+                Back
+              </button>
+            </Link>
+            <Link to="/get-premium" style={{ flex: 1 }}>
+              <button style={{ width: '100%', background: '#ff9800', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+                Upgrade Now
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -1637,8 +1642,7 @@ const TakeExam = () => {
     );
   }
 
-  // Active exam view
-  const timerDuration = questions.length; // each question = 1 minute
+  const timerDuration = questions.length;
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh' }}>
       <Timer duration={timerDuration} onTimeUp={handleTimeUp} />
