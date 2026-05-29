@@ -1096,10 +1096,11 @@ const HomePage = () => {
   );
 };
 
-// Course List Component with Topic Grouping
+// Course List Component – supports topic grouping
 const CourseList = () => {
   const { categoryName, mode } = useParams();
-  const [quizzes, setQuizzes] = useState([]);
+  const [displayData, setDisplayData] = useState([]);
+  const [isTopicView, setIsTopicView] = useState(true);
   const [loading, setLoading] = useState(true);
   const { token, darkMode } = useContext(AuthContext);
 
@@ -1113,31 +1114,45 @@ const CourseList = () => {
 
   const category = categoryMap[categoryName] || { name: 'Courses', icon: '📚', color: mode === 'free' ? '#1e3c72' : '#ff9800' };
 
+  // Get topic from URL if present
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentTopic = urlParams.get('topic');
+
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
         const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-        // Filter by category
-        const filtered = res.data.filter(q => q.category === categoryName);
-        // Group by topic
-        const grouped = {};
-        filtered.forEach(quiz => {
-          const topic = quiz.topic || 'General';
-          if (!grouped[topic]) grouped[topic] = [];
-          grouped[topic].push(quiz);
-        });
-        // Convert to array for easier rendering
-        const groupedArray = Object.entries(grouped).map(([topic, quizzes]) => ({ topic, quizzes }));
-        setQuizzes(groupedArray);
+        let filtered = res.data.filter(q => q.category === categoryName);
+
+        if (currentTopic) {
+          // Second level: show actual quizzes under this topic
+          const topicQuizzes = filtered.filter(q => q.topic === currentTopic);
+          setDisplayData(topicQuizzes);
+          setIsTopicView(false);
+        } else {
+          // First level: group by topic
+          const topicMap = new Map();
+          filtered.forEach(quiz => {
+            const topic = quiz.topic || 'General';
+            if (!topicMap.has(topic)) {
+              topicMap.set(topic, { topic, totalQuestions: 0, quizCount: 0 });
+            }
+            const entry = topicMap.get(topic);
+            entry.totalQuestions += quiz.questions?.length || 0;
+            entry.quizCount += 1;
+          });
+          setDisplayData(Array.from(topicMap.values()));
+          setIsTopicView(true);
+        }
       } catch (error) {
         console.error('Error fetching courses:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchCourses();
-  }, [categoryName, token]);
+    fetchData();
+  }, [categoryName, token, currentTopic]);
 
   if (loading) {
     return <LoadingWithBar message={`Loading ${category.name} courses`} />;
@@ -1146,48 +1161,60 @@ const CourseList = () => {
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <Link to={`/?mode=${mode}`} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, background: category.color, color: 'white', padding: '10px 20px', borderRadius: 30, marginBottom: 20, fontSize: 14 }}>
-          ← Back to Categories
+        <Link to={currentTopic ? `/courses/${categoryName}/${mode}` : `/?mode=${mode}`} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, background: category.color, color: 'white', padding: '10px 20px', borderRadius: 30, marginBottom: 20, fontSize: 14 }}>
+          ← {currentTopic ? 'Back to Topics' : 'Back to Categories'}
         </Link>
         
         <div style={{ background: `linear-gradient(135deg, ${category.color} 0%, ${mode === 'free' ? '#1a3a5c' : '#e65100'} 100%)`, borderRadius: 20, padding: 32, marginBottom: 28, color: 'white', textAlign: 'center' }}>
           <div style={{ fontSize: 56, marginBottom: 12 }}>{category.icon}</div>
-          <h1 style={{ margin: '8px 0 0', fontSize: 'clamp(24px, 5vw, 32px)' }}>{category.name}</h1>
+          <h1 style={{ margin: '8px 0 0', fontSize: 'clamp(24px, 5vw, 32px)' }}>
+            {currentTopic ? currentTopic : category.name}
+          </h1>
           <p style={{ marginTop: 8, fontSize: 14 }}>{mode === 'free' ? 'FREE MODE' : 'PREMIUM MODE'}</p>
-          <p style={{ fontSize: 14 }}>{quizzes.reduce((acc, group) => acc + group.quizzes.length, 0)} courses available</p>
+          <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'topics' : 'exam sets'} available</p>
         </div>
         
-        {/* Topics and their quizzes */}
-        {quizzes.map(({ topic, quizzes: topicQuizzes }) => (
-          <div key={topic} style={{ marginBottom: 32 }}>
-            <h2 style={{ color: category.color, fontSize: 22, marginBottom: 16, borderLeft: `4px solid ${category.color}`, paddingLeft: 12 }}>
-              {topic}
-            </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
-              {topicQuizzes.map(quiz => {
-                const totalQuestions = quiz.questions?.length || 0;
-                const hasTakenExam1 = localStorage.getItem(`exam_${quiz._id}_taken`) === 'true';
-                return (
-                  <Link to={`/exams/${quiz._id}/${mode}`} key={quiz._id} style={{ textDecoration: 'none' }}>
-                    <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', opacity: (mode === 'free' && hasTakenExam1) ? 0.7 : 1 }}>
-                      <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-                      <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
-                      <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{quiz.description?.substring(0, 80)}...</p>
-                      <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
-                      <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                        <span style={{ background: '#e8f5e9', color: '#1e3c72', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 Exam 1 Free</span>
-                        <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ {Math.ceil(totalQuestions / 20)} Premium</span>
-                      </div>
-                      <button style={{ width: '100%', marginTop: 14, background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-                        View Exams →
-                      </button>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
+          {displayData.map(item => {
+            if (isTopicView) {
+              // Topic card
+              return (
+                <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none' }}>
+                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+                    <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{item.topic}</h3>
+                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{item.quizCount} exam sets, {item.totalQuestions} total questions</p>
+                    <button style={{ width: '100%', marginTop: 14, background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                      View Exams →
+                    </button>
+                  </div>
+                </Link>
+              );
+            } else {
+              // Actual quiz card (same as before)
+              const quiz = item;
+              const totalQuestions = quiz.questions?.length || 0;
+              const hasTakenExam1 = localStorage.getItem(`exam_${quiz._id}_taken`) === 'true';
+              return (
+                <Link to={`/exams/${quiz._id}/${mode}`} key={quiz._id} style={{ textDecoration: 'none' }}>
+                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', opacity: (mode === 'free' && hasTakenExam1) ? 0.7 : 1 }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+                    <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
+                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{quiz.description?.substring(0, 80)}...</p>
+                    <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
+                    <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                      <span style={{ background: '#e8f5e9', color: '#1e3c72', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 Exam 1 Free</span>
+                      <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ {Math.ceil(totalQuestions / 20)} Premium</span>
                     </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+                    <button style={{ width: '100%', marginTop: 14, background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                      View Exams →
+                    </button>
+                  </div>
+                </Link>
+              );
+            }
+          })}
+        </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
