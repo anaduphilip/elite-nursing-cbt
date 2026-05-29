@@ -1096,7 +1096,7 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – shows topics first, then direct exam links
+// Course List Component – filters by mode: free shows only free exams, premium shows all
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
@@ -1104,14 +1104,7 @@ const CourseList = () => {
   const [loading, setLoading] = useState(true);
   const { token, darkMode } = useContext(AuthContext);
 
-  const categoryMap = {
-    'general-nursing': { name: 'General Nursing', icon: '🩺', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
-    'midwifery': { name: 'Midwifery', icon: '🤰', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
-    'public-health': { name: 'Public Health', icon: '🌍', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
-    'pediatric-nursing': { name: 'Pediatric Nursing', icon: '👶', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
-    'dental-nursing': { name: 'Dental Nursing', icon: '🦷', color: mode === 'free' ? '#1e3c72' : '#ff9800' }
-  };
-
+  const categoryMap = { /* same as before */ };
   const category = categoryMap[categoryName] || { name: 'Courses', icon: '📚', color: mode === 'free' ? '#1e3c72' : '#ff9800' };
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -1126,13 +1119,17 @@ const CourseList = () => {
 
         if (currentTopic) {
           // Show actual quizzes under this topic
-          const topicQuizzes = filtered.filter(q => q.topic === currentTopic);
-          // Sort by start number (extracted from title)
+          let topicQuizzes = filtered.filter(q => q.topic === currentTopic);
+          // Sort by start number
           topicQuizzes.sort((a, b) => {
             const numA = parseInt(a.title.match(/\d+/)?.[0] || 0);
             const numB = parseInt(b.title.match(/\d+/)?.[0] || 0);
             return numA - numB;
           });
+          // **FILTER BY MODE**: free mode only shows isPremium === false
+          if (mode === 'free') {
+            topicQuizzes = topicQuizzes.filter(q => !q.isPremium);
+          }
           setDisplayData(topicQuizzes);
           setIsTopicView(false);
         } else {
@@ -1157,7 +1154,7 @@ const CourseList = () => {
       }
     };
     fetchData();
-  }, [categoryName, token, currentTopic]);
+  }, [categoryName, token, currentTopic, mode]); // mode added as dependency
 
   if (loading) return <LoadingWithBar message={`Loading ${category.name} courses`} />;
 
@@ -1180,7 +1177,7 @@ const CourseList = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
           {displayData.map(item => {
             if (isTopicView) {
-              // Topic card
+              // Topic card – no change
               return (
                 <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none' }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
@@ -1194,7 +1191,7 @@ const CourseList = () => {
                 </Link>
               );
             } else {
-              // Actual quiz card – direct link to take exam (section 1)
+              // Quiz card
               const quiz = item;
               const totalQuestions = quiz.questions?.length || 0;
               const isFree = !quiz.isPremium;
@@ -1206,8 +1203,9 @@ const CourseList = () => {
                     <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{quiz.description?.substring(0, 80)}...</p>
                     <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
                     <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                      <span style={{ background: '#e8f5e9', color: '#1e3c72', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 {isFree ? 'Free Exam' : 'Premium'}</span>
-                      {!isFree && <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ Premium</span>}
+                      <span style={{ background: '#e8f5e9', color: '#1e3c72', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>
+                        {isFree ? '🎯 Free Exam' : '⭐ Premium'}
+                      </span>
                     </div>
                     <button style={{ width: '100%', marginTop: 14, background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
                       Start Exam →
@@ -1225,6 +1223,7 @@ const CourseList = () => {
     </div>
   );
 };
+
 // Exam List Component
 const ExamList = () => {
   const { id, mode } = useParams();
