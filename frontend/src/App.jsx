@@ -1114,7 +1114,7 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – CSS Grid, increased gap, no overlap, global cache
+// Course List Component – final version with large gaps and no overlap
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
@@ -1212,12 +1212,12 @@ const CourseList = () => {
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
         </div>
 
-        {/* CSS Grid – increased gap, bottom margin, no overlap */}
+        {/* CSS Grid – large gap to prevent overlap */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: '32px',
-          marginBottom: '50px'
+          gap: '40px',
+          marginBottom: '60px'
         }}>
           {displayData.map(item => {
             if (isTopicView) {
