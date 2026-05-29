@@ -10,6 +10,24 @@ axios.defaults.baseURL = API_URL;
 
 const AuthContext = createContext();
 
+// Module-level cache for quizzes (shared across all components)
+let globalQuizzesCache = null;
+let globalQuizzesPromise = null;
+
+async function getCachedQuizzes(token) {
+  if (globalQuizzesCache) return globalQuizzesCache;
+  if (globalQuizzesPromise) return await globalQuizzesPromise;
+  
+  globalQuizzesPromise = (async () => {
+    const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
+    globalQuizzesCache = res.data;
+    globalQuizzesPromise = null;
+    return globalQuizzesCache;
+  })();
+  
+  return await globalQuizzesPromise;
+}
+
 // Loading Component with Percentage Bar
 const LoadingWithBar = ({ message = "Loading", onComplete }) => {
   const [progress, setProgress] = useState(0);
@@ -942,7 +960,7 @@ const Login = () => {
   );
 };
 
-// Home Page Component
+// Home Page Component (updated to use cached quizzes)
 const HomePage = () => {
   const [mode, setMode] = useState('free');
   const [quizzes, setQuizzes] = useState([]);
@@ -953,8 +971,8 @@ const HomePage = () => {
     const fetchQuizzes = async () => {
       setLoading(true);
       try {
-        const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-        setQuizzes(res.data);
+        const data = await getCachedQuizzes(token);
+        setQuizzes(data);
       } catch (error) {
         console.error('Error fetching quizzes:', error);
       } finally {
@@ -1096,16 +1114,13 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – fast, no overlap, correct terms
+// Course List Component – uses global cache, no overlap, correct terms
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
   const [isTopicView, setIsTopicView] = useState(true);
   const [loading, setLoading] = useState(true);
   const { token, darkMode } = useContext(AuthContext);
-
-  // In‑memory cache (lives while the page is open)
-  const cacheRef = useRef(null);
 
   const categoryMap = {
     'general-nursing': { name: 'General Nursing', icon: '🩺', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
@@ -1123,15 +1138,8 @@ const CourseList = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        let quizzesData = null;
-        // Use cached data if available
-        if (cacheRef.current) {
-          quizzesData = cacheRef.current;
-        } else {
-          const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-          quizzesData = res.data;
-          cacheRef.current = quizzesData; // store for future
-        }
+        // Use the global cached function
+        const quizzesData = await getCachedQuizzes(token);
 
         let filtered = quizzesData.filter(q => q.category === categoryName);
 
