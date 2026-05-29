@@ -1096,7 +1096,7 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – final version with 2-hour cache, flexbox layout, no overlap
+// Course List Component – no cache, safe and simple
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
@@ -1111,7 +1111,6 @@ const CourseList = () => {
     'pediatric-nursing': { name: 'Pediatric Nursing', icon: '👶', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
     'dental-nursing': { name: 'Dental Nursing', icon: '🦷', color: mode === 'free' ? '#1e3c72' : '#ff9800' }
   };
-
   const category = categoryMap[categoryName] || { name: 'Courses', icon: '📚', color: mode === 'free' ? '#1e3c72' : '#ff9800' };
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -1121,32 +1120,9 @@ const CourseList = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Cache key for quizzes
-        const cacheKey = 'all_quizzes';
-        const cached = localStorage.getItem(cacheKey);
-        let quizzesData = null;
-
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            // Check expiry (2 hours)
-            if (parsed.expiry && parsed.expiry > Date.now()) {
-              quizzesData = parsed.data;
-            }
-          } catch (e) {
-            console.warn('Cache parse error', e);
-          }
-        }
-
-        if (!quizzesData) {
-          const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-          quizzesData = res.data;
-          localStorage.setItem(cacheKey, JSON.stringify({
-            data: quizzesData,
-            expiry: Date.now() + 2 * 60 * 60 * 1000 // 2 hours
-          }));
-        }
-
+        const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
+        const quizzesData = res.data;
+        
         let filtered = quizzesData.filter(q => q.category === categoryName);
 
         if (currentTopic) {
@@ -1175,6 +1151,7 @@ const CourseList = () => {
         }
       } catch (error) {
         console.error('Error fetching courses:', error);
+        setDisplayData([]);
       } finally {
         setLoading(false);
       }
@@ -1196,6 +1173,17 @@ const CourseList = () => {
     return <LoadingWithBar message={loadingMsg} />;
   }
 
+  if (displayData.length === 0) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
+        <p>No topics or exams found for {category.name}. Please try again later.</p>
+        <button onClick={() => window.location.reload()} style={{ marginTop: 20, padding: '10px 20px', background: '#1e3c72', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+          Refresh
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -1209,7 +1197,7 @@ const CourseList = () => {
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'topics' : 'exam sets'} available</p>
         </div>
 
-        {/* Flexbox grid – no overlap, equal card heights */}
+        {/* Flexbox grid */}
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -1219,7 +1207,6 @@ const CourseList = () => {
         }}>
           {displayData.map(item => {
             if (isTopicView) {
-              // Topic card
               return (
                 <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none', flex: '1 1 300px', minWidth: '280px', maxWidth: '350px', margin: '0' }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -1233,7 +1220,6 @@ const CourseList = () => {
                 </Link>
               );
             } else {
-              // Quiz card
               const quiz = item;
               const totalQuestions = quiz.questions?.length || 0;
               const lastScore = getLastScore(quiz._id);
@@ -1269,7 +1255,6 @@ const CourseList = () => {
           })}
         </div>
 
-        {/* Upgrade button (free mode, not in topic view) */}
         {mode === 'free' && !currentTopic && (
           <div style={{ textAlign: 'center', marginTop: 20, marginBottom: 40 }}>
             <Link to="/get-premium">
@@ -1280,13 +1265,11 @@ const CourseList = () => {
           </div>
         )}
 
-        {/* Copyright */}
         <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
           <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
         </div>
       </div>
 
-      {/* Floating Back Button at Bottom Center */}
       <Link to={currentTopic ? `/courses/${categoryName}/${mode}` : `/?mode=${mode}`}>
         <button style={{
           position: 'fixed',
