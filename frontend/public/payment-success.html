@@ -2,50 +2,14 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Successful</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            text-align: center;
-            padding: 2rem;
-            background: #f0f7f4;
-        }
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            padding: 2rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-        button {
-            background: #1e3c72;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div style="font-size: 64px;">✅</div>
-        <h2>Payment Completed</h2>
-        <p>You can now close this window and return to the app.</p>
-        <button onclick="window.close()">Close Window</button>
-    </div>
+    <title>Redirecting...</title>
     <script>
-        // Store the reference so the app can pick it up later
         const urlParams = new URLSearchParams(window.location.search);
         const reference = urlParams.get('reference') || urlParams.get('tx_ref');
         if (reference) {
-            localStorage.setItem('pending_payment_ref', reference);
+            window.location.replace('elitenursing://payment?reference=' + reference);
         }
-        // Try to close the tab automatically after 1 second
-        setTimeout(() => window.close(), 1000);
     </script>
-</body>
+</head>
+<body></body>
 </html>
