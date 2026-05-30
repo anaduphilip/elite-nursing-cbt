@@ -2788,6 +2788,42 @@ useEffect(() => {
   return () => listener.remove();
 }, [auth.user?.id, auth.token]);
 
+  // ========== 3. DEEP LINK LISTENER for automatic return from payment ==========
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const listener = CapacitorApp.addListener('appUrlOpen', async (data) => {
+      console.log('Deep link received:', data.url);
+      if (data.url?.startsWith('elitenursing://payment')) {
+        const reference = new URL(data.url).searchParams.get('reference');
+        if (reference && auth.user?.id) {
+          try {
+            const response = await axios.post('/api/verify-payment', {
+              reference: reference,
+              userId: auth.user.id
+            });
+            if (response.data.success) {
+              alert('✅ Payment successful! Your account is now PREMIUM.');
+              const updatedUser = { ...auth.user, isPremium: true };
+              setAuth({ ...auth, user: updatedUser });
+              localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
+              window.location.reload();
+            } else {
+              alert('Payment verification failed. Please contact support.');
+            }
+          } catch (err) {
+            console.error('Verification error:', err);
+            alert('Could not verify payment. Please contact support.');
+          }
+          localStorage.removeItem('payment_reference');
+          localStorage.removeItem('waiting_for_payment');
+        }
+      }
+    });
+
+    return () => listener.remove();
+  }, [auth.user?.id, auth.token]);
+  
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
       <BrowserRouter>
