@@ -2768,7 +2768,7 @@ function App() {
   if (auth.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
-  // ========== PUSH NOTIFICATION FUNCTIONS ==========
+// ========== PUSH NOTIFICATION FUNCTIONS ==========
 const initializeNotifications = async () => {
   const firebaseConfig = {
     apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
