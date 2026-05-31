@@ -2748,47 +2748,7 @@ useEffect(() => {
   }
 }, [auth.user?.id]);
 
-  // ========== 2. NEW: Listen for app coming to foreground (Android only) ==========
-  // Only change the listener line
-useEffect(() => {
-  if (!Capacitor.isNativePlatform()) return;
-
-  const handleAppStateChange = async (state) => {
-    if (state.isActive) {
-      const pendingRef = localStorage.getItem('payment_reference');
-      const waiting = localStorage.getItem('waiting_for_payment');
-
-      if (waiting === 'true' && pendingRef && auth.user?.id) {
-        localStorage.removeItem('waiting_for_payment');
-        try {
-          const response = await axios.post('/api/verify-payment', {
-            reference: pendingRef,
-            userId: auth.user.id
-          });
-          if (response.data.success) {
-            alert('✅ Payment successful! Your account is now PREMIUM.');
-            const updatedUser = { ...auth.user, isPremium: true };
-            setAuth({ ...auth, user: updatedUser });
-            localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
-            window.location.reload();
-          } else {
-            alert('Payment verification failed. Please contact support if you were charged.');
-          }
-        } catch (err) {
-          console.error('Verification error:', err);
-          alert('Could not verify payment. Please contact support.');
-        } finally {
-          localStorage.removeItem('payment_reference');
-        }
-      }
-    }
-  };
-
-  const listener = CapacitorApp.addListener('appStateChange', handleAppStateChange);
-  return () => listener.remove();
-}, [auth.user?.id, auth.token]);
-
-// ========== 3. DEEP LINK LISTENER for automatic return from payment ==========
+// ========== 2. DEEP LINK LISTENER for automatic return from payment ==========
 useEffect(() => {
   if (!Capacitor.isNativePlatform()) return;
 
