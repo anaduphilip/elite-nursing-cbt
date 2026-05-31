@@ -2768,53 +2768,33 @@ function App() {
   if (auth.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
-  const initializeNotifications = async () => {
-  const firebaseConfig = {
-    apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
-    authDomain: "elite-nursing-cbt.firebaseapp.com",
-    projectId: "elite-nursing-cbt",
-    storageBucket: "elite-nursing-cbt.firebasestorage.app",
-    messagingSenderId: "18123266651",
-    appId: "1:18123266651:web:7632db14d93727bec47d7e"
-  };
-  // Initialize Firebase only once
-  if (!window.firebaseInitialized) {
-    initializeApp(firebaseConfig);
-    window.firebaseInitialized = true;
+  const sendNotification = async () => {
+  if (!notificationTitle || !notificationMessage) {
+    alert('Please enter both a title and a message.');
+    return;
   }
-
-  if (Capacitor.isNativePlatform()) {
-    // Android (Capacitor) – using @capacitor-community/fcm
-    try {
-      const { token } = await FCM.getToken();
-      if (token) {
-        registerDeviceToken(token);
-      }
-      FCM.addListener('onNotification', (data) => {
-        alert(`${data.title}\n${data.body}`);
-      });
-    } catch (err) {
-      console.error('Android FCM error:', err);
+  setSendingNotification(true);
+  setNotificationStatus('');
+  try {
+    const response = await axios.post('/api/admin/send-notification', {
+      title: notificationTitle,
+      message: notificationMessage
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    if (response.data.success) {
+      setNotificationStatus(`✅ Sent successfully to ${response.data.successCount} devices.`);
+      setNotificationTitle('');
+      setNotificationMessage('');
+    } else {
+      setNotificationStatus('❌ Failed to send notifications.');
     }
-  } else {
-    // Web (PWA) – using Firebase JS SDK
-    const messaging = getMessaging();
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        const token = await getToken(messaging, {
-          vapidKey: "BE0Jw0SRKTNxmAZmFegaQSalkRV4Nb789tCU6YezdyDNMZSWJAJv6gS4swqPMgEUvEC_8rGdF91by94OkJj4-UQ"
-        });
-        if (token) {
-          registerDeviceToken(token);
-        }
-      }
-      onMessage(messaging, (payload) => {
-        alert(`${payload.notification.title}\n${payload.notification.body}`);
-      });
-    } catch (err) {
-      console.error('Web notification error:', err);
-    }
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    // Show the server's error message
+    const serverError = error.response?.data?.error || error.response?.data?.message || error.message;
+    setNotificationStatus(`❌ ${serverError}`);
+    alert(`Failed to send: ${serverError}`);
+  } finally {
+    setSendingNotification(false);
   }
 };
 
