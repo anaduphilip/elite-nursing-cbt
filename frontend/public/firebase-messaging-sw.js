@@ -1,0 +1,1 @@
+// Empty service worker for Firebase Messaging

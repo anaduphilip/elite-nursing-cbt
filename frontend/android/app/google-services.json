@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "18123266651",
+    "project_id": "elite-nursing-cbt",
+    "storage_bucket": "elite-nursing-cbt.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:18123266651:android:04496e5c7c961859c47d7e",
+        "android_client_info": {
+          "package_name": "com.elitenursing.cbt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsYSOL0lhWX8BsyplddLc9dB1WYBUP6js"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
