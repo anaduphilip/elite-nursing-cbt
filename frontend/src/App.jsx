@@ -2787,6 +2787,48 @@ useEffect(() => {
   return () => listener.remove();
 }, [auth.user?.id, auth.token]);
 
+// Auto-refresh user status when app becomes active
+useEffect(() => {
+  if (!auth.token) return;
+
+  let isMounted = true;
+
+  const refreshUserStatus = async () => {
+    try {
+      const response = await axios.get('/api/user/profile', {
+        headers: { Authorization: `Bearer ${auth.token}` }
+      });
+      const freshUser = response.data;
+      if (isMounted && freshUser.isPremium !== auth.user?.isPremium) {
+        // Update local state and localStorage
+        const updatedUser = { ...auth.user, isPremium: freshUser.isPremium };
+        setAuth({ ...auth, user: updatedUser });
+        localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
+        console.log('Premium status synced:', freshUser.isPremium);
+      }
+    } catch (error) {
+      console.error('Failed to refresh user status:', error);
+    }
+  };
+
+  // Refresh immediately when app becomes visible (e.g., after returning from background)
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      refreshUserStatus();
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  // Also refresh on page focus (optional)
+  window.addEventListener('focus', refreshUserStatus);
+
+  return () => {
+    isMounted = false;
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('focus', refreshUserStatus);
+  };
+}, [auth.token, auth.user?.isPremium]);
+
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
       <BrowserRouter>
