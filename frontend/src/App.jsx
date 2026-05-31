@@ -2768,35 +2768,65 @@ function App() {
   if (auth.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
-  const sendNotification = async () => {
-  if (!notificationTitle || !notificationMessage) {
-    alert('Please enter both a title and a message.');
-    return;
+  // ========== PUSH NOTIFICATION FUNCTIONS ==========
+const initializeNotifications = async () => {
+  const firebaseConfig = {
+    apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
+    authDomain: "elite-nursing-cbt.firebaseapp.com",
+    projectId: "elite-nursing-cbt",
+    storageBucket: "elite-nursing-cbt.firebasestorage.app",
+    messagingSenderId: "18123266651",
+    appId: "1:18123266651:web:7632db14d93727bec47d7e"
+  };
+  if (!window.firebaseInitialized) {
+    initializeApp(firebaseConfig);
+    window.firebaseInitialized = true;
   }
-  setSendingNotification(true);
-  setNotificationStatus('');
-  try {
-    const response = await axios.post('/api/admin/send-notification', {
-      title: notificationTitle,
-      message: notificationMessage
-    }, { headers: { Authorization: `Bearer ${token}` } });
-    if (response.data.success) {
-      setNotificationStatus(`✅ Sent successfully to ${response.data.successCount} devices.`);
-      setNotificationTitle('');
-      setNotificationMessage('');
-    } else {
-      setNotificationStatus('❌ Failed to send notifications.');
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { token } = await FCM.getToken();
+      if (token) registerDeviceToken(token);
+      FCM.addListener('onNotification', (data) => {
+        alert(`${data.title}\n${data.body}`);
+      });
+    } catch (err) {
+      console.error('Android FCM error:', err);
     }
-  } catch (error) {
-    console.error('Error sending notification:', error);
-    // Show the server's error message
-    const serverError = error.response?.data?.error || error.response?.data?.message || error.message;
-    setNotificationStatus(`❌ ${serverError}`);
-    alert(`Failed to send: ${serverError}`);
-  } finally {
-    setSendingNotification(false);
+  } else {
+    const messaging = getMessaging();
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const token = await getToken(messaging, {
+          vapidKey: "BE0Jw0SRKTNxmAZmFegaQSalkRV4Nb789tCU6YezdyDNMZSWJAJv6gS4swqPMgEUvEC_8rGdF91by94OkJj4-UQ"
+        });
+        if (token) registerDeviceToken(token);
+      }
+      onMessage(messaging, (payload) => {
+        alert(`${payload.notification.title}\n${payload.notification.body}`);
+      });
+    } catch (err) {
+      console.error('Web notification error:', err);
+    }
   }
 };
+
+const registerDeviceToken = async (token) => {
+  if (!token || !auth.user?.id) return;
+  try {
+    await axios.post('/api/register-token', { token, userId: auth.user.id });
+    console.log('Token registered successfully');
+  } catch (error) {
+    console.error('Error registering token:', error);
+  }
+};
+
+useEffect(() => {
+  if (auth.user?.id) {
+    initializeNotifications();
+  }
+}, [auth.user?.id]);
 
   // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
   // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
