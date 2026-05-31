@@ -11,6 +11,22 @@ const axios = require('axios');
 const crypto = require('crypto');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 require('dotenv').config();
+const admin = require('firebase-admin');
+// We will not require any local JSON file. Instead, we'll initialize only if a secret file is provided via environment variable.
+// For local development, you can set GOOGLE_APPLICATION_CREDENTIALS to the path of your JSON file (outside the repo).
+// On Render, you will add the JSON as a secret file and set the environment variable.
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(require(process.env.GOOGLE_APPLICATION_CREDENTIALS))
+    });
+    console.log('Firebase Admin initialized');
+  } catch (err) {
+    console.warn('Firebase Admin init failed:', err.message);
+  }
+} else {
+  console.warn('Firebase Admin not initialized (GOOGLE_APPLICATION_CREDENTIALS not set)');
+}
 
 const app = express();
 
@@ -118,7 +134,8 @@ const UserSchema = new mongoose.Schema({
     total: Number,
     percentage: Number,
     date: { type: Date, default: Date.now }
-  }]
+  }],
+  deviceTokens: [{ type: String }]
 });
 
 // Quiz Schema
@@ -827,6 +844,57 @@ app.post('/api/admin/activate-premium', isAdmin, async (req, res) => {
     res.json({ success: true, message: `Premium activated for ${email}` });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Register device token for push notifications
+app.post('/api/register-token', async (req, res) => {
+  const { token, userId } = req.body;
+
+  if (!token || !userId) {
+    return res.status(400).json({ error: 'Missing token or userId' });
+  }
+
+  try {
+    await User.findByIdAndUpdate(userId, { $addToSet: { deviceTokens: token } });
+    console.log(`Token registered for user ${userId}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error registering token:', error);
+    res.status(500).json({ error: 'Failed to register token' });
+  }
+});
+
+// Admin: Send notification to all users
+app.post('/api/admin/send-notification', isAdmin, async (req, res) => {
+  const { title, message } = req.body;
+
+  if (!title || !message) {
+    return res.status(400).json({ error: 'Missing title or message' });
+  }
+
+  try {
+    const users = await User.find({ deviceTokens: { $exists: true, $ne: [] } });
+    const tokens = users.flatMap(user => user.deviceTokens);
+
+    if (tokens.length === 0) {
+      return res.status(400).json({ error: 'No registered devices found' });
+    }
+
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens: tokens,
+      notification: { title, body: message }
+    });
+
+    console.log(`Notification sent to ${response.successCount} devices.`);
+    if (response.failureCount > 0) {
+      console.error('Failed tokens:', response.responses);
+    }
+
+    res.json({ success: true, successCount: response.successCount, failureCount: response.failureCount });
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    res.status(500).json({ error: 'Failed to send notifications' });
   }
 });
 
