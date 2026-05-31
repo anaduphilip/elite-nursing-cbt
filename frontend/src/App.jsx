@@ -213,7 +213,7 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
       
       const requestPayload = {
         email: effectiveUser.email,
-        amount: 100,
+        amount: 5900,
         userId: effectiveUser.id,
         planType: examTitle ? 'single' : 'premium',
         examId: examTitle ? window.location.pathname.split('/')[2] : null,
@@ -2044,7 +2044,7 @@ const GetPremium = () => {
 
       const response = await axios.post('/api/initialize-payment', {
         email: user.email,
-        amount: 100,
+        amount: 5900,
         userId: user.id,
         planType: 'premium',
         examId: null,
