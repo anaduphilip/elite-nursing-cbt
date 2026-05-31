@@ -6,7 +6,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { Messaging } from '@capacitor-firebase/messaging';
+import { FCM } from '@capacitor-community/fcm';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -2361,6 +2361,10 @@ const AdminPanel = () => {
   const [replyMessage, setReplyMessage] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const { token, user, darkMode, logout } = useContext(AuthContext);
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [sendingNotification, setSendingNotification] = useState(false);
+  const [notificationStatus, setNotificationStatus] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -2442,6 +2446,35 @@ const AdminPanel = () => {
     }
   };
 
+  const sendNotification = async () => {
+  if (!notificationTitle || !notificationMessage) {
+    alert('Please enter both a title and a message.');
+    return;
+  }
+
+  setSendingNotification(true);
+  setNotificationStatus('');
+  try {
+    const response = await axios.post('/api/admin/send-notification', {
+      title: notificationTitle,
+      message: notificationMessage
+    }, { headers: { Authorization: `Bearer ${token}` } });
+
+    if (response.data.success) {
+      setNotificationStatus(`✅ Sent successfully to ${response.data.successCount} devices.`);
+      setNotificationTitle('');
+      setNotificationMessage('');
+    } else {
+      setNotificationStatus('❌ Failed to send notifications.');
+    }
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    setNotificationStatus('❌ An error occurred.');
+  } finally {
+    setSendingNotification(false);
+  }
+};
+
   if (loading) return <LoadingWithBar message="Loading admin panel" />;
 
   if (user?.email !== 'anaduphilip2000@gmail.com') {
@@ -2457,6 +2490,7 @@ const AdminPanel = () => {
           <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '2px solid #e0e0e0', paddingBottom: 12, justifyContent: 'center' }}>
             <button onClick={() => setActiveTab('users')} style={{ background: activeTab === 'users' ? '#1e3c72' : 'transparent', color: activeTab === 'users' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'users' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Users ({users.length})</button>
             <button onClick={() => setActiveTab('contacts')} style={{ background: activeTab === 'contacts' ? '#1e3c72' : 'transparent', color: activeTab === 'contacts' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'contacts' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Contact Messages ({contacts.length})</button>
+            <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
           </div>
 
           {activeTab === 'users' && (
@@ -2509,6 +2543,37 @@ const AdminPanel = () => {
               ))}
             </div>
           )}
+           {activeTab === 'notifications' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: '#1e3c72', marginBottom: 20 }}>Send Push Notification to All Users</h3>
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  type="text"
+                  placeholder="Notification Title"
+                  value={notificationTitle}
+                  onChange={(e) => setNotificationTitle(e.target.value)}
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14 }}
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <textarea
+                  placeholder="Notification Message"
+                  value={notificationMessage}
+                  onChange={(e) => setNotificationMessage(e.target.value)}
+                  rows="4"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, resize: 'vertical' }}
+                />
+              </div>
+              <button
+                onClick={sendNotification}
+                disabled={sendingNotification}
+                style={{ background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                {sendingNotification ? 'Sending...' : 'Send Notification'}
+              </button>
+              {notificationStatus && <p style={{ marginTop: 16, color: '#2e7d32' }}>{notificationStatus}</p>}
+            </div>
+          )}
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
@@ -2516,7 +2581,7 @@ const AdminPanel = () => {
       </div>
     </div>
   );
-};
+};         
 
 // Dropdown Menu Component
 const DropdownMenu = () => {
@@ -2703,6 +2768,55 @@ function App() {
   if (auth.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
+  const initializeNotifications = async () => {
+  const firebaseConfig = {
+    apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
+    authDomain: "elite-nursing-cbt.firebaseapp.com",
+    projectId: "elite-nursing-cbt",
+    storageBucket: "elite-nursing-cbt.firebasestorage.app",
+    messagingSenderId: "18123266651",
+    appId: "1:18123266651:web:7632db14d93727bec47d7e"
+  };
+  // Initialize Firebase only once
+  if (!window.firebaseInitialized) {
+    initializeApp(firebaseConfig);
+    window.firebaseInitialized = true;
+  }
+
+  if (Capacitor.isNativePlatform()) {
+    // Android (Capacitor) – using @capacitor-community/fcm
+    try {
+      const { token } = await FCM.getToken();
+      if (token) {
+        registerDeviceToken(token);
+      }
+      FCM.addListener('onNotification', (data) => {
+        alert(`${data.title}\n${data.body}`);
+      });
+    } catch (err) {
+      console.error('Android FCM error:', err);
+    }
+  } else {
+    // Web (PWA) – using Firebase JS SDK
+    const messaging = getMessaging();
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const token = await getToken(messaging, {
+          vapidKey: "BE0Jw0SRKTNxmAZmFegaQSalkRV4Nb789tCU6YezdyDNMZSWJAJv6gS4swqPMgEUvEC_8rGdF91by94OkJj4-UQ"
+        });
+        if (token) {
+          registerDeviceToken(token);
+        }
+      }
+      onMessage(messaging, (payload) => {
+        alert(`${payload.notification.title}\n${payload.notification.body}`);
+      });
+    } catch (err) {
+      console.error('Web notification error:', err);
+    }
+  }
+};
 
   // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
   // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
