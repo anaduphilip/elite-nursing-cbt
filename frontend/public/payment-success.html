@@ -6,8 +6,13 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const reference = urlParams.get('reference') || urlParams.get('tx_ref');
+        const transactionId = urlParams.get('transaction_id') || urlParams.get('id');
         if (reference) {
-            window.location.replace('elitenursing://payment?reference=' + reference);
+            let redirectUrl = 'elitenursing://payment?reference=' + encodeURIComponent(reference);
+            if (transactionId) {
+                redirectUrl += '&transactionId=' + encodeURIComponent(transactionId);
+            }
+            window.location.replace(redirectUrl);
         }
     </script>
 </head>
