@@ -2778,7 +2778,7 @@ function App() {
     }
   };
 
-  // ========== PUSH NOTIFICATION FUNCTIONS ==========
+// ========== PUSH NOTIFICATION FUNCTIONS ==========
 const initializeNotifications = async () => {
   const firebaseConfig = {
     apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
@@ -2805,6 +2805,9 @@ const initializeNotifications = async () => {
         return;
       }
 
+      // Remove any existing listeners to prevent duplicates
+      FCM.removeAllListeners();
+
       // Check for initial notification (app was opened from a tap while closed)
       const initialNotification = await FCM.getInitialNotification();
       if (initialNotification) {
@@ -2827,7 +2830,7 @@ const initializeNotifications = async () => {
       console.error('Android FCM error:', err);
     }
   } else {
-    // Web part
+    // Web part (unchanged)
     const messaging = getMessaging();
     try {
       const permission = await Notification.requestPermission();
