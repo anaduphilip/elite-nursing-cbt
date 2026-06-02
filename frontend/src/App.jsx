@@ -2793,48 +2793,49 @@ const initializeNotifications = async () => {
     window.firebaseInitialized = true;
   }
 
-  if (Capacitor.isNativePlatform()) {
-    try {
-      console.log('[FCM] Requesting permissions...');
-      const permissionResult = await FCM.requestPermissions();
-      console.log('[FCM] Permission result:', permissionResult);
-      
-      if (permissionResult.receive === 'granted') {
-        console.log('[FCM] Permission granted, getting token...');
-        const { token } = await FCM.getToken();
-        console.log('[FCM] Token:', token);
-        if (token) registerDeviceToken(token);
-      } else {
-        console.log('[FCM] Permission not granted');
-        return;
-      }
+if (Capacitor.isNativePlatform()) {
+  try {
+    console.log('[FCM] Requesting permissions...');
+    const permissionResult = await FCM.requestPermissions();
+    console.log('[FCM] Permission result:', permissionResult);
+    alert(`Notification permission status: ${permissionResult.receive}`); // <-- ADDED ALERT
 
-      // Remove existing listeners to avoid duplicates
-      FCM.removeAllListeners();
-
-      // Check for initial notification (app opened from closed state)
-      const initialNotification = await FCM.getInitialNotification();
-      if (initialNotification) {
-        console.log('[FCM] Initial notification:', initialNotification);
-        setNotificationModal({ title: initialNotification.title, body: initialNotification.body });
-      }
-
-      // Foreground notification received
-      FCM.addListener('onNotification', (data) => {
-        console.log('[FCM] Foreground notification:', data);
-        setNotificationModal({ title: data.title, body: data.body });
-      });
-
-      // Notification tapped (app opened from background)
-      FCM.addListener('onNotificationClick', (data) => {
-        console.log('[FCM] Notification clicked:', data);
-        setNotificationModal({ title: data.title, body: data.body });
-      });
-    } catch (err) {
-      console.error('[FCM] Error:', err);
+    if (permissionResult.receive === 'granted') {
+      console.log('[FCM] Permission granted, getting token...');
+      const { token } = await FCM.getToken();
+      console.log('[FCM] Token:', token);
+      if (token) registerDeviceToken(token);
+    } else {
+      console.log('[FCM] Permission not granted');
+      return;
     }
-  } else {
-    // Web part (unchanged)
+
+    // Remove existing listeners to avoid duplicates
+    FCM.removeAllListeners();
+
+    // Check for initial notification (app opened from closed state)
+    const initialNotification = await FCM.getInitialNotification();
+    if (initialNotification) {
+      console.log('[FCM] Initial notification:', initialNotification);
+      setNotificationModal({ title: initialNotification.title, body: initialNotification.body });
+    }
+
+    // Foreground notification received
+    FCM.addListener('onNotification', (data) => {
+      console.log('[FCM] Foreground notification:', data);
+      setNotificationModal({ title: data.title, body: data.body });
+    });
+
+    // Notification tapped (app opened from background)
+    FCM.addListener('onNotificationClick', (data) => {
+      console.log('[FCM] Notification clicked:', data);
+      setNotificationModal({ title: data.title, body: data.body });
+    });
+  } catch (err) {
+    console.error('[FCM] Error:', err);
+  }
+} else {
+  // Web part (unchanged)
     const messaging = getMessaging();
     try {
       const permission = await Notification.requestPermission();
