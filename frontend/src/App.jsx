@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { FCM } from '@capacitor-community/fcm';
+import { Permissions } from '@capacitor/permissions';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -2795,10 +2796,15 @@ const initializeNotifications = async () => {
 
   if (Capacitor.isNativePlatform()) {
     try {
-      // Request notification permission (Android 13+)
-      const permissionResult = await FCM.requestPermissions();
-      if (permissionResult.receive === 'granted') {
+      // Use Capacitor Permissions plugin to request notification permission
+      console.log('Requesting notification permission via Permissions API...');
+      const permissionStatus = await Permissions.request({ permissions: ['notifications'] });
+      console.log('Permission status:', permissionStatus);
+      
+      if (permissionStatus.notifications === 'granted') {
+        console.log('Permission granted, getting FCM token...');
         const { token } = await FCM.getToken();
+        console.log('FCM token:', token);
         if (token) registerDeviceToken(token);
       } else {
         console.log('Notification permission denied');
@@ -2808,7 +2814,7 @@ const initializeNotifications = async () => {
       // Remove any existing listeners to prevent duplicates
       FCM.removeAllListeners();
 
-      // Check for initial notification (app was opened from a tap while closed)
+      // Check for initial notification (app opened from closed state)
       const initialNotification = await FCM.getInitialNotification();
       if (initialNotification) {
         console.log('Initial notification:', initialNotification);
