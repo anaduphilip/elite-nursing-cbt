@@ -2796,43 +2796,42 @@ const initializeNotifications = async () => {
 
 if (Capacitor.isNativePlatform()) {
   try {
-    console.log('[FCM] Requesting permissions...');
+    alert('Step 1: Before requestPermissions');
     const permissionResult = await FCM.requestPermissions();
+    alert('Step 2: After requestPermissions, result: ' + JSON.stringify(permissionResult));
     console.log('[FCM] Permission result:', permissionResult);
-    alert(`Notification permission status: ${permissionResult.receive}`); // <-- ADDED ALERT
 
     if (permissionResult.receive === 'granted') {
-      console.log('[FCM] Permission granted, getting token...');
+      alert('Step 3: Permission granted, getting token...');
       const { token } = await FCM.getToken();
-      console.log('[FCM] Token:', token);
+      alert('Step 4: Token received: ' + (token ? token.substring(0,10) + '...' : 'null'));
       if (token) registerDeviceToken(token);
     } else {
-      console.log('[FCM] Permission not granted');
+      alert('Permission not granted: ' + permissionResult.receive);
       return;
     }
 
     // Remove existing listeners to avoid duplicates
     FCM.removeAllListeners();
 
-    // Check for initial notification (app opened from closed state)
+    // Check for initial notification
     const initialNotification = await FCM.getInitialNotification();
     if (initialNotification) {
-      console.log('[FCM] Initial notification:', initialNotification);
+      alert('Initial notification exists');
       setNotificationModal({ title: initialNotification.title, body: initialNotification.body });
     }
 
     // Foreground notification received
     FCM.addListener('onNotification', (data) => {
-      console.log('[FCM] Foreground notification:', data);
       setNotificationModal({ title: data.title, body: data.body });
     });
 
-    // Notification tapped (app opened from background)
+    // Notification tapped
     FCM.addListener('onNotificationClick', (data) => {
-      console.log('[FCM] Notification clicked:', data);
       setNotificationModal({ title: data.title, body: data.body });
     });
   } catch (err) {
+    alert('Error: ' + err.message);
     console.error('[FCM] Error:', err);
   }
 } else {
