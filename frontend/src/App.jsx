@@ -2780,6 +2780,7 @@ function App() {
 
 // ========== PUSH NOTIFICATION FUNCTIONS ==========
 const initializeNotifications = async () => {
+  alert('DEBUG: initializeNotifications started');
   const firebaseConfig = {
     apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
     authDomain: "elite-nursing-cbt.firebaseapp.com",
@@ -2855,15 +2856,15 @@ if (Capacitor.isNativePlatform()) {
 };
 
   // ---------- Call notifications after login ----------
-  useEffect(() => {
-    if (auth.user?.id) {
-      initializeNotifications();
-    }
-  }, [auth.user?.id]);
-
-  if (auth.token) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
+useEffect(() => {
+  console.log('DEBUG: auth.user?.id =', auth.user?.id);
+  if (auth.user?.id) {
+    alert('DEBUG: Calling initializeNotifications');
+    initializeNotifications();
+  } else {
+    alert('DEBUG: No user ID, cannot initialize notifications');
   }
+}, [auth.user?.id]);
 
   // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
   // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
