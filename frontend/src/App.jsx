@@ -7,7 +7,6 @@ import { Capacitor } from '@capacitor/core';
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { FCM } from '@capacitor-community/fcm';
-import { Permissions } from '@capacitor/permissions';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -2796,44 +2795,43 @@ const initializeNotifications = async () => {
 
   if (Capacitor.isNativePlatform()) {
     try {
-      // Use Capacitor Permissions plugin to request notification permission
-      console.log('Requesting notification permission via Permissions API...');
-      const permissionStatus = await Permissions.request({ permissions: ['notifications'] });
-      console.log('Permission status:', permissionStatus);
+      console.log('[FCM] Requesting permissions...');
+      const permissionResult = await FCM.requestPermissions();
+      console.log('[FCM] Permission result:', permissionResult);
       
-      if (permissionStatus.notifications === 'granted') {
-        console.log('Permission granted, getting FCM token...');
+      if (permissionResult.receive === 'granted') {
+        console.log('[FCM] Permission granted, getting token...');
         const { token } = await FCM.getToken();
-        console.log('FCM token:', token);
+        console.log('[FCM] Token:', token);
         if (token) registerDeviceToken(token);
       } else {
-        console.log('Notification permission denied');
+        console.log('[FCM] Permission not granted');
         return;
       }
 
-      // Remove any existing listeners to prevent duplicates
+      // Remove existing listeners to avoid duplicates
       FCM.removeAllListeners();
 
       // Check for initial notification (app opened from closed state)
       const initialNotification = await FCM.getInitialNotification();
       if (initialNotification) {
-        console.log('Initial notification:', initialNotification);
+        console.log('[FCM] Initial notification:', initialNotification);
         setNotificationModal({ title: initialNotification.title, body: initialNotification.body });
       }
 
       // Foreground notification received
       FCM.addListener('onNotification', (data) => {
-        console.log('Foreground notification:', data);
+        console.log('[FCM] Foreground notification:', data);
         setNotificationModal({ title: data.title, body: data.body });
       });
 
       // Notification tapped (app opened from background)
       FCM.addListener('onNotificationClick', (data) => {
-        console.log('Notification clicked:', data);
+        console.log('[FCM] Notification clicked:', data);
         setNotificationModal({ title: data.title, body: data.body });
       });
     } catch (err) {
-      console.error('Android FCM error:', err);
+      console.error('[FCM] Error:', err);
     }
   } else {
     // Web part (unchanged)
