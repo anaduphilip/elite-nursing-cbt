@@ -2764,11 +2764,21 @@ function App() {
     setDarkMode(!darkMode);
     localStorage.setItem('darkMode', !darkMode);
   };
+    // ---------- Notification state ----------
+  const [notificationModal, setNotificationModal] = useState(null);
 
-  if (auth.token) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
-  }
-// ========== PUSH NOTIFICATION FUNCTIONS ==========
+  // ---------- Device token registration ----------
+  const registerDeviceToken = async (token) => {
+    if (!token || !auth.user?.id) return;
+    try {
+      await axios.post('/api/register-token', { token, userId: auth.user.id });
+      console.log('Token registered successfully');
+    } catch (error) {
+      console.error('Error registering token:', error);
+    }
+  };
+
+  // ========== PUSH NOTIFICATION FUNCTIONS ==========
 const initializeNotifications = async () => {
   const firebaseConfig = {
     apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
@@ -2785,15 +2795,39 @@ const initializeNotifications = async () => {
 
   if (Capacitor.isNativePlatform()) {
     try {
-      const { token } = await FCM.getToken();
-      if (token) registerDeviceToken(token);
+      // Request notification permission (Android 13+)
+      const permissionResult = await FCM.requestPermissions();
+      if (permissionResult.receive === 'granted') {
+        const { token } = await FCM.getToken();
+        if (token) registerDeviceToken(token);
+      } else {
+        console.log('Notification permission denied');
+        return;
+      }
+
+      // Check for initial notification (app was opened from a tap while closed)
+      const initialNotification = await FCM.getInitialNotification();
+      if (initialNotification) {
+        console.log('Initial notification:', initialNotification);
+        setNotificationModal({ title: initialNotification.title, body: initialNotification.body });
+      }
+
+      // Foreground notification received
       FCM.addListener('onNotification', (data) => {
-        alert(`${data.title}\n${data.body}`);
+        console.log('Foreground notification:', data);
+        setNotificationModal({ title: data.title, body: data.body });
+      });
+
+      // Notification tapped (app opened from background)
+      FCM.addListener('onNotificationClick', (data) => {
+        console.log('Notification clicked:', data);
+        setNotificationModal({ title: data.title, body: data.body });
       });
     } catch (err) {
       console.error('Android FCM error:', err);
     }
   } else {
+    // Web part
     const messaging = getMessaging();
     try {
       const permission = await Notification.requestPermission();
@@ -2812,21 +2846,16 @@ const initializeNotifications = async () => {
   }
 };
 
-const registerDeviceToken = async (token) => {
-  if (!token || !auth.user?.id) return;
-  try {
-    await axios.post('/api/register-token', { token, userId: auth.user.id });
-    console.log('Token registered successfully');
-  } catch (error) {
-    console.error('Error registering token:', error);
-  }
-};
+  // ---------- Call notifications after login ----------
+  useEffect(() => {
+    if (auth.user?.id) {
+      initializeNotifications();
+    }
+  }, [auth.user?.id]);
 
-useEffect(() => {
-  if (auth.user?.id) {
-    initializeNotifications();
+  if (auth.token) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
   }
-}, [auth.user?.id]);
 
   // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
   // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
@@ -2957,12 +2986,50 @@ useEffect(() => {
 }, [auth.token, auth.user?.isPremium]);
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
-    </AuthContext.Provider>
-  );
+  <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+    {notificationModal && (
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+      }}>
+        <div style={{
+          background: 'white',
+          borderRadius: 20,
+          padding: 24,
+          maxWidth: 320,
+          textAlign: 'center',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📢</div>
+          <h3 style={{ color: '#1e3c72', marginBottom: 8 }}>{notificationModal.title}</h3>
+          <p style={{ color: '#666', marginBottom: 20 }}>{notificationModal.body}</p>
+          <button
+            onClick={() => setNotificationModal(null)}
+            style={{
+              background: '#1e3c72',
+              color: 'white',
+              border: 'none',
+              padding: '8px 20px',
+              borderRadius: 30,
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    )}
+  </AuthContext.Provider>
+);
 }
 
 export default App;
