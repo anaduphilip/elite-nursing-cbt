@@ -6,7 +6,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { FCM } from '@capacitor-community/fcm';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -2794,48 +2794,39 @@ const initializeNotifications = async () => {
     window.firebaseInitialized = true;
   }
 
-if (Capacitor.isNativePlatform()) {
-  try {
-    alert('Step 1: Before requestPermissions');
-    const permissionResult = await FCM.requestPermissions();
-    alert('Step 2: After requestPermissions, result: ' + JSON.stringify(permissionResult));
-    console.log('[FCM] Permission result:', permissionResult);
+  if (Capacitor.isNativePlatform()) {
+    try {
+      alert('Step 1: Requesting permission...');
+      const permStatus = await PushNotifications.requestPermissions();
+      alert('Step 2: Permission status: ' + JSON.stringify(permStatus));
+      if (permStatus.receive === 'granted') {
+        alert('Step 3: Registering...');
+        await PushNotifications.register();
+        const token = await PushNotifications.getToken();
+        alert('Step 4: Token: ' + (token.value ? token.value.substring(0,10) + '...' : 'null'));
+        if (token.value) registerDeviceToken(token.value);
+      } else {
+        alert('Permission denied');
+        return;
+      }
 
-    if (permissionResult.receive === 'granted') {
-      alert('Step 3: Permission granted, getting token...');
-      const { token } = await FCM.getToken();
-      alert('Step 4: Token received: ' + (token ? token.substring(0,10) + '...' : 'null'));
-      if (token) registerDeviceToken(token);
-    } else {
-      alert('Permission not granted: ' + permissionResult.receive);
-      return;
+      // Foreground notification received
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Foreground notification:', notification);
+        setNotificationModal({ title: notification.title, body: notification.body });
+      });
+
+      // Notification tapped (app opened from background or closed)
+      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+        console.log('Notification tapped:', notification);
+        setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
+      });
+    } catch (err) {
+      alert('Error: ' + err.message);
+      console.error('Push error:', err);
     }
-
-    // Remove existing listeners to avoid duplicates
-    FCM.removeAllListeners();
-
-    // Check for initial notification
-    const initialNotification = await FCM.getInitialNotification();
-    if (initialNotification) {
-      alert('Initial notification exists');
-      setNotificationModal({ title: initialNotification.title, body: initialNotification.body });
-    }
-
-    // Foreground notification received
-    FCM.addListener('onNotification', (data) => {
-      setNotificationModal({ title: data.title, body: data.body });
-    });
-
-    // Notification tapped
-    FCM.addListener('onNotificationClick', (data) => {
-      setNotificationModal({ title: data.title, body: data.body });
-    });
-  } catch (err) {
-    alert('Error: ' + err.message);
-    console.error('[FCM] Error:', err);
-  }
-} else {
-  // Web part (unchanged)
+  } else {
+    // Web part (unchanged)
     const messaging = getMessaging();
     try {
       const permission = await Notification.requestPermission();
