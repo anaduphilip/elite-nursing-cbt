@@ -2834,16 +2834,6 @@ const initializeNotifications = () => {
   })();
 };
 
-const registerDeviceToken = async (token) => {
-  if (!token || !auth.user?.id) return;
-  try {
-    await axios.post('/api/register-token', { token, userId: auth.user.id });
-    console.log('Token registered');
-  } catch (error) {
-    console.error('Token registration error:', error);
-  }
-};
-
 useEffect(() => {
   if (auth.user?.id) {
     initializeNotifications();
