@@ -2768,20 +2768,25 @@ function App() {
   const [notificationModal, setNotificationModal] = useState(null);
 
   // ---------- Device token registration ----------
-  const registerDeviceToken = async (token) => {
-    if (!token || !auth.user?.id) return;
-    try {
-      await axios.post('/api/register-token', { token, userId: auth.user.id });
-      console.log('Token registered successfully');
-    } catch (error) {
-      console.error('Error registering token:', error);
-    }
-  };
+const registerDeviceToken = async (token) => {
+  if (!token || !auth.user?.id) return;
+  try {
+    const response = await axios.post('/api/register-token', { token, userId: auth.user.id });
+    console.log('Token registered', response.data);
+    alert('✅ Backend registered token');
+    return response.data;
+  } catch (error) {
+    console.error('Token registration error:', error);
+    alert('❌ Backend error: ' + (error.response?.data?.error || error.message));
+  }
+};
 
-// ========== PUSH NOTIFICATION FUNCTIONS (crash‑safe) ==========
+
+// ========== PUSH NOTIFICATION FUNCTIONS (with alerts for debugging) ==========
 const initializeNotifications = () => {
   (async () => {
     try {
+      // Firebase config (only used for web)
       const firebaseConfig = {
         apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
         authDomain: "elite-nursing-cbt.firebaseapp.com",
@@ -2796,25 +2801,29 @@ const initializeNotifications = () => {
       }
 
       if (Capacitor.isNativePlatform()) {
-        // Safely check if PushNotifications plugin is available
-        if (typeof PushNotifications !== 'undefined' && PushNotifications && typeof PushNotifications.requestPermissions === 'function') {
-          const permStatus = await PushNotifications.requestPermissions();
-          if (permStatus.receive === 'granted') {
-            await PushNotifications.register();
-            const token = await PushNotifications.getToken();
-            if (token && token.value) registerDeviceToken(token.value);
+        // Android notifications
+        alert('🔔 Step 1: Requesting permissions');
+        const permStatus = await PushNotifications.requestPermissions();
+        alert('Step 2: Permission result: ' + permStatus.receive);
+        if (permStatus.receive === 'granted') {
+          alert('Step 3: Registering...');
+          await PushNotifications.register();
+          alert('Step 4: Getting token...');
+          const token = await PushNotifications.getToken();
+          const tokenValue = token?.value;
+          alert('Step 5: Token received: ' + (tokenValue ? tokenValue.substring(0,15)+'...' : 'null'));
+          if (tokenValue) {
+            alert('Step 6: Sending token to backend...');
+            await registerDeviceToken(tokenValue);
+            alert('✅ Token registration complete!');
+          } else {
+            alert('❌ No token received from plugin');
           }
-          PushNotifications.addListener('pushNotificationReceived', (notification) => {
-            if (notification && notification.title) setNotificationModal({ title: notification.title, body: notification.body });
-          });
-          PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-            if (notification && notification.notification) setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
-          });
         } else {
-          console.log('PushNotifications plugin not available – skipping Android notifications');
+          alert('❌ Permission denied: ' + permStatus.receive);
         }
       } else {
-        // Web notifications
+        // Web notifications (no alerts)
         const messaging = getMessaging();
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
@@ -2829,6 +2838,7 @@ const initializeNotifications = () => {
       }
     } catch (err) {
       console.error('Notification init error:', err);
+      alert('❌ Error: ' + err.message);
     }
   })();
 };
