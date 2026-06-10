@@ -2778,55 +2778,55 @@ function App() {
     }
   };
 
-// ========== PUSH NOTIFICATION FUNCTIONS (silent, no alerts) ==========
-const initializeNotifications = async () => {
-  const firebaseConfig = {
-    apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
-    authDomain: "elite-nursing-cbt.firebaseapp.com",
-    projectId: "elite-nursing-cbt",
-    storageBucket: "elite-nursing-cbt.firebasestorage.app",
-    messagingSenderId: "18123266651",
-    appId: "1:18123266651:web:7632db14d93727bec47d7e"
-  };
-  if (!window.firebaseInitialized) {
-    initializeApp(firebaseConfig);
-    window.firebaseInitialized = true;
-  }
+// ========== PUSH NOTIFICATION FUNCTIONS (safe, non‑blocking) ==========
+const initializeNotifications = () => {
+  // Run everything in the background, never block rendering
+  (async () => {
+    try {
+      const firebaseConfig = {
+        apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
+        authDomain: "elite-nursing-cbt.firebaseapp.com",
+        projectId: "elite-nursing-cbt",
+        storageBucket: "elite-nursing-cbt.firebasestorage.app",
+        messagingSenderId: "18123266651",
+        appId: "1:18123266651:web:7632db14d93727bec47d7e"
+      };
+      if (!window.firebaseInitialized) {
+        initializeApp(firebaseConfig);
+        window.firebaseInitialized = true;
+      }
 
-  if (Capacitor.isNativePlatform()) {
-    try {
-      const permStatus = await PushNotifications.requestPermissions();
-      if (permStatus.receive === 'granted') {
-        await PushNotifications.register();
-        const token = await PushNotifications.getToken();
-        if (token.value) registerDeviceToken(token.value);
-      }
-      PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        setNotificationModal({ title: notification.title, body: notification.body });
-      });
-      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-        setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
-      });
-    } catch (err) {
-      console.error('Push notification error:', err);
-    }
-  } else {
-    const messaging = getMessaging();
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        const token = await getToken(messaging, {
-          vapidKey: "BE0Jw0SRKTNxmAZmFegaQSalkRV4Nb789tCU6YezdyDNMZSWJAJv6gS4swqPMgEUvEC_8rGdF91by94OkJj4-UQ"
+      if (Capacitor.isNativePlatform()) {
+        const permStatus = await PushNotifications.requestPermissions();
+        if (permStatus.receive === 'granted') {
+          await PushNotifications.register();
+          const token = await PushNotifications.getToken();
+          if (token.value) registerDeviceToken(token.value);
+        }
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          setNotificationModal({ title: notification.title, body: notification.body });
         });
-        if (token) registerDeviceToken(token);
+        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+          setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
+        });
+      } else {
+        const messaging = getMessaging();
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          const token = await getToken(messaging, {
+            vapidKey: "BE0Jw0SRKTNxmAZmFegaQSalkRV4Nb789tCU6YezdyDNMZSWJAJv6gS4swqPMgEUvEC_8rGdF91by94OkJj4-UQ"
+          });
+          if (token) registerDeviceToken(token);
+        }
+        onMessage(messaging, (payload) => {
+          alert(`${payload.notification.title}\n${payload.notification.body}`);
+        });
       }
-      onMessage(messaging, (payload) => {
-        alert(`${payload.notification.title}\n${payload.notification.body}`);
-      });
     } catch (err) {
-      console.error('Web notification error:', err);
+      console.error('Notification init error:', err);
+      // Silently fail – app continues working
     }
-  }
+  })();
 };
 
 // ---------- Call notifications after login ----------
