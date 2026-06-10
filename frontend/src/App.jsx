@@ -2767,26 +2767,25 @@ function App() {
     // ---------- Notification state ----------
   const [notificationModal, setNotificationModal] = useState(null);
 
-  // ---------- Device token registration ----------
+// ---------- Device token registration ----------
 const registerDeviceToken = async (token) => {
   if (!token || !auth.user?.id) return;
   try {
+    alert(`Sending token to backend: ${token.substring(0,15)}...`);
     const response = await axios.post('/api/register-token', { token, userId: auth.user.id });
-    console.log('Token registered', response.data);
-    alert('✅ Backend registered token');
+    alert(`✅ Backend response: ${JSON.stringify(response.data)}`);
     return response.data;
   } catch (error) {
+    const errorMsg = error.response?.data?.error || error.message;
+    alert(`❌ Backend error: ${errorMsg}`);
     console.error('Token registration error:', error);
-    alert('❌ Backend error: ' + (error.response?.data?.error || error.message));
   }
 };
 
-
-// ========== PUSH NOTIFICATION FUNCTIONS (with alerts for debugging) ==========
+// ========== PUSH NOTIFICATION FUNCTIONS ==========
 const initializeNotifications = () => {
   (async () => {
     try {
-      // Firebase config (only used for web)
       const firebaseConfig = {
         apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
         authDomain: "elite-nursing-cbt.firebaseapp.com",
@@ -2801,29 +2800,22 @@ const initializeNotifications = () => {
       }
 
       if (Capacitor.isNativePlatform()) {
-        // Android notifications
-        alert('🔔 Step 1: Requesting permissions');
         const permStatus = await PushNotifications.requestPermissions();
-        alert('Step 2: Permission result: ' + permStatus.receive);
         if (permStatus.receive === 'granted') {
-          alert('Step 3: Registering...');
           await PushNotifications.register();
-          alert('Step 4: Getting token...');
           const token = await PushNotifications.getToken();
-          const tokenValue = token?.value;
-          alert('Step 5: Token received: ' + (tokenValue ? tokenValue.substring(0,15)+'...' : 'null'));
-          if (tokenValue) {
-            alert('Step 6: Sending token to backend...');
-            await registerDeviceToken(tokenValue);
-            alert('✅ Token registration complete!');
-          } else {
-            alert('❌ No token received from plugin');
+          if (token?.value) {
+            await registerDeviceToken(token.value);
           }
-        } else {
-          alert('❌ Permission denied: ' + permStatus.receive);
         }
+        // Listeners (optional, for foreground notifications)
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          setNotificationModal({ title: notification.title, body: notification.body });
+        });
+        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+          setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
+        });
       } else {
-        // Web notifications (no alerts)
         const messaging = getMessaging();
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
@@ -2838,10 +2830,25 @@ const initializeNotifications = () => {
       }
     } catch (err) {
       console.error('Notification init error:', err);
-      alert('❌ Error: ' + err.message);
     }
   })();
 };
+
+const registerDeviceToken = async (token) => {
+  if (!token || !auth.user?.id) return;
+  try {
+    await axios.post('/api/register-token', { token, userId: auth.user.id });
+    console.log('Token registered');
+  } catch (error) {
+    console.error('Token registration error:', error);
+  }
+};
+
+useEffect(() => {
+  if (auth.user?.id) {
+    initializeNotifications();
+  }
+}, [auth.user?.id]);
 
 // ---------- Call after login ----------
 useEffect(() => {
