@@ -2801,11 +2801,9 @@ const initializeNotifications = async () => {
         const token = await PushNotifications.getToken();
         if (token.value) registerDeviceToken(token.value);
       }
-
       PushNotifications.addListener('pushNotificationReceived', (notification) => {
         setNotificationModal({ title: notification.title, body: notification.body });
       });
-
       PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
         setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
       });
@@ -2828,16 +2826,6 @@ const initializeNotifications = async () => {
     } catch (err) {
       console.error('Web notification error:', err);
     }
-  }
-};
-
-const registerDeviceToken = async (token) => {
-  if (!token || !auth.user?.id) return;
-  try {
-    await axios.post('/api/register-token', { token, userId: auth.user.id });
-    console.log('Token registered');
-  } catch (error) {
-    console.error('Token registration error:', error);
   }
 };
 
