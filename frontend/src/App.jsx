@@ -2782,10 +2782,11 @@ const registerDeviceToken = async (token) => {
   }
 };
 
-// ========== PUSH NOTIFICATION FUNCTIONS ==========
+// ========== PUSH NOTIFICATION FUNCTIONS (with alerts) ==========
 const initializeNotifications = () => {
   (async () => {
     try {
+      // Firebase config (only for web)
       const firebaseConfig = {
         apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
         authDomain: "elite-nursing-cbt.firebaseapp.com",
@@ -2800,22 +2801,28 @@ const initializeNotifications = () => {
       }
 
       if (Capacitor.isNativePlatform()) {
+        alert('Step 1: Requesting permissions');
         const permStatus = await PushNotifications.requestPermissions();
+        alert('Step 2: Permission result: ' + permStatus.receive);
         if (permStatus.receive === 'granted') {
+          alert('Step 3: Registering...');
           await PushNotifications.register();
+          alert('Step 4: Getting token...');
           const token = await PushNotifications.getToken();
-          if (token?.value) {
-            await registerDeviceToken(token.value);
+          const tokenValue = token?.value;
+          alert('Step 5: Token received: ' + (tokenValue ? tokenValue.substring(0,15)+'...' : 'null'));
+          if (tokenValue) {
+            alert('Step 6: Sending token to backend...');
+            await registerDeviceToken(tokenValue);
+            alert('Step 7: Token registration complete!');
+          } else {
+            alert('❌ No token received from plugin');
           }
+        } else {
+          alert('❌ Permission denied: ' + permStatus.receive);
         }
-        // Listeners (optional, for foreground notifications)
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          setNotificationModal({ title: notification.title, body: notification.body });
-        });
-        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-          setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
-        });
       } else {
+        // Web notifications (keep existing)
         const messaging = getMessaging();
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
@@ -2830,15 +2837,10 @@ const initializeNotifications = () => {
       }
     } catch (err) {
       console.error('Notification init error:', err);
+      alert('❌ Error: ' + err.message);
     }
   })();
 };
-
-useEffect(() => {
-  if (auth.user?.id) {
-    initializeNotifications();
-  }
-}, [auth.user?.id]);
 
 // ---------- Call after login ----------
 useEffect(() => {
