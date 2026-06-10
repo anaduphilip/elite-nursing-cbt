@@ -2778,11 +2778,12 @@ function App() {
     }
   };
 
-// ========== PUSH NOTIFICATION FUNCTIONS (safe, non‑blocking) ==========
+// ========== PUSH NOTIFICATION FUNCTIONS (crash‑safe) ==========
 const initializeNotifications = () => {
-  // Run everything in the background, never block rendering
+  // Do not block rendering
   (async () => {
     try {
+      // Firebase config (only needed for web)
       const firebaseConfig = {
         apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
         authDomain: "elite-nursing-cbt.firebaseapp.com",
@@ -2791,25 +2792,35 @@ const initializeNotifications = () => {
         messagingSenderId: "18123266651",
         appId: "1:18123266651:web:7632db14d93727bec47d7e"
       };
-      if (!window.firebaseInitialized) {
+      if (!window.firebaseInitialized && !Capacitor.isNativePlatform()) {
         initializeApp(firebaseConfig);
         window.firebaseInitialized = true;
       }
 
       if (Capacitor.isNativePlatform()) {
-        const permStatus = await PushNotifications.requestPermissions();
-        if (permStatus.receive === 'granted') {
-          await PushNotifications.register();
-          const token = await PushNotifications.getToken();
-          if (token.value) registerDeviceToken(token.value);
+        // Android: only if the plugin is actually installed
+        if (typeof PushNotifications !== 'undefined' && PushNotifications) {
+          const permStatus = await PushNotifications.requestPermissions();
+          if (permStatus.receive === 'granted') {
+            await PushNotifications.register();
+            const token = await PushNotifications.getToken();
+            if (token && token.value) registerDeviceToken(token.value);
+          }
+          PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            if (notification && notification.title) {
+              setNotificationModal({ title: notification.title, body: notification.body });
+            }
+          });
+          PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+            if (notification && notification.notification) {
+              setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
+            }
+          });
+        } else {
+          console.log('PushNotifications plugin not available on Android');
         }
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          setNotificationModal({ title: notification.title, body: notification.body });
-        });
-        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-          setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
-        });
       } else {
+        // Web notifications
         const messaging = getMessaging();
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
@@ -2824,12 +2835,12 @@ const initializeNotifications = () => {
       }
     } catch (err) {
       console.error('Notification init error:', err);
-      // Silently fail – app continues working
+      // Do nothing – app continues working
     }
   })();
 };
 
-// ---------- Call notifications after login ----------
+// ---------- Call after login ----------
 useEffect(() => {
   if (auth.user?.id) {
     initializeNotifications();
