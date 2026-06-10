@@ -2778,9 +2778,8 @@ function App() {
     }
   };
 
-// ========== PUSH NOTIFICATION FUNCTIONS ==========
+// ========== PUSH NOTIFICATION FUNCTIONS (silent, no alerts) ==========
 const initializeNotifications = async () => {
-  alert('DEBUG: initializeNotifications started');
   const firebaseConfig = {
     apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
     authDomain: "elite-nursing-cbt.firebaseapp.com",
@@ -2796,37 +2795,24 @@ const initializeNotifications = async () => {
 
   if (Capacitor.isNativePlatform()) {
     try {
-      alert('Step 1: Requesting permission...');
       const permStatus = await PushNotifications.requestPermissions();
-      alert('Step 2: Permission status: ' + JSON.stringify(permStatus));
       if (permStatus.receive === 'granted') {
-        alert('Step 3: Registering...');
         await PushNotifications.register();
         const token = await PushNotifications.getToken();
-        alert('Step 4: Token: ' + (token.value ? token.value.substring(0,10) + '...' : 'null'));
         if (token.value) registerDeviceToken(token.value);
-      } else {
-        alert('Permission denied');
-        return;
       }
 
-      // Foreground notification received
       PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        console.log('Foreground notification:', notification);
         setNotificationModal({ title: notification.title, body: notification.body });
       });
 
-      // Notification tapped (app opened from background or closed)
       PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-        console.log('Notification tapped:', notification);
         setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
       });
     } catch (err) {
-      alert('Error: ' + err.message);
-      console.error('Push error:', err);
+      console.error('Push notification error:', err);
     }
   } else {
-    // Web part (unchanged)
     const messaging = getMessaging();
     try {
       const permission = await Notification.requestPermission();
@@ -2845,14 +2831,20 @@ const initializeNotifications = async () => {
   }
 };
 
-  // ---------- Call notifications after login ----------
+const registerDeviceToken = async (token) => {
+  if (!token || !auth.user?.id) return;
+  try {
+    await axios.post('/api/register-token', { token, userId: auth.user.id });
+    console.log('Token registered');
+  } catch (error) {
+    console.error('Token registration error:', error);
+  }
+};
+
+// ---------- Call notifications after login ----------
 useEffect(() => {
-  console.log('DEBUG: auth.user?.id =', auth.user?.id);
   if (auth.user?.id) {
-    alert('DEBUG: Calling initializeNotifications');
     initializeNotifications();
-  } else {
-    alert('DEBUG: No user ID, cannot initialize notifications');
   }
 }, [auth.user?.id]);
 
