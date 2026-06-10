@@ -856,7 +856,7 @@ app.post('/api/register-token', async (req, res) => {
   }
 
   try {
-    await User.findByIdAndUpdate(userId, { $addToSet: { deviceTokens: token } });
+    await User.findByIdAndUpdate(userId, { deviceTokens: [token] });
     console.log(`Token registered for user ${userId}`);
     res.json({ success: true });
   } catch (error) {
