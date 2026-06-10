@@ -6,7 +6,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { PushNotifications } from '@capacitor/push-notifications';
+import { FCM } from '@capacitor-community/fcm';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -2782,7 +2782,7 @@ const registerDeviceToken = async (token) => {
   }
 };
 
-// ========== PUSH NOTIFICATION FUNCTIONS (with alerts) ==========
+// ========== PUSH NOTIFICATION FUNCTIONS ==========
 const initializeNotifications = () => {
   (async () => {
     try {
@@ -2802,19 +2802,17 @@ const initializeNotifications = () => {
 
       if (Capacitor.isNativePlatform()) {
         alert('Step 1: Requesting permissions');
-        const permStatus = await PushNotifications.requestPermissions();
+        const permStatus = await FCM.requestPermissions();
         alert('Step 2: Permission result: ' + permStatus.receive);
         if (permStatus.receive === 'granted') {
-          alert('Step 3: Registering...');
-          await PushNotifications.register();
-          alert('Step 4: Getting token...');
-          const token = await PushNotifications.getToken();
-          const tokenValue = token?.value;
-          alert('Step 5: Token received: ' + (tokenValue ? tokenValue.substring(0,15)+'...' : 'null'));
+          alert('Step 3: Getting token...');
+          const token = await FCM.getToken();
+          const tokenValue = token?.token;
+          alert('Step 4: Token received: ' + (tokenValue ? tokenValue.substring(0,15)+'...' : 'null'));
           if (tokenValue) {
-            alert('Step 6: Sending token to backend...');
+            alert('Step 5: Sending token to backend...');
             await registerDeviceToken(tokenValue);
-            alert('Step 7: Token registration complete!');
+            alert('Step 6: Token registration complete!');
           } else {
             alert('❌ No token received from plugin');
           }
@@ -2822,7 +2820,7 @@ const initializeNotifications = () => {
           alert('❌ Permission denied: ' + permStatus.receive);
         }
       } else {
-        // Web notifications (keep existing)
+        // Web notifications
         const messaging = getMessaging();
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
