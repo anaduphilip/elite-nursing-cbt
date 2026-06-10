@@ -2780,10 +2780,8 @@ function App() {
 
 // ========== PUSH NOTIFICATION FUNCTIONS (crash‑safe) ==========
 const initializeNotifications = () => {
-  // Do not block rendering
   (async () => {
     try {
-      // Firebase config (only needed for web)
       const firebaseConfig = {
         apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
         authDomain: "elite-nursing-cbt.firebaseapp.com",
@@ -2798,8 +2796,8 @@ const initializeNotifications = () => {
       }
 
       if (Capacitor.isNativePlatform()) {
-        // Android: only if the plugin is actually installed
-        if (typeof PushNotifications !== 'undefined' && PushNotifications) {
+        // Safely check if PushNotifications plugin is available
+        if (typeof PushNotifications !== 'undefined' && PushNotifications && typeof PushNotifications.requestPermissions === 'function') {
           const permStatus = await PushNotifications.requestPermissions();
           if (permStatus.receive === 'granted') {
             await PushNotifications.register();
@@ -2807,17 +2805,13 @@ const initializeNotifications = () => {
             if (token && token.value) registerDeviceToken(token.value);
           }
           PushNotifications.addListener('pushNotificationReceived', (notification) => {
-            if (notification && notification.title) {
-              setNotificationModal({ title: notification.title, body: notification.body });
-            }
+            if (notification && notification.title) setNotificationModal({ title: notification.title, body: notification.body });
           });
           PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-            if (notification && notification.notification) {
-              setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
-            }
+            if (notification && notification.notification) setNotificationModal({ title: notification.notification.title, body: notification.notification.body });
           });
         } else {
-          console.log('PushNotifications plugin not available on Android');
+          console.log('PushNotifications plugin not available – skipping Android notifications');
         }
       } else {
         // Web notifications
@@ -2835,7 +2829,6 @@ const initializeNotifications = () => {
       }
     } catch (err) {
       console.error('Notification init error:', err);
-      // Do nothing – app continues working
     }
   })();
 };
