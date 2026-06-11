@@ -2786,7 +2786,6 @@ const registerDeviceToken = async (token) => {
 const initializeNotifications = () => {
   (async () => {
     try {
-      // Firebase config (only for web)
       const firebaseConfig = {
         apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
         authDomain: "elite-nursing-cbt.firebaseapp.com",
@@ -2801,37 +2800,20 @@ const initializeNotifications = () => {
       }
 
       if (Capacitor.isNativePlatform()) {
-        // Android notifications using @capacitor-firebase/messaging
-        try {
-          alert('Step 1: Requesting permissions');
-          const permStatus = await FirebaseMessaging.requestPermissions();
-          alert('Step 2: Permission result: ' + JSON.stringify(permStatus));
-          if (permStatus.receive === 'granted') {
-            alert('Step 3: Getting token...');
-            const tokenResult = await FirebaseMessaging.getToken();
-            alert('Step 4: Token type: ' + typeof tokenResult);
-            alert('Step 5: Token raw: ' + JSON.stringify(tokenResult));
-            let tokenValue = null;
-            if (typeof tokenResult === 'string') {
-              tokenValue = tokenResult;
-            } else if (tokenResult && typeof tokenResult === 'object' && tokenResult.token) {
-              tokenValue = tokenResult.token;
-            }
-            if (tokenValue) {
-              alert('Step 6: Token received: ' + tokenValue.substring(0,15)+'...');
-              await registerDeviceToken(tokenValue);
-              alert('Step 7: Token registration complete!');
-            } else {
-              alert('❌ No valid token extracted');
-            }
-          } else {
-            alert('❌ Permission denied');
+        const permStatus = await FirebaseMessaging.requestPermissions();
+        if (permStatus.receive === 'granted') {
+          const tokenResult = await FirebaseMessaging.getToken();
+          let tokenValue = null;
+          if (typeof tokenResult === 'string') {
+            tokenValue = tokenResult;
+          } else if (tokenResult && typeof tokenResult === 'object' && tokenResult.token) {
+            tokenValue = tokenResult.token;
           }
-        } catch (err) {
-          alert('❌ Error: ' + err.message);
+          if (tokenValue) {
+            await registerDeviceToken(tokenValue);
+          }
         }
       } else {
-        // Web notifications
         const messaging = getMessaging();
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
@@ -2841,12 +2823,12 @@ const initializeNotifications = () => {
           if (token) registerDeviceToken(token);
         }
         onMessage(messaging, (payload) => {
+          // Show a custom modal or alert
           alert(`${payload.notification.title}\n${payload.notification.body}`);
         });
       }
     } catch (err) {
       console.error('Notification init error:', err);
-      alert('❌ Error: ' + err.message);
     }
   })();
 };
