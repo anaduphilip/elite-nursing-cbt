@@ -2771,13 +2771,9 @@ function App() {
 const registerDeviceToken = async (token) => {
   if (!token || !auth.user?.id) return;
   try {
-    alert(`Sending token to backend: ${token.substring(0,15)}...`);
     const response = await axios.post('/api/register-token', { token, userId: auth.user.id });
-    alert(`✅ Backend response: ${JSON.stringify(response.data)}`);
-    return response.data;
+    console.log('Token registered', response.data);
   } catch (error) {
-    const errorMsg = error.response?.data?.error || error.message;
-    alert(`❌ Backend error: ${errorMsg}`);
     console.error('Token registration error:', error);
   }
 };
