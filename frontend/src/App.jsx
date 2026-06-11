@@ -6,7 +6,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { PushNotifications } from '@capacitor/push-notifications';
+import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -2801,25 +2801,27 @@ const initializeNotifications = () => {
       }
 
       if (Capacitor.isNativePlatform()) {
-        alert('Step 1: Requesting permissions');
-        const permStatus = await PushNotifications.requestPermissions();
-        alert('Step 2: Permission result: ' + permStatus.receive);
-        if (permStatus.receive === 'granted') {
-          alert('Step 3: Registering...');
-          await PushNotifications.register();
-          alert('Step 4: Getting token...');
-          const token = await PushNotifications.getToken();
-          const tokenValue = token?.value;
-          alert('Step 5: Token received: ' + (tokenValue ? tokenValue.substring(0,15)+'...' : 'null'));
-          if (tokenValue) {
-            alert('Step 6: Sending token to backend...');
-            await registerDeviceToken(tokenValue);
-            alert('Step 7: Token registration complete!');
+        // Android notifications using @capacitor-firebase/messaging
+        try {
+          alert('Step 1: Requesting permissions');
+          const permStatus = await FirebaseMessaging.requestPermissions();
+          alert('Step 2: Permission result: ' + JSON.stringify(permStatus));
+          if (permStatus.receive === 'granted') {
+            alert('Step 3: Getting token...');
+            const token = await FirebaseMessaging.getToken();
+            alert('Step 4: Token received: ' + (token ? token.substring(0,15)+'...' : 'null'));
+            if (token) {
+              alert('Step 5: Sending token to backend...');
+              await registerDeviceToken(token);
+              alert('Step 6: Token registration complete!');
+            } else {
+              alert('❌ No token received');
+            }
           } else {
-            alert('❌ No token received from plugin');
+            alert('❌ Permission denied');
           }
-        } else {
-          alert('❌ Permission denied: ' + permStatus.receive);
+        } catch (err) {
+          alert('❌ Error: ' + err.message);
         }
       } else {
         // Web notifications
