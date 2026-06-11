@@ -2808,14 +2808,21 @@ const initializeNotifications = () => {
           alert('Step 2: Permission result: ' + JSON.stringify(permStatus));
           if (permStatus.receive === 'granted') {
             alert('Step 3: Getting token...');
-            const token = await FirebaseMessaging.getToken();
-            alert('Step 4: Token received: ' + (token ? token.substring(0,15)+'...' : 'null'));
-            if (token) {
-              alert('Step 5: Sending token to backend...');
-              await registerDeviceToken(token);
-              alert('Step 6: Token registration complete!');
+            const tokenResult = await FirebaseMessaging.getToken();
+            alert('Step 4: Token type: ' + typeof tokenResult);
+            alert('Step 5: Token raw: ' + JSON.stringify(tokenResult));
+            let tokenValue = null;
+            if (typeof tokenResult === 'string') {
+              tokenValue = tokenResult;
+            } else if (tokenResult && typeof tokenResult === 'object' && tokenResult.token) {
+              tokenValue = tokenResult.token;
+            }
+            if (tokenValue) {
+              alert('Step 6: Token received: ' + tokenValue.substring(0,15)+'...');
+              await registerDeviceToken(tokenValue);
+              alert('Step 7: Token registration complete!');
             } else {
-              alert('❌ No token received');
+              alert('❌ No valid token extracted');
             }
           } else {
             alert('❌ Permission denied');
