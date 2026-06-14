@@ -1634,7 +1634,16 @@ const TakeExam = () => {
         const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         const examData = res.data;
         setExam(examData);
-        
+
+        // ========== ADDED: Premium check for Free Mode ==========
+        if (mode === 'free' && examData.isPremium) {
+          alert('This exam is premium content. Please upgrade to access it.');
+          window.location.href = '/get-premium';
+          setLoading(false);
+          return;
+        }
+        // ========================================================
+
         if (mode === 'free') {
           const hasTaken = localStorage.getItem(`exam_${id}_taken`) === 'true';
           if (hasTaken) {
