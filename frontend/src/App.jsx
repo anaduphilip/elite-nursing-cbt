@@ -1165,7 +1165,7 @@ const HomePage = () => {
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
-  const [fullTopicQuizzes, setFullTopicQuizzes] = useState([]); // NEW: store full list for current topic
+  const [fullTopicQuizzes, setFullTopicQuizzes] = useState([]); // store all quizzes in current topic
   const [isTopicView, setIsTopicView] = useState(true);
   const [loading, setLoading] = useState(true);
   const { token, darkMode } = useContext(AuthContext);
@@ -1190,16 +1190,16 @@ const CourseList = () => {
         let filtered = quizzesData.filter(q => q.category === categoryName);
 
         if (currentTopic) {
-          // Full list of quizzes for this topic (all sets, including premium)
+          // Store all quizzes for this topic (for Continue button)
           const allTopicQuizzes = filtered.filter(q => q.topic === currentTopic);
           allTopicQuizzes.sort((a, b) => {
             const numA = parseInt(a.title.match(/\d+/)?.[0] || 0);
             const numB = parseInt(b.title.match(/\d+/)?.[0] || 0);
             return numA - numB;
           });
-          setFullTopicQuizzes(allTopicQuizzes); // store for Continue button
+          setFullTopicQuizzes(allTopicQuizzes);
 
-          // Display list based on mode
+          // Display only the first quiz if in free mode, else all
           let topicQuizzes = [...allTopicQuizzes];
           if (mode === 'free') topicQuizzes = topicQuizzes.slice(0, 1);
           setDisplayData(topicQuizzes);
@@ -1236,7 +1236,7 @@ const CourseList = () => {
     return null;
   };
 
-  // Compute first incomplete quiz from the FULL list (all topic quizzes), not from displayData
+  // Find first incomplete quiz (used for Continue button)
   const firstIncompleteQuiz = !isTopicView && fullTopicQuizzes.length > 0
     ? fullTopicQuizzes.find(quiz => !getLastScore(quiz._id))
     : null;
@@ -1270,7 +1270,7 @@ const CourseList = () => {
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
         </div>
 
-        {/* Continue button (only in topic view and if there is an incomplete quiz from the FULL list) */}
+        {/* Continue button (only in topic view, if there is a next incomplete quiz) */}
         {!isTopicView && firstIncompleteQuiz && (
           <div style={{ marginBottom: 24, textAlign: 'center' }}>
             <Link to={`/take/${firstIncompleteQuiz._id}/1/${mode}`}>
@@ -1301,7 +1301,7 @@ const CourseList = () => {
         }}>
           {displayData.map(item => {
             if (isTopicView) {
-              // Course card (unchanged)
+              // Course card
               return (
                 <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none' }}>
                   <div style={{ 
@@ -1635,14 +1635,13 @@ const TakeExam = () => {
         const examData = res.data;
         setExam(examData);
 
-        // ========== ADDED: Premium check for Free Mode ==========
+        // ========== Premium check for Free Mode – show modal ==========
         if (mode === 'free' && examData.isPremium) {
-          alert('This exam is premium content. Please upgrade to access it.');
-          window.location.href = '/get-premium';
+          setPremiumBlocked(true);
           setLoading(false);
           return;
         }
-        // ========================================================
+        // =============================================================
 
         if (mode === 'free') {
           const hasTaken = localStorage.getItem(`exam_${id}_taken`) === 'true';
