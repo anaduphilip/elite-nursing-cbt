@@ -386,6 +386,29 @@ const isAdmin = async (req, res, next) => {
   }
 };
 
+// ============ AUTHENTICATION MIDDLEWARE ============
+const authenticate = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
+    const user = await User.findById(decoded.userId).select('-password');
+
+    if (!user) {
+      // Specific message for deleted users
+      return res.status(401).json({ error: 'Your account has been deleted. Please log out and contact support.' });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+};
+
 // ============ ADMIN ROUTES ============
 app.get('/api/admin/users', isAdmin, async (req, res) => {
   try {
@@ -649,35 +672,25 @@ app.get('/api/verify-session', async (req, res) => {
   }
 });
 
-app.get('/api/user/profile', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token' });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    const user = await User.findById(decoded.userId);
-    res.json({ id: user._id, name: user.name, isPremium: user.isPremium, email: user.email, isVerified: user.isVerified });
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
-  }
+app.get('/api/user/profile', authenticate, async (req, res) => {
+  res.json({
+    id: req.user._id,
+    name: req.user.name,
+    isPremium: req.user.isPremium,
+    email: req.user.email,
+    isVerified: req.user.isVerified
+  });
 });
 
-app.post('/api/check-exam-access', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token' });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    const user = await User.findById(decoded.userId);
-    const { examId, sectionNumber } = req.body;
-    if (user.isPremium) return res.json({ hasAccess: true });
-    const hasPurchased = user.purchasedExams.some(p => p.examId === examId && p.sectionNumber === sectionNumber);
-    res.json({ hasAccess: hasPurchased });
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
-  }
+app.post('/api/check-exam-access', authenticate, async (req, res) => {
+  const { examId, sectionNumber } = req.body;
+  if (req.user.isPremium) return res.json({ hasAccess: true });
+  const hasPurchased = req.user.purchasedExams.some(p => p.examId === examId && p.sectionNumber === sectionNumber);
+  res.json({ hasAccess: hasPurchased });
 });
 
 // ============ QUIZ ROUTES ============
-app.get('/api/quizzes', async (req, res) => {
+app.get('/api/quizzes', authenticate, async (req, res) => {
   try {
     const quizzes = await Quiz.find();
     res.json(quizzes);
@@ -686,7 +699,7 @@ app.get('/api/quizzes', async (req, res) => {
   }
 });
 
-app.get('/api/quizzes/:quizId', async (req, res) => {
+app.get('/api/quizzes/:quizId', authenticate, async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.quizId);
     if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
@@ -696,7 +709,7 @@ app.get('/api/quizzes/:quizId', async (req, res) => {
   }
 });
 
-app.post('/api/quizzes/:quizId/submit', async (req, res) => {
+aapp.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.quizId);
     if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
@@ -729,7 +742,10 @@ app.post('/api/initialize-payment', async (req, res) => {
     console.log(`💰 INITIALIZING PAYMENT: ${tx_ref} for user ${userId}, amount: ${amount}`);
     
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+      // User deleted – return 401 with custom message
+      return res.status(401).json({ error: 'Your account has been deleted. Please log out and contact support.' });
+    }
     
     // Use provided redirect_url or fallback to default
     const finalRedirectUrl = redirect_url || `https://elite-nursing-cbt.vercel.app/payment-return?reference=${tx_ref}`;
@@ -850,13 +866,14 @@ app.post('/api/admin/activate-premium', isAdmin, async (req, res) => {
 // Register device token for push notifications
 app.post('/api/register-token', async (req, res) => {
   const { token, userId } = req.body;
-
-  if (!token || !userId) {
-    return res.status(400).json({ error: 'Missing token or userId' });
-  }
-
+  if (!token || !userId) return res.status(400).json({ error: 'Missing token or userId' });
   try {
-    await User.findByIdAndUpdate(userId, { deviceTokens: [token] });
+    // Check if user still exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ error: 'Your account has been deleted. Please log out and contact support.' });
+    }
+    await User.findByIdAndUpdate(userId, { $addToSet: { deviceTokens: token } });
     console.log(`Token registered for user ${userId}`);
     res.json({ success: true });
   } catch (error) {
