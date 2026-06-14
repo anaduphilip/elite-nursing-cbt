@@ -931,6 +931,23 @@ app.post('/api/admin/generate-verification-code', isAdmin, async (req, res) => {
   res.json({ otp, message: 'Verification code generated successfully' });
 });
 
+// Admin: Generate password reset code (bypass email)
+app.post('/api/admin/generate-reset-code', isAdmin, async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+
+  // Optionally check if user exists (recommended for password reset)
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  // Store with reset_ prefix (same as forgot-password uses)
+  otpStore.set(`reset_${email}`, { otp, expires: Date.now() + 10 * 60000, name: user.name });
+
+  console.log(`Admin generated reset OTP for ${email}: ${otp}`);
+  res.json({ otp, message: 'Reset code generated successfully' });
+});
+
 // ============ HEALTH CHECK ============
 app.get('/', (req, res) => {
   res.send('ELITE NURSING & MIDWIFERY CBT API is Running!');
