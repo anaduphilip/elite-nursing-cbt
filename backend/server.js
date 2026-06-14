@@ -709,7 +709,7 @@ app.get('/api/quizzes/:quizId', authenticate, async (req, res) => {
   }
 });
 
-aapp.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
+app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.quizId);
     if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
