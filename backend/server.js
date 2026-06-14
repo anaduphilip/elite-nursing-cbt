@@ -515,6 +515,7 @@ app.post('/api/send-verification', async (req, res) => {
 app.post('/api/verify-email', async (req, res) => {
   try {
     const { email, otp } = req.body;
+    console.log(`Verifying OTP for email: ${email}, stored:`, otpStore.get(`verify_${email}`));
     const stored = otpStore.get(`verify_${email}`);
     if (!stored) return res.status(400).json({ error: 'No code found' });
     if (Date.now() > stored.expires) return res.status(400).json({ error: 'Code expired' });
@@ -523,6 +524,7 @@ app.post('/api/verify-email', async (req, res) => {
     otpStore.delete(`verify_${email}`);
     res.json({ success: true, message: 'Email verified' });
   } catch (error) {
+    console.error('Verification error:', error);
     res.status(500).json({ error: 'Verification failed' });
   }
 });
