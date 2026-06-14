@@ -514,8 +514,7 @@ app.post('/api/send-verification', async (req, res) => {
 
 app.post('/api/verify-email', async (req, res) => {
   try {
-    const email = req.body.email.toLowerCase();
-    const otp = req.body.otp;
+    const { email, otp } = req.body;
     console.log(`Verifying OTP for email: ${email}, stored:`, otpStore.get(`verify_${email}`));
     const stored = otpStore.get(`verify_${email}`);
     if (!stored) return res.status(400).json({ error: 'No code found' });
@@ -920,12 +919,12 @@ app.post('/api/admin/send-notification', isAdmin, async (req, res) => {
 
 // Admin: Generate verification code for ANY email (bypass email)
 app.post('/api/admin/generate-verification-code', isAdmin, async (req, res) => {
-  const email = req.body.email.toLowerCase(); // normalize
+  const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required' });
 
-  // No user existence check – we can generate for any email
+  // No user existence check – can generate for any email
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  // Overwrite any previous OTP for this email
+  // Overwrite any previous OTP for this email (case-sensitive key)
   otpStore.set(`verify_${email}`, { otp, expires: Date.now() + 10 * 60000 });
 
   console.log(`Admin generated OTP for ${email}: ${otp}`);
