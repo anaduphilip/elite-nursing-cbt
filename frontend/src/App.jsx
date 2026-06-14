@@ -540,6 +540,7 @@ const Register = () => {
     setError('');
     setMessage('');
     try {
+      console.log('Sending verification request:', { email, otp });
       await axios.post('/api/verify-email', { email, otp });
       const res = await axios.post('/api/register', { name, email, password });
       if (res.data.success) {
