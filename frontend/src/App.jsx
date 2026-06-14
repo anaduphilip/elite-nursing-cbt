@@ -2760,10 +2760,29 @@ function App() {
     delete axios.defaults.headers.common['Authorization'];
   };
 
+  // ========== ADD THIS NEW useEffect ==========
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response?.status === 401) {
+          const message = error.response?.data?.error || 'Session expired. Please log in again.';
+          alert(`⚠️ ${message}`);
+          logout();
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
+  }, [logout]);
+  // ===========================================
+
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     localStorage.setItem('darkMode', !darkMode);
   };
+  
     // ---------- Notification state ----------
   const [notificationModal, setNotificationModal] = useState(null);
 
