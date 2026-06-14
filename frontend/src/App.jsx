@@ -2367,10 +2367,15 @@ const AdminPanel = () => {
   const [sendingNotification, setSendingNotification] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState('');
 
-  // ---------- Manual OTP states ----------
+  // ---------- Manual OTP states (for email verification) ----------
   const [manualOtpEmail, setManualOtpEmail] = useState('');
   const [manualOtpResult, setManualOtpResult] = useState('');
   const [generatingOtp, setGeneratingOtp] = useState(false);
+
+  // ---------- Manual Reset states (for password reset) ----------
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetOtpResult, setResetOtpResult] = useState('');
+  const [generatingResetOtp, setGeneratingResetOtp] = useState(false);
 
   // ---------- Existing functions ----------
   useEffect(() => {
@@ -2480,7 +2485,7 @@ const AdminPanel = () => {
     }
   };
 
-  // ---------- Manual OTP function ----------
+  // ---------- Manual OTP function (email verification) ----------
   const generateManualOtp = async () => {
     if (!manualOtpEmail.trim()) {
       alert('Please enter an email address');
@@ -2506,6 +2511,32 @@ const AdminPanel = () => {
     }
   };
 
+  // ---------- Manual Reset function (password reset) ----------
+  const generateManualResetOtp = async () => {
+    if (!resetEmail.trim()) {
+      alert('Please enter an email address');
+      return;
+    }
+    setGeneratingResetOtp(true);
+    setResetOtpResult('');
+    try {
+      const response = await axios.post('/api/admin/generate-reset-code', 
+        { email: resetEmail },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.otp) {
+        setResetOtpResult(`✅ Reset code for ${resetEmail}: ${response.data.otp} (valid 10 minutes)`);
+      } else {
+        setResetOtpResult('❌ Failed to generate code');
+      }
+    } catch (error) {
+      console.error('Generate reset OTP error:', error);
+      setResetOtpResult(`❌ Error: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setGeneratingResetOtp(false);
+    }
+  };
+
   if (loading) return <LoadingWithBar message="Loading admin panel" />;
   if (user?.email !== 'anaduphilip2000@gmail.com') return <Navigate to="/" />;
 
@@ -2520,6 +2551,7 @@ const AdminPanel = () => {
             <button onClick={() => setActiveTab('contacts')} style={{ background: activeTab === 'contacts' ? '#1e3c72' : 'transparent', color: activeTab === 'contacts' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'contacts' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Contact Messages ({contacts.length})</button>
             <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
             <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
+            <button onClick={() => setActiveTab('manualReset')} style={{ background: activeTab === 'manualReset' ? '#6c757d' : 'transparent', color: activeTab === 'manualReset' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualReset' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual Reset</button>
           </div>
 
           {activeTab === 'users' && (
@@ -2632,6 +2664,34 @@ const AdminPanel = () => {
               )}
             </div>
           )}
+
+          {activeTab === 'manualReset' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: '#1e3c72', marginBottom: 20 }}>Generate Password Reset Code</h3>
+              <p style={{ marginBottom: 16, color: '#666' }}>Use this when a user cannot receive password reset email. The code will be shown here and can be given to the user.</p>
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  type="email"
+                  placeholder="User's email address"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14 }}
+                />
+              </div>
+              <button
+                onClick={generateManualResetOtp}
+                disabled={generatingResetOtp}
+                style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                {generatingResetOtp ? 'Generating...' : 'Generate Reset Code'}
+              </button>
+              {resetOtpResult && (
+                <div style={{ marginTop: 16, padding: 12, background: '#e8f5e9', borderRadius: 8, borderLeft: '4px solid #2e7d32' }}>
+                  <p style={{ margin: 0, color: '#2e7d32' }}>{resetOtpResult}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
@@ -2639,7 +2699,7 @@ const AdminPanel = () => {
       </div>
     </div>
   );
-}; 
+};
 
 // Dropdown Menu Component
 const DropdownMenu = () => {
