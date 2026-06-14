@@ -915,6 +915,23 @@ app.post('/api/admin/send-notification', isAdmin, async (req, res) => {
   }
 });
 
+// Admin: Generate verification code for a user (bypass email)
+app.post('/api/admin/generate-verification-code', isAdmin, async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  
+  // Check if user exists (optional)
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  // Store in otpStore with 10 min expiry
+  otpStore.set(`verify_${email}`, { otp, expires: Date.now() + 10 * 60000 });
+  
+  console.log(`Admin generated OTP for ${email}: ${otp}`);
+  res.json({ otp, message: 'Verification code generated successfully' });
+});
+
 // ============ HEALTH CHECK ============
 app.get('/', (req, res) => {
   res.send('ELITE NURSING & MIDWIFERY CBT API is Running!');
