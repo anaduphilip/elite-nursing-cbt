@@ -1230,6 +1230,11 @@ const CourseList = () => {
     return null;
   };
 
+  // Compute first incomplete quiz (for topic view)
+  const firstIncompleteQuiz = !isTopicView && displayData.length > 0
+    ? displayData.find(quiz => !getLastScore(quiz._id))
+    : null;
+
   if (loading) {
     const loadingMsg = currentTopic ? 'Loading exams...' : 'Loading courses...';
     return <LoadingWithBar message={loadingMsg} />;
@@ -1259,6 +1264,27 @@ const CourseList = () => {
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
         </div>
 
+        {/* Continue button (only in topic view and if there is an incomplete quiz) */}
+        {!isTopicView && firstIncompleteQuiz && (
+          <div style={{ marginBottom: 24, textAlign: 'center' }}>
+            <Link to={`/take/${firstIncompleteQuiz._id}/1/${mode}`}>
+              <button style={{
+                background: '#4caf50',
+                color: 'white',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: 50,
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: 16,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+              }}>
+                ▶ Continue: {firstIncompleteQuiz.title}
+              </button>
+            </Link>
+          </div>
+        )}
+
         {/* CSS Grid – large row gap to prevent vertical overlap */}
         <div style={{
           display: 'grid',
@@ -1269,7 +1295,7 @@ const CourseList = () => {
         }}>
           {displayData.map(item => {
             if (isTopicView) {
-              // Course card
+              // Course card (unchanged)
               return (
                 <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none' }}>
                   <div style={{ 
@@ -1297,6 +1323,7 @@ const CourseList = () => {
               const totalQuestions = quiz.questions?.length || 0;
               const lastScore = getLastScore(quiz._id);
               const hasTakenFree = localStorage.getItem(`exam_${quiz._id}_taken`) === 'true';
+              const isCompleted = !!lastScore; // true if a score exists
 
               let buttonText = 'Start Exam →';
               let buttonLink = `/take/${quiz._id}/1/${mode}`;
@@ -1320,8 +1347,26 @@ const CourseList = () => {
                     display: 'flex', 
                     flexDirection: 'column', 
                     height: '100%',
-                    wordBreak: 'break-word'
+                    wordBreak: 'break-word',
+                    position: 'relative'
                   }}>
+                    {/* Completion badge */}
+                    {isCompleted && (
+                      <div style={{
+                        position: 'absolute',
+                        top: 12,
+                        right: 12,
+                        background: '#4caf50',
+                        color: 'white',
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        fontWeight: 'bold',
+                        zIndex: 1
+                      }}>
+                        ✅ Completed
+                      </div>
+                    )}
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
                     <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{quiz.description?.substring(0, 80)}...</p>
