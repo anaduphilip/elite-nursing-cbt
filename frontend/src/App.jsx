@@ -2366,6 +2366,12 @@ const AdminPanel = () => {
   const [sendingNotification, setSendingNotification] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState('');
 
+  // ---------- Manual OTP states ----------
+  const [manualOtpEmail, setManualOtpEmail] = useState('');
+  const [manualOtpResult, setManualOtpResult] = useState('');
+  const [generatingOtp, setGeneratingOtp] = useState(false);
+
+  // ---------- Existing functions ----------
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -2447,39 +2453,60 @@ const AdminPanel = () => {
   };
 
   const sendNotification = async () => {
-  if (!notificationTitle || !notificationMessage) {
-    alert('Please enter both a title and a message.');
-    return;
-  }
-
-  setSendingNotification(true);
-  setNotificationStatus('');
-  try {
-    const response = await axios.post('/api/admin/send-notification', {
-      title: notificationTitle,
-      message: notificationMessage
-    }, { headers: { Authorization: `Bearer ${token}` } });
-
-    if (response.data.success) {
-      setNotificationStatus(`✅ Sent successfully to ${response.data.successCount} devices.`);
-      setNotificationTitle('');
-      setNotificationMessage('');
-    } else {
-      setNotificationStatus('❌ Failed to send notifications.');
+    if (!notificationTitle || !notificationMessage) {
+      alert('Please enter both a title and a message.');
+      return;
     }
-  } catch (error) {
-    console.error('Error sending notification:', error);
-    setNotificationStatus('❌ An error occurred.');
-  } finally {
-    setSendingNotification(false);
-  }
-};
+    setSendingNotification(true);
+    setNotificationStatus('');
+    try {
+      const response = await axios.post('/api/admin/send-notification', {
+        title: notificationTitle,
+        message: notificationMessage
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      if (response.data.success) {
+        setNotificationStatus(`✅ Sent successfully to ${response.data.successCount} devices.`);
+        setNotificationTitle('');
+        setNotificationMessage('');
+      } else {
+        setNotificationStatus('❌ Failed to send notifications.');
+      }
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      setNotificationStatus('❌ An error occurred.');
+    } finally {
+      setSendingNotification(false);
+    }
+  };
+
+  // ---------- Manual OTP function ----------
+  const generateManualOtp = async () => {
+    if (!manualOtpEmail.trim()) {
+      alert('Please enter an email address');
+      return;
+    }
+    setGeneratingOtp(true);
+    setManualOtpResult('');
+    try {
+      const response = await axios.post('/api/admin/generate-verification-code', 
+        { email: manualOtpEmail },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.otp) {
+        setManualOtpResult(`✅ Verification code for ${manualOtpEmail}: ${response.data.otp} (valid 10 minutes)`);
+      } else {
+        setManualOtpResult('❌ Failed to generate code');
+      }
+    } catch (error) {
+      console.error('Generate OTP error:', error);
+      setManualOtpResult(`❌ Error: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setGeneratingOtp(false);
+    }
+  };
 
   if (loading) return <LoadingWithBar message="Loading admin panel" />;
-
-  if (user?.email !== 'anaduphilip2000@gmail.com') {
-    return <Navigate to="/" />;
-  }
+  if (user?.email !== 'anaduphilip2000@gmail.com') return <Navigate to="/" />;
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -2487,10 +2514,11 @@ const AdminPanel = () => {
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
           <h1 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20, fontSize: 28 }}>Admin Panel</h1>
           
-          <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '2px solid #e0e0e0', paddingBottom: 12, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '2px solid #e0e0e0', paddingBottom: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => setActiveTab('users')} style={{ background: activeTab === 'users' ? '#1e3c72' : 'transparent', color: activeTab === 'users' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'users' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Users ({users.length})</button>
             <button onClick={() => setActiveTab('contacts')} style={{ background: activeTab === 'contacts' ? '#1e3c72' : 'transparent', color: activeTab === 'contacts' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'contacts' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Contact Messages ({contacts.length})</button>
             <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
+            <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
           </div>
 
           {activeTab === 'users' && (
@@ -2543,7 +2571,8 @@ const AdminPanel = () => {
               ))}
             </div>
           )}
-           {activeTab === 'notifications' && (
+
+          {activeTab === 'notifications' && (
             <div style={{ padding: 20 }}>
               <h3 style={{ color: '#1e3c72', marginBottom: 20 }}>Send Push Notification to All Users</h3>
               <div style={{ marginBottom: 16 }}>
@@ -2574,6 +2603,34 @@ const AdminPanel = () => {
               {notificationStatus && <p style={{ marginTop: 16, color: '#2e7d32' }}>{notificationStatus}</p>}
             </div>
           )}
+
+          {activeTab === 'manualOtp' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: '#1e3c72', marginBottom: 20 }}>Generate Manual Verification Code</h3>
+              <p style={{ marginBottom: 16, color: '#666' }}>Use this only when a user cannot receive email. The code will be shown here and can be given to the user.</p>
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  type="email"
+                  placeholder="User's email address"
+                  value={manualOtpEmail}
+                  onChange={(e) => setManualOtpEmail(e.target.value)}
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14 }}
+                />
+              </div>
+              <button
+                onClick={generateManualOtp}
+                disabled={generatingOtp}
+                style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                {generatingOtp ? 'Generating...' : 'Generate Code'}
+              </button>
+              {manualOtpResult && (
+                <div style={{ marginTop: 16, padding: 12, background: '#e8f5e9', borderRadius: 8, borderLeft: '4px solid #2e7d32' }}>
+                  <p style={{ margin: 0, color: '#2e7d32' }}>{manualOtpResult}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
@@ -2581,7 +2638,7 @@ const AdminPanel = () => {
       </div>
     </div>
   );
-};         
+}; 
 
 // Dropdown Menu Component
 const DropdownMenu = () => {
@@ -2782,7 +2839,7 @@ function App() {
     setDarkMode(!darkMode);
     localStorage.setItem('darkMode', !darkMode);
   };
-  
+
     // ---------- Notification state ----------
   const [notificationModal, setNotificationModal] = useState(null);
 
