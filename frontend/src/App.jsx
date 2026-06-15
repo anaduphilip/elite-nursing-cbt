@@ -2087,10 +2087,11 @@ const ContactUs = () => {
   );
 };
 
-// My History Component – with Clear All and individual deletion
+// My History Component – with custom delete confirmation modal
 const MyHistory = () => {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { quizId, title }
   const { darkMode } = useContext(AuthContext);
 
   const loadAttempts = () => {
@@ -2109,19 +2110,23 @@ const MyHistory = () => {
   }, []);
 
   const handleClearAll = () => {
-    if (window.confirm('⚠️ Are you sure you want to delete ALL exam history? This cannot be undone.')) {
-      clearAllAttempts();
-      loadAttempts(); // refresh the list (will be empty)
-    }
+    setDeleteConfirm({ quizId: 'ALL', title: 'ALL exams' });
   };
 
-  const handleDeleteOne = (quizId, title) => {
-    if (window.confirm(`Delete "${title}" from your history?`)) {
+  const confirmDelete = () => {
+    if (deleteConfirm.quizId === 'ALL') {
+      clearAllAttempts();
+    } else {
       const all = getAllAttempts();
-      delete all[quizId];
+      delete all[deleteConfirm.quizId];
       localStorage.setItem('exam_attempts', JSON.stringify(all));
-      loadAttempts(); // refresh the list
     }
+    setDeleteConfirm(null);
+    loadAttempts(); // refresh list
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null);
   };
 
   if (loading) return <LoadingWithBar message="Loading history..." />;
@@ -2167,6 +2172,7 @@ const MyHistory = () => {
             🗑️ Clear All History
           </button>
         </div>
+
         {Object.entries(grouped).map(([category, topics]) => (
           <div key={category} style={{ marginBottom: 40 }}>
             <h2 style={{ color: '#ff9800', borderLeft: `4px solid #ff9800`, paddingLeft: 12, marginBottom: 16 }}>
@@ -2179,22 +2185,22 @@ const MyHistory = () => {
                   {exams.map((exam) => (
                     <div key={exam.quizId} style={{ background: darkMode ? '#16213e' : 'white', padding: 16, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', position: 'relative' }}>
                       <button
-                        onClick={() => handleDeleteOne(exam.quizId, exam.title)}
+                        onClick={() => setDeleteConfirm({ quizId: exam.quizId, title: exam.title })}
                         style={{
                           position: 'absolute',
                           top: 8,
                           right: 8,
-                          background: 'none',
+                          background: '#dc3545',
+                          color: 'white',
                           border: 'none',
-                          fontSize: 18,
+                          borderRadius: 4,
+                          fontSize: 12,
                           cursor: 'pointer',
-                          color: '#dc3545',
-                          padding: '4px',
-                          lineHeight: 1
+                          padding: '4px 8px',
+                          fontWeight: 'bold'
                         }}
-                        title="Delete this attempt"
                       >
-                        🗑️
+                        Delete
                       </button>
                       <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
                       <h4 style={{ color: '#1e3c72', marginBottom: 4 }}>{exam.title}</h4>
@@ -2211,6 +2217,43 @@ const MyHistory = () => {
           </div>
         ))}
       </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 20,
+            padding: 24,
+            maxWidth: 320,
+            width: '90%',
+            textAlign: 'center',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+            <h3 style={{ color: '#1e3c72', marginBottom: 8 }}>Delete Exam History</h3>
+            <p style={{ color: '#666', marginBottom: 20 }}>
+              {deleteConfirm.quizId === 'ALL'
+                ? 'Are you sure you want to delete ALL exam history? This cannot be undone.'
+                : `Delete "${deleteConfirm.title}" from your history?`
+              }
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button onClick={cancelDelete} style={{ background: '#6c757d', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Back</button>
+              <button onClick={confirmDelete} style={{ background: '#dc3545', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
