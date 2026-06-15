@@ -31,6 +31,33 @@ async function getCachedQuizzes(token) {
   return await globalQuizzesPromise;
 }
 
+// Save a completed exam attempt (permanent)
+const saveExamAttempt = (quizId, title, category, topic, answers, score, total, percentage) => {
+  const attempts = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
+  attempts[quizId] = {
+    title,
+    category,
+    topic,
+    answers,      // object: { questionIndex: selectedOptionIndex }
+    score,
+    total,
+    percentage,
+    completedAt: new Date().toISOString()
+  };
+  localStorage.setItem('exam_attempts', JSON.stringify(attempts));
+};
+
+// Get all attempts
+const getAllAttempts = () => {
+  return JSON.parse(localStorage.getItem('exam_attempts') || '{}');
+};
+
+// Get a single attempt
+const getExamAttempt = (quizId) => {
+  const attempts = getAllAttempts();
+  return attempts[quizId] || null;
+};
+
 // Loading Component with Percentage Bar
 const LoadingWithBar = ({ message = "Loading", onComplete }) => {
   const [progress, setProgress] = useState(0);
@@ -1726,6 +1753,19 @@ const TakeExam = () => {
       localStorage.setItem(`exam_${id}_taken`, 'true');
     }
     localStorage.removeItem(`exam_${id}_answers`);
+
+    // ========== Save permanent attempt for history ==========
+    saveExamAttempt(
+      id,
+      exam.title,
+      exam.category,
+      exam.topic,
+      answers,
+      score,
+      total,
+      percentage
+    );
+    // ========================================================
   };
 
   const answeredCount = Object.keys(answers).length;
@@ -2049,6 +2089,171 @@ const ContactUs = () => {
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
+    </div>
+  );
+};
+
+// My History Component – shows all completed quizzes with review links
+const MyHistory = () => {
+  const [attempts, setAttempts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { darkMode } = useContext(AuthContext);
+
+  useEffect(() => {
+    const all = getAllAttempts();
+    const list = Object.entries(all).map(([quizId, data]) => ({
+      quizId,
+      ...data
+    }));
+    // Sort by completion date, newest first
+    list.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+    setAttempts(list);
+    setLoading(false);
+  }, []);
+
+  if (loading) return <LoadingWithBar message="Loading history..." />;
+
+  if (attempts.length === 0) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
+        <div style={{ fontSize: 64, marginBottom: 20 }}>📖</div>
+        <h2 style={{ color: '#1e3c72' }}>No Exam History</h2>
+        <p>Complete some exams to see your history here.</p>
+        <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Browse Exams</button></Link>
+      </div>
+    );
+  }
+
+  // Group by category and topic
+  const grouped = {};
+  attempts.forEach(attempt => {
+    const cat = attempt.category || 'general-nursing';
+    const topic = attempt.topic || 'General';
+    if (!grouped[cat]) grouped[cat] = {};
+    if (!grouped[cat][topic]) grouped[cat][topic] = [];
+    grouped[cat][topic].push(attempt);
+  });
+
+  const categoryNames = {
+    'general-nursing': 'General Nursing',
+    'midwifery': 'Midwifery',
+    'public-health': 'Public Health',
+    'pediatric-nursing': 'Pediatric Nursing',
+    'dental-nursing': 'Dental Nursing'
+  };
+
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <h1 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>📚 My Exam History</h1>
+        {Object.entries(grouped).map(([category, topics]) => (
+          <div key={category} style={{ marginBottom: 40 }}>
+            <h2 style={{ color: '#ff9800', borderLeft: `4px solid #ff9800`, paddingLeft: 12, marginBottom: 16 }}>
+              {categoryNames[category] || category}
+            </h2>
+            {Object.entries(topics).map(([topic, exams]) => (
+              <div key={topic} style={{ marginBottom: 24 }}>
+                <h3 style={{ color: '#1e3c72', fontSize: 18, marginBottom: 12 }}>{topic}</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                  {exams.map((exam) => (
+                    <div key={exam.quizId} style={{ background: darkMode ? '#16213e' : 'white', padding: 16, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
+                      <h4 style={{ color: '#1e3c72', marginBottom: 4 }}>{exam.title}</h4>
+                      <p style={{ fontSize: 13, color: '#666' }}>Score: {exam.score}/{exam.total} ({exam.percentage}%)</p>
+                      <p style={{ fontSize: 12, color: '#999' }}>Completed: {new Date(exam.completedAt).toLocaleString()}</p>
+                      <Link to={`/review/${exam.quizId}`}>
+                        <button style={{ width: '100%', marginTop: 12, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Review Exam</button>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
+    </div>
+  );
+};
+
+// Review Exam Component – shows questions, user answers, correct answers
+const ReviewExam = () => {
+  const { id } = useParams();
+  const [attempt, setAttempt] = useState(null);
+  const [quiz, setQuiz] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const { token, darkMode } = useContext(AuthContext);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Load the saved attempt
+        const saved = getExamAttempt(id);
+        if (!saved) {
+          alert('No saved attempt found for this exam.');
+          window.location.href = '/history';
+          return;
+        }
+        setAttempt(saved);
+        // Fetch the quiz questions (to get the full question text and options)
+        const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        setQuiz(res.data);
+      } catch (error) {
+        console.error(error);
+        alert('Failed to load review data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (id && token) fetchData();
+  }, [id, token]);
+
+  if (loading) return <LoadingWithBar message="Loading review..." />;
+  if (!attempt || !quiz) return <div>Review data not found</div>;
+
+  const questions = quiz.questions;
+  const userAnswers = attempt.answers;
+
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto' }}>
+        <div style={{ marginBottom: 24 }}>
+          <Link to="/history" style={{ textDecoration: 'none', color: '#1e3c72' }}>← Back to History</Link>
+        </div>
+        <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20 }}>
+          <h2 style={{ color: '#1e3c72' }}>{attempt.title}</h2>
+          <p>Your Score: {attempt.score}/{attempt.total} ({attempt.percentage}%)</p>
+          <p>Completed: {new Date(attempt.completedAt).toLocaleString()}</p>
+        </div>
+        {questions.map((q, idx) => {
+          const userAnswer = userAnswers[idx];
+          const isCorrect = (userAnswer !== undefined && userAnswer === q.correctAnswer);
+          return (
+            <div key={idx} style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 12, padding: 16, marginBottom: 16, borderLeft: `5px solid ${isCorrect ? '#4caf50' : '#f44336'}` }}>
+              <h4 style={{ marginBottom: 12 }}>Q{idx+1}: {q.questionText}</h4>
+              {q.options.map((opt, optIdx) => {
+                let bgColor = '#f5f5f5';
+                if (optIdx === q.correctAnswer) bgColor = '#c8e6c9';
+                if (optIdx === userAnswer && optIdx !== q.correctAnswer) bgColor = '#ffcdd2';
+                return (
+                  <div key={optIdx} style={{ padding: '10px 12px', margin: '6px 0', background: bgColor, borderRadius: 8, fontSize: 14 }}>
+                    <span style={{ fontWeight: 'bold', marginRight: 10 }}>{String.fromCharCode(65 + optIdx)}.</span> {opt}
+                    {optIdx === q.correctAnswer && <span style={{ color: '#4caf50', marginLeft: 10, fontSize: 12 }}>✓ Correct Answer</span>}
+                    {optIdx === userAnswer && optIdx !== q.correctAnswer && <span style={{ color: '#f44336', marginLeft: 10, fontSize: 12 }}>✗ Your Answer</span>}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <Link to="/history"><button style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Back to History</button></Link>
+        </div>
       </div>
     </div>
   );
@@ -2841,6 +3046,7 @@ const DropdownMenu = () => {
               <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>ℹ️ About Us</Link>
               <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>📞 Contact Us</Link>
               <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid #eee' }}>💬 Join WhatsApp</Link>
+              <Link to="/history" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>📜 My History</Link>
               {isAdmin && <Link to="/admin" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#dc3545', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid #eee', background: '#ffebee' }}>👑 Admin Panel</Link>}
               <div onClick={() => { toggleDarkMode(); setIsOpen(false); }} style={{ display: 'block', padding: '10px 20px', cursor: 'pointer', borderBottom: '1px solid #eee', color: darkMode ? '#eee' : '#333', fontSize: 13 }}>
                 {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
@@ -2908,6 +3114,8 @@ const AppContent = () => {
         <Route path="/whatsapp" element={<JoinWhatsApp />} />
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/payment-return" element={<PaymentReturn />} />
+        <Route path="/history" element={<MyHistory />} />
+        <Route path="/review/:id" element={<ReviewExam />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
