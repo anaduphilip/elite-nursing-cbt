@@ -31,14 +31,14 @@ async function getCachedQuizzes(token) {
   return await globalQuizzesPromise;
 }
 
-// Save a completed exam attempt (permanent)
+// Helper functions for exam history (permanent storage)
 const saveExamAttempt = (quizId, title, category, topic, answers, score, total, percentage) => {
   const attempts = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
   attempts[quizId] = {
     title,
     category,
     topic,
-    answers,      // object: { questionIndex: selectedOptionIndex }
+    answers,
     score,
     total,
     percentage,
@@ -47,16 +47,9 @@ const saveExamAttempt = (quizId, title, category, topic, answers, score, total, 
   localStorage.setItem('exam_attempts', JSON.stringify(attempts));
 };
 
-// Get all attempts
-const getAllAttempts = () => {
-  return JSON.parse(localStorage.getItem('exam_attempts') || '{}');
-};
-
-// Get a single attempt
-const getExamAttempt = (quizId) => {
-  const attempts = getAllAttempts();
-  return attempts[quizId] || null;
-};
+const getAllAttempts = () => JSON.parse(localStorage.getItem('exam_attempts') || '{}');
+const getExamAttempt = (quizId) => getAllAttempts()[quizId] || null;
+const clearAllAttempts = () => localStorage.removeItem('exam_attempts');
 
 // Loading Component with Percentage Bar
 const LoadingWithBar = ({ message = "Loading", onComplete }) => {
@@ -2094,23 +2087,42 @@ const ContactUs = () => {
   );
 };
 
-// My History Component – shows all completed quizzes with review links
+// My History Component – with Clear All and individual deletion
 const MyHistory = () => {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const { darkMode } = useContext(AuthContext);
 
-  useEffect(() => {
+  const loadAttempts = () => {
     const all = getAllAttempts();
     const list = Object.entries(all).map(([quizId, data]) => ({
       quizId,
       ...data
     }));
-    // Sort by completion date, newest first
     list.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
     setAttempts(list);
     setLoading(false);
+  };
+
+  useEffect(() => {
+    loadAttempts();
   }, []);
+
+  const handleClearAll = () => {
+    if (window.confirm('⚠️ Are you sure you want to delete ALL exam history? This cannot be undone.')) {
+      clearAllAttempts();
+      loadAttempts(); // refresh the list (will be empty)
+    }
+  };
+
+  const handleDeleteOne = (quizId, title) => {
+    if (window.confirm(`Delete "${title}" from your history?`)) {
+      const all = getAllAttempts();
+      delete all[quizId];
+      localStorage.setItem('exam_attempts', JSON.stringify(all));
+      loadAttempts(); // refresh the list
+    }
+  };
 
   if (loading) return <LoadingWithBar message="Loading history..." />;
 
@@ -2146,7 +2158,15 @@ const MyHistory = () => {
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <h1 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>📚 My Exam History</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+          <h1 style={{ color: '#1e3c72' }}>📚 My Exam History</h1>
+          <button
+            onClick={handleClearAll}
+            style={{ background: '#dc3545', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            🗑️ Clear All History
+          </button>
+        </div>
         {Object.entries(grouped).map(([category, topics]) => (
           <div key={category} style={{ marginBottom: 40 }}>
             <h2 style={{ color: '#ff9800', borderLeft: `4px solid #ff9800`, paddingLeft: 12, marginBottom: 16 }}>
@@ -2157,7 +2177,25 @@ const MyHistory = () => {
                 <h3 style={{ color: '#1e3c72', fontSize: 18, marginBottom: 12 }}>{topic}</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                   {exams.map((exam) => (
-                    <div key={exam.quizId} style={{ background: darkMode ? '#16213e' : 'white', padding: 16, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                    <div key={exam.quizId} style={{ background: darkMode ? '#16213e' : 'white', padding: 16, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', position: 'relative' }}>
+                      <button
+                        onClick={() => handleDeleteOne(exam.quizId, exam.title)}
+                        style={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          background: 'none',
+                          border: 'none',
+                          fontSize: 18,
+                          cursor: 'pointer',
+                          color: '#dc3545',
+                          padding: '4px',
+                          lineHeight: 1
+                        }}
+                        title="Delete this attempt"
+                      >
+                        🗑️
+                      </button>
                       <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
                       <h4 style={{ color: '#1e3c72', marginBottom: 4 }}>{exam.title}</h4>
                       <p style={{ fontSize: 13, color: '#666' }}>Score: {exam.score}/{exam.total} ({exam.percentage}%)</p>
