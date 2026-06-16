@@ -2125,7 +2125,7 @@ const ContactUs = () => {
             <div style={{ textAlign: 'center', padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>📧</div>
               <h3 style={{ color: '#1e3c72', fontSize: 16, marginBottom: 4 }}>Email</h3>
-              <p style={{ fontSize: 13, wordBreak: 'break-all' }}>anaduphilip2000@gmail.com</p>
+              <p style={{ fontSize: 13, wordBreak: 'break-all' }}>elitenursingcbt@gmail.com</p>
             </div>
             <div style={{ textAlign: 'center', padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>📞</div>
@@ -2518,7 +2518,7 @@ const PrivacyPolicy = () => {
 
         <h3 style={{ color: '#1e3c72', marginTop: 20 }}>9. Contact Us</h3>
         <p>If you have questions about this Privacy Policy, please contact us at:</p>
-        <p>Email: anaduphilip2000@gmail.com</p>
+        <p>Email: elitenursingcbt@gmail.com</p>
         <p>Phone/WhatsApp: 09063908476</p>
       </div>
     </div>
@@ -2606,7 +2606,7 @@ const TermsAndConditions = () => {
 
         <h3 style={{ color: '#1e3c72', marginTop: 20 }}>11. Contact Us</h3>
         <p>If you have any questions about these Terms, please contact us:</p>
-        <p>Email: anaduphilip2000@gmail.com</p>
+        <p>Email: elitenursingcbt@gmail.com</p>
         <p>Phone/WhatsApp: 09063908476</p>
       </div>
     </div>
@@ -3032,7 +3032,7 @@ const AdminPanel = () => {
       }
     };
     
-    if (user?.email === 'anaduphilip2000@gmail.com') {
+    if (user?.email === 'elitenursingcbt@gmail.com') {
       fetchData();
     } else if (user) {
       alert('Admin access only');
@@ -3169,7 +3169,7 @@ const AdminPanel = () => {
   };
 
   if (loading) return <LoadingWithBar message="Loading admin panel" />;
-  if (user?.email !== 'anaduphilip2000@gmail.com') return <Navigate to="/" />;
+  if (user?.email !== 'elitenursingcbt@gmail.com') return <Navigate to="/" />;
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -3367,7 +3367,7 @@ const DropdownMenu = () => {
     setShowLogoutConfirm(false);
   };
 
-  const isAdmin = user?.email === 'anaduphilip2000@gmail.com';
+  const isAdmin = user?.email === 'elitenursingcbt@gmail.com';
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
