@@ -877,11 +877,18 @@ const Login = () => {
       login(res.data.token, res.data.user);
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message;
-      // Check for the exact phrase – no alert for this case
-      if (errorMsg.includes('already logged in on another device') || errorMsg.includes('Please log out from that device first')) {
+      console.log('Login error:', errorMsg); // Debugging – will show in console
+      // Check if the error message indicates the user is already logged in elsewhere
+      if (
+        errorMsg.includes('already logged in on another device') ||
+        errorMsg.includes('already logged in') ||
+        errorMsg.includes('logged in on another device')
+      ) {
+        // Only show the force logout dialog – NO alert
         setPendingCredentials({ email, password });
         setShowForceLogoutDialog(true);
       } else {
+        // For any other error, show an alert
         alert('Login failed: ' + errorMsg);
       }
     } finally {
