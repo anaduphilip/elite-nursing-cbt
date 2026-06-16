@@ -876,19 +876,15 @@ const Login = () => {
       const res = await axios.post('/api/login', { email, password });
       login(res.data.token, res.data.user);
     } catch (error) {
+      const status = error.response?.status;
       const errorMsg = error.response?.data?.error || error.message;
-      console.log('Login error:', errorMsg); // Debugging – will show in console
-      // Check if the error message indicates the user is already logged in elsewhere
-      if (
-        errorMsg.includes('already logged in on another device') ||
-        errorMsg.includes('already logged in') ||
-        errorMsg.includes('logged in on another device')
-      ) {
-        // Only show the force logout dialog – NO alert
+      console.log('Login error status:', status, 'message:', errorMsg);
+      // Check for "already logged in" by status or message
+      if (status === 401 && errorMsg && errorMsg.toLowerCase().includes('already logged in')) {
+        // Show the force logout dialog – no alert
         setPendingCredentials({ email, password });
         setShowForceLogoutDialog(true);
       } else {
-        // For any other error, show an alert
         alert('Login failed: ' + errorMsg);
       }
     } finally {
@@ -897,12 +893,15 @@ const Login = () => {
   };
 
   const handleForceLogout = async () => {
+    if (!pendingCredentials) return;
     setIsLoading(true);
     try {
       const res = await axios.post('/api/force-logout', { email: pendingCredentials.email });
       if (res.data.success) {
         const loginRes = await axios.post('/api/login', { email: pendingCredentials.email, password: pendingCredentials.password });
         login(loginRes.data.token, loginRes.data.user);
+      } else {
+        alert('Failed to log out from other device. Please try again.');
       }
     } catch (error) {
       alert('Failed to force logout from other device. Please try again later.');
@@ -918,6 +917,7 @@ const Login = () => {
     setPendingCredentials(null);
   };
 
+  // Return JSX (unchanged)
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
       {showForceLogoutDialog && (
