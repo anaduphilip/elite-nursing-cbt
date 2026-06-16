@@ -877,7 +877,8 @@ const Login = () => {
       login(res.data.token, res.data.user);
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message;
-      if (errorMsg.includes('already logged in on another device')) {
+      // Only show the force logout dialog – no alert
+      if (errorMsg.toLowerCase().includes('already logged in on another device')) {
         setPendingCredentials({ email, password });
         setShowForceLogoutDialog(true);
       } else {
@@ -910,10 +911,6 @@ const Login = () => {
     setPendingCredentials(null);
   };
 
-  if (isLoading) {
-    return <LoadingWithBar message="Logging in" />;
-  }
-
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
       {showForceLogoutDialog && (
@@ -944,8 +941,42 @@ const Login = () => {
               You are already logged in on another device. Would you like to log out from that device and continue here?
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button onClick={cancelForceLogout} style={{ background: '#6c757d', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Cancel</button>
-              <button onClick={handleForceLogout} style={{ background: '#dc3545', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Logout from Other Device</button>
+              <button 
+                onClick={cancelForceLogout} 
+                disabled={isLoading}
+                style={{ 
+                  flex: 1, 
+                  background: '#6c757d', 
+                  color: 'white', 
+                  padding: '10px 24px', 
+                  border: 'none', 
+                  borderRadius: 8, 
+                  cursor: isLoading ? 'not-allowed' : 'pointer', 
+                  fontWeight: 'bold', 
+                  fontSize: 14,
+                  opacity: isLoading ? 0.7 : 1
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleForceLogout} 
+                disabled={isLoading}
+                style={{ 
+                  flex: 1, 
+                  background: '#dc3545', 
+                  color: 'white', 
+                  padding: '10px 24px', 
+                  border: 'none', 
+                  borderRadius: 8, 
+                  cursor: isLoading ? 'not-allowed' : 'pointer', 
+                  fontWeight: 'bold', 
+                  fontSize: 14,
+                  opacity: isLoading ? 0.7 : 1
+                }}
+              >
+                {isLoading ? 'Logging out...' : 'Logout from Other Device'}
+              </button>
             </div>
           </div>
         </div>
@@ -1039,6 +1070,7 @@ const Login = () => {
           </div>
           <button 
             type="submit" 
+            disabled={isLoading}
             style={{ 
               width: '100%', 
               background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
@@ -1046,12 +1078,13 @@ const Login = () => {
               padding: '12px', 
               border: 'none', 
               borderRadius: 10, 
-              cursor: 'pointer', 
+              cursor: isLoading ? 'not-allowed' : 'pointer', 
               fontWeight: 'bold', 
-              fontSize: 14
+              fontSize: 14,
+              opacity: isLoading ? 0.7 : 1
             }}
           >
-            Sign In
+            {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
         
