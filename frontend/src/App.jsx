@@ -876,12 +876,8 @@ const Login = () => {
       const res = await axios.post('/api/login', { email, password });
       login(res.data.token, res.data.user);
     } catch (error) {
-      const status = error.response?.status;
       const errorMsg = error.response?.data?.error || error.message;
-      console.log('Login error status:', status, 'message:', errorMsg);
-      // Check for "already logged in" by status or message
-      if (status === 401 && errorMsg && errorMsg.toLowerCase().includes('already logged in')) {
-        // Show the force logout dialog – no alert
+      if (errorMsg.includes('already logged in on another device')) {
         setPendingCredentials({ email, password });
         setShowForceLogoutDialog(true);
       } else {
@@ -893,15 +889,12 @@ const Login = () => {
   };
 
   const handleForceLogout = async () => {
-    if (!pendingCredentials) return;
     setIsLoading(true);
     try {
       const res = await axios.post('/api/force-logout', { email: pendingCredentials.email });
       if (res.data.success) {
         const loginRes = await axios.post('/api/login', { email: pendingCredentials.email, password: pendingCredentials.password });
         login(loginRes.data.token, loginRes.data.user);
-      } else {
-        alert('Failed to log out from other device. Please try again.');
       }
     } catch (error) {
       alert('Failed to force logout from other device. Please try again later.');
@@ -917,7 +910,10 @@ const Login = () => {
     setPendingCredentials(null);
   };
 
-  // Return JSX (unchanged)
+  if (isLoading) {
+    return <LoadingWithBar message="Logging in" />;
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
       {showForceLogoutDialog && (
@@ -948,42 +944,8 @@ const Login = () => {
               You are already logged in on another device. Would you like to log out from that device and continue here?
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button 
-                onClick={cancelForceLogout} 
-                disabled={isLoading}
-                style={{ 
-                  flex: 1, 
-                  background: '#6c757d', 
-                  color: 'white', 
-                  padding: '10px 24px', 
-                  border: 'none', 
-                  borderRadius: 8, 
-                  cursor: isLoading ? 'not-allowed' : 'pointer', 
-                  fontWeight: 'bold', 
-                  fontSize: 14,
-                  opacity: isLoading ? 0.7 : 1
-                }}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleForceLogout} 
-                disabled={isLoading}
-                style={{ 
-                  flex: 1, 
-                  background: '#dc3545', 
-                  color: 'white', 
-                  padding: '10px 24px', 
-                  border: 'none', 
-                  borderRadius: 8, 
-                  cursor: isLoading ? 'not-allowed' : 'pointer', 
-                  fontWeight: 'bold', 
-                  fontSize: 14,
-                  opacity: isLoading ? 0.7 : 1
-                }}
-              >
-                {isLoading ? 'Logging out...' : 'Logout from Other Device'}
-              </button>
+              <button onClick={cancelForceLogout} style={{ background: '#6c757d', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Cancel</button>
+              <button onClick={handleForceLogout} style={{ background: '#dc3545', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Logout from Other Device</button>
             </div>
           </div>
         </div>
@@ -1077,7 +1039,6 @@ const Login = () => {
           </div>
           <button 
             type="submit" 
-            disabled={isLoading}
             style={{ 
               width: '100%', 
               background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
@@ -1085,13 +1046,12 @@ const Login = () => {
               padding: '12px', 
               border: 'none', 
               borderRadius: 10, 
-              cursor: isLoading ? 'not-allowed' : 'pointer', 
+              cursor: 'pointer', 
               fontWeight: 'bold', 
-              fontSize: 14,
-              opacity: isLoading ? 0.7 : 1
+              fontSize: 14
             }}
           >
-            {isLoading ? 'Signing In...' : 'Sign In'}
+            Sign In
           </button>
         </form>
         
@@ -1104,11 +1064,6 @@ const Login = () => {
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
           <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT</p>
           <p style={{ fontSize: 11, color: '#999' }}>Over 20,000+ practice questions</p>
-          <p style={{ fontSize: 11, marginTop: 4 }}>
-           <Link to="/terms" style={{ color: '#0c5bed', textDecoration: 'none' }}>Terms</Link>
-            {' | '}
-           <Link to="/privacy" style={{ color: '#0c5bed', textDecoration: 'none' }}>Privacy</Link>
-          </p> 
         </div>
       </div>
     </div>
