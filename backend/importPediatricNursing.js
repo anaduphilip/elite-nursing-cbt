@@ -3,315 +3,215 @@ const fs = require('fs');
 const path = require('path');
 const mammoth = require('mammoth');
 
-// Connect to local MongoDB
-mongoose.connect('mongodb://localhost:27017/quizapp');
+// ========== CONFIGURATION ==========
+const MONGODB_URI = 'mongodb://localhost:27017/quizapp';
+const BASE_FOLDER = 'C:\\Users\\user\\Desktop\\questions\\pediatric-nursing';
+const CATEGORY = 'pediatric-nursing';
 
+// ========== Mongoose Schema ==========
 const quizSchema = new mongoose.Schema({
   title: String,
   description: String,
   category: String,
+  topic: String,
   questions: [{
     questionText: String,
     options: [String],
     correctAnswer: Number,
     points: Number
   }],
-  isPremium: Boolean
+  isPremium: Boolean          // will be set based on order
 });
 
 const Quiz = mongoose.model('Quiz', quizSchema);
 
-function extractAllQuestionsAndAnswers(content) {
+// ========== Extract starting number from filename ==========
+function getStartNumber(filename) {
+  const match = filename.match(/Questions\s+(\d+)\s+to\s+\d+/i);
+  if (match) return parseInt(match[1], 10);
+  return Infinity; // fallback
+}
+
+// ========== Question Extraction (same as before) ==========
+async function extractQuestionsFromDocx(filePath) {
+  const result = await mammoth.extractRawText({ path: filePath });
+  const text = result.value;
   const questions = [];
-  
-  // First, extract ALL answers from the ANSWER KEY section
   const answers = {};
-  const answerKeyMatch = content.match(/ANSWER KEY\s*\n([\s\S]*?)$/i);
-  if (answerKeyMatch) {
-    const answerLines = answerKeyMatch[1].split('\n');
-    for (const line of answerLines) {
-      // Match patterns like "Q1. b", "Q1. B", "1. a", "Q1 b", "Q1.b", "1.a"
-      const ansMatch = line.match(/^Q?(\d+)\.?\s*([A-Da-d])/i);
-      if (ansMatch) {
-        const qNum = parseInt(ansMatch[1]);
-        const answer = ansMatch[2].toUpperCase();
+  const lines = text.split('\n');
+
+  let inAnswerKey = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.match(/^ANSWER\s+KEY/i)) {
+      inAnswerKey = true;
+      continue;
+    }
+    if (inAnswerKey) {
+      const match = line.match(/^Q(\d+)\.\s*([A-Da-d])/i);
+      if (match) {
+        const qNum = parseInt(match[1]);
+        const answer = match[2].toUpperCase();
         answers[qNum] = answer;
       }
     }
   }
-  
-  // Get content before answer key
-  const contentBeforeAnswerKey = content.split(/ANSWER KEY/i)[0];
-  
-  // Method 1: Split by Q number pattern
-  const qPattern = /Q(\d+)\.\s+/gi;
-  let match;
-  let lastIndex = 0;
-  const questionSegments = [];
-  
-  // Find all question starting positions
-  while ((match = qPattern.exec(contentBeforeAnswerKey)) !== null) {
-    const qNum = parseInt(match[1]);
-    const startPos = match.index;
-    
-    if (lastIndex > 0) {
-      const previousStart = lastIndex;
-      const previousQNum = parseInt(contentBeforeAnswerKey.match(/Q(\d+)\.\s+/)?.[1]);
-      questionSegments.push({
-        qNum: previousQNum,
-        text: contentBeforeAnswerKey.substring(previousStart, startPos).trim()
-      });
-    }
-    lastIndex = startPos;
-  }
-  
-  // Add the last question segment
-  if (lastIndex > 0) {
-    const lastQMatch = contentBeforeAnswerKey.match(/Q(\d+)\.\s+/g);
-    const lastQNum = lastQMatch ? parseInt(lastQMatch[lastQMatch.length - 1].match(/\d+/)[0]) : null;
-    questionSegments.push({
-      qNum: lastQNum,
-      text: contentBeforeAnswerKey.substring(lastIndex).trim()
-    });
-  }
-  
-  // If segmentation didn't work well, try alternative method
-  if (questionSegments.length === 0) {
-    // Alternative: Split by newlines and look for Q patterns
-    const lines = contentBeforeAnswerKey.split('\n');
-    let currentQuestion = null;
-    
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      
-      const qMatch = trimmed.match(/^Q(\d+)\.\s+(.+)/i);
-      if (qMatch) {
-        if (currentQuestion) {
-          questionSegments.push(currentQuestion);
-        }
-        currentQuestion = {
-          qNum: parseInt(qMatch[1]),
-          text: qMatch[2]
-        };
-      } else if (currentQuestion) {
-        currentQuestion.text += ' ' + trimmed;
-      }
-    }
-    if (currentQuestion) {
-      questionSegments.push(currentQuestion);
+  if (Object.keys(answers).length === 0) {
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      const match = line.match(/^Q(\d+)\.\s*([A-Da-d])/i);
+      if (match) {
+        const qNum = parseInt(match[1]);
+        const answer = match[2].toUpperCase();
+        answers[qNum] = answer;
+      } else if (line.length > 0 && !match) break;
     }
   }
-  
-  // Process each question segment
-  for (const segment of questionSegments) {
-    const qNum = segment.qNum;
-    let fullText = segment.text;
-    
-    // Extract options - look for (a), (b), (c), (d) patterns
-    const options = [];
-    
-    // Try pattern with parentheses (a) option
-    let optPattern = /\(([a-d])\)\s*([^\(]+?)(?=\s*\([a-d]\)|$)/gi;
-    let optMatch;
-    let tempText = fullText;
-    
-    while ((optMatch = optPattern.exec(tempText)) !== null) {
-      const optionText = optMatch[2].trim();
-      // Clean up option text - remove trailing newlines and extra spaces
-      const cleanOption = optionText.replace(/\s+/g, ' ').trim();
-      if (cleanOption && options.length < 4) {
-        options.push(cleanOption);
-      }
-    }
-    
-    // If parentheses pattern didn't work, try without parentheses (a. option)
-    if (options.length !== 4) {
-      options.length = 0;
-      const altPattern = /([a-d])\.\s*([^a-d]+?)(?=\s*[a-d]\.|$)/gi;
-      while ((optMatch = altPattern.exec(fullText)) !== null) {
-        const optionText = optMatch[2].trim();
-        const cleanOption = optionText.replace(/\s+/g, ' ').trim();
-        if (cleanOption && options.length < 4) {
-          options.push(cleanOption);
+
+  let currentQuestion = null;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const qMatch = line.match(/^\*?Q(\d+)\.\s*(.*)/i);
+    if (qMatch) {
+      if (currentQuestion && currentQuestion.options.length === 4 && currentQuestion.number) {
+        if (answers[currentQuestion.number]) {
+          currentQuestion.correctAnswer = answers[currentQuestion.number].charCodeAt(0) - 65;
+          questions.push(currentQuestion);
         }
       }
-    }
-    
-    // Try pattern with space after letter "a option"
-    if (options.length !== 4) {
-      options.length = 0;
-      const spacePattern = /([a-d])\s+([^a-d]+?)(?=\s*[a-d]\s|\$)/gi;
-      while ((optMatch = spacePattern.exec(fullText)) !== null) {
-        const optionText = optMatch[2].trim();
-        const cleanOption = optionText.replace(/\s+/g, ' ').trim();
-        if (cleanOption && options.length < 4) {
-          options.push(cleanOption);
-        }
+      const qNum = parseInt(qMatch[1]);
+      const rest = qMatch[2];
+      const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
+      const options = [];
+      let optMatch;
+      while ((optMatch = optionPattern.exec(rest)) !== null) {
+        options.push(optMatch[2].trim());
       }
-    }
-    
-    // Clean question text - remove all option patterns
-    let questionText = fullText;
-    // Remove (a) option patterns
-    questionText = questionText.replace(/\s*\([a-d]\)[^\(]*/gi, '');
-    // Remove a. option patterns
-    questionText = questionText.replace(/\s*[a-d]\.\s*[^a-d\.]*/gi, '');
-    // Remove a option patterns
-    questionText = questionText.replace(/\s*[a-d]\s+[^a-d\s]*/gi, '');
-    questionText = questionText.trim();
-    
-    // Clean up the question text
-    questionText = questionText.replace(/\s+/g, ' ').trim();
-    if (questionText && !questionText.endsWith('?') && !questionText.endsWith('.')) {
-      questionText += '?';
-    }
-    
-    // Get correct answer
-    let correctAnswer = 0; // default to A
-    if (answers[qNum]) {
-      correctAnswer = answers[qNum].charCodeAt(0) - 65;
-    }
-    
-    // Only add if we have valid options (4 options)
-    if (options.length === 4 && questionText && questionText.length > 10) {
-      questions.push({
+      let questionText = rest.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
+      currentQuestion = {
         number: qNum,
         text: questionText,
         options: options,
-        correctAnswer: correctAnswer
-      });
-    } else if (options.length === 4) {
-      // Still add even if question text is short
-      questions.push({
-        number: qNum,
-        text: questionText || `Question ${qNum}`,
-        options: options,
-        correctAnswer: correctAnswer
-      });
+        correctAnswer: null
+      };
+    } else if (currentQuestion && line && !line.match(/^\([a-d]\)/i) && !line.match(/^Q\d+\./i)) {
+      currentQuestion.text += ' ' + line;
     }
   }
-  
-  // Sort by question number
-  questions.sort((a, b) => a.number - b.number);
-  
-  return questions;
+  if (currentQuestion && currentQuestion.options.length === 4 && currentQuestion.number) {
+    if (answers[currentQuestion.number]) {
+      currentQuestion.correctAnswer = answers[currentQuestion.number].charCodeAt(0) - 65;
+      questions.push(currentQuestion);
+    }
+  }
+  return questions.filter(q => q.correctAnswer !== null && q.options.length === 4);
 }
 
-function getTitleFromFilename(filename) {
-  if (filename.startsWith('~$')) return null;
-  let title = filename.replace(/\.docx$/i, '');
-  title = title.replace(/^Batch_\d+_/i, '');
-  title = title.replace(/_/g, ' ');
-  title = title.trim();
-  return title;
+// ========== Recursive import with ordering and premium flag ==========
+async function importFromFolder(folderPath) {
+  if (!fs.existsSync(folderPath)) {
+    console.log(`❌ Folder not found: ${folderPath}`);
+    return;
+  }
+
+  const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(folderPath, entry.name);
+    if (entry.isDirectory()) {
+      await importFromFolder(fullPath);
+    } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.docx')) {
+      // Determine topic
+      const relativePath = path.relative(BASE_FOLDER, fullPath);
+      const pathParts = relativePath.split(path.sep);
+      let topic = pathParts.length > 1 ? pathParts[0] : 'General';
+
+      // We will collect all files in the same topic and folder level later.
+      // But for now, we need to store them temporarily.
+      // To handle ordering, we need to process after scanning all files.
+      // We'll use a global map to accumulate all quizzes per topic.
+      // Let's restructure: first collect all docx files, then process per topic.
+      // Simpler: use a Map outside this function, but we'll refactor.
+    }
+  }
 }
 
-async function importPediatricNursing() {
+// Better approach: scan all files first, group by topic, then import.
+async function main() {
   try {
-    console.log('🚀 Starting Pediatric Nursing import (target: 5000 questions)...\n');
+    await mongoose.connect(MONGODB_URI);
+    console.log('✅ Connected to MongoDB\n');
 
-    const pediatricPath = 'C:\\Users\\user\\Desktop\\questions\\pediatric-nursing';
+    // Delete existing quizzes for this category
+    await Quiz.deleteMany({ category: CATEGORY });
+    console.log(`🗑️ Deleted existing quizzes for category: ${CATEGORY}\n`);
 
-    if (!fs.existsSync(pediatricPath)) {
-      console.log(`❌ Folder not found: ${pediatricPath}`);
-      process.exit(1);
+    // Collect all .docx files with their full path, topic, and start number
+    const files = [];
+    function walk(dir, currentTopic) {
+      const items = fs.readdirSync(dir, { withFileTypes: true });
+      for (const item of items) {
+        const fullPath = path.join(dir, item.name);
+        if (item.isDirectory()) {
+          walk(fullPath, item.name);
+        } else if (item.isFile() && item.name.toLowerCase().endsWith('.docx')) {
+          let topic = currentTopic;
+          // If no topic (directly under BASE_FOLDER), set to 'General'
+          if (!topic) topic = 'General';
+          const startNum = getStartNumber(item.name);
+          files.push({ fullPath, topic, filename: item.name, startNum });
+        }
+      }
+    }
+    walk(BASE_FOLDER, null);
+
+    // Group by topic
+    const grouped = new Map();
+    for (const file of files) {
+      if (!grouped.has(file.topic)) grouped.set(file.topic, []);
+      grouped.get(file.topic).push(file);
     }
 
-    const files = fs.readdirSync(pediatricPath);
-    const docxFiles = files.filter(f => {
-      return f.toLowerCase().endsWith('.docx') && !f.startsWith('~$');
-    });
+    // For each topic, sort by startNum and import
+    for (const [topic, fileList] of grouped.entries()) {
+      // Sort ascending by start number
+      fileList.sort((a, b) => a.startNum - b.startNum);
+      console.log(`\n📁 Topic: ${topic} (${fileList.length} files)`);
 
-    console.log(`📁 Found ${docxFiles.length} Word documents in pediatric-nursing folder\n`);
-
-    let totalImported = 0;
-    let totalQuestions = 0;
-    const expectedPerFile = 250; // Each file should have 250 questions
-
-    for (const file of docxFiles) {
-      const filePath = path.join(pediatricPath, file);
-      const title = getTitleFromFilename(file);
-      
-      if (!title) continue;
-
-      console.log(`📖 Processing: ${title}`);
-
-      try {
-        const result = await mammoth.extractRawText({ path: filePath });
-        const questions = extractAllQuestionsAndAnswers(result.value);
-
-        console.log(`   Extracted ${questions.length} / ${expectedPerFile} questions`);
-
-        if (questions.length > 0) {
-          const quizQuestions = questions.map(q => ({
-            questionText: q.text,
-            options: q.options,
-            correctAnswer: q.correctAnswer,
-            points: 1
-          }));
-
-          const existingQuiz = await Quiz.findOne({ title: title, category: 'pediatric-nursing' });
-
-          if (existingQuiz) {
-            await Quiz.findOneAndUpdate(
-              { title: title, category: 'pediatric-nursing' },
-              {
-                $set: {
-                  questions: quizQuestions,
-                  description: `${title} - ${questions.length} practice questions for pediatric nursing`,
-                  category: 'pediatric-nursing'
-                }
-              }
-            );
-            console.log(`   ✅ Updated: ${questions.length} questions`);
-          } else {
-            const quiz = new Quiz({
-              title: title,
-              description: `${title} - ${questions.length} practice questions for pediatric nursing`,
-              category: 'pediatric-nursing',
-              questions: quizQuestions,
-              isPremium: false
-            });
-            await quiz.save();
-            console.log(`   ✅ Created new: ${questions.length} questions`);
-          }
-
-          totalImported++;
-          totalQuestions += questions.length;
-          
-          if (questions.length < expectedPerFile) {
-            console.log(`   ⚠️ Missing ${expectedPerFile - questions.length} questions from this file`);
-          }
-        } else {
-          console.log(`   ⚠️ No questions found in ${title}`);
+      for (let idx = 0; idx < fileList.length; idx++) {
+        const file = fileList[idx];
+        const isPremium = idx !== 0; // first is free, others premium
+        const title = file.filename.replace(/\.docx$/i, '');
+        console.log(`   📖 ${title} (${isPremium ? 'Premium' : 'Free'})`);
+        const questions = await extractQuestionsFromDocx(file.fullPath);
+        if (questions.length === 0) {
+          console.log(`      ⚠️ No valid questions, skipping.`);
+          continue;
         }
-      } catch (err) {
-        console.log(`   ❌ Error processing file: ${err.message}`);
+        const quizQuestions = questions.map(q => ({
+          questionText: q.text,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          points: 1
+        }));
+        await Quiz.create({
+          title: title,
+          description: `${title} - ${questions.length} practice questions`,
+          category: CATEGORY,
+          topic: topic,
+          questions: quizQuestions,
+          isPremium: isPremium
+        });
+        console.log(`      ✅ Imported ${questions.length} questions`);
       }
     }
 
-    console.log(`\n✅ PEDIATRIC NURSING IMPORT COMPLETED!`);
-    console.log(`   📊 Imported/Updated: ${totalImported} quizzes`);
-    console.log(`   📝 Total questions: ${totalQuestions}`);
-    console.log(`   🎯 Target: 5000 questions`);
-    console.log(`   📉 Missing: ${5000 - totalQuestions} questions`);
-
-    // Show summary
-    const pediatricQuizzes = await Quiz.find({ category: 'pediatric-nursing' });
-    console.log(`\n📋 Pediatric Nursing Quizzes in Database:`);
-    pediatricQuizzes.forEach((quiz, i) => {
-      console.log(`   ${i + 1}. ${quiz.title}: ${quiz.questions.length} questions`);
-    });
-
-    console.log(`\n💡 Next step: Run 'node syncToAtlas.js' to update your live app`);
-
+    const total = await Quiz.countDocuments({ category: CATEGORY });
+    console.log(`\n✅ Import completed! Total quizzes for ${CATEGORY}: ${total}`);
     process.exit(0);
-
   } catch (error) {
     console.error('❌ Error:', error);
     process.exit(1);
   }
 }
 
-importPediatricNursing();
+main();

@@ -3,160 +3,215 @@ const fs = require('fs');
 const path = require('path');
 const mammoth = require('mammoth');
 
+// ========== CONFIGURATION ==========
 const MONGODB_URI = 'mongodb://localhost:27017/quizapp';
+const BASE_FOLDER = 'C:\\Users\\user\\Desktop\\questions\\public-health';
+const CATEGORY = 'public-health';
 
+// ========== Mongoose Schema ==========
 const quizSchema = new mongoose.Schema({
   title: String,
   description: String,
   category: String,
+  topic: String,
   questions: [{
     questionText: String,
     options: [String],
     correctAnswer: Number,
     points: Number
   }],
-  isPremium: Boolean
+  isPremium: Boolean          // will be set based on order
 });
 
 const Quiz = mongoose.model('Quiz', quizSchema);
 
-async function extractQuestionsAndAnswers(filePath) {
+// ========== Extract starting number from filename ==========
+function getStartNumber(filename) {
+  const match = filename.match(/Questions\s+(\d+)\s+to\s+\d+/i);
+  if (match) return parseInt(match[1], 10);
+  return Infinity; // fallback
+}
+
+// ========== Question Extraction (same as before) ==========
+async function extractQuestionsFromDocx(filePath) {
   const result = await mammoth.extractRawText({ path: filePath });
   const text = result.value;
-  
-  // Extract ALL answers from the entire text
-  const answers = {};
-  const answerPattern = /Q(\d+)[\.\s:]*\s*([a-d])/gi;
-  let match;
-  while ((match = answerPattern.exec(text)) !== null) {
-    const qNum = parseInt(match[1]);
-    const answer = match[2].toUpperCase();
-    answers[qNum] = answer;
-  }
-  
-  // Extract all questions
   const questions = [];
-  // Split by Q number pattern
-  const questionBlocks = text.split(/Q(\d+)\./);
-  
-  for (let i = 1; i < questionBlocks.length; i += 2) {
-    const qNum = parseInt(questionBlocks[i]);
-    let fullText = questionBlocks[i + 1]?.trim() || '';
-    
-    // Stop when we hit the answer key section
-    if (fullText.toLowerCase().includes('answer key')) break;
-    
-    // Extract options
-    const options = [];
-    const optPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
-    let optMatch;
-    while ((optMatch = optPattern.exec(fullText)) !== null) {
-      options.push(optMatch[2].trim());
+  const answers = {};
+  const lines = text.split('\n');
+
+  let inAnswerKey = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.match(/^ANSWER\s+KEY/i)) {
+      inAnswerKey = true;
+      continue;
     }
-    
-    // Clean question text
-    let questionText = fullText;
-    questionText = questionText.replace(/\s*\(a\)[^\(]*/, '');
-    questionText = questionText.replace(/\s*\(b\)[^\(]*/, '');
-    questionText = questionText.replace(/\s*\(c\)[^\(]*/, '');
-    questionText = questionText.replace(/\s*\(d\)[^\(]*/, '');
-    questionText = questionText.trim();
-    questionText = questionText.replace(/\\/g, '');
-    questionText = questionText.replace(/\s+/g, ' ').trim();
-    
-    if (options.length === 4 && answers[qNum] && questionText) {
-      questions.push({
+    if (inAnswerKey) {
+      const match = line.match(/^Q(\d+)\.\s*([A-Da-d])/i);
+      if (match) {
+        const qNum = parseInt(match[1]);
+        const answer = match[2].toUpperCase();
+        answers[qNum] = answer;
+      }
+    }
+  }
+  if (Object.keys(answers).length === 0) {
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      const match = line.match(/^Q(\d+)\.\s*([A-Da-d])/i);
+      if (match) {
+        const qNum = parseInt(match[1]);
+        const answer = match[2].toUpperCase();
+        answers[qNum] = answer;
+      } else if (line.length > 0 && !match) break;
+    }
+  }
+
+  let currentQuestion = null;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const qMatch = line.match(/^\*?Q(\d+)\.\s*(.*)/i);
+    if (qMatch) {
+      if (currentQuestion && currentQuestion.options.length === 4 && currentQuestion.number) {
+        if (answers[currentQuestion.number]) {
+          currentQuestion.correctAnswer = answers[currentQuestion.number].charCodeAt(0) - 65;
+          questions.push(currentQuestion);
+        }
+      }
+      const qNum = parseInt(qMatch[1]);
+      const rest = qMatch[2];
+      const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
+      const options = [];
+      let optMatch;
+      while ((optMatch = optionPattern.exec(rest)) !== null) {
+        options.push(optMatch[2].trim());
+      }
+      let questionText = rest.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
+      currentQuestion = {
         number: qNum,
         text: questionText,
         options: options,
-        correctAnswer: answers[qNum].charCodeAt(0) - 65
-      });
+        correctAnswer: null
+      };
+    } else if (currentQuestion && line && !line.match(/^\([a-d]\)/i) && !line.match(/^Q\d+\./i)) {
+      currentQuestion.text += ' ' + line;
     }
   }
-  
-  return questions;
+  if (currentQuestion && currentQuestion.options.length === 4 && currentQuestion.number) {
+    if (answers[currentQuestion.number]) {
+      currentQuestion.correctAnswer = answers[currentQuestion.number].charCodeAt(0) - 65;
+      questions.push(currentQuestion);
+    }
+  }
+  return questions.filter(q => q.correctAnswer !== null && q.options.length === 4);
 }
 
-function getTitleFromFilename(filename) {
-  let title = filename.replace(/\.docx$/i, '');
-  title = title.replace(/^Batch_\d+_/i, '');
-  title = title.replace(/_/g, ' ');
-  title = title.trim();
-  return title;
+// ========== Recursive import with ordering and premium flag ==========
+async function importFromFolder(folderPath) {
+  if (!fs.existsSync(folderPath)) {
+    console.log(`❌ Folder not found: ${folderPath}`);
+    return;
+  }
+
+  const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(folderPath, entry.name);
+    if (entry.isDirectory()) {
+      await importFromFolder(fullPath);
+    } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.docx')) {
+      // Determine topic
+      const relativePath = path.relative(BASE_FOLDER, fullPath);
+      const pathParts = relativePath.split(path.sep);
+      let topic = pathParts.length > 1 ? pathParts[0] : 'General';
+
+      // We will collect all files in the same topic and folder level later.
+      // But for now, we need to store them temporarily.
+      // To handle ordering, we need to process after scanning all files.
+      // We'll use a global map to accumulate all quizzes per topic.
+      // Let's restructure: first collect all docx files, then process per topic.
+      // Simpler: use a Map outside this function, but we'll refactor.
+    }
+  }
 }
 
-async function importPublicHealth() {
+// Better approach: scan all files first, group by topic, then import.
+async function main() {
   try {
     await mongoose.connect(MONGODB_URI);
-    console.log('✅ Connected to Local MongoDB\n');
-    
-    const publicHealthPath = 'C:\\Users\\user\\Desktop\\questions\\public-health';
-    
-    if (!fs.existsSync(publicHealthPath)) {
-      console.log(`❌ Folder not found: ${publicHealthPath}`);
-      process.exit(1);
+    console.log('✅ Connected to MongoDB\n');
+
+    // Delete existing quizzes for this category
+    await Quiz.deleteMany({ category: CATEGORY });
+    console.log(`🗑️ Deleted existing quizzes for category: ${CATEGORY}\n`);
+
+    // Collect all .docx files with their full path, topic, and start number
+    const files = [];
+    function walk(dir, currentTopic) {
+      const items = fs.readdirSync(dir, { withFileTypes: true });
+      for (const item of items) {
+        const fullPath = path.join(dir, item.name);
+        if (item.isDirectory()) {
+          walk(fullPath, item.name);
+        } else if (item.isFile() && item.name.toLowerCase().endsWith('.docx')) {
+          let topic = currentTopic;
+          // If no topic (directly under BASE_FOLDER), set to 'General'
+          if (!topic) topic = 'General';
+          const startNum = getStartNumber(item.name);
+          files.push({ fullPath, topic, filename: item.name, startNum });
+        }
+      }
     }
-    
-    const files = fs.readdirSync(publicHealthPath);
-    const docxFiles = files.filter(f => f.toLowerCase().endsWith('.docx'));
-    
-    console.log(`📁 Found ${docxFiles.length} Word documents\n`);
-    
-    let totalQuestionsAll = 0;
-    
-    for (const file of docxFiles) {
-      const filePath = path.join(publicHealthPath, file);
-      const title = getTitleFromFilename(file);
-      
-      console.log(`📖 Processing: ${title}`);
-      const questions = await extractQuestionsAndAnswers(filePath);
-      
-      console.log(`   Extracted ${questions.length} questions (expected 250)`);
-      
-      if (questions.length > 0) {
+    walk(BASE_FOLDER, null);
+
+    // Group by topic
+    const grouped = new Map();
+    for (const file of files) {
+      if (!grouped.has(file.topic)) grouped.set(file.topic, []);
+      grouped.get(file.topic).push(file);
+    }
+
+    // For each topic, sort by startNum and import
+    for (const [topic, fileList] of grouped.entries()) {
+      // Sort ascending by start number
+      fileList.sort((a, b) => a.startNum - b.startNum);
+      console.log(`\n📁 Topic: ${topic} (${fileList.length} files)`);
+
+      for (let idx = 0; idx < fileList.length; idx++) {
+        const file = fileList[idx];
+        const isPremium = idx !== 0; // first is free, others premium
+        const title = file.filename.replace(/\.docx$/i, '');
+        console.log(`   📖 ${title} (${isPremium ? 'Premium' : 'Free'})`);
+        const questions = await extractQuestionsFromDocx(file.fullPath);
+        if (questions.length === 0) {
+          console.log(`      ⚠️ No valid questions, skipping.`);
+          continue;
+        }
         const quizQuestions = questions.map(q => ({
           questionText: q.text,
           options: q.options,
           correctAnswer: q.correctAnswer,
           points: 1
         }));
-        
-        await Quiz.deleteOne({ title: title, category: 'public-health' });
-        
-        const quiz = new Quiz({
+        await Quiz.create({
           title: title,
-          description: `${title} - ${questions.length} practice questions for public health`,
-          category: 'public-health',
+          description: `${title} - ${questions.length} practice questions`,
+          category: CATEGORY,
+          topic: topic,
           questions: quizQuestions,
-          isPremium: false
+          isPremium: isPremium
         });
-        
-        await quiz.save();
-        totalQuestionsAll += questions.length;
-        console.log(`   ✅ Saved ${questions.length} questions`);
-      } else {
-        console.log(`   ⚠️ No questions extracted`);
+        console.log(`      ✅ Imported ${questions.length} questions`);
       }
-      console.log('');
     }
-    
-    const quizCount = await Quiz.countDocuments({ category: 'public-health' });
-    console.log(`✅ PUBLIC HEALTH IMPORT COMPLETED!`);
-    console.log(`   📊 Quizzes: ${quizCount}`);
-    console.log(`   📝 Total questions: ${totalQuestionsAll}`);
-    console.log(`   🎯 Expected: 20 × 250 = 5,000 questions`);
-    
-    if (totalQuestionsAll < 5000) {
-      console.log(`   ⚠️ Missing: ${5000 - totalQuestionsAll} questions`);
-    }
-    
-    console.log(`\n💡 Next step: Run 'node syncToAtlas.js' to update your live app`);
-    
+
+    const total = await Quiz.countDocuments({ category: CATEGORY });
+    console.log(`\n✅ Import completed! Total quizzes for ${CATEGORY}: ${total}`);
     process.exit(0);
   } catch (error) {
-    console.error('Error:', error);
+    console.error('❌ Error:', error);
     process.exit(1);
   }
 }
 
-importPublicHealth();
+main();

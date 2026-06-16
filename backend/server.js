@@ -257,7 +257,7 @@ const sendEmail = async (to, name, otp, type) => {
     
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
     sendSmtpEmail.to = [{ email: to }];
-    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT' };
+    sendSmtpEmail.sender = { email: 'elitenursingcbt@gmail.com', name: 'ELITE Nursing CBT' };
     sendSmtpEmail.subject = subject;
     sendSmtpEmail.textContent = textContent;
     sendSmtpEmail.htmlContent = htmlContent;
@@ -376,7 +376,7 @@ const isAdmin = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elite_secret_key_2024');
     const user = await User.findById(decoded.userId);
-    if (user.email !== 'anaduphilip2000@gmail.com') {
+    if (user.email !== 'elitenursingcbt@gmail.com') {
       return res.status(403).json({ error: 'Admin access only' });
     }
     req.userId = decoded.userId;
@@ -457,7 +457,7 @@ app.post('/api/admin/reply-message', isAdmin, async (req, res) => {
     
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
     sendSmtpEmail.to = [{ email: to }];
-    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT Support' };
+    sendSmtpEmail.sender = { email: 'elitenursingcbt@gmail.com', name: 'ELITE Nursing CBT Support' };
     sendSmtpEmail.subject = `Response to your message - ELITE Nursing CBT`;
     sendSmtpEmail.textContent = textContent;
     sendSmtpEmail.htmlContent = htmlContent;
@@ -481,8 +481,8 @@ app.post('/api/contact', async (req, res) => {
     // Send email notification to admin
     const htmlContent = getContactEmailTemplate(name, email, message);
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    sendSmtpEmail.to = [{ email: 'anaduphilip2000@gmail.com' }];
-    sendSmtpEmail.sender = { email: 'anaduphilip2000@gmail.com', name: 'ELITE Nursing CBT' };
+    sendSmtpEmail.to = [{ email: 'elitenursingcbt@gmail.com' }];
+    sendSmtpEmail.sender = { email: 'elitenursingcbt@gmail.com', name: 'ELITE Nursing CBT' };
     sendSmtpEmail.subject = `New Contact Message from ${name}`;
     sendSmtpEmail.textContent = `From: ${name} (${email})\n\nMessage: ${message}`;
     sendSmtpEmail.htmlContent = htmlContent;
