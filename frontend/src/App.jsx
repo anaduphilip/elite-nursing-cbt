@@ -877,8 +877,8 @@ const Login = () => {
       login(res.data.token, res.data.user);
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message;
-      // Only show the force logout dialog – no alert
-      if (errorMsg.toLowerCase().includes('already logged in on another device')) {
+      // Check for the exact phrase – no alert for this case
+      if (errorMsg.includes('already logged in on another device') || errorMsg.includes('Please log out from that device first')) {
         setPendingCredentials({ email, password });
         setShowForceLogoutDialog(true);
       } else {
