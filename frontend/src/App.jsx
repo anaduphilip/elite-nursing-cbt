@@ -109,7 +109,14 @@ const LoadingWithBar = ({ message = "Loading", onComplete }) => {
         right: 0,
         textAlign: 'center'
       }}>
-        <p style={{ color: '#999', fontSize: 10 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 10 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -498,7 +505,14 @@ const ForgotPassword = () => {
           </Link>
         </div>
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
         </div>
       </div>
     </div>
@@ -518,6 +532,7 @@ const Register = () => {
   const [resendTimer, setResendTimer] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [agreeChecked, setAgreeChecked] = useState(false); // <-- NEW state
   const { login } = useContext(AuthContext);
 
   useEffect(() => {
@@ -537,6 +552,10 @@ const Register = () => {
     e.preventDefault();
     if (!name.trim()) {
       setError('Please enter your full name');
+      return;
+    }
+    if (!agreeChecked) {
+      setError('You must agree to the Terms and Privacy Policy');
       return;
     }
     setIsLoading(true);
@@ -700,9 +719,32 @@ const Register = () => {
                   <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showPassword ? '🙈' : '👁️'}</button>
                 </div>
               </div>
+
+              {/* ===== NEW: Terms & Privacy checkbox ===== */}
+              <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  id="agreeTerms"
+                  checked={agreeChecked}
+                  onChange={(e) => setAgreeChecked(e.target.checked)}
+                  style={{ marginTop: 3, cursor: 'pointer' }}
+                />
+                <label htmlFor="agreeTerms" style={{ fontSize: 13, color: '#555', cursor: 'pointer' }}>
+                  I agree to the{' '}
+                  <Link to="/terms" style={{ color: '#0c5bed', textDecoration: 'none' }}>
+                    Terms and Conditions
+                  </Link>
+                  {' '}&{' '}
+                  <Link to="/privacy" style={{ color: '#0c5bed', textDecoration: 'none' }}>
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+              {/* ====================================== */}
+
               <button 
                 type="submit" 
-                disabled={isLoading}
+                disabled={isLoading || !agreeChecked}
                 style={{ 
                   width: '100%', 
                   background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 
@@ -710,9 +752,10 @@ const Register = () => {
                   padding: '12px', 
                   border: 'none', 
                   borderRadius: 10, 
-                  cursor: 'pointer', 
+                  cursor: isLoading || !agreeChecked ? 'not-allowed' : 'pointer', 
                   fontWeight: 'bold', 
-                  fontSize: 14
+                  fontSize: 14,
+                  opacity: (isLoading || !agreeChecked) ? 0.7 : 1
                 }}
               >
                 Verify Email
@@ -1021,6 +1064,11 @@ const Login = () => {
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
           <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT</p>
           <p style={{ fontSize: 11, color: '#999' }}>Over 20,000+ practice questions</p>
+          <p style={{ fontSize: 11, marginTop: 4 }}>
+           <Link to="/terms" style={{ color: '#0c5bed', textDecoration: 'none' }}>Terms</Link>
+            {' | '}
+           <Link to="/privacy" style={{ color: '#0c5bed', textDecoration: 'none' }}>Privacy</Link>
+          </p> 
         </div>
       </div>
     </div>
@@ -1175,7 +1223,14 @@ const HomePage = () => {
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -1420,7 +1475,14 @@ const CourseList = () => {
 
         {/* Copyright */}
         <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-          <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+          <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
         </div>
       </div>
 
@@ -1626,7 +1688,14 @@ const ExamList = () => {
         )}
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -1916,7 +1985,14 @@ const TakeExam = () => {
         </button>
       </div>
       <div style={{ textAlign: 'center', padding: '20px' }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -1969,7 +2045,14 @@ const HowToUse = () => {
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -1989,7 +2072,14 @@ const AboutUs = () => {
         <p>NCLEX Practice questions are coming soon!</p>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -2081,7 +2171,14 @@ const ContactUs = () => {
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -2255,7 +2352,14 @@ const MyHistory = () => {
       )}
 
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -2346,6 +2450,22 @@ const PrivacyPolicy = () => {
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)', color: darkMode ? '#eee' : '#333' }}>
+        <button
+          onClick={() => window.history.back()}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: 16,
+            cursor: 'pointer',
+            color: '#1e3c72',
+            marginBottom: 16,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
+          }}
+        >
+          ← Back
+        </button>
         <h2 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>Privacy Policy</h2>
         <p><strong>Last updated:</strong> June 2026</p>
         <p>ELITE Nursing & Midwifery CBT ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and website (collectively, the "Platform").</p>
@@ -2405,6 +2525,94 @@ const PrivacyPolicy = () => {
   );
 };
 
+// Terms and Conditions Component
+const TermsAndConditions = () => {
+  const { darkMode } = useContext(AuthContext);
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)', color: darkMode ? '#eee' : '#333' }}>
+        <button
+          onClick={() => window.history.back()}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: 16,
+            cursor: 'pointer',
+            color: '#1e3c72',
+            marginBottom: 16,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
+          }}
+        >
+          ← Back
+        </button>
+        <h2 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>Terms and Conditions</h2>
+        <p><strong>Last updated:</strong> June 2026</p>
+        <p>Welcome to ELITE Nursing & Midwifery CBT. By using our Platform, you agree to comply with and be bound by the following terms and conditions. Please read them carefully.</p>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>1. Acceptance of Terms</h3>
+        <p>By creating an account or using our Platform, you agree to these Terms and Conditions. If you do not agree, please do not use the Platform.</p>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>2. User Accounts</h3>
+        <ul style={{ paddingLeft: 20 }}>
+          <li>You must provide accurate and complete information when creating an account.</li>
+          <li>You are responsible for maintaining the confidentiality of your login credentials.</li>
+          <li>You are responsible for all activities that occur under your account.</li>
+          <li>You must be at least 13 years old to use the Platform.</li>
+        </ul>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>3. Acceptable Use</h3>
+        <p>You agree not to:</p>
+        <ul style={{ paddingLeft: 20 }}>
+          <li>Use the Platform for any unlawful purpose.</li>
+          <li>Share or distribute questions, answers, or exam content outside the Platform.</li>
+          <li>Attempt to reverse-engineer or exploit the Platform.</li>
+          <li>Impersonate another user or provide false information.</li>
+          <li>Use automated scripts or bots to interact with the Platform.</li>
+        </ul>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>4. Intellectual Property</h3>
+        <ul style={{ paddingLeft: 20 }}>
+          <li>All content on the Platform, including questions, answers, graphics, and logos, is the property of ELITE Nursing & Midwifery CBT or its licensors.</li>
+          <li>You may not copy, reproduce, distribute, or create derivative works without our prior written consent.</li>
+        </ul>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>5. Payments and Refunds</h3>
+        <ul style={{ paddingLeft: 20 }}>
+          <li>Premium features are available via a one‑time payment of ₦5,900 (subject to change).</li>
+          <li>Payments are processed securely via Flutterwave.</li>
+          <li>All payments are non-refundable unless otherwise required by law.</li>
+          <li>Premium access is granted immediately upon successful payment verification.</li>
+        </ul>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>6. Disclaimer of Warranties</h3>
+        <p>The Platform is provided "as is" without any warranties of any kind, express or implied. We do not guarantee that the Platform will be error‑free, secure, or uninterrupted.</p>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>7. Limitation of Liability</h3>
+        <p>To the fullest extent permitted by law, ELITE Nursing & Midwifery CBT shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the Platform.</p>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>8. Termination</h3>
+        <ul style={{ paddingLeft: 20 }}>
+          <li>We reserve the right to suspend or terminate your account if you violate these Terms.</li>
+          <li>You may delete your account at any time by contacting us.</li>
+        </ul>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>9. Changes to Terms</h3>
+        <p>We may update these Terms from time to time. Continued use of the Platform after changes constitutes acceptance of the revised Terms.</p>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>10. Governing Law</h3>
+        <p>These Terms are governed by the laws of Nigeria. Any disputes arising from these Terms shall be subject to the exclusive jurisdiction of the courts of Nigeria.</p>
+
+        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>11. Contact Us</h3>
+        <p>If you have any questions about these Terms, please contact us:</p>
+        <p>Email: anaduphilip2000@gmail.com</p>
+        <p>Phone/WhatsApp: 09063908476</p>
+      </div>
+    </div>
+  );
+};
+
 // Join WhatsApp Component
 const JoinWhatsApp = () => {
   const { darkMode } = useContext(AuthContext);
@@ -2429,7 +2637,14 @@ const JoinWhatsApp = () => {
         </a>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -2512,7 +2727,14 @@ const GetPremium = () => {
         )}
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -3104,7 +3326,14 @@ const AdminPanel = () => {
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+    Privacy Policy
+  </Link>
+  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+    Terms & Conditions
+  </Link></p>
       </div>
     </div>
   );
@@ -3235,6 +3464,7 @@ const AppContent = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/payment-return" element={<PaymentReturn />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     );
@@ -3264,14 +3494,9 @@ const AppContent = () => {
         <Route path="/history" element={<MyHistory />} />
         <Route path="/review/:id" element={<ReviewExam />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-
-      {/* Footer with Privacy Policy link */}
-      <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
-        <Link to="/privacy" style={{ color: '#999', fontSize: 11, textDecoration: 'none', marginTop: 6, display: 'inline-block' }}>Privacy Policy</Link>
-      </div>
     </div>
   );
 };
