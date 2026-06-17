@@ -398,8 +398,12 @@ const authenticate = async (req, res, next) => {
     const user = await User.findById(decoded.userId).select('-password');
 
     if (!user) {
-      // Specific message for deleted users
       return res.status(401).json({ error: 'Your account has been deleted. Please log out and contact support.' });
+    }
+
+    // Validate that the session token in the JWT matches the user's current session token
+    if (!decoded.sessionToken || user.currentSessionToken !== decoded.sessionToken) {
+      return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
     }
 
     req.user = user;
