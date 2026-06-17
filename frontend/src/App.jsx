@@ -853,7 +853,7 @@ const Register = () => {
   );
 };
 
-// Login Component
+// Login Component – custom dialog for session conflict
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -877,16 +877,12 @@ const Login = () => {
       login(res.data.token, res.data.user);
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message;
-      console.log('Login error:', errorMsg); // For debugging
-      // Broad match: if the error mentions logged/device, show the dialog
-      if (
-        errorMsg.includes('already logged in') ||
-        errorMsg.includes('logged in on another device') ||
-        errorMsg.includes('device')
-      ) {
+      console.log('Login error status:', error.response?.status);
+      console.log('Login error message:', errorMsg);
+      // If status 401 and message contains 'logged', show custom dialog
+      if (error.response?.status === 401 && errorMsg.includes('logged')) {
         setPendingCredentials({ email, password });
         setShowForceLogoutDialog(true);
-        // No alert – only the dialog
       } else {
         alert('Login failed: ' + errorMsg);
       }
@@ -919,6 +915,26 @@ const Login = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
+      {/* Loading overlay */}
+      {isLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(255,255,255,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          backdropFilter: 'blur(3px)'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 50, height: 50, border: '4px solid #e0e0e0', borderTop: '4px solid #1e3c72', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }} />
+            <p style={{ marginTop: 16, color: '#1e3c72' }}>Logging in...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Custom logout dialog */}
       {showForceLogoutDialog && (
         <div style={{
           position: 'fixed',
@@ -987,7 +1003,7 @@ const Login = () => {
           </div>
         </div>
       )}
-      
+
       {showWelcome && !showForceLogoutDialog && (
         <div style={{
           position: 'fixed',
@@ -1014,6 +1030,10 @@ const Login = () => {
       )}
       
       <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
         @keyframes slideDown {
           from {
             opacity: 0;
