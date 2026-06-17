@@ -853,8 +853,13 @@ const Register = () => {
   );
 };
 
-// Login Component – fully custom session conflict handling
+// Login Component – with dedicated Axios instance and robust error detection
 const Login = () => {
+  // Create a dedicated Axios instance for login operations
+  const loginApi = axios.create({
+    baseURL: API_URL,
+  });
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -873,27 +878,20 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await axios.post('/api/login', { email, password });
+      // Use the dedicated loginApi instance
+      const res = await loginApi.post('/api/login', { email, password });
       login(res.data.token, res.data.user);
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message;
       console.log('Login error:', errorMsg);
-      console.log('Error status:', error.response?.status);
-      console.log('Full error object:', error);
-
-      // Check if this is the "already logged in" error
-      const isSessionConflict =
-        errorMsg.includes('already logged') ||
-        errorMsg.includes('logged in on another device') ||
-        errorMsg.includes('another device') ||
-        (error.response?.status === 401 && errorMsg.includes('device'));
-
-      if (isSessionConflict) {
-        // Show the custom dialog – DO NOT show alert
+      
+      // Use .includes() for more robust error detection
+      if (errorMsg.includes('already logged in') || errorMsg.includes('another device')) {
+        console.log('Showing force logout dialog');
         setPendingCredentials({ email, password });
         setShowForceLogoutDialog(true);
+        // No browser alert – custom dialog only
       } else {
-        // Only show alert for other errors
         alert('Login failed: ' + errorMsg);
       }
     } finally {
@@ -902,14 +900,30 @@ const Login = () => {
   };
 
   const handleForceLogout = async () => {
+    console.log('Force logout clicked');
+    if (!pendingCredentials) {
+      console.error('No pending credentials');
+      return;
+    }
     setIsLoading(true);
     try {
-      const res = await axios.post('/api/force-logout', { email: pendingCredentials.email });
+      console.log('Calling force-logout for:', pendingCredentials.email);
+      // Use the dedicated loginApi instance
+      const res = await loginApi.post('/api/force-logout', { email: pendingCredentials.email });
+      console.log('Force logout response:', res.data);
       if (res.data.success) {
-        const loginRes = await axios.post('/api/login', { email: pendingCredentials.email, password: pendingCredentials.password });
+        console.log('Force logout successful, attempting login');
+        const loginRes = await loginApi.post('/api/login', { 
+          email: pendingCredentials.email, 
+          password: pendingCredentials.password 
+        });
+        console.log('Login after force logout successful');
         login(loginRes.data.token, loginRes.data.user);
+      } else {
+        alert('Failed to force logout. Please try again.');
       }
     } catch (error) {
+      console.error('Force logout error:', error);
       alert('Failed to force logout from other device. Please try again later.');
     } finally {
       setIsLoading(false);
@@ -919,13 +933,13 @@ const Login = () => {
   };
 
   const cancelForceLogout = () => {
+    console.log('Cancel force logout');
     setShowForceLogoutDialog(false);
     setPendingCredentials(null);
   };
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
-      {/* Loading overlay */}
       {isLoading && (
         <div style={{
           position: 'fixed',
@@ -944,7 +958,6 @@ const Login = () => {
         </div>
       )}
 
-      {/* Custom logout dialog */}
       {showForceLogoutDialog && (
         <div style={{
           position: 'fixed',
