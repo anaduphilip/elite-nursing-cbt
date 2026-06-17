@@ -3802,10 +3802,14 @@ useEffect(() => {
   // Also refresh on page focus (optional)
   window.addEventListener('focus', refreshUserStatus);
 
+  // ✅ NEW: Poll every 5 seconds to update premium badge quickly
+  const intervalId = setInterval(refreshUserStatus, 5000);
+
   return () => {
     isMounted = false;
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('focus', refreshUserStatus);
+    clearInterval(intervalId);  // ✅ NEW: Clean up the interval
   };
 }, [auth.token, auth.user?.isPremium]);
 
