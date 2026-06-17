@@ -3569,7 +3569,6 @@ function App() {
     const saved = localStorage.getItem('darkMode');
     return saved === 'true';
   });
-  const [globalAlert, setGlobalAlert] = useState(null);
 
   const login = (token, user) => {
     setAuth({ token, user });
@@ -3583,321 +3582,278 @@ function App() {
     delete axios.defaults.headers.common['Authorization'];
   };
 
-  // ========== UPDATED INTERCEPTOR ==========
+  // ========== ADD THIS NEW useEffect ==========
   useEffect(() => {
-    const interceptor = axios.interceptors.response.use(
-      response => response,
-      error => {
-        if (error.response?.status === 401) {
-          // Skip handling for login endpoint – let Login component manage it
-          if (error.config.url === '/api/login') {
-            return Promise.reject(error);
-          }
-          const message = error.response?.data?.error || 'Session expired. Please log in again.';
-          setGlobalAlert({
-            message: `⚠️ ${message}`,
-            onOk: () => {
-              logout();
-              window.location.href = '/login';
-            }
-          });
+  const interceptor = axios.interceptors.response.use(
+    response => response,
+    error => {
+      if (error.response?.status === 401) {
+        // Skip handling for login endpoint – let Login component manage it
+        if (error.config.url === '/api/login') {
+          return Promise.reject(error);
         }
-        return Promise.reject(error);
+        const message = error.response?.data?.error || 'Session expired. Please log in again.';
+        alert(`⚠️ ${message}`);
+        logout();
+        window.location.href = '/login';
       }
-    );
-    return () => axios.interceptors.response.eject(interceptor);
-  }, [logout]);
-  // ========================================
+      return Promise.reject(error);
+    }
+  );
+  return () => axios.interceptors.response.eject(interceptor);
+}, [logout]);
+  // ===========================================
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     localStorage.setItem('darkMode', !darkMode);
   };
 
-  // ---------- Notification state ----------
+    // ---------- Notification state ----------
   const [notificationModal, setNotificationModal] = useState(null);
 
-  // ---------- Device token registration ----------
-  const registerDeviceToken = async (token) => {
-    if (!token || !auth.user?.id) return;
+// ---------- Device token registration ----------
+const registerDeviceToken = async (token) => {
+  if (!token || !auth.user?.id) return;
+  try {
+    const response = await axios.post('/api/register-token', { token, userId: auth.user.id });
+    console.log('Token registered', response.data);
+  } catch (error) {
+    console.error('Token registration error:', error);
+  }
+};
+
+// ========== PUSH NOTIFICATION FUNCTIONS ==========
+const initializeNotifications = () => {
+  (async () => {
     try {
-      const response = await axios.post('/api/register-token', { token, userId: auth.user.id });
-      console.log('Token registered', response.data);
-    } catch (error) {
-      console.error('Token registration error:', error);
-    }
-  };
-
-  // ========== PUSH NOTIFICATION FUNCTIONS ==========
-  const initializeNotifications = () => {
-    (async () => {
-      try {
-        const firebaseConfig = {
-          apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
-          authDomain: "elite-nursing-cbt.firebaseapp.com",
-          projectId: "elite-nursing-cbt",
-          storageBucket: "elite-nursing-cbt.firebasestorage.app",
-          messagingSenderId: "18123266651",
-          appId: "1:18123266651:web:7632db14d93727bec47d7e"
-        };
-        if (!window.firebaseInitialized && !Capacitor.isNativePlatform()) {
-          initializeApp(firebaseConfig);
-          window.firebaseInitialized = true;
-        }
-
-        if (Capacitor.isNativePlatform()) {
-          const permStatus = await FirebaseMessaging.requestPermissions();
-          if (permStatus.receive === 'granted') {
-            const tokenResult = await FirebaseMessaging.getToken();
-            let tokenValue = null;
-            if (typeof tokenResult === 'string') {
-              tokenValue = tokenResult;
-            } else if (tokenResult && typeof tokenResult === 'object' && tokenResult.token) {
-              tokenValue = tokenResult.token;
-            }
-            if (tokenValue) {
-              await registerDeviceToken(tokenValue);
-            }
-          }
-        } else {
-          const messaging = getMessaging();
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            const token = await getToken(messaging, {
-              vapidKey: "BE0Jw0SRKTNxmAZmFegaQSalkRV4Nb789tCU6YezdyDNMZSWJAJv6gS4swqPMgEUvEC_8rGdF91by94OkJj4-UQ"
-            });
-            if (token) registerDeviceToken(token);
-          }
-          onMessage(messaging, (payload) => {
-            alert(`${payload.notification.title}\n${payload.notification.body}`);
-          });
-        }
-      } catch (err) {
-        console.error('Notification init error:', err);
+      const firebaseConfig = {
+        apiKey: "AIzaSyCo4DSsdcfEYFeg7XQrnCwMi3a7vIkdDYM",
+        authDomain: "elite-nursing-cbt.firebaseapp.com",
+        projectId: "elite-nursing-cbt",
+        storageBucket: "elite-nursing-cbt.firebasestorage.app",
+        messagingSenderId: "18123266651",
+        appId: "1:18123266651:web:7632db14d93727bec47d7e"
+      };
+      if (!window.firebaseInitialized && !Capacitor.isNativePlatform()) {
+        initializeApp(firebaseConfig);
+        window.firebaseInitialized = true;
       }
-    })();
-  };
 
-  // ---------- Call after login ----------
-  useEffect(() => {
-    if (auth.user?.id) {
-      initializeNotifications();
+      if (Capacitor.isNativePlatform()) {
+        const permStatus = await FirebaseMessaging.requestPermissions();
+        if (permStatus.receive === 'granted') {
+          const tokenResult = await FirebaseMessaging.getToken();
+          let tokenValue = null;
+          if (typeof tokenResult === 'string') {
+            tokenValue = tokenResult;
+          } else if (tokenResult && typeof tokenResult === 'object' && tokenResult.token) {
+            tokenValue = tokenResult.token;
+          }
+          if (tokenValue) {
+            await registerDeviceToken(tokenValue);
+          }
+        }
+      } else {
+        const messaging = getMessaging();
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          const token = await getToken(messaging, {
+            vapidKey: "BE0Jw0SRKTNxmAZmFegaQSalkRV4Nb789tCU6YezdyDNMZSWJAJv6gS4swqPMgEUvEC_8rGdF91by94OkJj4-UQ"
+          });
+          if (token) registerDeviceToken(token);
+        }
+        onMessage(messaging, (payload) => {
+          // Show a custom modal or alert
+          alert(`${payload.notification.title}\n${payload.notification.body}`);
+        });
+      }
+    } catch (err) {
+      console.error('Notification init error:', err);
     }
-  }, [auth.user?.id]);
+  })();
+};
+
+// ---------- Call after login ----------
+useEffect(() => {
+  if (auth.user?.id) {
+    initializeNotifications();
+  }
+}, [auth.user?.id]);
 
   // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
-  useEffect(() => {
-    // Only proceed if there's an ongoing payment intent
-    const waitingForPayment = localStorage.getItem('waiting_for_payment');
-    if (waitingForPayment !== 'true') return;
+  // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
+useEffect(() => {
+  // Only proceed if there's an ongoing payment intent
+  const waitingForPayment = localStorage.getItem('waiting_for_payment');
+  if (waitingForPayment !== 'true') return;
 
-    const params = new URLSearchParams(window.location.search);
-    const reference = params.get('reference') || params.get('trxref');
-    const storedReference = localStorage.getItem('payment_reference');
-    const paymentRef = reference || storedReference;
-    
-    if (paymentRef && auth.user?.id) {
-      const verifyPayment = async () => {
+  const params = new URLSearchParams(window.location.search);
+  const reference = params.get('reference') || params.get('trxref');
+  const storedReference = localStorage.getItem('payment_reference');
+  const paymentRef = reference || storedReference;
+  
+  if (paymentRef && auth.user?.id) {
+    const verifyPayment = async () => {
+      try {
+        console.log('Verifying payment:', paymentRef, 'for user:', auth.user?.id);
+        const response = await axios.post('/api/verify-payment', { 
+          reference: paymentRef, 
+          userId: auth.user?.id 
+        });
+        console.log('Verification response:', response.data);
+        
+        if (response.data.success) {
+          alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
+          localStorage.removeItem('payment_reference');
+          const updatedUser = { ...auth.user, isPremium: true };
+          setAuth({ ...auth, user: updatedUser });
+          localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
+          if (auth.token) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
+          }
+          window.location.href = '/';
+        } else {
+          alert('Payment verification failed: ' + (response.data.error || 'Unknown error') + '. Please contact support if you were charged.');
+        }
+      } catch (error) { 
+        console.error('Verification error:', error);
+        alert('Payment verification failed. Please contact support if you were charged.');
+      } finally {
+        localStorage.removeItem('waiting_for_payment');
+        localStorage.removeItem('payment_reference');
+      }
+    };
+    verifyPayment();
+  }
+}, [auth.user?.id]);
+
+// ========== 2. DEEP LINK LISTENER for automatic return from payment ==========
+useEffect(() => {
+  if (!Capacitor.isNativePlatform()) return;
+
+  const listener = CapacitorApp.addListener('appUrlOpen', async (data) => {
+    console.log('Deep link received:', data.url);
+    if (data.url?.startsWith('elitenursing://payment')) {
+      const url = new URL(data.url);
+      const reference = url.searchParams.get('reference');
+      const transactionId = url.searchParams.get('transactionId');
+      if (reference && auth.user?.id) {
         try {
-          console.log('Verifying payment:', paymentRef, 'for user:', auth.user?.id);
-          const response = await axios.post('/api/verify-payment', { 
-            reference: paymentRef, 
-            userId: auth.user?.id 
+          const response = await axios.post('/api/verify-payment', {
+            reference: reference,
+            transactionId: transactionId,  // send the numeric ID
+            userId: auth.user.id
           });
-          console.log('Verification response:', response.data);
-          
           if (response.data.success) {
-            alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
-            localStorage.removeItem('payment_reference');
+            alert('✅ Payment successful! Your account is now PREMIUM.');
             const updatedUser = { ...auth.user, isPremium: true };
             setAuth({ ...auth, user: updatedUser });
-            localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
-            if (auth.token) {
-              axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
-            }
-            window.location.href = '/';
+            localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
+            window.location.reload();
           } else {
-            alert('Payment verification failed: ' + (response.data.error || 'Unknown error') + '. Please contact support if you were charged.');
+            alert('Payment verification failed: ' + (response.data.error || 'Unknown error'));
           }
-        } catch (error) { 
-          console.error('Verification error:', error);
-          alert('Payment verification failed. Please contact support if you were charged.');
-        } finally {
-          localStorage.removeItem('waiting_for_payment');
-          localStorage.removeItem('payment_reference');
+        } catch (err) {
+          console.error('Verification error:', err);
+          alert('Could not verify payment. Please contact support.');
         }
-      };
-      verifyPayment();
+        localStorage.removeItem('payment_reference');
+        localStorage.removeItem('waiting_for_payment');
+      }
     }
-  }, [auth.user?.id]);
+  });
 
-  // ========== 2. DEEP LINK LISTENER for automatic return from payment ==========
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+  return () => listener.remove();
+}, [auth.user?.id, auth.token]);
 
-    const listener = CapacitorApp.addListener('appUrlOpen', async (data) => {
-      console.log('Deep link received:', data.url);
-      if (data.url?.startsWith('elitenursing://payment')) {
-        const url = new URL(data.url);
-        const reference = url.searchParams.get('reference');
-        const transactionId = url.searchParams.get('transactionId');
-        if (reference && auth.user?.id) {
-          try {
-            const response = await axios.post('/api/verify-payment', {
-              reference: reference,
-              transactionId: transactionId,
-              userId: auth.user.id
-            });
-            if (response.data.success) {
-              alert('✅ Payment successful! Your account is now PREMIUM.');
-              const updatedUser = { ...auth.user, isPremium: true };
-              setAuth({ ...auth, user: updatedUser });
-              localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
-              window.location.reload();
-            } else {
-              alert('Payment verification failed: ' + (response.data.error || 'Unknown error'));
-            }
-          } catch (err) {
-            console.error('Verification error:', err);
-            alert('Could not verify payment. Please contact support.');
-          }
-          localStorage.removeItem('payment_reference');
-          localStorage.removeItem('waiting_for_payment');
-        }
+// Auto-refresh user status when app becomes active
+useEffect(() => {
+  if (!auth.token) return;
+
+  let isMounted = true;
+
+  const refreshUserStatus = async () => {
+    try {
+      const response = await axios.get('/api/user/profile', {
+        headers: { Authorization: `Bearer ${auth.token}` }
+      });
+      const freshUser = response.data;
+      if (isMounted && freshUser.isPremium !== auth.user?.isPremium) {
+        // Update local state and localStorage
+        const updatedUser = { ...auth.user, isPremium: freshUser.isPremium };
+        setAuth({ ...auth, user: updatedUser });
+        localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
+        console.log('Premium status synced:', freshUser.isPremium);
       }
-    });
+    } catch (error) {
+      console.error('Failed to refresh user status:', error);
+    }
+  };
 
-    return () => listener.remove();
-  }, [auth.user?.id, auth.token]);
+  // Refresh immediately when app becomes visible (e.g., after returning from background)
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      refreshUserStatus();
+    }
+  };
 
-  // Auto-refresh user status when app becomes active
-  useEffect(() => {
-    if (!auth.token) return;
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  // Also refresh on page focus (optional)
+  window.addEventListener('focus', refreshUserStatus);
 
-    let isMounted = true;
-
-    const refreshUserStatus = async () => {
-      try {
-        const response = await axios.get('/api/user/profile', {
-          headers: { Authorization: `Bearer ${auth.token}` }
-        });
-        const freshUser = response.data;
-        if (isMounted && freshUser.isPremium !== auth.user?.isPremium) {
-          const updatedUser = { ...auth.user, isPremium: freshUser.isPremium };
-          setAuth({ ...auth, user: updatedUser });
-          localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
-          console.log('Premium status synced:', freshUser.isPremium);
-        }
-      } catch (error) {
-        console.error('Failed to refresh user status:', error);
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refreshUserStatus();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', refreshUserStatus);
-
-    return () => {
-      isMounted = false;
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', refreshUserStatus);
-    };
-  }, [auth.token, auth.user?.isPremium]);
+  return () => {
+    isMounted = false;
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('focus', refreshUserStatus);
+  };
+}, [auth.token, auth.user?.isPremium]);
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
-      {notificationModal && (
+  <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+    {notificationModal && (
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+      }}>
         <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999
+          background: 'white',
+          borderRadius: 20,
+          padding: 24,
+          maxWidth: 320,
+          textAlign: 'center',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
         }}>
-          <div style={{
-            background: 'white',
-            borderRadius: 20,
-            padding: 24,
-            maxWidth: 320,
-            textAlign: 'center',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📢</div>
-            <h3 style={{ color: '#1e3c72', marginBottom: 8 }}>{notificationModal.title}</h3>
-            <p style={{ color: '#666', marginBottom: 20 }}>{notificationModal.body}</p>
-            <button
-              onClick={() => setNotificationModal(null)}
-              style={{
-                background: '#1e3c72',
-                color: 'white',
-                border: 'none',
-                padding: '8px 20px',
-                borderRadius: 30,
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              OK
-            </button>
-          </div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📢</div>
+          <h3 style={{ color: '#1e3c72', marginBottom: 8 }}>{notificationModal.title}</h3>
+          <p style={{ color: '#666', marginBottom: 20 }}>{notificationModal.body}</p>
+          <button
+            onClick={() => setNotificationModal(null)}
+            style={{
+              background: '#1e3c72',
+              color: 'white',
+              border: 'none',
+              padding: '8px 20px',
+              borderRadius: 30,
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            OK
+          </button>
         </div>
-      )}
-      {/* Global Alert Modal */}
-      {globalAlert && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: 20,
-            padding: 28,
-            maxWidth: 400,
-            width: '90%',
-            textAlign: 'center',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
-            <h2 style={{ color: '#1e3c72', marginBottom: 8 }}>Session Expired</h2>
-            <p style={{ color: '#666', marginBottom: 20 }}>{globalAlert.message}</p>
-            <button
-              onClick={() => {
-                if (globalAlert.onOk) globalAlert.onOk();
-                setGlobalAlert(null);
-              }}
-              style={{
-                background: '#1e3c72',
-                color: 'white',
-                border: 'none',
-                padding: '10px 24px',
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: 14
-              }}
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
-    </AuthContext.Provider>
-  );
+      </div>
+    )}
+  </AuthContext.Provider>
+);
 }
 
 export default App;
