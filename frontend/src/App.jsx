@@ -853,7 +853,7 @@ const Register = () => {
   );
 };
 
-// Login Component – custom dialog for session conflict
+// Login Component – fully custom session conflict handling
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -877,13 +877,23 @@ const Login = () => {
       login(res.data.token, res.data.user);
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message;
-      console.log('Login error status:', error.response?.status);
-      console.log('Login error message:', errorMsg);
-      // If status 401 and message contains 'logged', show custom dialog
-      if (error.response?.status === 401 && errorMsg.includes('logged')) {
+      console.log('Login error:', errorMsg);
+      console.log('Error status:', error.response?.status);
+      console.log('Full error object:', error);
+
+      // Check if this is the "already logged in" error
+      const isSessionConflict =
+        errorMsg.includes('already logged') ||
+        errorMsg.includes('logged in on another device') ||
+        errorMsg.includes('another device') ||
+        (error.response?.status === 401 && errorMsg.includes('device'));
+
+      if (isSessionConflict) {
+        // Show the custom dialog – DO NOT show alert
         setPendingCredentials({ email, password });
         setShowForceLogoutDialog(true);
       } else {
+        // Only show alert for other errors
         alert('Login failed: ' + errorMsg);
       }
     } finally {
