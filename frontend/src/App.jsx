@@ -2672,6 +2672,47 @@ const TermsAndConditions = () => {
   );
 };
 
+// Floating Chat Button – opens WhatsApp
+const FloatingChatButton = () => {
+  return (
+    <a
+      href="https://wa.me/2349063908476"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        zIndex: 9999,
+        backgroundColor: '#25D366',
+        color: 'white',
+        width: '60px',
+        height: '60px',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+        transition: 'transform 0.2s',
+        cursor: 'pointer'
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+      aria-label="Chat on WhatsApp"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        width="32"
+        height="32"
+        fill="white"
+      >
+        <path d="M12.032 21.965c-1.916 0-3.762-.565-5.346-1.62l-4.715 1.542 1.514-4.599a9.93 9.93 0 0 1-1.555-5.316c0-5.51 4.482-9.992 9.993-9.992 5.51 0 9.993 4.482 9.993 9.992 0 5.512-4.482 9.993-9.993 9.993zm0-18.578c-4.734 0-8.586 3.852-8.586 8.586 0 1.867.595 3.666 1.706 5.184l-1.125 3.417 3.573-1.174c1.405.966 3.118 1.491 4.913 1.491 4.734 0 8.586-3.853 8.586-8.587 0-4.734-3.852-8.586-8.586-8.586zm4.374 11.346c-.126-.201-.463-.321-.964-.563-.521-.242-3.073-1.514-3.543-1.686-.47-.172-.832-.258-1.155.254-.323.512-1.262 1.647-1.544 1.987-.282.34-.562.382-1.083.12-.51-.242-2.136-.79-4.073-2.515-1.503-1.342-2.517-2.996-2.811-3.503-.294-.507-.031-.781.252-1.034.252-.222.563-.518.845-.777.28-.259.373-.445.553-.742.18-.297.09-.557-.047-.775-.136-.218-1.203-2.903-1.648-3.976-.433-1.044-.872-.903-1.202-.922-.312-.023-.666-.028-1.02-.028-.353 0-.925.132-1.409.66-.483.529-1.843 1.8-1.843 4.389s1.887 5.088 2.152 5.438c.264.35 3.717 5.68 9.005 7.545 4.343 1.536 5.29 1.314 6.242 1.232 1.051-.081 3.102-1.269 3.54-2.493.438-1.225.438-2.276.302-2.517-.137-.241-.5-.36-1.023-.603z"/>
+      </svg>
+    </a>
+  );
+};
+
 // Join WhatsApp Component
 const JoinWhatsApp = () => {
   const { darkMode } = useContext(AuthContext);
@@ -3517,15 +3558,18 @@ const AppContent = () => {
 
   if (!token) {
     return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/payment-return" element={<PaymentReturn />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/terms" element={<TermsAndConditions />} />
-        <Route path="*" element={<Navigate to="/login" />} />
-      </Routes>
+      <>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/payment-return" element={<PaymentReturn />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsAndConditions />} />
+          <Route path="*" element={<Navigate to="/login" />} />
+        </Routes>
+        <FloatingChatButton />
+      </>
     );
   }
 
@@ -3556,6 +3600,7 @@ const AppContent = () => {
         <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      <FloatingChatButton />
     </div>
   );
 };
