@@ -3192,10 +3192,17 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component (updated for in-app payment)
+// Get Premium Component – with subscription plans (Daily, Monthly, Yearly)
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('monthly');
+
+  const plans = {
+    daily: { label: 'Daily', amount: 200, duration: '24 hours' },
+    monthly: { label: 'Monthly', amount: 500, duration: '30 days' },
+    yearly: { label: 'Yearly', amount: 6000, duration: '365 days' }
+  };
 
   const handlePayment = async () => {
     if (!user?.id) {
@@ -3214,9 +3221,9 @@ const GetPremium = () => {
 
       const response = await axios.post('/api/initialize-payment', {
         email: user.email,
-        amount: 5900,
+        amount: plans[selectedPlan].amount,
         userId: user.id,
-        planType: 'premium',
+        planType: selectedPlan, // 'daily', 'monthly', or 'yearly'
         examId: null,
         examTitle: null,
         sectionNumber: null,
@@ -3240,43 +3247,100 @@ const GetPremium = () => {
     }
   };
 
+  // Format expiry date
+  const formatExpiry = (date) => {
+    if (!date) return 'N/A';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Check if premium is still active
+  const isPremiumActive = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
+
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
         <h2 style={{ color: '#1e3c72' }}>Upgrade to Premium</h2>
         <p style={{ marginBottom: 20 }}>Get unlimited access to all examinations and features</p>
-        {user?.isPremium ? (
+        
+        {isPremiumActive ? (
           <div style={{ background: '#e8f5e9', padding: 20, borderRadius: 16 }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
             <h3 style={{ color: '#1e3c72' }}>You are already a Premium Member!</h3>
+            <div style={{ marginTop: 12, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
+              <p style={{ margin: '4px 0' }}>
+                <strong>Plan:</strong> {user.premiumPlan ? user.premiumPlan.toUpperCase() : 'N/A'}
+              </p>
+              <p style={{ margin: '4px 0' }}>
+                <strong>Expires:</strong> {formatExpiry(user.premiumExpiry)}
+              </p>
+              <p style={{ margin: '4px 0', color: '#ff9800', fontWeight: 'bold' }}>
+                {user.premiumExpiry && new Date(user.premiumExpiry) > new Date() 
+                  ? '✅ Active' 
+                  : '⚠️ Expired - Please renew'}
+              </p>
+            </div>
+            {user.premiumExpiry && new Date(user.premiumExpiry) <= new Date() && (
+              <p style={{ marginTop: 12, color: '#dc3545' }}>
+                Your premium has expired. Please select a plan below to renew.
+              </p>
+            )}
           </div>
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, margin: 20 }}>
-              <div><div style={{ fontSize: 36, marginBottom: 8 }}>📚</div><h3 style={{ fontSize: 14 }}>All Subjects</h3></div>
-              <div><div style={{ fontSize: 36, marginBottom: 8 }}>📝</div><h3 style={{ fontSize: 14 }}>All Exams</h3></div>
-              <div><div style={{ fontSize: 36, marginBottom: 8 }}>🎯</div><h3 style={{ fontSize: 14 }}>20k+ Questions</h3></div>
-              <div><div style={{ fontSize: 36, marginBottom: 8 }}>🏆</div><h3 style={{ fontSize: 14 }}>Lifetime Access</h3></div>
+              {Object.entries(plans).map(([key, plan]) => (
+                <div 
+                  key={key} 
+                  onClick={() => setSelectedPlan(key)}
+                  style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    border: selectedPlan === key ? '3px solid #1e3c72' : '2px solid #e0e0e0',
+                    background: selectedPlan === key ? '#e8f5e9' : 'white',
+                    cursor: 'pointer',
+                    transition: '0.2s',
+                    boxShadow: selectedPlan === key ? '0 4px 12px rgba(30, 60, 114, 0.15)' : 'none'
+                  }}
+                >
+                  <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1e3c72' }}>₦{plan.amount}</div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>{plan.label}</div>
+                  <div style={{ fontSize: 12, color: '#666' }}>{plan.duration}</div>
+                  {selectedPlan === key && (
+                    <div style={{ marginTop: 8, fontSize: 11, color: '#1e3c72', fontWeight: 'bold' }}>✓ SELECTED</div>
+                  )}
+                </div>
+              ))}
             </div>
-            <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: 16, borderRadius: 12, margin: 20 }}>
-              <div style={{ fontSize: 28, fontWeight: 'bold', color: '#1e3c72' }}>₦5,900 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime</span></div>
+            <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: 16, borderRadius: 12, margin: '20px 0' }}>
+              <div style={{ fontSize: 18, fontWeight: 'bold', color: '#1e3c72' }}>
+                Selected: <span style={{ color: '#ff9800' }}>{plans[selectedPlan].label}</span> – 
+                ₦{plans[selectedPlan].amount}
+              </div>
             </div>
             <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>
-              {loading ? 'Processing...' : 'Pay ₦5,900'}
+              {loading ? 'Processing...' : `Pay ₦${plans[selectedPlan].amount} (${plans[selectedPlan].label})`}
             </button>
           </>
         )}
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
-  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
-    Privacy Policy
-  </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
-  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
-    Terms & Conditions
-  </Link></p>
+          <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+            Privacy Policy
+          </Link>
+          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+            Terms & Conditions
+          </Link>
+        </p>
       </div>
     </div>
   );
