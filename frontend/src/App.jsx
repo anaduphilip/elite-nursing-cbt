@@ -198,100 +198,15 @@ const Timer = ({ duration, onTimeUp }) => {
   );
 };
 
-// Premium Modal Component with detailed error logging
+// Premium Modal Component – redirects to subscription plans (no direct payment)
 const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
-  const { token, user } = useContext(AuthContext);
-  const [loading, setLoading] = useState(false);
+  const { user } = useContext(AuthContext);
 
-  const handlePayment = async () => {
-    // --- Step 1: Check auth and log everything ---
-    console.log('=== PAYMENT INITIALIZATION START ===');
-    console.log('Context token:', token);
-    console.log('Context user:', user);
-    
-    // Fallback to localStorage
-    let auth = null;
-    try {
-      auth = JSON.parse(localStorage.getItem('auth'));
-      console.log('localStorage auth:', auth);
-    } catch (e) {
-      console.error('Error parsing localStorage auth:', e);
-    }
-    
-    const effectiveToken = token || auth?.token;
-    const effectiveUser = user || auth?.user;
-    
-    console.log('Effective token exists?', !!effectiveToken);
-    console.log('Effective user:', effectiveUser);
-    
-    if (!effectiveUser?.id) {
-      console.error('No user ID found');
-      alert('Please log in again to make payment.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const isNative = Capacitor.isNativePlatform();
-      console.log('Is native platform:', isNative);
-      
-      const redirectUrl = isNative
-        ? 'https://elite-nursing-cbt.vercel.app/payment-success.html'
-        : 'https://elite-nursing-cbt.vercel.app/payment-return';
-      
-      console.log('Redirect URL:', redirectUrl);
-      
-      const requestPayload = {
-        email: effectiveUser.email,
-        amount: 5900,
-        userId: effectiveUser.id,
-        planType: examTitle ? 'single' : 'premium',
-        examId: examTitle ? window.location.pathname.split('/')[2] : null,
-        examTitle: examTitle || null,
-        sectionNumber: sectionNumber || null,
-        redirect_url: redirectUrl
-      };
-      console.log('Request payload:', requestPayload);
-      
-      console.log('Making POST request to /api/initialize-payment...');
-      const response = await axios.post('/api/initialize-payment', requestPayload, {
-        headers: { Authorization: `Bearer ${effectiveToken}` },
-        withCredentials: true
-      });
-      
-      console.log('Payment initialization response:', response.data);
-      
-      localStorage.setItem('payment_reference', response.data.reference);
-      
-      if (isNative) {
-        console.log('Opening in-app browser with URL:', response.data.authorization_url);
-        await Browser.open({ url: response.data.authorization_url });
-        localStorage.setItem('waiting_for_payment', 'true');
-      } else {
-        console.log('Redirecting to:', response.data.authorization_url);
-        window.location.href = response.data.authorization_url;
-      }
-    } catch (error) {
-      console.error('=== PAYMENT ERROR DETAILS ===');
-      console.error('Error object:', error);
-      console.error('Error message:', error.message);
-      console.error('Error response status:', error.response?.status);
-      console.error('Error response data:', error.response?.data);
-      console.error('Error response headers:', error.response?.headers);
-      console.error('Error config:', error.config);
-      
-      let errorMsg = 'Payment initialization failed. Please try again.';
-      if (error.response?.data?.error) {
-        errorMsg += ' ' + error.response.data.error;
-      } else if (error.message) {
-        errorMsg += ' ' + error.message;
-      }
-      alert(errorMsg);
-      setLoading(false);
-    }
+  const handleUpgrade = () => {
+    onClose(); // close modal
+    window.location.href = '/get-premium';
   };
 
-  // --- The JSX return remains the same ---
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -305,14 +220,13 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         <div style={{ fontSize: 48, marginBottom: 10 }}>⭐</div>
         <h2 style={{ color: '#1e3c72', fontSize: 22, margin: '10px 0' }}>Premium Required</h2>
         <p style={{ fontSize: 15, marginBottom: 10 }}><strong>{examTitle}</strong> is premium content.</p>
-        <p style={{ fontSize: 14, marginBottom: 15, color: '#666' }}>Upgrade to unlock ALL premium exams!</p>
-        <div style={{ fontSize: 25, fontWeight: 'bold', color: '#1e3c72', margin: '15px 0' }}>
-          ₦5,900 <span style={{ fontSize: 14, color: '#666' }}>/ lifetime</span>
-        </div>
+        <p style={{ fontSize: 14, marginBottom: 15, color: '#666' }}>
+          Subscribe to a plan to unlock ALL premium exams!
+        </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <button onClick={onClose} style={{ flex: 1, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: '500', fontSize: 14 }}>Cancel</button>
-          <button onClick={handlePayment} disabled={loading} style={{ flex: 1, background: '#ff9800', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-            {loading ? 'Processing...' : 'Pay ₦5,900'}
+          <button onClick={handleUpgrade} style={{ flex: 1, background: '#ff9800', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+            View Plans →
           </button>
         </div>
       </div>
@@ -1564,7 +1478,7 @@ const CourseList = () => {
           <div style={{ textAlign: 'center', marginTop: 20, marginBottom: 40 }}>
             <Link to="/get-premium">
               <button style={{ background: '#ff9800', color: 'white', padding: '14px 32px', border: 'none', borderRadius: 50, cursor: 'pointer', fontWeight: 'bold', fontSize: 16 }}>
-                ⭐ Upgrade to Premium (₦5,900)
+                ⭐ Upgrade to Premium
               </button>
             </Link>
           </div>
@@ -1751,7 +1665,7 @@ const ExamList = () => {
             </div>
             
             <div style={{ textAlign: 'center', padding: 28, background: '#fff3e0', borderRadius: 16, marginBottom: 20 }}>
-              <p style={{ color: '#ff9800', fontWeight: 'bold', fontSize: 16 }}>⭐ Unlock ALL premium exams and retakes for ₦5,900 (Lifetime Access)!</p>
+              <p style={{ color: '#ff9800', fontWeight: 'bold', fontSize: 16 }}>⭐ Unlock ALL premium exams and retakes by chooseing a subscription plan that suits you!</p>
               <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 12 }}>Upgrade Now →</button></Link>
             </div>
           </>
@@ -1778,7 +1692,7 @@ const ExamList = () => {
             </div>
             {!userPremium && (
               <div style={{ marginTop: 24, textAlign: 'center', padding: 20, background: '#fff3e0', borderRadius: 16 }}>
-                <p style={{ color: '#ff9800', fontSize: 14 }}>⭐ Upgrade to access all examinations for ₦5,900 (Lifetime Access)!</p>
+                <p style={{ color: '#ff9800', fontSize: 14 }}>⭐ Upgrade to access all examinations by Choosing a subscription plan that suits you!</p>
                 <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 8 }}>Upgrade Now →</button></Link>
               </div>
             )}
@@ -1974,7 +1888,7 @@ const TakeExam = () => {
             <div style={{ marginTop: 20, padding: 16, background: '#fff3e0', borderRadius: 12 }}>
               <p style={{ color: '#ff9800', fontWeight: 'bold', margin: 0, fontSize: 14 }}>📢 You have completed the free exam!</p>
               <p style={{ color: '#666', marginTop: 8, fontSize: 13 }}>Upgrade to Premium to retake and unlock all exams.</p>
-              <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now (₦5,900)</button></Link>
+              <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now </button></Link>
             </div>
           )}
           
@@ -2121,7 +2035,7 @@ const HowToUse = () => {
           <ul style={{ lineHeight: 1.8, color: darkMode ? '#ccc' : '#555', paddingLeft: 20 }}>
             <li>✓ View ALL examinations across ALL courses</li>
             <li>✓ Premium badge shows which exams require upgrade</li>
-            <li>✓ Upgrade for only ₦5,900 (Lifetime Access) to unlock everything</li>
+            <li>✓ Upgrade and Choose a subscription plan that suits you to unlock everything</li>
             <li>✓ Lifetime access to 20,000+ questions</li>
             <li>✓ Unlimited exam retakes</li>
           </ul>
@@ -2134,7 +2048,7 @@ const HowToUse = () => {
             <li>📚 <strong>Categories</strong> - Choose your subject area</li>
             <li>📖 <strong>Courses</strong> - Select specific topic</li>
             <li>📝 <strong>Exams</strong> - Take your chosen examination</li>
-            <li>⭐ <strong>Get Premium</strong> - Upgrade for full access (₦5,900 Lifetime Access)</li>
+            <li>⭐ <strong>Get Premium</strong> - Upgrade for full access </li>
           </ul>
         </div>
         
@@ -2910,7 +2824,7 @@ const TermsAndConditions = () => {
 
         <h3 style={{ color: '#1e3c72', marginTop: 20 }}>5. Payments and Refunds</h3>
         <ul style={{ paddingLeft: 20 }}>
-          <li>Premium features are available via a one‑time payment of ₦5,900 (subject to change).</li>
+          <li>Premium features are available via any subscription plan that suits you (subject to change).</li>
           <li>Payments are processed securely via Flutterwave.</li>
           <li>All payments are non-refundable unless otherwise required by law.</li>
           <li>Premium access is granted immediately upon successful payment verification.</li>
