@@ -3106,17 +3106,48 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component – with subscription plans (Daily, Monthly, Yearly)
+// Get Premium Component – with subscription plans and live countdown timer
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
+  const [timeLeft, setTimeLeft] = useState(null);
 
   const plans = {
     daily: { label: 'Daily', amount: 500, duration: '24 hours' },
     monthly: { label: 'Monthly', amount: 2000, duration: '30 days' },
     yearly: { label: 'Yearly', amount: 10000, duration: '365 days' }
   };
+
+  // Live countdown timer
+  useEffect(() => {
+    if (!user?.premiumExpiry) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date();
+      const expiry = new Date(user.premiumExpiry);
+      const diff = expiry - now;
+
+      if (diff <= 0) {
+        setTimeLeft(null);
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [user?.premiumExpiry]);
 
   const handlePayment = async () => {
     if (!user?.id) {
@@ -3137,7 +3168,7 @@ const GetPremium = () => {
         email: user.email,
         amount: plans[selectedPlan].amount,
         userId: user.id,
-        planType: selectedPlan, // 'daily', 'monthly', or 'yearly'
+        planType: selectedPlan,
         examId: null,
         examTitle: null,
         sectionNumber: null,
@@ -3195,17 +3226,41 @@ const GetPremium = () => {
               <p style={{ margin: '4px 0' }}>
                 <strong>Expires:</strong> {formatExpiry(user.premiumExpiry)}
               </p>
-              <p style={{ margin: '4px 0', color: '#ff9800', fontWeight: 'bold' }}>
-                {user.premiumExpiry && new Date(user.premiumExpiry) > new Date() 
-                  ? '✅ Active' 
-                  : '⚠️ Expired - Please renew'}
-              </p>
+              
+              {/* ===== LIVE COUNTDOWN TIMER ===== */}
+              {timeLeft && (
+                <div style={{ marginTop: 12, padding: 12, background: '#fff3e0', borderRadius: 8 }}>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 'bold', color: '#e65100' }}>
+                    ⏳ Time remaining:
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 8 }}>
+                    {timeLeft.days > 0 && (
+                      <div>
+                        <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1e3c72' }}>{timeLeft.days}</span>
+                        <span style={{ fontSize: 11, color: '#666', display: 'block' }}>days</span>
+                      </div>
+                    )}
+                    <div>
+                      <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1e3c72' }}>{String(timeLeft.hours).padStart(2, '0')}</span>
+                      <span style={{ fontSize: 11, color: '#666', display: 'block' }}>hrs</span>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1e3c72' }}>{String(timeLeft.minutes).padStart(2, '0')}</span>
+                      <span style={{ fontSize: 11, color: '#666', display: 'block' }}>min</span>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1e3c72' }}>{String(timeLeft.seconds).padStart(2, '0')}</span>
+                      <span style={{ fontSize: 11, color: '#666', display: 'block' }}>sec</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!timeLeft && user.premiumExpiry && new Date(user.premiumExpiry) <= new Date() && (
+                <p style={{ marginTop: 12, color: '#dc3545', fontWeight: 'bold' }}>
+                  ⚠️ Your premium has expired. Please select a plan below to renew.
+                </p>
+              )}
             </div>
-            {user.premiumExpiry && new Date(user.premiumExpiry) <= new Date() && (
-              <p style={{ marginTop: 12, color: '#dc3545' }}>
-                Your premium has expired. Please select a plan below to renew.
-              </p>
-            )}
           </div>
         ) : (
           <>
