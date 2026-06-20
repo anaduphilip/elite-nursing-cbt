@@ -3199,9 +3199,9 @@ const GetPremium = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
 
   const plans = {
-    daily: { label: 'Daily', amount: 200, duration: '24 hours' },
-    monthly: { label: 'Monthly', amount: 500, duration: '30 days' },
-    yearly: { label: 'Yearly', amount: 6000, duration: '365 days' }
+    daily: { label: 'Daily', amount: 500, duration: '24 hours' },
+    monthly: { label: 'Monthly', amount: 2000, duration: '30 days' },
+    yearly: { label: 'Yearly', amount: 10000, duration: '365 days' }
   };
 
   const handlePayment = async () => {
