@@ -112,6 +112,8 @@ const UserSchema = new mongoose.Schema({
   currentSessionToken: { type: String, default: null },
   lastLoginAt: { type: Date, default: null },
   purchaseDate: Date,
+  premiumPlan: { type: String, enum: ['daily', 'monthly', 'yearly', null], default: null },
+  premiumExpiry: { type: Date, default: null },
   purchasedExams: [{
     examId: String,
     examTitle: String,
@@ -163,6 +165,22 @@ const ContactSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model('User', UserSchema);
+// Helper to check and update premium status
+const checkAndUpdatePremium = async (user) => {
+  if (user.premiumExpiry && user.premiumExpiry < new Date()) {
+    user.isPremium = false;
+    user.premiumPlan = null;
+    user.premiumExpiry = null;
+    await user.save();
+    return { isPremium: false, plan: null, expiry: null };
+  }
+  return { 
+    isPremium: user.isPremium, 
+    plan: user.premiumPlan, 
+    expiry: user.premiumExpiry 
+  };
+};
+
 const Quiz = mongoose.model('Quiz', QuizSchema);
 const Contact = mongoose.model('Contact', ContactSchema);
 
@@ -679,10 +697,14 @@ app.get('/api/verify-session', async (req, res) => {
 });
 
 app.get('/api/user/profile', authenticate, async (req, res) => {
+  // Check and update premium status
+  const premiumStatus = await checkAndUpdatePremium(req.user);
   res.json({
     id: req.user._id,
     name: req.user.name,
-    isPremium: req.user.isPremium,
+    isPremium: premiumStatus.isPremium,
+    premiumPlan: premiumStatus.plan,
+    premiumExpiry: premiumStatus.expiry,
     email: req.user.email,
     isVerified: req.user.isVerified
   });
@@ -838,13 +860,39 @@ app.post('/api/verify-payment', async (req, res) => {
     console.log(`📊 Flutterwave status: ${txData?.status}, amount: ${txData?.amount}`);
     
     if (txData?.status === 'successful') {
+      // Determine plan and expiry
+      const plan = transaction.planType || 'monthly'; // fallback to monthly if not set
+      let expiryDate = new Date();
+      switch(plan) {
+        case 'daily':
+          expiryDate.setDate(expiryDate.getDate() + 1);
+          break;
+        case 'monthly':
+          expiryDate.setMonth(expiryDate.getMonth() + 1);
+          break;
+        case 'yearly':
+          expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+          break;
+        default:
+          // For legacy lifetime or unknown plans, set to 1 year from now
+          expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+      }
+      
       user.isPremium = true;
+      user.premiumPlan = plan;
+      user.premiumExpiry = expiryDate;
       user.purchaseDate = new Date();
       transaction.status = 'completed';
       transaction.flutterwaveId = txData.id;
       await user.save();
-      console.log(`✅✅ PREMIUM ACTIVATED for: ${user.email} ✅✅`);
-      return res.json({ success: true, isPremium: true });
+      
+      console.log(`✅✅ PREMIUM ACTIVATED for: ${user.email} (${plan}) until ${expiryDate} ✅✅`);
+      return res.json({ 
+        success: true, 
+        isPremium: true, 
+        plan: plan, 
+        expiry: expiryDate 
+      });
     } else if (txData?.status === 'pending') {
       return res.json({ success: false, pending: true, message: 'Payment still processing' });
     } else {
@@ -856,6 +904,7 @@ app.post('/api/verify-payment', async (req, res) => {
     res.status(200).json({ success: false, error: 'Verification failed. Contact support.' });
   }
 });
+
 // Admin manual premium activation
 app.post('/api/admin/activate-premium', isAdmin, async (req, res) => {
   try {
