@@ -1134,9 +1134,9 @@ const Register = () => {
   );
 };
 
-// Home Page Component (updated to use cached quizzes)
+// Home Page Component – shows number of topics (courses) per category
 const HomePage = () => {
-  const [mode, setMode] = useState('free');
+  const [mode, setMode] = useState('premium');
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const { token, darkMode, user } = useContext(AuthContext);
@@ -1157,13 +1157,21 @@ const HomePage = () => {
   }, [token]);
 
   const getCategories = () => {
-    const categories = {};
+    // Group topics by category
+    const categoryTopics = {};
     quizzes.forEach(quiz => {
-      if (!categories[quiz.category]) {
-        categories[quiz.category] = [];
+      if (!categoryTopics[quiz.category]) {
+        categoryTopics[quiz.category] = new Set();
       }
-      categories[quiz.category].push(quiz);
+      if (quiz.topic) {
+        categoryTopics[quiz.category].add(quiz.topic);
+      }
     });
+    // Convert to object with topic count
+    const categories = {};
+    for (const [category, topics] of Object.entries(categoryTopics)) {
+      categories[category] = topics.size;
+    }
     return categories;
   };
 
@@ -1252,7 +1260,7 @@ const HomePage = () => {
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
-          {Object.entries(categories).map(([category, categoryQuizzes]) => (
+          {Object.entries(categories).map(([category, topicCount]) => (
             <Link to={`/courses/${category}/${mode}`} key={category} style={{ textDecoration: 'none' }}>
               <div style={{ 
                 background: darkMode ? '#16213e' : 'white', 
@@ -1268,7 +1276,7 @@ const HomePage = () => {
               onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
                 <div style={{ fontSize: 56, marginBottom: 12 }}>{getCategoryIcon(category)}</div>
                 <h2 style={{ color: mode === 'free' ? '#1e3c72' : '#ff9800', fontSize: 'clamp(18px, 4vw, 20px)', marginBottom: 8 }}>{getCategoryName(category)}</h2>
-                <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 14, marginBottom: 12 }}>{categoryQuizzes.length} courses</p>
+                <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 14, marginBottom: 12 }}>{topicCount} courses</p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <span style={{ background: '#e8f5e9', color: '#1e3c72', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 Free Exam 1</span>
                   <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ Premium</span>
@@ -1283,23 +1291,24 @@ const HomePage = () => {
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
-  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
-    Privacy Policy
-  </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
-  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
-    Terms & Conditions
-  </Link></p>
+          <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+            Privacy Policy
+          </Link>
+          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+            Terms & Conditions
+          </Link>
+        </p>
       </div>
     </div>
   );
 };
 
-// Course List Component – final version with large row gap
+// Course List Component – final version (topic card shows premium exam seats)
 const CourseList = () => {
   const { categoryName, mode } = useParams();
   const [displayData, setDisplayData] = useState([]);
-  const [fullTopicQuizzes, setFullTopicQuizzes] = useState([]); // store all quizzes in current topic
+  const [fullTopicQuizzes, setFullTopicQuizzes] = useState([]);
   const [isTopicView, setIsTopicView] = useState(true);
   const [loading, setLoading] = useState(true);
   const { token, darkMode } = useContext(AuthContext);
@@ -1324,7 +1333,6 @@ const CourseList = () => {
         let filtered = quizzesData.filter(q => q.category === categoryName);
 
         if (currentTopic) {
-          // Store all quizzes for this topic (for Continue button)
           const allTopicQuizzes = filtered.filter(q => q.topic === currentTopic);
           allTopicQuizzes.sort((a, b) => {
             const numA = parseInt(a.title.match(/\d+/)?.[0] || 0);
@@ -1333,12 +1341,39 @@ const CourseList = () => {
           });
           setFullTopicQuizzes(allTopicQuizzes);
 
-          // Display only the first quiz if in free mode, else all
-          let topicQuizzes = [...allTopicQuizzes];
-          if (mode === 'free') topicQuizzes = topicQuizzes.slice(0, 1);
-          setDisplayData(topicQuizzes);
-          setIsTopicView(false);
+          if (mode === 'free') {
+            // Free mode: only first quiz
+            let topicQuizzes = [...allTopicQuizzes];
+            if (topicQuizzes.length > 0) topicQuizzes = topicQuizzes.slice(0, 1);
+            setDisplayData(topicQuizzes);
+            setIsTopicView(false);
+          } else {
+            // Premium mode: flatten all questions and chunk into 250
+            const allQuestions = [];
+            allTopicQuizzes.forEach(quiz => {
+              allQuestions.push(...quiz.questions);
+            });
+            const chunkSize = 250;
+            const chunks = [];
+            for (let i = 0; i < allQuestions.length; i += chunkSize) {
+              chunks.push(allQuestions.slice(i, i + chunkSize));
+            }
+            const examCards = chunks.map((chunk, idx) => {
+              const start = idx * chunkSize + 1;
+              const end = Math.min((idx + 1) * chunkSize, allQuestions.length);
+              return {
+                id: idx + 1,
+                title: `Exam ${idx + 1}`,
+                description: `Questions ${start} – ${end}`,
+                questions: chunk,
+                totalQuestions: chunk.length
+              };
+            });
+            setDisplayData(examCards);
+            setIsTopicView(false);
+          }
         } else {
+          // Category view: show topics with premium exam count
           const topicMap = new Map();
           filtered.forEach(quiz => {
             const topic = quiz.topic || 'General';
@@ -1349,7 +1384,11 @@ const CourseList = () => {
             entry.totalQuestions += quiz.questions?.length || 0;
             entry.quizCount += 1;
           });
-          setDisplayData(Array.from(topicMap.values()));
+          const topicArray = Array.from(topicMap.values()).map(entry => ({
+            ...entry,
+            premiumExamCount: Math.ceil(entry.totalQuestions / 250)
+          }));
+          setDisplayData(topicArray);
           setIsTopicView(true);
         }
       } catch (error) {
@@ -1370,8 +1409,7 @@ const CourseList = () => {
     return null;
   };
 
-  // Find first incomplete quiz (used for Continue button)
-  const firstIncompleteQuiz = !isTopicView && fullTopicQuizzes.length > 0
+  const firstIncompleteQuiz = !isTopicView && mode === 'free' && fullTopicQuizzes.length > 0
     ? fullTopicQuizzes.find(quiz => !getLastScore(quiz._id))
     : null;
 
@@ -1404,8 +1442,8 @@ const CourseList = () => {
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
         </div>
 
-        {/* Continue button (only in topic view, if there is a next incomplete quiz) */}
-        {!isTopicView && firstIncompleteQuiz && (
+        {/* Continue button (free mode only) */}
+        {mode === 'free' && !isTopicView && firstIncompleteQuiz && (
           <div style={{ marginBottom: 24, textAlign: 'center' }}>
             <Link to={`/take/${firstIncompleteQuiz._id}/1/${mode}`}>
               <button style={{
@@ -1425,7 +1463,7 @@ const CourseList = () => {
           </div>
         )}
 
-        {/* CSS Grid – large row gap to prevent vertical overlap */}
+        {/* Grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
@@ -1435,30 +1473,40 @@ const CourseList = () => {
         }}>
           {displayData.map(item => {
             if (isTopicView) {
-              // Course card
+              // Topic card – show premium exam seats instead of quiz count
+              const examCount = item.premiumExamCount;
+              const label = examCount === 1 ? 'exam seat' : 'exam seats';
               return (
                 <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none' }}>
-                  <div style={{ 
-                    background: darkMode ? '#16213e' : 'white', 
-                    padding: 20, 
-                    borderRadius: 16, 
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    height: '100%',
-                    wordBreak: 'break-word'
-                  }}>
+                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
                     <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{item.topic}</h3>
-                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{item.quizCount} exam sets, {item.totalQuestions} total questions</p>
+                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{examCount} {label}, {item.totalQuestions} total questions</p>
                     <div style={{ marginTop: 'auto' }}>
                       <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>View Exams →</button>
                     </div>
                   </div>
                 </Link>
               );
+            } else if (mode === 'premium') {
+              // Premium exam card
+              const exam = item;
+              const link = `/premium-exam/${categoryName}/${encodeURIComponent(currentTopic)}/${exam.id}/${mode}`;
+              return (
+                <Link to={link} key={exam.id} style={{ textDecoration: 'none' }}>
+                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word' }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+                    <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{exam.title}</h3>
+                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{exam.description}</p>
+                    <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {exam.totalQuestions}</p>
+                    <div style={{ marginTop: 'auto' }}>
+                      <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Start Exam →</button>
+                    </div>
+                  </div>
+                </Link>
+              );
             } else {
-              // Exam set card
+              // Free mode quiz card (unchanged)
               const quiz = item;
               const totalQuestions = quiz.questions?.length || 0;
               const lastScore = getLastScore(quiz._id);
@@ -1479,17 +1527,7 @@ const CourseList = () => {
 
               return (
                 <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none' }}>
-                  <div style={{ 
-                    background: darkMode ? '#16213e' : 'white', 
-                    padding: 20, 
-                    borderRadius: 16, 
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    height: '100%',
-                    wordBreak: 'break-word',
-                    position: 'relative'
-                  }}>
+                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word', position: 'relative' }}>
                     {isCompleted && (
                       <div style={{
                         position: 'absolute',
@@ -1535,13 +1573,14 @@ const CourseList = () => {
         {/* Copyright */}
         <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
           <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
-  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
-    Privacy Policy
-  </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
-  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
-    Terms & Conditions
-  </Link></p>
+          <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+            Privacy Policy
+          </Link>
+          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+            Terms & Conditions
+          </Link>
+          </p>
         </div>
       </div>
 
@@ -2498,6 +2537,238 @@ const ReviewExam = () => {
         <div style={{ textAlign: 'center', marginTop: 24 }}>
           <Link to="/history"><button style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Back to History</button></Link>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Premium Exam Component – for combined 250‑question exams (Premium Mode only)
+const PremiumExam = () => {
+  const { categoryName, topic, examId, mode } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [questions, setQuestions] = useState([]);
+  const [examTitle, setExamTitle] = useState('');
+  const [answers, setAnswers] = useState({});
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+  const [result, setResult] = useState(null);
+  const [showReview, setShowReview] = useState(false);
+  const [timeUp, setTimeUp] = useState(false);
+  const { token, darkMode } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchExam = async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
+        const allQuizzes = res.data.filter(q => q.category === categoryName && q.topic === topic);
+        allQuizzes.sort((a, b) => {
+          const numA = parseInt(a.title.match(/\d+/)?.[0] || 0);
+          const numB = parseInt(b.title.match(/\d+/)?.[0] || 0);
+          return numA - numB;
+        });
+        const allQuestions = [];
+        allQuizzes.forEach(quiz => {
+          allQuestions.push(...quiz.questions);
+        });
+        const chunkSize = 250;
+        const examIndex = parseInt(examId) - 1;
+        const start = examIndex * chunkSize;
+        const end = Math.min(start + chunkSize, allQuestions.length);
+        if (start >= allQuestions.length) {
+          alert('Exam not found');
+          navigate(`/courses/${categoryName}/${mode}`);
+          return;
+        }
+        const chunk = allQuestions.slice(start, end);
+        setQuestions(chunk);
+        const from = start + 1;
+        const to = end;
+        setExamTitle(`Exam ${examId}: ${topic} (Questions ${from} – ${to})`);
+        setAnswers({});
+        setCurrentIndex(0);
+        setSubmitted(false);
+        setResult(null);
+        setShowReview(false);
+        setTimeUp(false);
+      } catch (error) {
+        console.error(error);
+        alert('Failed to load premium exam');
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (token && categoryName && topic && examId) {
+      fetchExam();
+    }
+  }, [categoryName, topic, examId, token, navigate]);
+
+  // Save answers to localStorage (for the combined exam)
+  useEffect(() => {
+    if (!submitted && Object.keys(answers).length > 0) {
+      localStorage.setItem(`premium_exam_${examId}_answers`, JSON.stringify(answers));
+    }
+  }, [answers, examId, submitted]);
+
+  const handleAnswer = (answerIndex) => {
+    setAnswers(prev => ({ ...prev, [currentIndex]: answerIndex }));
+  };
+
+  const goToQuestion = (index) => {
+    if (index >= 0 && index < questions.length) {
+      setCurrentIndex(index);
+    }
+  };
+
+  const handleTimeUp = () => {
+    setTimeUp(true);
+    handleSubmit();
+  };
+
+  const handleSubmit = () => {
+    let score = 0;
+    questions.forEach((question, idx) => {
+      if (answers[idx] !== undefined && answers[idx] === question.correctAnswer) {
+        score++;
+      }
+    });
+    const percentage = ((score / questions.length) * 100).toFixed(1);
+    const total = questions.length;
+
+    setResult({ score, total, percentage, passed: percentage >= 70 });
+    setSubmitted(true);
+    localStorage.removeItem(`premium_exam_${examId}_answers`);
+  };
+
+  const answeredCount = Object.keys(answers).length;
+  const totalQuestions = questions.length;
+  const allAnswered = answeredCount === totalQuestions;
+
+  if (loading) return <LoadingWithBar message="Loading premium exam..." />;
+
+  if (questions.length === 0) {
+    return <div style={{ padding: 40, textAlign: 'center' }}>Exam not found</div>;
+  }
+
+  // Results view
+  if (submitted && !showReview) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+        <div style={{ maxWidth: 450, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
+          <h2 style={{ color: '#1e3c72', fontSize: 24 }}>Exam Results</h2>
+          <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: '#1e3c72' }}>{result.score}</strong> / {result.total}</p>
+          <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{result.percentage}%</strong></p>
+          <p style={{ fontSize: 24, color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
+            {result.passed ? '✓ PASSED!' : '✗ Failed'}
+          </p>
+          {timeUp && <p style={{ color: '#ff9800' }}>⏰ Time's up!</p>}
+          <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center' }}>
+            <button onClick={() => setShowReview(true)} style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Review Answers</button>
+            <Link to={`/courses/${categoryName}/${mode}`}><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Back to Topics</button></Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Review answers
+  if (submitted && showReview) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto' }}>
+          <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
+            <h2 style={{ color: '#1e3c72', fontSize: 22 }}>Answer Review</h2>
+            <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
+            <Link to={`/courses/${categoryName}/${mode}`}><button style={{ background: '#1e3c72', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Topics</button></Link>
+          </div>
+          {questions.map((q, idx) => {
+            const userAnswer = answers[idx];
+            const isCorrect = userAnswer !== undefined && userAnswer === q.correctAnswer;
+            return (
+              <div key={idx} style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 12, padding: 16, marginBottom: 12, borderLeft: `5px solid ${isCorrect ? '#4caf50' : '#f44336'}` }}>
+                <h4 style={{ fontSize: 15, marginBottom: 10 }}>Q{idx+1}: {q.questionText}</h4>
+                {q.options.map((opt, optIdx) => (
+                  <div key={optIdx} style={{ padding: '10px 12px', margin: '6px 0', background: optIdx === q.correctAnswer ? '#c8e6c9' : (optIdx === userAnswer ? '#ffcdd2' : '#f5f5f5'), borderRadius: 10, fontSize: 14 }}>
+                    <span style={{ fontWeight: 'bold', marginRight: 10 }}>{String.fromCharCode(65 + optIdx)}.</span> {opt}
+                    {optIdx === q.correctAnswer && <span style={{ color: '#4caf50', marginLeft: 10, fontSize: 12 }}>✓ Correct</span>}
+                    {optIdx === userAnswer && optIdx !== q.correctAnswer && <span style={{ color: '#f44336', marginLeft: 10, fontSize: 12 }}>✗ Your Answer</span>}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+          <Link to={`/courses/${categoryName}/${mode}`}><button style={{ width: '100%', marginTop: 20, background: '#1e3c72', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Back to Topics</button></Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Active exam
+  const currentQuestion = questions[currentIndex];
+  const timerDuration = questions.length;
+
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh' }}>
+      <Timer duration={timerDuration} onTimeUp={handleTimeUp} />
+      <div style={{ padding: '20px', maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
+          <h2 style={{ color: '#1e3c72', margin: 0, fontSize: 20 }}>{examTitle}</h2>
+          <p style={{ fontSize: 14, marginTop: 4 }}>Question {currentIndex+1} of {totalQuestions}</p>
+          <p style={{ fontSize: 13, color: '#666' }}>Answered: {answeredCount}/{totalQuestions}</p>
+        </div>
+
+        {/* Current question */}
+        <div style={{ background: '#1e3c72', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+          <h4 style={{ color: 'white', marginBottom: 16, fontSize: 16 }}>Question {currentIndex+1}: {currentQuestion.questionText}</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {currentQuestion.options.map((opt, optIdx) => (
+              <label key={optIdx} style={{
+                display: 'flex', alignItems: 'center', cursor: 'pointer', padding: 12, margin: 0,
+                background: answers[currentIndex] === optIdx ? '#ff9800' : 'white', borderRadius: 10,
+                transition: 'all 0.2s ease', fontWeight: answers[currentIndex] === optIdx ? 'bold' : 'normal'
+              }}>
+                <input type="radio" name="currentQuestion" onChange={() => handleAnswer(optIdx)} checked={answers[currentIndex] === optIdx} style={{ marginRight: 15, width: 18, height: 18 }} />
+                <span style={{ fontWeight: 'bold', marginRight: 10, fontSize: 14 }}>{String.fromCharCode(65 + optIdx)}.</span>
+                <span style={{ fontSize: 14 }}>{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 30 }}>
+          <button onClick={() => goToQuestion(currentIndex-1)} disabled={currentIndex === 0} style={{ background: currentIndex === 0 ? '#ccc' : '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: currentIndex === 0 ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>← Previous</button>
+          <button onClick={() => goToQuestion(currentIndex+1)} disabled={currentIndex === totalQuestions-1} style={{ background: currentIndex === totalQuestions-1 ? '#ccc' : '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: currentIndex === totalQuestions-1 ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>Next →</button>
+        </div>
+
+        {/* Question Palette */}
+        <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+          <p style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 12, color: darkMode ? '#fff' : '#333' }}>Question Palette</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {questions.map((_, idx) => {
+              const isAnswered = answers[idx] !== undefined;
+              return (
+                <button key={idx} onClick={() => goToQuestion(idx)} style={{
+                  width: 40, height: 40, borderRadius: 8,
+                  background: idx === currentIndex ? '#ff9800' : (isAnswered ? '#4caf50' : '#e0e0e0'),
+                  color: (idx === currentIndex || isAnswered) ? 'white' : '#333',
+                  fontWeight: 'bold', border: 'none', cursor: 'pointer'
+                }}>
+                  {idx+1}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Submit */}
+        <button onClick={handleSubmit} disabled={!allAnswered} style={{ width: '100%', background: allAnswered ? '#28a745' : '#ccc', color: 'white', padding: 14, border: 'none', borderRadius: 50, cursor: allAnswered ? 'pointer' : 'not-allowed', fontSize: 16, fontWeight: 'bold', marginBottom: 30, opacity: allAnswered ? 1 : 0.7 }}>
+          {allAnswered ? 'Submit Examination' : `Please answer all questions (${answeredCount}/${totalQuestions})`}
+        </button>
+      </div>
+      <div style={{ textAlign: 'center', padding: '20px' }}>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -3769,6 +4040,7 @@ const AppContent = () => {
         <Route path="/review/:id" element={<ReviewExam />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsAndConditions />} />
+        <Route path="/premium-exam/:categoryName/:topic/:examId/:mode" element={<PremiumExam />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <FloatingChatButton />
