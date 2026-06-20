@@ -2672,7 +2672,7 @@ const TermsAndConditions = () => {
   );
 };
 
-// Floating Chat Button – draggable, movable, hideable with arrow trigger
+// Floating Chat Button – snap to edges, close button on outer side
 const FloatingChatButton = () => {
   const [isVisible, setIsVisible] = useState(true);
   const [position, setPosition] = useState(() => {
@@ -2680,50 +2680,49 @@ const FloatingChatButton = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return { x: parsed.x || 20, y: parsed.y || 20 };
+        // Snap to edge based on saved X
+        const snapX = parsed.x < window.innerWidth / 2 ? 0 : window.innerWidth - 60;
+        return { x: snapX, y: parsed.y || 20 };
       } catch (e) {
-        return { x: 20, y: 20 };
+        return { x: window.innerWidth - 60, y: 20 };
       }
     }
-    return { x: 20, y: 20 };
+    return { x: window.innerWidth - 60, y: 20 };
   });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [wasDragged, setWasDragged] = useState(false);
 
-  // Load visibility state
+  // Load/save state (same as before)
   useEffect(() => {
     const visible = localStorage.getItem('chatButtonVisible');
-    if (visible !== null) {
-      setIsVisible(visible === 'true');
-    }
+    if (visible !== null) setIsVisible(visible === 'true');
   }, []);
-
-  // Save position
   useEffect(() => {
     localStorage.setItem('chatButtonPosition', JSON.stringify(position));
   }, [position]);
-
-  // Save visibility
   useEffect(() => {
     localStorage.setItem('chatButtonVisible', isVisible);
   }, [isVisible]);
 
-  // Drag handlers (mouse & touch) – same as before
+  // Mouse drag
   const handleMouseDown = (e) => {
     e.preventDefault();
+    setWasDragged(false);
     setIsDragging(true);
     const rect = e.currentTarget.getBoundingClientRect();
     setDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
-
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging) return;
+      setWasDragged(true);
       let newX = e.clientX - dragOffset.x;
       let newY = e.clientY - dragOffset.y;
       const buttonSize = 60;
-      newX = Math.max(0, Math.min(window.innerWidth - buttonSize, newX));
       newY = Math.max(0, Math.min(window.innerHeight - buttonSize, newY));
+      const center = window.innerWidth / 2;
+      newX = newX < center ? 0 : window.innerWidth - buttonSize;
       setPosition({ x: newX, y: newY });
     };
     const handleMouseUp = () => setIsDragging(false);
@@ -2737,23 +2736,26 @@ const FloatingChatButton = () => {
     };
   }, [isDragging, dragOffset]);
 
+  // Touch drag
   const handleTouchStart = (e) => {
     const touch = e.touches[0];
+    setWasDragged(false);
     setIsDragging(true);
     const rect = e.currentTarget.getBoundingClientRect();
     setDragOffset({ x: touch.clientX - rect.left, y: touch.clientY - rect.top });
   };
-
   useEffect(() => {
     const handleTouchMove = (e) => {
       if (!isDragging) return;
       e.preventDefault();
+      setWasDragged(true);
       const touch = e.touches[0];
       let newX = touch.clientX - dragOffset.x;
       let newY = touch.clientY - dragOffset.y;
       const buttonSize = 60;
-      newX = Math.max(0, Math.min(window.innerWidth - buttonSize, newX));
       newY = Math.max(0, Math.min(window.innerHeight - buttonSize, newY));
+      const center = window.innerWidth / 2;
+      newX = newX < center ? 0 : window.innerWidth - buttonSize;
       setPosition({ x: newX, y: newY });
     };
     const handleTouchEnd = () => setIsDragging(false);
@@ -2767,30 +2769,28 @@ const FloatingChatButton = () => {
     };
   }, [isDragging, dragOffset]);
 
-  const hideButton = () => {
-    setIsVisible(false);
+  const hideButton = () => setIsVisible(false);
+  const showButton = () => setIsVisible(true);
+
+  const handleClick = () => {
+    if (!wasDragged) {
+      window.open('https://wa.me/2349063908476', '_blank');
+    }
   };
 
-  const showButton = () => {
-    setIsVisible(true);
-  };
-
-  // Determine which side the button is on (for arrow direction)
-  const buttonWidth = 60;
-  const isOnRight = position.x + buttonWidth / 2 > window.innerWidth / 2;
+  const buttonSize = 60;
+  const isOnRight = position.x > 0; // true if snapped to right edge
   const arrow = isOnRight ? '←' : '→';
 
-  // If hidden, show a small trigger with arrow
+  // Hidden trigger button
   if (!isVisible) {
     return (
       <button
         onClick={showButton}
         style={{
           position: 'fixed',
-          // Position at the same edge as the button was last, but we use a fixed edge for simplicity:
-          // If the button was on the right, place it at right: 10px; else left: 10px.
           ...(isOnRight ? { right: '10px' } : { left: '10px' }),
-          top: position.y,
+          top: Math.min(position.y, window.innerHeight - 50),
           zIndex: 9999,
           backgroundColor: '#25D366',
           color: 'white',
@@ -2815,7 +2815,7 @@ const FloatingChatButton = () => {
     );
   }
 
-  // Main floating button (draggable)
+  // Main draggable button
   return (
     <div
       style={{
@@ -2823,8 +2823,8 @@ const FloatingChatButton = () => {
         left: position.x,
         top: position.y,
         zIndex: 9999,
-        width: '60px',
-        height: '60px',
+        width: buttonSize,
+        height: buttonSize,
         borderRadius: '50%',
         backgroundColor: '#25D366',
         boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
@@ -2838,6 +2838,7 @@ const FloatingChatButton = () => {
       }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
+      onClick={handleClick}
       onMouseEnter={(e) => {
         if (!isDragging) e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)';
       }}
@@ -2845,10 +2846,9 @@ const FloatingChatButton = () => {
         if (!isDragging) e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
       }}
     >
-      {/* 💬 emoji as main icon */}
       <span style={{ fontSize: '28px', pointerEvents: 'none' }}>💬</span>
 
-      {/* Small × button to hide the chat */}
+      {/* Close button – positioned on outer side */}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -2857,7 +2857,8 @@ const FloatingChatButton = () => {
         style={{
           position: 'absolute',
           top: '-6px',
-          right: '-6px',
+          // If on right edge, place X on left; else place on right
+          ...(isOnRight ? { left: '-6px' } : { right: '-6px' }),
           width: '22px',
           height: '22px',
           borderRadius: '50%',
