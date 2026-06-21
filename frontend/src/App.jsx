@@ -3448,12 +3448,26 @@ const PaymentReturn = () => {
           setMessage('Payment successful! Your account has been upgraded to PREMIUM!');
           localStorage.removeItem('payment_reference');
           
-          const updatedUser = { ...currentUser, isPremium: true };
-          localStorage.setItem('auth', JSON.stringify({ token: currentToken, user: updatedUser }));
-          
-          if (login && currentToken) {
-            login(currentToken, updatedUser);
+          // ==== FIX: Fetch full user profile to get premiumExpiry and premiumPlan ====
+          try {
+            const profileRes = await axios.get('/api/user/profile', {
+              headers: { Authorization: `Bearer ${currentToken}` }
+            });
+            const fullUser = profileRes.data;
+            // Update localStorage and context with full user data
+            localStorage.setItem('auth', JSON.stringify({ token: currentToken, user: fullUser }));
+            if (login && currentToken) {
+              login(currentToken, fullUser);
+            }
+          } catch (profileError) {
+            // Fallback: use only isPremium true
+            const updatedUser = { ...currentUser, isPremium: true };
+            localStorage.setItem('auth', JSON.stringify({ token: currentToken, user: updatedUser }));
+            if (login && currentToken) {
+              login(currentToken, updatedUser);
+            }
           }
+          // ===============================================================
           
           setTimeout(() => navigate('/get-premium'), 3000);
         } else if (response.data.pending) {
@@ -4150,18 +4164,6 @@ function App() {
     localStorage.removeItem('auth');
     delete axios.defaults.headers.common['Authorization'];
   };
-
-  // Force refresh on new version
-useEffect(() => {
-  const currentVersion = '1.0.1'; // 👈 Increment this number on every deploy
-  const savedVersion = localStorage.getItem('appVersion');
-  if (savedVersion && savedVersion !== currentVersion) {
-    localStorage.setItem('appVersion', currentVersion);
-    window.location.reload(true); // Hard reload from server
-  } else if (!savedVersion) {
-    localStorage.setItem('appVersion', currentVersion);
-  }
-}, []);
 
   // ========== ADD THIS NEW useEffect ==========
   useEffect(() => {
