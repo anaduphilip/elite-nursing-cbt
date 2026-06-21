@@ -1051,6 +1051,25 @@ app.post('/api/admin/generate-reset-code', isAdmin, async (req, res) => {
   res.json({ otp, message: 'Reset code generated successfully' });
 });
 
+// Update user profile (name)
+app.put('/api/user/profile', authenticate, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Name cannot be empty' });
+    }
+    req.user.name = name.trim();
+    await req.user.save();
+    // Return updated user (excluding password)
+    const updatedUser = req.user.toObject();
+    delete updatedUser.password;
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
 // ============ HEALTH CHECK ============
 app.get('/', (req, res) => {
   res.send('ELITE NURSING & MIDWIFERY CBT API is Running!');
