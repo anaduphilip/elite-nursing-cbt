@@ -3959,7 +3959,7 @@ const PaymentReturn = () => {
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState('users');
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyMessage, setReplyMessage] = useState('');
@@ -3990,47 +3990,42 @@ const AdminPanel = () => {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
-  // ===== FIX: Use ref to prevent re-fetching =====
-  const dataFetched = useRef(false);
-  // ===============================================
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [usersRes, contactsRes] = await Promise.all([
-        axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } })
-      ]);
-      setUsers(usersRes.data);
-      setContacts(contactsRes.data);
-      // Initialize selectedPlan from existing user data
-      const initial = {};
-      usersRes.data.forEach(u => {
-        initial[u._id] = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
-      });
-      setSelectedPlan(initial);
-    } catch (error) {
-      if (error.response?.status === 403 || error.response?.status === 401) {
-        alert('Admin access only. You will be redirected.');
-        logout();
-        window.location.href = '/login';
-      } else {
-        console.error('Error fetching admin data:', error);
-      }
-    } finally {
-      setLoading(false);
-      dataFetched.current = true;
-    }
-  };
-
+  // ===== Fetch data once on mount =====
   useEffect(() => {
-    if (user?.email === 'elitenursingcbt@gmail.com' && !dataFetched.current) {
-      fetchData();
-    } else if (user) {
+    if (!user || user.email !== 'elitenursingcbt@gmail.com') {
       alert('Admin access only');
       window.location.href = '/';
+      return;
     }
-  }, [user]); // Only run when user changes
+
+    const fetchData = async () => {
+      try {
+        const [usersRes, contactsRes] = await Promise.all([
+          axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        setUsers(usersRes.data);
+        setContacts(contactsRes.data);
+        // Initialize selectedPlan from existing user data
+        const initial = {};
+        usersRes.data.forEach(u => {
+          initial[u._id] = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
+        });
+        setSelectedPlan(initial);
+        setDataLoaded(true);
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          alert('Admin access only. You will be redirected.');
+          logout();
+          window.location.href = '/login';
+        } else {
+          console.error('Error fetching admin data:', error);
+        }
+      }
+    };
+
+    fetchData();
+  }, []); // Only runs once on mount
 
   // Apply plan for a user
   const applyPlan = async (userId) => {
@@ -4166,7 +4161,9 @@ const AdminPanel = () => {
     }
   };
 
-  if (loading) return <LoadingWithBar message="Loading admin panel" />;
+  // Show loading only on first render if data not yet loaded
+  if (!dataLoaded) return <LoadingWithBar message="Loading admin panel" />;
+
   if (user?.email !== 'elitenursingcbt@gmail.com') return <Navigate to="/" />;
 
   // Filter users by search query
