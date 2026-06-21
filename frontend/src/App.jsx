@@ -3038,7 +3038,7 @@ const Profile = () => {
         {/* Action Links */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
           <Link to="/history" style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: '#1e3c72', fontWeight: 'bold' }}>
-            <span style={{ fontSize: 20 }}>📜</span> My History
+            <span style={{ fontSize: 20 }}> </span> My History
           </Link>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
             <span style={{ fontWeight: 'bold', color: '#333' }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</span>
