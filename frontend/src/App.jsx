@@ -8,6 +8,13 @@ import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 
+// Helper to get text color based on dark mode
+const getTextColor = (darkMode) => darkMode ? '#f0f7f4' : '#333';
+const getSecondaryText = (darkMode) => darkMode ? '#aaa' : '#666';
+const getHeadingColor = (darkMode) => darkMode ? '#e0e0e0' : '#1e3c72';
+const getBorderColor = (darkMode) => darkMode ? '#444' : '#e0e0e0';
+const getCardBg = (darkMode) => darkMode ? '#2d2d3d' : 'white';
+
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
 
@@ -54,6 +61,10 @@ const clearAllAttempts = () => localStorage.removeItem('exam_attempts');
 // Loading Component with Percentage Bar
 const LoadingWithBar = ({ message = "Loading", onComplete }) => {
   const [progress, setProgress] = useState(0);
+  const { darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -77,14 +88,14 @@ const LoadingWithBar = ({ message = "Loading", onComplete }) => {
       alignItems: 'center',
       minHeight: '100vh',
       width: '100%',
-      background: '#f0f7f4',
+      background: darkMode ? '#1a1a2e' : '#f0f7f4',
       position: 'relative'
     }}>
       <div style={{ textAlign: 'center', maxWidth: 300, width: '100%' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
-        <h2 style={{ color: '#1e3c72', fontSize: 20, marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h2>
-        <p style={{ color: '#666', fontSize: 12, marginBottom: 20 }}>Computer Based Testing Platform</p>
-        <p style={{ color: '#1e3c72', fontSize: 14, marginBottom: 10 }}>{message}...</p>
+        <h2 style={{ color: headingColor, fontSize: 20, marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h2>
+        <p style={{ color: secondaryText, fontSize: 12, marginBottom: 20 }}>Computer Based Testing Platform</p>
+        <p style={{ color: headingColor, fontSize: 14, marginBottom: 10 }}>{message}...</p>
         <div style={{
           width: '100%',
           height: 8,
@@ -100,7 +111,7 @@ const LoadingWithBar = ({ message = "Loading", onComplete }) => {
             transition: 'width 0.3s ease'
           }} />
         </div>
-        <p style={{ color: '#1e3c72', fontSize: 12, marginTop: 10 }}>{Math.floor(Math.min(progress, 100))}%</p>
+        <p style={{ color: headingColor, fontSize: 12, marginTop: 10 }}>{Math.floor(Math.min(progress, 100))}%</p>
       </div>
       <div style={{
         position: 'absolute',
@@ -109,11 +120,11 @@ const LoadingWithBar = ({ message = "Loading", onComplete }) => {
         right: 0,
         textAlign: 'center'
       }}>
-        <p style={{ color: '#999', fontSize: 10 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 10 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
   <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
     Privacy Policy
   </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
   <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
     Terms & Conditions
   </Link></p>
@@ -200,7 +211,10 @@ const Timer = ({ duration, onTimeUp }) => {
 
 // Premium Modal Component – redirects to subscription plans (no direct payment)
 const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
-  const { user } = useContext(AuthContext);
+  const { user, darkMode } = useContext(AuthContext); // 👈 add darkMode
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const cardBg = getCardBg(darkMode);
 
   const handleUpgrade = () => {
     onClose(); // close modal
@@ -214,13 +228,13 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
       justifyContent: 'center', zIndex: 2000
     }}>
       <div style={{
-        background: 'white', borderRadius: 20, padding: 28, maxWidth: 360,
+        background: cardBg, borderRadius: 20, padding: 28, maxWidth: 360,
         textAlign: 'center', margin: '20px'
       }}>
         <div style={{ fontSize: 48, marginBottom: 10 }}>⭐</div>
-        <h2 style={{ color: '#1e3c72', fontSize: 22, margin: '10px 0' }}>Premium Required</h2>
+        <h2 style={{ color: headingColor, fontSize: 22, margin: '10px 0' }}>Premium Required</h2>
         <p style={{ fontSize: 15, marginBottom: 10 }}><strong>{examTitle}</strong> is premium content.</p>
-        <p style={{ fontSize: 14, marginBottom: 15, color: '#666' }}>
+        <p style={{ fontSize: 14, marginBottom: 15, color: secondaryText }}>
           Subscribe to a plan to unlock ALL premium exams!
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
@@ -237,6 +251,11 @@ const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
 // Forgot Password Component
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
+  const { darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -293,15 +312,15 @@ const ForgotPassword = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div style={{ maxWidth: 450, width: '100%', background: 'white', borderRadius: 24, padding: 32, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+      <div style={{ maxWidth: 450, width: '100%', background: cardBg, borderRadius: 24, padding: 32, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 52, marginBottom: 16 }}>🔐</div>
-          <h1 style={{ color: '#1e3c72', fontSize: 22, margin: 0, fontWeight: 'bold' }}>Reset Password</h1>
-          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Enter your email to receive a verification code</p>
+          <h1 style={{ color: headingColor, fontSize: 22, margin: 0, fontWeight: 'bold' }}>Reset Password</h1>
+          <p style={{ color: secondaryText, fontSize: 12, marginTop: 6 }}>Enter your email to receive a verification code</p>
         </div>
 
         {message && (
-          <div style={{ background: '#e8f5e9', padding: 12, borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+          <div style={{ background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 12, borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
             <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>{message}</p>
           </div>
         )}
@@ -314,7 +333,7 @@ const ForgotPassword = () => {
         {!otpSent ? (
           <form onSubmit={handleSendOtp}>
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
+              <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Email Address</label>
               <input 
                 type="email" 
                 placeholder="you@example.com" 
@@ -348,7 +367,7 @@ const ForgotPassword = () => {
         ) : (
           <form onSubmit={handleResetPassword}>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Verification Code</label>
+              <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Verification Code</label>
               <input 
                 type="text" 
                 placeholder="Enter 6-digit code" 
@@ -361,7 +380,7 @@ const ForgotPassword = () => {
               />
             </div>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>New Password</label>
+              <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>New Password</label>
               <div style={{ position: 'relative' }}>
                 <input 
                   type={showNewPassword ? 'text' : 'password'}
@@ -377,7 +396,7 @@ const ForgotPassword = () => {
               </div>
             </div>
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Confirm Password</label>
+              <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Confirm Password</label>
               <div style={{ position: 'relative' }}>
                 <input 
                   type={showConfirmPassword ? 'text' : 'password'}
@@ -414,16 +433,16 @@ const ForgotPassword = () => {
         )}
 
         <div style={{ marginTop: 20, textAlign: 'center' }}>
-          <Link to="/login" style={{ color: '#1e3c72', fontSize: 13, textDecoration: 'none' }}>
+          <Link to="/login" style={{ color: headingColor, fontSize: 13, textDecoration: 'none' }}>
             ← Back to Login
           </Link>
         </div>
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+          <p style={{ fontSize: 11, color: secondaryText }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
   <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
     Privacy Policy
   </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
   <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
     Terms & Conditions
   </Link></p>
@@ -448,6 +467,11 @@ const Register = () => {
   const [showWelcome, setShowWelcome] = useState(true);
   const [agreeChecked, setAgreeChecked] = useState(false); // <-- NEW state
   const { login } = useContext(AuthContext);
+  const { darkMode } = useContext(AuthContext); // ← if darkMode not already there
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowWelcome(false), 5000);
@@ -536,7 +560,7 @@ const Register = () => {
           top: '20px',
           left: '50%',
           transform: 'translateX(-50%)',
-          background: 'white',
+          background: cardBg,
           borderRadius: '40px',
           padding: '10px 20px',
           boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
@@ -548,10 +572,10 @@ const Register = () => {
         }}>
           <span style={{ fontSize: 20 }}>🎉</span>
           <div>
-            <strong style={{ color: '#1e3c72', fontSize: 14 }}>Join ELITE Nursing & Midwifery CBT!</strong>
-            <p style={{ margin: 0, fontSize: 11, color: '#666' }}>Create your account to access 20,000+ questions</p>
+            <strong style={{ color: headingColor, fontSize: 14 }}>Join ELITE Nursing & Midwifery CBT!</strong>
+            <p style={{ margin: 0, fontSize: 11, color: secondaryText }}>Create your account to access 20,000+ questions</p>
           </div>
-          <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: '#999' }}>✕</button>
+          <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: secondaryText }}>✕</button>
         </div>
       )}
       
@@ -568,18 +592,18 @@ const Register = () => {
         }
       `}</style>
 
-      <div style={{ maxWidth: 450, width: '100%', background: 'white', borderRadius: 24, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+      <div style={{ maxWidth: 450, width: '100%', background: cardBg, borderRadius: 24, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
-          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
-          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
-          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Computer Based Testing Platform</p>
+          <h1 style={{ color: headingColor, fontSize: 20, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
+          <h1 style={{ color: headingColor, fontSize: 20, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
+          <p style={{ color: secondaryText, fontSize: 12, marginTop: 6 }}>Computer Based Testing Platform</p>
         </div>
         
         {step === 'form' ? (
           <>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <h2 style={{ color: '#333', fontSize: 18, marginBottom: 4 }}>Create Account</h2>
+              <h2 style={{ color: textColor, fontSize: 18, marginBottom: 4 }}>Create Account</h2>
               <p style={{ color: '#888', fontSize: 12 }}>Sign up to begin your journey</p>
             </div>
 
@@ -591,7 +615,7 @@ const Register = () => {
 
             <form onSubmit={handleSendVerification}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Full Name</label>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Full Name</label>
                 <input 
                   type="text" 
                   placeholder="Enter your full name" 
@@ -604,7 +628,7 @@ const Register = () => {
                 />
               </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Email Address</label>
                 <input 
                   type="email" 
                   placeholder="you@example.com" 
@@ -617,7 +641,7 @@ const Register = () => {
                 />
               </div>
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Password</label>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Password</label>
                 <div style={{ position: 'relative' }}>
                   <input 
                     type={showPassword ? 'text' : 'password'}
@@ -677,7 +701,7 @@ const Register = () => {
             </form>
             
             <div style={{ marginTop: 20, textAlign: 'center' }}>
-              <Link to="/login" style={{ color: '#1e3c72', fontSize: 13, textDecoration: 'none' }}>
+              <Link to="/login" style={{ color: headingColor, fontSize: 13, textDecoration: 'none' }}>
                 ← Back to Login
               </Link>
             </div>
@@ -685,12 +709,12 @@ const Register = () => {
         ) : (
           <>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <h2 style={{ color: '#333', fontSize: 18, marginBottom: 4 }}>Verify Your Email</h2>
+              <h2 style={{ color: textColor, fontSize: 18, marginBottom: 4 }}>Verify Your Email</h2>
               <p style={{ color: '#888', fontSize: 12 }}>Enter the 6-digit code sent to {email}</p>
             </div>
 
             {message && (
-              <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+              <div style={{ background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
                 <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>{message}</p>
               </div>
             )}
@@ -702,7 +726,7 @@ const Register = () => {
 
             <form onSubmit={handleVerifyAndRegister}>
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Verification Code</label>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Verification Code</label>
                 <input 
                   type="text" 
                   placeholder="Enter 6-digit code" 
@@ -734,7 +758,7 @@ const Register = () => {
             </form>
 
             <div style={{ textAlign: 'center', marginTop: 20 }}>
-              <p style={{ color: '#666', fontSize: 13 }}>
+              <p style={{ color: secondaryText, fontSize: 13 }}>
                 Didn't receive code?{" "}
                 <button 
                   onClick={handleResendCode} 
@@ -751,7 +775,7 @@ const Register = () => {
                   Resend {resendTimer > 0 ? `(${resendTimer}s)` : ''}
                 </button>
               </p>
-              <Link to="/login" style={{ color: '#1e3c72', fontSize: 13, textDecoration: 'none', display: 'inline-block', marginTop: 10 }}>
+              <Link to="/login" style={{ color: headingColor, fontSize: 13, textDecoration: 'none', display: 'inline-block', marginTop: 10 }}>
                 ← Back to Login
               </Link>
             </div>
@@ -759,8 +783,8 @@ const Register = () => {
         )}
         
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT</p>
-          <p style={{ fontSize: 11, color: '#999' }}>Over 20,000+ practice questions</p>
+          <p style={{ fontSize: 11, color: secondaryText }}>© 2026 ELITE Nursing & Midwifery CBT</p>
+          <p style={{ fontSize: 11, color: secondaryText }}>Over 20,000+ practice questions</p>
         </div>
       </div>
     </div>
@@ -777,6 +801,11 @@ const Register = () => {
   const [showForceLogoutDialog, setShowForceLogoutDialog] = useState(false);
   const [pendingCredentials, setPendingCredentials] = useState(null);
   const { login } = useContext(AuthContext);
+  const { darkMode } = useContext(AuthContext); // ← if darkMode not already there
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowWelcome(false), 5000);
@@ -843,7 +872,7 @@ const Register = () => {
         }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 50, height: 50, border: '4px solid #e0e0e0', borderTop: '4px solid #1e3c72', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }} />
-            <p style={{ marginTop: 16, color: '#1e3c72' }}>Logging in...</p>
+            <p style={{ marginTop: 16, color: headingColor }}>Logging in...</p>
           </div>
         </div>
       )}
@@ -863,7 +892,7 @@ const Register = () => {
           zIndex: 2000
         }}>
           <div style={{
-            background: 'white',
+            background: cardBg,
             borderRadius: 20,
             padding: 28,
             maxWidth: 400,
@@ -872,8 +901,8 @@ const Register = () => {
             boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
           }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
-            <h2 style={{ color: '#1e3c72', marginBottom: 8 }}>Already Logged In Elsewhere</h2>
-            <p style={{ color: '#666', marginBottom: 20 }}>
+            <h2 style={{ color: headingColor, marginBottom: 8 }}>Already Logged In Elsewhere</h2>
+            <p style={{ color: secondaryText, marginBottom: 20 }}>
               You are already logged in on another device. Would you like to log out from that device and continue here?
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
@@ -924,7 +953,7 @@ const Register = () => {
           top: '20px',
           left: '50%',
           transform: 'translateX(-50%)',
-          background: 'white',
+          background: cardBg,
           borderRadius: '40px',
           padding: '10px 20px',
           boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
@@ -936,10 +965,10 @@ const Register = () => {
         }}>
           <span style={{ fontSize: 20 }}>👋</span>
           <div>
-            <strong style={{ color: '#1e3c72', fontSize: 14 }}>Welcome to ELITE Nursing & Midwifery CBT!</strong>
-            <p style={{ margin: 0, fontSize: 11, color: '#666' }}>Sign in to continue your learning journey</p>
+            <strong style={{ color: headingColor, fontSize: 14 }}>Welcome to ELITE Nursing & Midwifery CBT!</strong>
+            <p style={{ margin: 0, fontSize: 11, color: secondaryText }}>Sign in to continue your learning journey</p>
           </div>
-          <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: '#999' }}>✕</button>
+          <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: secondaryText }}>✕</button>
         </div>
       )}
       
@@ -960,22 +989,22 @@ const Register = () => {
         }
       `}</style>
 
-      <div style={{ maxWidth: 400, width: '100%', background: 'white', borderRadius: 24, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+      <div style={{ maxWidth: 400, width: '100%', background: cardBg, borderRadius: 24, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
-          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
-          <h1 style={{ color: '#1e3c72', fontSize: 20, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
-          <p style={{ color: '#666', fontSize: 12, marginTop: 6 }}>Computer Based Testing Platform</p>
+          <h1 style={{ color: headingColor, fontSize: 20, margin: 0, fontWeight: 'bold' }}>ELITE NURSING &</h1>
+          <h1 style={{ color: headingColor, fontSize: 20, margin: 0, fontWeight: 'bold' }}>MIDWIFERY CBT</h1>
+          <p style={{ color: secondaryText, fontSize: 12, marginTop: 6 }}>Computer Based Testing Platform</p>
         </div>
         
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <h2 style={{ color: '#333', fontSize: 18, marginBottom: 4 }}>Welcome Back</h2>
+          <h2 style={{ color: textColor, fontSize: 18, marginBottom: 4 }}>Welcome Back</h2>
           <p style={{ color: '#888', fontSize: 12 }}>Sign in to continue your preparation</p>
         </div>
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ marginBottom: 16, width: '100%' }}>
-            <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Email Address</label>
+            <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Email Address</label>
             <input 
               type="email" 
               placeholder="you@example.com" 
@@ -988,7 +1017,7 @@ const Register = () => {
             />
           </div>
           <div style={{ marginBottom: 20, width: '100%' }}>
-            <label style={{ display: 'block', marginBottom: 6, color: '#333', fontSize: 13, fontWeight: 500 }}>Password</label>
+            <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Password</label>
             <div style={{ position: 'relative', width: '100%' }}>
               <input 
                 type={showPassword ? 'text' : 'password'}
@@ -1004,7 +1033,7 @@ const Register = () => {
             </div>
           </div>
           <div style={{ textAlign: 'right', marginBottom: 20, width: '100%' }}>
-            <Link to="/forgot-password" style={{ color: '#1e3c72', fontSize: 12, textDecoration: 'none' }}>
+            <Link to="/forgot-password" style={{ color: headingColor, fontSize: 12, textDecoration: 'none' }}>
               Forgot Password?
             </Link>
           </div>
@@ -1029,14 +1058,14 @@ const Register = () => {
         </form>
         
         <div style={{ marginTop: 20, textAlign: 'center' }}>
-          <p style={{ color: '#666', fontSize: 13 }}>
-            Don't have an account? <Link to="/register" style={{ color: '#1e3c72', fontWeight: 'bold', textDecoration: 'none' }}>Create Account</Link>
+          <p style={{ color: secondaryText, fontSize: 13 }}>
+            Don't have an account? <Link to="/register" style={{ color: headingColor, fontWeight: 'bold', textDecoration: 'none' }}>Create Account</Link>
           </p>
         </div>
         
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#999' }}>© 2026 ELITE Nursing & Midwifery CBT</p>
-          <p style={{ fontSize: 11, color: '#999' }}>Over 20,000+ practice questions</p>
+          <p style={{ fontSize: 11, color: secondaryText }}>© 2026 ELITE Nursing & Midwifery CBT</p>
+          <p style={{ fontSize: 11, color: secondaryText }}>Over 20,000+ practice questions</p>
           <p style={{ fontSize: 11, marginTop: 4 }}>
             <Link to="/terms" style={{ color: '#0c5bed', textDecoration: 'none' }}>Terms</Link>
             {' | '}
@@ -1054,6 +1083,9 @@ const HomePage = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const { token, darkMode, user } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
 
   useEffect(() => {
     const fetchQuizzes = async () => {
@@ -1121,7 +1153,7 @@ const HomePage = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h1 style={{ color: '#1e3c72', fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h1>
+          <h1 style={{ color: headingColor, fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h1>
           <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 16px)' }}>Computer Based Testing Platform</p>
         </div>
 
@@ -1133,8 +1165,8 @@ const HomePage = () => {
               fontSize: 'clamp(16px, 4vw, 18px)',
               fontWeight: 'bold',
               background: mode === 'free' ? 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)' : darkMode ? '#16213e' : 'white',
-              color: mode === 'free' ? 'white' : '#1e3c72',
-              border: mode === 'free' ? 'none' : '2px solid #1e3c72',
+              color: mode === 'free' ? 'white' : (darkMode ? headingColor : '#1e3c72'),
+              border: mode === 'free' ? 'none' : (darkMode ? `2px solid ${headingColor}` : '2px solid #1e3c72'),
               borderRadius: '50px',
               cursor: 'pointer'
             }}
@@ -1148,8 +1180,8 @@ const HomePage = () => {
               fontSize: 'clamp(16px, 4vw, 18px)',
               fontWeight: 'bold',
               background: mode === 'premium' ? 'linear-gradient(135deg, #ff9800 0%, #e65100 100%)' : darkMode ? '#16213e' : 'white',
-              color: mode === 'premium' ? 'white' : '#ff9800',
-              border: mode === 'premium' ? 'none' : '2px solid #ff9800',
+              color: mode === 'premium' ? 'white' : (darkMode ? headingColor : '#ff9800'),
+              border: mode === 'premium' ? 'none' : (darkMode ? `2px solid ${headingColor}` : '2px solid #ff9800'),
               borderRadius: '50px',
               cursor: 'pointer'
             }}
@@ -1159,14 +1191,14 @@ const HomePage = () => {
         </div>
 
         {mode === 'free' && (
-          <div style={{ background: '#e8f5e9', padding: 16, borderRadius: 12, textAlign: 'center', marginBottom: 24 }}>
-            <p style={{ color: '#1e3c72', margin: 0, fontSize: 'clamp(14px, 4vw, 16px)' }}>
+          <div style={{ background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 16, borderRadius: 12, textAlign: 'center', marginBottom: 24 }}>
+            <p style={{ color: headingColor, margin: 0, fontSize: 'clamp(14px, 4vw, 16px)' }}>
               🎯 <strong>Free Mode:</strong> Take each examination ONCE. Upgrade to retake exams and unlock all questions!
             </p>
           </div>
         )}
         {mode === 'premium' && (
-          <div style={{ background: '#fff3e0', padding: 16, borderRadius: 12, textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 16, borderRadius: 12, textAlign: 'center', marginBottom: 24 }}>
             <p style={{ color: '#ff9800', margin: 0, fontSize: 'clamp(14px, 4vw, 16px)' }}>
               ⭐ <strong>Premium Mode:</strong> {user?.isPremium ? 'Full access to all examinations!' : 'Upgrade to unlock unlimited access!'}
             </p>
@@ -1189,10 +1221,10 @@ const HomePage = () => {
               onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
               onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
                 <div style={{ fontSize: 56, marginBottom: 12 }}>{getCategoryIcon(category)}</div>
-                <h2 style={{ color: mode === 'free' ? '#1e3c72' : '#ff9800', fontSize: 'clamp(18px, 4vw, 20px)', marginBottom: 8 }}>{getCategoryName(category)}</h2>
+                <h2 style={{ color: darkMode ? headingColor : (mode === 'free' ? '#1e3c72' : '#ff9800'), fontSize: 'clamp(18px, 4vw, 20px)', marginBottom: 8 }}>{getCategoryName(category)}</h2>
                 <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 14, marginBottom: 12 }}>{topicCount} courses</p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <span style={{ background: '#e8f5e9', color: '#1e3c72', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 Free Exam 1</span>
+                  <span style={{ background: darkMode ? '#333' : '#e8f5e9', color: headingColor, padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 Free Exam 1</span>
                   <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ Premium</span>
                 </div>
                 <button style={{ marginTop: 16, background: mode === 'free' ? '#1e3c72' : '#ff9800', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%' }}>
@@ -1204,11 +1236,11 @@ const HomePage = () => {
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
           <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
             Privacy Policy
           </Link>
-          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
           <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
             Terms & Conditions
           </Link>
@@ -1226,6 +1258,9 @@ const CourseList = () => {
   const [isTopicView, setIsTopicView] = useState(true);
   const [loading, setLoading] = useState(true);
   const { token, darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
 
   const categoryMap = {
     'general-nursing': { name: 'General Nursing', icon: '🩺', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
@@ -1394,7 +1429,7 @@ const CourseList = () => {
                 <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none' }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-                    <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{item.topic}</h3>
+                    <h3 style={{ color: darkMode ? headingColor : category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{item.topic}</h3>
                     <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{examCount} {label}, {item.totalQuestions} total questions</p>
                     <div style={{ marginTop: 'auto' }}>
                       <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>View Exams →</button>
@@ -1459,7 +1494,7 @@ const CourseList = () => {
                       </div>
                     )}
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-                    <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
+                    <h3 style={{ color: darkMode ? headingColor : category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
                     <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{quiz.description?.substring(0, 80)}...</p>
                     <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
                     {lastScore && <p style={{ fontSize: 13, color: '#ff9800', marginTop: 4 }}>📊 Last Score: {lastScore.score}/{lastScore.total} ({lastScore.percentage}%)</p>}
@@ -1486,11 +1521,11 @@ const CourseList = () => {
 
         {/* Copyright */}
         <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-          <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+          <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
           <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
             Privacy Policy
           </Link>
-          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
           <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
             Terms & Conditions
           </Link>
@@ -1535,6 +1570,9 @@ const ExamList = () => {
   const [lastScores, setLastScores] = useState({});
   const [hasTakenExam1, setHasTakenExam1] = useState(false);
   const { token, logout, darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -1646,14 +1684,14 @@ const ExamList = () => {
             <div style={{ marginBottom: 28 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                 <span style={{ fontSize: 24 }}>🎯</span>
-                <h3 style={{ color: '#1e3c72', margin: 0, fontSize: 18 }}>Free Examination</h3>
+                <h3 style={{ color: headingColor, margin: 0, fontSize: 18 }}>Free Examination</h3>
                 <span style={{ background: '#4caf50', color: 'white', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>FREE</span>
                 {hasTakenExam1 && <span style={{ background: '#ff9800', color: 'white', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>✓ COMPLETED</span>}
               </div>
               <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, border: `2px solid ${hasTakenExam1 ? '#ff9800' : '#4caf50'}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                   <div>
-                    <h3 style={{ color: '#1e3c72', margin: 0, fontSize: 18 }}>Examination 1</h3>
+                    <h3 style={{ color: headingColor, margin: 0, fontSize: 18 }}>Examination 1</h3>
                     <p style={{ fontSize: 14, marginTop: 4 }}>{sections[0].count} Questions | ⏰ {sections[0].timeMinutes} minutes</p>
                     {lastScores[1] && <p style={{ color: '#ff9800', fontSize: 13, marginTop: 4 }}>📊 Your Last Score: {lastScores[1].score}/{lastScores[1].total} ({lastScores[1].percentage}%)</p>}
                   </div>
@@ -1680,7 +1718,7 @@ const ExamList = () => {
                 return (
                   <div key={section.number} style={{ background: darkMode ? '#16213e' : 'white', padding: 18, borderRadius: 16, border: `2px solid ${isLocked ? '#ff9800' : '#4caf50'}`, opacity: isLocked ? 0.8 : 1 }}>
                     <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 8 }}>{section.number === 1 ? '🎯' : '⭐'}</div>
-                    <h3 style={{ color: section.number === 1 ? '#1e3c72' : '#ff9800', textAlign: 'center', fontSize: 18, marginBottom: 6 }}>Examination {section.number}</h3>
+                    <h3 style={{ color: darkMode ? headingColor : (section.number === 1 ? '#1e3c72' : '#ff9800'), textAlign: 'center', fontSize: 18, marginBottom: 6 }}>Examination {section.number}</h3>
                     <p style={{ textAlign: 'center', fontSize: 14 }}>{section.count} Questions | ⏰ {section.timeMinutes} minutes</p>
                     {lastScores[section.number] && <p style={{ color: '#ff9800', textAlign: 'center', fontSize: 13, marginTop: 4 }}>📊 Score: {lastScores[section.number].score}/{lastScores[section.number].total}</p>}
                     <button onClick={() => handleStartExam(section)} style={{ width: '100%', marginTop: 14, background: canAccess ? '#ff9800' : '#ccc', color: 'white', padding: '10px', border: 'none', borderRadius: 10, cursor: canAccess ? 'pointer' : 'not-allowed', fontWeight: 'bold', fontSize: 14 }}>
@@ -1700,11 +1738,11 @@ const ExamList = () => {
         )}
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
   <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
     Privacy Policy
   </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
   <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
     Terms & Conditions
   </Link></p>
@@ -1727,6 +1765,9 @@ const TakeExam = () => {
   const [loading, setLoading] = useState(true);
   const [premiumBlocked, setPremiumBlocked] = useState(false);
   const { token, darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
 
   useEffect(() => {
     const fetchExam = async () => {
@@ -1862,7 +1903,7 @@ const TakeExam = () => {
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
-          <h2 style={{ color: '#1e3c72' }}>Premium Required</h2>
+          <h2 style={{ color: headingColor }}>Premium Required</h2>
           <p>This exam is only available in Premium Mode. Please upgrade to access it.</p>
           <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
             <Link to={`/courses/${backCategory}/${mode}`} style={{ flex: 1 }}>
@@ -1884,8 +1925,8 @@ const TakeExam = () => {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
         <div style={{ maxWidth: 450, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
-          <h2 style={{ color: '#1e3c72', fontSize: 24 }}>Exam Results</h2>
-          <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: '#1e3c72' }}>{result.score}</strong> / {result.total}</p>
+          <h2 style={{ color: headingColor, fontSize: 24 }}>Exam Results</h2>
+          <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: headingColor }}>{result.score}</strong> / {result.total}</p>
           <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{result.percentage}%</strong></p>
           <p style={{ fontSize: 24, color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
             {result.passed ? '✓ PASSED!' : '✗ Failed'}
@@ -1895,7 +1936,7 @@ const TakeExam = () => {
           {mode === 'free' && (
             <div style={{ marginTop: 20, padding: 16, background: '#fff3e0', borderRadius: 12 }}>
               <p style={{ color: '#ff9800', fontWeight: 'bold', margin: 0, fontSize: 14 }}>📢 You have completed the free exam!</p>
-              <p style={{ color: '#666', marginTop: 8, fontSize: 13 }}>Upgrade to Premium to retake and unlock all exams.</p>
+              <p style={{ color: secondaryText, marginTop: 8, fontSize: 13 }}>Upgrade to Premium to retake and unlock all exams.</p>
               <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now</button></Link>
             </div>
           )}
@@ -1915,7 +1956,7 @@ const TakeExam = () => {
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
-            <h2 style={{ color: '#1e3c72', fontSize: 22 }}>Answer Review</h2>
+            <h2 style={{ color: headingColor, fontSize: 22 }}>Answer Review</h2>
             <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
             <Link to={`/courses/${exam.category}/${mode}`}><button style={{ background: '#1e3c72', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Topics</button></Link>
           </div>
@@ -1950,9 +1991,9 @@ const TakeExam = () => {
       <Timer duration={timerDuration} onTimeUp={handleTimeUp} />
       <div style={{ padding: '20px', maxWidth: 1000, margin: '0 auto' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
-          <h2 style={{ color: '#1e3c72', margin: 0, fontSize: 20 }}>{exam.title}</h2>
+          <h2 style={{ color: headingColor, margin: 0, fontSize: 20 }}>{exam.title}</h2>
           <p style={{ fontSize: 14, marginTop: 4 }}>Question {currentIndex+1} of {totalQuestions}</p>
-          <p style={{ fontSize: 13, color: '#666' }}>Answered: {answeredCount}/{totalQuestions}</p>
+          <p style={{ fontSize: 13, color: secondaryText }}>Answered: {answeredCount}/{totalQuestions}</p>
         </div>
 
         {/* Current question */}
@@ -1988,8 +2029,8 @@ const TakeExam = () => {
               return (
                 <button key={idx} onClick={() => goToQuestion(idx)} style={{
                   width: 40, height: 40, borderRadius: 8,
-                  background: idx === currentIndex ? '#ff9800' : (isAnswered ? '#4caf50' : '#e0e0e0'),
-                  color: (idx === currentIndex || isAnswered) ? 'white' : '#333',
+                  background: idx === currentIndex ? '#ff9800' : (isAnswered ? '#4caf50' : (darkMode ? '#444' : '#e0e0e0')),
+                  color: (idx === currentIndex || isAnswered) ? 'white' : (darkMode ? headingColor : '#333'),
                   fontWeight: 'bold', border: 'none', cursor: 'pointer'
                 }}>
                   {idx+1}
@@ -2005,11 +2046,11 @@ const TakeExam = () => {
         </button>
       </div>
       <div style={{ textAlign: 'center', padding: '20px' }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
           <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
             Privacy Policy
           </Link>
-          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
           <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
             Terms & Conditions
           </Link>
@@ -2022,14 +2063,17 @@ const TakeExam = () => {
 // How To Use Component
 const HowToUse = () => {
   const { darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
   
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>📖 How To Use ELITE CBT</h2>
+        <h2 style={{ color: headingColor, textAlign: 'center', marginBottom: 20 }}>📖 How To Use ELITE CBT</h2>
         
         <div style={{ marginBottom: 30 }}>
-          <h3 style={{ color: '#1e3c72', marginBottom: 10 }}>🆓 Free Mode</h3>
+          <h3 style={{ color: headingColor, marginBottom: 10 }}>🆓 Free Mode</h3>
           <ul style={{ lineHeight: 1.8, color: darkMode ? '#ccc' : '#555', paddingLeft: 20 }}>
             <li>✓ Access Examination 1 of ANY course for FREE</li>
             <li>✓ Each free exam can only be taken ONCE</li>
@@ -2051,7 +2095,7 @@ const HowToUse = () => {
         </div>
         
         <div style={{ marginBottom: 30 }}>
-          <h3 style={{ color: '#1e3c72', marginBottom: 10 }}>📱 Navigation Tips</h3>
+          <h3 style={{ color: headingColor, marginBottom: 10 }}>📱 Navigation Tips</h3>
           <ul style={{ lineStyle: 'none', lineHeight: 1.8, color: darkMode ? '#ccc' : '#555', paddingLeft: 0 }}>
             <li>🏠 <strong>Home</strong> - Select FREE or PREMIUM mode</li>
             <li>📚 <strong>Categories</strong> - Choose your subject area</li>
@@ -2066,11 +2110,11 @@ const HowToUse = () => {
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
   <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
     Privacy Policy
   </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
   <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
     Terms & Conditions
   </Link></p>
@@ -2082,10 +2126,13 @@ const HowToUse = () => {
 // About Us Component
 const AboutUs = () => {
   const { darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>About Us</h2>
+        <h2 style={{ color: headingColor, textAlign: 'center', marginBottom: 20 }}>About Us</h2>
         <p style={{ lineHeight: 1.8, marginBottom: 20, color: darkMode ? '#ccc' : '#555' }}>ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students in Nigeria.</p>
         <p style={{ lineHeight: 1.8, marginBottom: 20, color: darkMode ? '#ccc' : '#555' }}>Our mission is to provide high-quality, accessible exam preparation materials that help students succeed in their nursing and midwifery licensing examinations.</p>
         <p style={{ lineHeight: 1.8, marginBottom: 20, color: darkMode ? '#ccc' : '#555' }}>With over 20,000 practice questions covering General Nursing, Midwifery, Pediatric Nursing, Dental Nursing, and Public Health, we are committed to excellence in nursing education.</p>
@@ -2093,11 +2140,11 @@ const AboutUs = () => {
         <p>NCLEX Practice questions are coming soon!</p>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
   <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
     Privacy Policy
   </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
   <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
     Terms & Conditions
   </Link></p>
@@ -2109,6 +2156,9 @@ const AboutUs = () => {
 // Contact Us Component
 const ContactUs = () => {
   const { darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -2139,30 +2189,30 @@ const ContactUs = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, marginBottom: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>Get in Touch</h2>
+          <h2 style={{ color: headingColor, textAlign: 'center', marginBottom: 20 }}>Get in Touch</h2>
           <p style={{ textAlign: 'center', marginBottom: 30, color: darkMode ? '#ccc' : '#666' }}>We'd love to hear from you! Choose your preferred way to reach us.</p>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 30 }}>
             <div style={{ textAlign: 'center', padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>📧</div>
-              <h3 style={{ color: '#1e3c72', fontSize: 16, marginBottom: 4 }}>Email</h3>
+              <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 4 }}>Email</h3>
               <p style={{ fontSize: 13, wordBreak: 'break-all' }}>elitenursingcbt@gmail.com</p>
             </div>
             <div style={{ textAlign: 'center', padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>📞</div>
-              <h3 style={{ color: '#1e3c72', fontSize: 16, marginBottom: 4 }}>Phone / WhatsApp</h3>
+              <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 4 }}>Phone / WhatsApp</h3>
               <p style={{ fontSize: 13 }}>09063908476</p>
             </div>
             <div style={{ textAlign: 'center', padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>💬</div>
-              <h3 style={{ color: '#1e3c72', fontSize: 16, marginBottom: 4 }}>WhatsApp Group</h3>
+              <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 4 }}>WhatsApp Group</h3>
               <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 'bold', fontSize: 13 }}>Join Community →</a>
             </div>
           </div>
         </div>
         
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-          <h3 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20, fontSize: 18 }}>Send us a Message</h3>
+          <h3 style={{ color: headingColor, textAlign: 'center', marginBottom: 20, fontSize: 18 }}>Send us a Message</h3>
           
           {error && (
             <div style={{ background: '#ffebee', padding: 12, borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
@@ -2170,7 +2220,7 @@ const ContactUs = () => {
             </div>
           )}
           {submitted && (
-            <div style={{ background: '#e8f5e9', padding: 12, borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
+            <div style={{ background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 12, borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
               <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>✅ Message sent! We'll respond soon.</p>
             </div>
           )}
@@ -2192,11 +2242,11 @@ const ContactUs = () => {
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
   <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
     Privacy Policy
   </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
   <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
     Terms & Conditions
   </Link></p>
@@ -2211,6 +2261,9 @@ const MyHistory = () => {
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { quizId, title }
   const { darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
 
   const loadAttempts = () => {
     const all = getAllAttempts();
@@ -2252,11 +2305,11 @@ const MyHistory = () => {
   if (attempts.length === 0) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
-        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: '#1e3c72', textDecoration: 'none', fontWeight: 'bold' }}>
+        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: headingColor, textDecoration: 'none', fontWeight: 'bold' }}>
           ← Back to Profile
         </Link>
         <div style={{ fontSize: 64, marginBottom: 20 }}>📖</div>
-        <h2 style={{ color: '#1e3c72' }}>No Exam History</h2>
+        <h2 style={{ color: headingColor }}>No Exam History</h2>
         <p>Complete some exams to see your history here.</p>
         <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Browse Exams</button></Link>
       </div>
@@ -2285,12 +2338,12 @@ const MyHistory = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         {/* 👇 BACK TO PROFILE BUTTON */}
-        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: '#1e3c72', textDecoration: 'none', fontWeight: 'bold' }}>
+        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: headingColor, textDecoration: 'none', fontWeight: 'bold' }}>
           ← Back to Profile
         </Link>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-          <h1 style={{ color: '#1e3c72' }}>📚 My Exam History</h1>
+          <h1 style={{ color: headingColor }}>📚 My Exam History</h1>
           <button
             onClick={handleClearAll}
             style={{ background: '#dc3545', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
@@ -2306,7 +2359,7 @@ const MyHistory = () => {
             </h2>
             {Object.entries(topics).map(([topic, exams]) => (
               <div key={topic} style={{ marginBottom: 24 }}>
-                <h3 style={{ color: '#1e3c72', fontSize: 18, marginBottom: 12 }}>{topic}</h3>
+                <h3 style={{ color: headingColor, fontSize: 18, marginBottom: 12 }}>{topic}</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                   {exams.map((exam) => (
                     <div key={exam.quizId} style={{ background: darkMode ? '#16213e' : 'white', padding: 16, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', position: 'relative' }}>
@@ -2329,9 +2382,9 @@ const MyHistory = () => {
                         Delete
                       </button>
                       <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
-                      <h4 style={{ color: '#1e3c72', marginBottom: 4 }}>{exam.title}</h4>
-                      <p style={{ fontSize: 13, color: '#666' }}>Score: {exam.score}/{exam.total} ({exam.percentage}%)</p>
-                      <p style={{ fontSize: 12, color: '#999' }}>Completed: {new Date(exam.completedAt).toLocaleString()}</p>
+                      <h4 style={{ color: headingColor, marginBottom: 4 }}>{exam.title}</h4>
+                      <p style={{ fontSize: 13, color: secondaryText }}>Score: {exam.score}/{exam.total} ({exam.percentage}%)</p>
+                      <p style={{ fontSize: 12, color: secondaryText }}>Completed: {new Date(exam.completedAt).toLocaleString()}</p>
                       <Link to={`/review/${exam.quizId}`}>
                         <button style={{ width: '100%', marginTop: 12, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Review Exam</button>
                       </Link>
@@ -2356,7 +2409,7 @@ const MyHistory = () => {
           zIndex: 2000
         }}>
           <div style={{
-            background: 'white',
+            background: cardBg,
             borderRadius: 20,
             padding: 24,
             maxWidth: 320,
@@ -2365,8 +2418,8 @@ const MyHistory = () => {
             boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
           }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
-            <h3 style={{ color: '#1e3c72', marginBottom: 8 }}>Delete Exam History</h3>
-            <p style={{ color: '#666', marginBottom: 20 }}>
+            <h3 style={{ color: headingColor, marginBottom: 8 }}>Delete Exam History</h3>
+            <p style={{ color: secondaryText, marginBottom: 20 }}>
               {deleteConfirm.quizId === 'ALL'
                 ? 'Are you sure you want to delete ALL exam history? This cannot be undone.'
                 : `Delete "${deleteConfirm.title}" from your history?`
@@ -2381,11 +2434,11 @@ const MyHistory = () => {
       )}
 
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
           <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
             Privacy Policy
           </Link>
-          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
           <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
             Terms & Conditions
           </Link>
@@ -2402,6 +2455,7 @@ const ReviewExam = () => {
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const { token, darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -2438,10 +2492,10 @@ const ReviewExam = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <Link to="/history" style={{ textDecoration: 'none', color: '#1e3c72' }}>← Back to History</Link>
+          <Link to="/history" style={{ textDecoration: 'none', color: headingColor }}>← Back to History</Link>
         </div>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20 }}>
-          <h2 style={{ color: '#1e3c72' }}>{attempt.title}</h2>
+          <h2 style={{ color: headingColor }}>{attempt.title}</h2>
           <p>Your Score: {attempt.score}/{attempt.total} ({attempt.percentage}%)</p>
           <p>Completed: {new Date(attempt.completedAt).toLocaleString()}</p>
         </div>
@@ -2488,6 +2542,9 @@ const PremiumExam = () => {
   const [timeUp, setTimeUp] = useState(false);
   const [premiumBlocked, setPremiumBlocked] = useState(false);
   const { token, darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -2603,7 +2660,7 @@ const PremiumExam = () => {
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
-          <h2 style={{ color: '#1e3c72' }}>Premium Required</h2>
+          <h2 style={{ color: headingColor }}>Premium Required</h2>
           <p>This exam is only available in Premium Mode. Please upgrade to access it.</p>
           <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
             <Link to={`/courses/${categoryName}/${mode}`} style={{ flex: 1 }}>
@@ -2627,8 +2684,8 @@ const PremiumExam = () => {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
         <div style={{ maxWidth: 450, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
-          <h2 style={{ color: '#1e3c72', fontSize: 24 }}>Exam Results</h2>
-          <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: '#1e3c72' }}>{result.score}</strong> / {result.total}</p>
+          <h2 style={{ color: headingColor, fontSize: 24 }}>Exam Results</h2>
+          <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: headingColor }}>{result.score}</strong> / {result.total}</p>
           <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{result.percentage}%</strong></p>
           <p style={{ fontSize: 24, color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
             {result.passed ? '✓ PASSED!' : '✗ Failed'}
@@ -2649,7 +2706,7 @@ const PremiumExam = () => {
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
-            <h2 style={{ color: '#1e3c72', fontSize: 22 }}>Answer Review</h2>
+            <h2 style={{ color: headingColor, fontSize: 22 }}>Answer Review</h2>
             <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
             <Link to={`/courses/${categoryName}/${mode}`}><button style={{ background: '#1e3c72', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Topics</button></Link>
           </div>
@@ -2684,9 +2741,9 @@ const PremiumExam = () => {
       <Timer duration={timerDuration} onTimeUp={handleTimeUp} />
       <div style={{ padding: '20px', maxWidth: 1000, margin: '0 auto' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
-          <h2 style={{ color: '#1e3c72', margin: 0, fontSize: 20 }}>{examTitle}</h2>
+          <h2 style={{ color: headingColor, margin: 0, fontSize: 20 }}>{examTitle}</h2>
           <p style={{ fontSize: 14, marginTop: 4 }}>Question {currentIndex+1} of {totalQuestions}</p>
-          <p style={{ fontSize: 13, color: '#666' }}>Answered: {answeredCount}/{totalQuestions}</p>
+          <p style={{ fontSize: 13, color: secondaryText }}>Answered: {answeredCount}/{totalQuestions}</p>
         </div>
 
         {/* Current question */}
@@ -2722,8 +2779,8 @@ const PremiumExam = () => {
               return (
                 <button key={idx} onClick={() => goToQuestion(idx)} style={{
                   width: 40, height: 40, borderRadius: 8,
-                  background: idx === currentIndex ? '#ff9800' : (isAnswered ? '#4caf50' : '#e0e0e0'),
-                  color: (idx === currentIndex || isAnswered) ? 'white' : '#333',
+                  background: idx === currentIndex ? '#ff9800' : (isAnswered ? '#4caf50' : (darkMode ? '#444' : '#e0e0e0')),
+                  color: (idx === currentIndex || isAnswered) ? 'white' : (darkMode ? headingColor : '#333'),
                   fontWeight: 'bold', border: 'none', cursor: 'pointer'
                 }}>
                   {idx+1}
@@ -2739,7 +2796,7 @@ const PremiumExam = () => {
         </button>
       </div>
       <div style={{ textAlign: 'center', padding: '20px' }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -2748,6 +2805,9 @@ const PremiumExam = () => {
 // Privacy Policy Component
 const PrivacyPolicy = () => {
   const { darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)', color: darkMode ? '#eee' : '#333' }}>
@@ -2758,7 +2818,7 @@ const PrivacyPolicy = () => {
             border: 'none',
             fontSize: 16,
             cursor: 'pointer',
-            color: '#1e3c72',
+            color: headingColor,
             marginBottom: 16,
             display: 'inline-flex',
             alignItems: 'center',
@@ -2767,11 +2827,11 @@ const PrivacyPolicy = () => {
         >
           ← Back
         </button>
-        <h2 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>Privacy Policy</h2>
+        <h2 style={{ color: headingColor, textAlign: 'center', marginBottom: 20 }}>Privacy Policy</h2>
         <p><strong>Last updated:</strong> June 2026</p>
         <p>ELITE Nursing & Midwifery CBT ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and website (collectively, the "Platform").</p>
         
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>1. Information We Collect</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>1. Information We Collect</h3>
         <p>We collect the following types of information:</p>
         <ul style={{ paddingLeft: 20 }}>
           <li><strong>Personal Identification Information:</strong> Name, email address, and phone number (if provided).</li>
@@ -2782,7 +2842,7 @@ const PrivacyPolicy = () => {
           <li><strong>Usage Data:</strong> IP address, browser type, and interaction with the Platform.</li>
         </ul>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>2. How We Use Your Information</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>2. How We Use Your Information</h3>
         <ul style={{ paddingLeft: 20 }}>
           <li>To create and manage your account.</li>
           <li>To provide exam content and track your progress.</li>
@@ -2791,33 +2851,33 @@ const PrivacyPolicy = () => {
           <li>To improve our services and user experience.</li>
         </ul>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>3. Sharing Your Information</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>3. Sharing Your Information</h3>
         <p>We do not sell or rent your personal data. We may share your information with:</p>
         <ul style={{ paddingLeft: 20 }}>
           <li><strong>Service Providers:</strong> MongoDB Atlas (database), Brevo (email), Firebase (push notifications), Flutterwave (payments) – all are GDPR/Privacy Shield compliant.</li>
           <li><strong>Legal Authorities:</strong> If required by law or to protect our rights.</li>
         </ul>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>4. Data Security</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>4. Data Security</h3>
         <p>We implement industry-standard measures (encryption, secure connections, access controls) to protect your data. However, no method of transmission over the internet is 100% secure.</p>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>5. Your Rights</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>5. Your Rights</h3>
         <ul style={{ paddingLeft: 20 }}>
           <li>You may access, update, or delete your personal information by logging into your account or contacting us.</li>
           <li>You can opt out of push notifications via your device settings.</li>
           <li>You can request deletion of your account and associated data.</li>
         </ul>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>6. Data Retention</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>6. Data Retention</h3>
         <p>We retain your data as long as your account is active. You can delete your account at any time; we will remove your personal data within a reasonable period, except for records required for legal or compliance reasons.</p>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>7. Children's Privacy</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>7. Children's Privacy</h3>
         <p>Our Platform is not intended for children under the age of 13. We do not knowingly collect personal information from children.</p>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>8. Changes to This Policy</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>8. Changes to This Policy</h3>
         <p>We may update this policy from time to time. We will notify you of any changes by posting the new policy on this page and updating the "Last updated" date.</p>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>9. Contact Us</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>9. Contact Us</h3>
         <p>If you have questions about this Privacy Policy, please contact us at:</p>
         <p>Email: elitenursingcbt@gmail.com</p>
         <p>Phone/WhatsApp: 09063908476</p>
@@ -2829,6 +2889,10 @@ const PrivacyPolicy = () => {
 // Profile Component – Professional Layout
 const Profile = () => {
   const { token, user, login, logout, darkMode, toggleDarkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
   const [editName, setEditName] = useState(user?.name || '');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -2936,14 +3000,14 @@ const Profile = () => {
             {user?.name?.charAt(0) || 'U'}
           </div>
           <div>
-            <h1 style={{ color: '#1e3c72', fontSize: 22, margin: 0 }}>My Profile</h1>
-            <p style={{ color: '#666', fontSize: 14, margin: 0 }}>{user?.email}</p>
+            <h1 style={{ color: headingColor, fontSize: 22, margin: 0 }}>My Profile</h1>
+            <p style={{ color: secondaryText, fontSize: 14, margin: 0 }}>{user?.email}</p>
           </div>
         </div>
 
         {/* Name */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4, color: '#333' }}>Name</label>
+          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4, color: textColor }}>Name</label>
           {isEditing ? (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <input
@@ -2959,8 +3023,8 @@ const Profile = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 16, color: '#333' }}>{user?.name || 'Not set'}</span>
-              <button onClick={() => setIsEditing(true)} style={{ background: 'transparent', color: '#1e3c72', border: '1px solid #1e3c72', padding: '4px 12px', borderRadius: 6, cursor: 'pointer' }}>Edit</button>
+              <span style={{ fontSize: 16, color: textColor }}>{user?.name || 'Not set'}</span>
+              <button onClick={() => setIsEditing(true)} style={{ background: 'transparent', color: headingColor, border: '1px solid #1e3c72', padding: '4px 12px', borderRadius: 6, cursor: 'pointer' }}>Edit</button>
             </div>
           )}
           {message && <p style={{ color: '#2e7d32', fontSize: 13, marginTop: 4 }}>{message}</p>}
@@ -2969,9 +3033,9 @@ const Profile = () => {
 
         {/* Email & Verification */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4, color: '#333' }}>Email</label>
+          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4, color: textColor }}>Email</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 16, color: '#333' }}>{user?.email}</span>
+            <span style={{ fontSize: 16, color: textColor }}>{user?.email}</span>
             {user?.isVerified ? (
               <span style={{ color: '#2e7d32', fontSize: 13, fontWeight: 'bold' }}>✅ Verified</span>
             ) : (
@@ -3002,19 +3066,19 @@ const Profile = () => {
         </div>
 
         {/* Premium Status */}
-        <div style={{ marginBottom: 20, background: '#f5f5f5', padding: 16, borderRadius: 12 }}>
+        <div style={{ marginBottom: 20, background: darkMode ? '#2d2d3d' : '#f5f5f5', padding: 16, borderRadius: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <strong style={{ color: '#333' }}>Premium Status</strong>
+            <strong style={{ color: textColor }}>Premium Status</strong>
             {isPremiumActive ? (
               <span style={{ color: '#2e7d32', fontWeight: 'bold' }}>✅ Active</span>
             ) : (
-              <span style={{ color: '#dc3545', fontWeight: 'bold' }}>❌ Not Active</span>
+              <span style={{ color: '#dc3545', fontWeight: 'bold' }}> </span>
             )}
           </div>
           {isPremiumActive && (
             <>
-              <p style={{ marginTop: 4, color: '#333' }}><strong>Plan:</strong> {user.premiumPlan ? user.premiumPlan.toUpperCase() : 'N/A'}</p>
-              <p style={{ color: '#333' }}><strong>Expires:</strong> {new Date(user.premiumExpiry).toLocaleString()}</p>
+              <p style={{ marginTop: 4, color: textColor }}><strong>Plan:</strong> {user.premiumPlan ? user.premiumPlan.toUpperCase() : 'N/A'}</p>
+              <p style={{ color: textColor }}><strong>Expires:</strong> {new Date(user.premiumExpiry).toLocaleString()}</p>
               {timeLeft && (
                 <div style={{ marginTop: 8, padding: 10, background: '#fff3e0', borderRadius: 8 }}>
                   <p style={{ margin: 0, fontSize: 14, fontWeight: 'bold', color: '#e65100' }}>⏳ Time remaining:</p>
@@ -3037,11 +3101,11 @@ const Profile = () => {
 
         {/* Action Links */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-          <Link to="/history" style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: '#1e3c72', fontWeight: 'bold' }}>
+          <Link to="/history" style={{ display: 'flex', alignItems: 'center', gap: 10, background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: headingColor, fontWeight: 'bold' }}>
             <span style={{ fontSize: 20 }}> </span> My History
           </Link>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
-            <span style={{ fontWeight: 'bold', color: '#333' }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: darkMode ? '#2d2d3d' : '#f5f5f5', borderRadius: 8 }}>
+            <span style={{ fontWeight: 'bold', color: textColor }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</span>
             <button onClick={toggleDarkMode} style={{ background: '#1e3c72', color: 'white', padding: '6px 12px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
               Toggle
             </button>
@@ -3059,7 +3123,7 @@ const Profile = () => {
         </button>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -3068,6 +3132,9 @@ const Profile = () => {
 // Terms and Conditions Component
 const TermsAndConditions = () => {
   const { darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '40px 20px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)', color: darkMode ? '#eee' : '#333' }}>
@@ -3078,7 +3145,7 @@ const TermsAndConditions = () => {
             border: 'none',
             fontSize: 16,
             cursor: 'pointer',
-            color: '#1e3c72',
+            color: headingColor,
             marginBottom: 16,
             display: 'inline-flex',
             alignItems: 'center',
@@ -3087,14 +3154,14 @@ const TermsAndConditions = () => {
         >
           ← Back
         </button>
-        <h2 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>Terms and Conditions</h2>
+        <h2 style={{ color: headingColor, textAlign: 'center', marginBottom: 20 }}>Terms and Conditions</h2>
         <p><strong>Last updated:</strong> June 2026</p>
         <p>Welcome to ELITE Nursing & Midwifery CBT. By using our Platform, you agree to comply with and be bound by the following terms and conditions. Please read them carefully.</p>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>1. Acceptance of Terms</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>1. Acceptance of Terms</h3>
         <p>By creating an account or using our Platform, you agree to these Terms and Conditions. If you do not agree, please do not use the Platform.</p>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>2. User Accounts</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>2. User Accounts</h3>
         <ul style={{ paddingLeft: 20 }}>
           <li>You must provide accurate and complete information when creating an account.</li>
           <li>You are responsible for maintaining the confidentiality of your login credentials.</li>
@@ -3102,7 +3169,7 @@ const TermsAndConditions = () => {
           <li>You must be at least 13 years old to use the Platform.</li>
         </ul>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>3. Acceptable Use</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>3. Acceptable Use</h3>
         <p>You agree not to:</p>
         <ul style={{ paddingLeft: 20 }}>
           <li>Use the Platform for any unlawful purpose.</li>
@@ -3112,13 +3179,13 @@ const TermsAndConditions = () => {
           <li>Use automated scripts or bots to interact with the Platform.</li>
         </ul>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>4. Intellectual Property</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>4. Intellectual Property</h3>
         <ul style={{ paddingLeft: 20 }}>
           <li>All content on the Platform, including questions, answers, graphics, and logos, is the property of ELITE Nursing & Midwifery CBT or its licensors.</li>
           <li>You may not copy, reproduce, distribute, or create derivative works without our prior written consent.</li>
         </ul>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>5. Payments and Refunds</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>5. Payments and Refunds</h3>
         <ul style={{ paddingLeft: 20 }}>
           <li>Premium features are available via any subscription plan that suits you (subject to change).</li>
           <li>Payments are processed securely via Flutterwave.</li>
@@ -3126,25 +3193,25 @@ const TermsAndConditions = () => {
           <li>Premium access is granted immediately upon successful payment verification.</li>
         </ul>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>6. Disclaimer of Warranties</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>6. Disclaimer of Warranties</h3>
         <p>The Platform is provided "as is" without any warranties of any kind, express or implied. We do not guarantee that the Platform will be error‑free, secure, or uninterrupted.</p>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>7. Limitation of Liability</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>7. Limitation of Liability</h3>
         <p>To the fullest extent permitted by law, ELITE Nursing & Midwifery CBT shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the Platform.</p>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>8. Termination</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>8. Termination</h3>
         <ul style={{ paddingLeft: 20 }}>
           <li>We reserve the right to suspend or terminate your account if you violate these Terms.</li>
           <li>You may delete your account at any time by contacting us.</li>
         </ul>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>9. Changes to Terms</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>9. Changes to Terms</h3>
         <p>We may update these Terms from time to time. Continued use of the Platform after changes constitutes acceptance of the revised Terms.</p>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>10. Governing Law</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>10. Governing Law</h3>
         <p>These Terms are governed by the laws of Nigeria. Any disputes arising from these Terms shall be subject to the exclusive jurisdiction of the courts of Nigeria.</p>
 
-        <h3 style={{ color: '#1e3c72', marginTop: 20 }}>11. Contact Us</h3>
+        <h3 style={{ color: headingColor, marginTop: 20 }}>11. Contact Us</h3>
         <p>If you have any questions about these Terms, please contact us:</p>
         <p>Email: elitenursingcbt@gmail.com</p>
         <p>Phone/WhatsApp: 09063908476</p>
@@ -3367,15 +3434,20 @@ const FloatingChatButton = () => {
 
 // Join WhatsApp Component
 const JoinWhatsApp = () => {
-  const { darkMode } = useContext(AuthContext);
+const { darkMode } = useContext(AuthContext);
+const headingColor = getHeadingColor(darkMode);
+const secondaryText = getSecondaryText(darkMode);
+const textColor = getTextColor(darkMode);
+const cardBg = getCardBg(darkMode);
+const borderColor = getBorderColor(darkMode);
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 500, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>💬</div>
-        <h2 style={{ color: '#1e3c72', marginBottom: 10 }}>Join Our WhatsApp Community</h2>
+        <h2 style={{ color: headingColor, marginBottom: 10 }}>Join Our WhatsApp Community</h2>
         <p style={{ marginBottom: 20, fontSize: 14 }}>Get instant updates, study tips, and connect with fellow nursing students!</p>
         <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: 16, borderRadius: 12, marginBottom: 20, textAlign: 'left' }}>
-          <h3 style={{ color: '#1e3c72', fontSize: 16, marginBottom: 10 }}>What you'll get:</h3>
+          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 10 }}>What you'll get:</h3>
           <ul style={{ listStyle: 'none', padding: 0, fontSize: 13 }}>
             <li style={{ marginBottom: 6 }}>✓ Daily practice questions</li>
             <li style={{ marginBottom: 6 }}>✓ Exam tips and strategies</li>
@@ -3389,11 +3461,11 @@ const JoinWhatsApp = () => {
         </a>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
   <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
     Privacy Policy
   </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+  <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
   <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
     Terms & Conditions
   </Link></p>
@@ -3405,6 +3477,11 @@ const JoinWhatsApp = () => {
 // Get Premium Component – with subscription plans, live countdown timer, and Back to Profile button
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
+  const borderColor = getBorderColor(darkMode);
+  const cardBg = getCardBg(darkMode);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
   const [loading, setLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [timeLeft, setTimeLeft] = useState(null);
@@ -3508,19 +3585,19 @@ const GetPremium = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         {/* 👇 BACK TO PROFILE BUTTON */}
-        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: '#1e3c72', textDecoration: 'none', fontWeight: 'bold', textAlign: 'left' }}>
+        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: headingColor, textDecoration: 'none', fontWeight: 'bold', textAlign: 'left' }}>
           ← Back to Profile
         </Link>
 
         <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
-        <h2 style={{ color: '#1e3c72' }}>Upgrade to Premium</h2>
+        <h2 style={{ color: headingColor }}>Upgrade to Premium</h2>
         <p style={{ marginBottom: 20 }}>Get unlimited access to all examinations and features</p>
         
         {isPremiumActive ? (
-          <div style={{ background: '#e8f5e9', padding: 20, borderRadius: 16 }}>
+          <div style={{ background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 20, borderRadius: 16 }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
-            <h3 style={{ color: '#1e3c72' }}>You are already a Premium Member!</h3>
-            <div style={{ marginTop: 12, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
+            <h3 style={{ color: headingColor }}>You are already a Premium Member!</h3>
+            <div style={{ marginTop: 12, padding: 12, background: darkMode ? '#2d2d3d' : '#f5f5f5', borderRadius: 8 }}>
               <p style={{ margin: '4px 0' }}>
                 <strong>Plan:</strong> {user.premiumPlan ? user.premiumPlan.toUpperCase() : 'N/A'}
               </p>
@@ -3537,21 +3614,21 @@ const GetPremium = () => {
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 8 }}>
                     {timeLeft.days > 0 && (
                       <div>
-                        <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1e3c72' }}>{timeLeft.days}</span>
-                        <span style={{ fontSize: 11, color: '#666', display: 'block' }}>days</span>
+                        <span style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>{timeLeft.days}</span>
+                        <span style={{ fontSize: 11, color: secondaryText, display: 'block' }}>days</span>
                       </div>
                     )}
                     <div>
-                      <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1e3c72' }}>{String(timeLeft.hours).padStart(2, '0')}</span>
-                      <span style={{ fontSize: 11, color: '#666', display: 'block' }}>hrs</span>
+                      <span style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>{String(timeLeft.hours).padStart(2, '0')}</span>
+                      <span style={{ fontSize: 11, color: secondaryText, display: 'block' }}>hrs</span>
                     </div>
                     <div>
-                      <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1e3c72' }}>{String(timeLeft.minutes).padStart(2, '0')}</span>
-                      <span style={{ fontSize: 11, color: '#666', display: 'block' }}>min</span>
+                      <span style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>{String(timeLeft.minutes).padStart(2, '0')}</span>
+                      <span style={{ fontSize: 11, color: secondaryText, display: 'block' }}>min</span>
                     </div>
                     <div>
-                      <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1e3c72' }}>{String(timeLeft.seconds).padStart(2, '0')}</span>
-                      <span style={{ fontSize: 11, color: '#666', display: 'block' }}>sec</span>
+                      <span style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>{String(timeLeft.seconds).padStart(2, '0')}</span>
+                      <span style={{ fontSize: 11, color: secondaryText, display: 'block' }}>sec</span>
                     </div>
                   </div>
                 </div>
@@ -3573,24 +3650,24 @@ const GetPremium = () => {
                   style={{
                     padding: 16,
                     borderRadius: 12,
-                    border: selectedPlan === key ? '3px solid #1e3c72' : '2px solid #e0e0e0',
-                    background: selectedPlan === key ? '#e8f5e9' : 'white',
+                    border: selectedPlan === key ? `3px solid ${headingColor}` : `2px solid ${borderColor}`,
+                    background: selectedPlan === key ? (darkMode ? '#333' : '#e8f5e9') : cardBg,
                     cursor: 'pointer',
                     transition: '0.2s',
-                    boxShadow: selectedPlan === key ? '0 4px 12px rgba(30, 60, 114, 0.15)' : 'none'
+                    boxShadow: selectedPlan === key ? `0 4px 12px rgba(0,0,0,0.15)` : 'none'
                   }}
                 >
-                  <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1e3c72' }}>₦{plan.amount}</div>
-                  <div style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>{plan.label}</div>
-                  <div style={{ fontSize: 12, color: '#666' }}>{plan.duration}</div>
+                  <div style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>₦{plan.amount}</div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold', color: textColor }}>{plan.label}</div>
+                  <div style={{ fontSize: 12, color: secondaryText }}>{plan.duration}</div>
                   {selectedPlan === key && (
-                    <div style={{ marginTop: 8, fontSize: 11, color: '#1e3c72', fontWeight: 'bold' }}>✓ SELECTED</div>
+                    <div style={{ marginTop: 8, fontSize: 11, color: headingColor, fontWeight: 'bold' }}>✓ SELECTED</div>
                   )}
                 </div>
               ))}
             </div>
             <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: 16, borderRadius: 12, margin: '20px 0' }}>
-              <div style={{ fontSize: 18, fontWeight: 'bold', color: '#1e3c72' }}>
+              <div style={{ fontSize: 18, fontWeight: 'bold', color: headingColor }}>
                 Selected: <span style={{ color: '#ff9800' }}>{plans[selectedPlan].label}</span> – 
                 ₦{plans[selectedPlan].amount}
               </div>
@@ -3602,11 +3679,11 @@ const GetPremium = () => {
         )}
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
           <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
             Privacy Policy
           </Link>
-          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
           <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
             Terms & Conditions
           </Link>
@@ -3619,6 +3696,11 @@ const GetPremium = () => {
 // Payment Return Component - Captures transaction_id from URL
 const PaymentReturn = () => {
   const { token, user, login } = useContext(AuthContext);
+  const { darkMode } = useContext(AuthContext); // ← if darkMode not already there
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
   const [status, setStatus] = useState('verifying');
   const [message, setMessage] = useState('');
   const [retryCount, setRetryCount] = useState(0);
@@ -3801,18 +3883,18 @@ const PaymentReturn = () => {
           transition: 'width 0.5s ease'
         }} />
       </div>
-      <p style={{ fontSize: 13, color: '#666', marginTop: 12 }}>Attempt {retryCount + 1}/20 - Please wait...</p>
+      <p style={{ fontSize: 13, color: secondaryText, marginTop: 12 }}>Attempt {retryCount + 1}/20 - Please wait...</p>
     </div>
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f0f7f4', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 450, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+    <div style={{ minHeight: '100vh', background: darkMode ? '#1a1a2e' : '#f0f7f4', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: cardBg, borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 450, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
         {status === 'verifying' && (
           <>
             <div style={{ fontSize: 52, marginBottom: 20 }}>⏳</div>
-            <h2 style={{ color: '#1e3c72' }}>Verifying Payment...</h2>
-            <p style={{ color: '#666', marginTop: 8 }}>Please wait while we confirm your Flutterwave payment.</p>
+            <h2 style={{ color: headingColor }}>Verifying Payment...</h2>
+            <p style={{ color: secondaryText, marginTop: 8 }}>Please wait while we confirm your Flutterwave payment.</p>
             <p style={{ fontSize: 13, color: '#ff9800', marginTop: 8 }}>This may take up to 30 seconds.</p>
             <SimpleLoader />
           </>
@@ -3854,7 +3936,7 @@ const PaymentReturn = () => {
               </button>
             </Link>
             <div style={{ marginTop: 20, padding: 12, background: '#fff3e0', borderRadius: 12 }}>
-              <p style={{ fontSize: 12, color: '#666' }}>Contact support on WhatsApp: <strong style={{ color: '#25D366' }}>09063908476</strong></p>
+              <p style={{ fontSize: 12, color: secondaryText }}>Contact support on WhatsApp: <strong style={{ color: '#25D366' }}>09063908476</strong></p>
             </div>
           </>
         )}
@@ -3883,6 +3965,10 @@ const AdminPanel = () => {
   const [replyMessage, setReplyMessage] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const { token, user, darkMode, logout } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
   const [sendingNotification, setSendingNotification] = useState(false);
@@ -4082,7 +4168,7 @@ const AdminPanel = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-          <h1 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20, fontSize: 28 }}>Admin Panel</h1>
+          <h1 style={{ color: headingColor, textAlign: 'center', marginBottom: 20, fontSize: 28 }}>Admin Panel</h1>
           
           <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '2px solid #e0e0e0', paddingBottom: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => setActiveTab('users')} style={{ background: activeTab === 'users' ? '#1e3c72' : 'transparent', color: activeTab === 'users' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'users' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Users ({users.length})</button>
@@ -4098,7 +4184,7 @@ const AdminPanel = () => {
                 // Determine current plan from user data
                 const currentPlan = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
                 return (
-                  <div key={u._id} style={{ width: '350px', background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, border: '1px solid #e0e0e0' }}>
+                  <div key={u._id} style={{ width: '350px', background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
                     <p><strong>Name:</strong> {u.name || 'N/A'}</p>
                     <p><strong>Email:</strong> {u.email}</p>
                     <p><strong>Premium:</strong> {u.isPremium ? '✅ Yes' : '❌ No'}</p>
@@ -4113,7 +4199,7 @@ const AdminPanel = () => {
                       <select 
                         value={selectedPlan[u._id] || currentPlan}
                         onChange={(e) => setSelectedPlan(prev => ({ ...prev, [u._id]: e.target.value }))}
-                        style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc', background: 'white', fontSize: 14 }}
+                        style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, fontSize: 14 }}
                       >
                         <option value="none">None (Remove Premium)</option>
                         <option value="daily">Daily (₦500)</option>
@@ -4141,7 +4227,7 @@ const AdminPanel = () => {
           {activeTab === 'contacts' && (
             <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
               {contacts.map(c => (
-                <div key={c._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, marginBottom: 16, border: '1px solid #e0e0e0' }}>
+                <div key={c._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, marginBottom: 16, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
                   <p><strong>From:</strong> {c.name} ({c.email})</p>
                   <p><strong>Message:</strong> {c.message}</p>
                   <p><strong>Received:</strong> {new Date(c.createdAt).toLocaleString()}</p>
@@ -4171,7 +4257,7 @@ const AdminPanel = () => {
 
           {activeTab === 'notifications' && (
             <div style={{ padding: 20 }}>
-              <h3 style={{ color: '#1e3c72', marginBottom: 20 }}>Send Push Notification to All Users</h3>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>Send Push Notification to All Users</h3>
               <div style={{ marginBottom: 16 }}>
                 <input
                   type="text"
@@ -4203,8 +4289,8 @@ const AdminPanel = () => {
 
           {activeTab === 'manualOtp' && (
             <div style={{ padding: 20 }}>
-              <h3 style={{ color: '#1e3c72', marginBottom: 20 }}>Generate Manual Verification Code</h3>
-              <p style={{ marginBottom: 16, color: '#666' }}>Use this only when a user cannot receive email. The code will be shown here and can be given to the user.</p>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>Generate Manual Verification Code</h3>
+              <p style={{ marginBottom: 16, color: secondaryText }}>Use this only when a user cannot receive email. The code will be shown here and can be given to the user.</p>
               <div style={{ marginBottom: 16 }}>
                 <input
                   type="email"
@@ -4222,7 +4308,7 @@ const AdminPanel = () => {
                 {generatingOtp ? 'Generating...' : 'Generate Code'}
               </button>
               {manualOtpResult && (
-                <div style={{ marginTop: 16, padding: 12, background: '#e8f5e9', borderRadius: 8, borderLeft: '4px solid #2e7d32' }}>
+                <div style={{ marginTop: 16, padding: 12, background: darkMode ? '#2d2d3d' : '#e8f5e9', borderRadius: 8, borderLeft: '4px solid #2e7d32' }}>
                   <p style={{ margin: 0, color: '#2e7d32' }}>{manualOtpResult}</p>
                 </div>
               )}
@@ -4231,8 +4317,8 @@ const AdminPanel = () => {
 
           {activeTab === 'manualReset' && (
             <div style={{ padding: 20 }}>
-              <h3 style={{ color: '#1e3c72', marginBottom: 20 }}>Generate Password Reset Code</h3>
-              <p style={{ marginBottom: 16, color: '#666' }}>Use this when a user cannot receive password reset email. The code will be shown here and can be given to the user.</p>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>Generate Password Reset Code</h3>
+              <p style={{ marginBottom: 16, color: secondaryText }}>Use this when a user cannot receive password reset email. The code will be shown here and can be given to the user.</p>
               <div style={{ marginBottom: 16 }}>
                 <input
                   type="email"
@@ -4250,7 +4336,7 @@ const AdminPanel = () => {
                 {generatingResetOtp ? 'Generating...' : 'Generate Reset Code'}
               </button>
               {resetOtpResult && (
-                <div style={{ marginTop: 16, padding: 12, background: '#e8f5e9', borderRadius: 8, borderLeft: '4px solid #2e7d32' }}>
+                <div style={{ marginTop: 16, padding: 12, background: darkMode ? '#2d2d3d' : '#e8f5e9', borderRadius: 8, borderLeft: '4px solid #2e7d32' }}>
                   <p style={{ margin: 0, color: '#2e7d32' }}>{resetOtpResult}</p>
                 </div>
               )}
@@ -4259,9 +4345,9 @@ const AdminPanel = () => {
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
           <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>Privacy Policy</Link>
-          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
           <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>Terms & Conditions</Link>
         </p>
       </div>
@@ -4288,11 +4374,11 @@ const DropdownMenu = () => {
               {user?.isPremium && <div style={{ background: '#ff9800', display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 11, marginTop: 4 }}>⭐ PREMIUM</div>}
             </div>
             <div style={{ padding: '8px 0' }}>
-              <Link to="/profile" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee', fontWeight: 'bold' }}>👤 MY PROFILE</Link>
-              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>🏠 Home</Link>
-              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>ℹ️ About Us</Link>
-              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>📞 Contact Us</Link>
-              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid #eee' }}>💬 Join WhatsApp</Link>
+              <Link to="/profile" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontWeight: 'bold' }}>👤 MY PROFILE</Link>
+              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>🏠 Home</Link>
+              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>ℹ️ About Us</Link>
+              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>📞 Contact Us</Link>
+              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>💬 Join WhatsApp</Link>
             </div>
           </div>
         </>
@@ -4304,6 +4390,7 @@ const DropdownMenu = () => {
 // Main App Component
 const AppContent = () => {
   const { token, darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
 
   useEffect(() => {
     const verifySession = async () => {
@@ -4343,8 +4430,8 @@ const AppContent = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh' }}>
       <nav style={{ background: darkMode ? '#16213e' : 'white', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.1)', position: 'sticky', top: 0, zIndex: 100 }}>
         <div>
-          <h1 style={{ color: '#1e3c72', fontSize: 'clamp(16px, 4vw, 20px)', margin: 0 }}>ELITE NURSING & MIDWIFERY CBT</h1>
-          <p style={{ margin: 0, fontSize: '10px', color: '#1e3c72' }}>Computer Based Testing Platform</p>
+          <h1 style={{ color: headingColor, fontSize: 'clamp(16px, 4vw, 20px)', margin: 0 }}>ELITE NURSING & MIDWIFERY CBT</h1>
+          <p style={{ margin: 0, fontSize: '10px', color: headingColor }}>Computer Based Testing Platform</p>
         </div>
         <DropdownMenu />
       </nav>
@@ -4382,6 +4469,13 @@ function App() {
     const saved = localStorage.getItem('darkMode');
     return saved === 'true';
   });
+
+  // ========== DARK MODE HELPERS FOR NOTIFICATION MODAL ==========
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
+  // ==============================================================
 
   const login = (token, user) => {
     setAuth({ token, user });
@@ -4641,7 +4735,7 @@ useEffect(() => {
         zIndex: 9999
       }}>
         <div style={{
-          background: 'white',
+          background: cardBg,
           borderRadius: 20,
           padding: 24,
           maxWidth: 320,
@@ -4649,8 +4743,8 @@ useEffect(() => {
           boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
         }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📢</div>
-          <h3 style={{ color: '#1e3c72', marginBottom: 8 }}>{notificationModal.title}</h3>
-          <p style={{ color: '#666', marginBottom: 20 }}>{notificationModal.body}</p>
+          <h3 style={{ color: headingColor, marginBottom: 8 }}>{notificationModal.title}</h3>
+          <p style={{ color: secondaryText, marginBottom: 20 }}>{notificationModal.body}</p>
           <button
             onClick={() => setNotificationModal(null)}
             style={{
