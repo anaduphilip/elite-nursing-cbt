@@ -3620,7 +3620,7 @@ const PaymentReturn = () => {
   );
 };
 
-// Admin Panel Component
+// Admin Panel Component – with plan selector for each user
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -3635,17 +3635,20 @@ const AdminPanel = () => {
   const [sendingNotification, setSendingNotification] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState('');
 
-  // ---------- Manual OTP states (for email verification) ----------
+  // Manual OTP states
   const [manualOtpEmail, setManualOtpEmail] = useState('');
   const [manualOtpResult, setManualOtpResult] = useState('');
   const [generatingOtp, setGeneratingOtp] = useState(false);
 
-  // ---------- Manual Reset states (for password reset) ----------
+  // Manual Reset states
   const [resetEmail, setResetEmail] = useState('');
   const [resetOtpResult, setResetOtpResult] = useState('');
   const [generatingResetOtp, setGeneratingResetOtp] = useState(false);
 
-  // ---------- Existing functions ----------
+  // ---------- NEW: Selected plan per user ----------
+  const [selectedPlan, setSelectedPlan] = useState({}); // { userId: 'daily'|'monthly'|'yearly'|'none' }
+  // ------------------------------------------------
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -3656,6 +3659,12 @@ const AdminPanel = () => {
         ]);
         setUsers(usersRes.data);
         setContacts(contactsRes.data);
+        // Initialize selectedPlan from existing user data
+        const initial = {};
+        usersRes.data.forEach(u => {
+          initial[u._id] = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
+        });
+        setSelectedPlan(initial);
       } catch (error) {
         if (error.response?.status === 403 || error.response?.status === 401) {
           alert('Admin access only. You will be redirected.');
@@ -3677,20 +3686,28 @@ const AdminPanel = () => {
     }
   }, [token, user, logout]);
 
-  const togglePremium = async (userId, currentStatus) => {
+  // ---------- NEW: Apply plan for a user ----------
+  const applyPlan = async (userId) => {
+    const plan = selectedPlan[userId];
+    if (!plan) return alert('Please select a plan first.');
     try {
-      await axios.post('/api/admin/toggle-premium', 
-        { userId, isPremium: !currentStatus },
+      const response = await axios.post('/api/admin/set-premium-plan',
+        { userId, planType: plan },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setUsers(users.map(u => 
-        u._id === userId ? { ...u, isPremium: !currentStatus } : u
-      ));
+      if (response.data.success) {
+        // Update the user in the local list
+        const updatedUser = response.data.user || { ...users.find(u => u._id === userId), isPremium: plan !== 'none', premiumPlan: plan !== 'none' ? plan : null };
+        setUsers(users.map(u => u._id === userId ? updatedUser : u));
+        alert(response.data.message);
+      }
     } catch (error) {
-      alert('Failed to update user status');
+      alert('Failed to apply plan: ' + (error.response?.data?.error || error.message));
     }
   };
+  // ------------------------------------------------
 
+  // ---------- Existing functions (unchanged) ----------
   const deleteUser = async (userId) => {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       try {
@@ -3824,21 +3841,47 @@ const AdminPanel = () => {
 
           {activeTab === 'users' && (
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 20 }}>
-              {users.map(u => (
-                <div key={u._id} style={{ width: '350px', background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, border: '1px solid #e0e0e0' }}>
-                  <p><strong>Name:</strong> {u.name || 'N/A'}</p>
-                  <p><strong>Email:</strong> {u.email}</p>
-                  <p><strong>Premium:</strong> {u.isPremium ? '✅ Yes' : '❌ No'}</p>
-                  <p><strong>Verified:</strong> {u.isVerified ? '✅ Yes' : '❌ No'}</p>
-                  <p><strong>Joined:</strong> {new Date(u.createdAt).toLocaleDateString()}</p>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 15 }}>
-                    <button onClick={() => togglePremium(u._id, u.isPremium)} style={{ background: u.isPremium ? '#dc3545' : '#28a745', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 'bold' }}>
-                      {u.isPremium ? 'Remove Premium' : 'Make Premium'}
-                    </button>
-                    <button onClick={() => deleteUser(u._id)} style={{ background: '#dc3545', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 'bold' }}>Delete User</button>
+              {users.map(u => {
+                // Determine current plan from user data
+                const currentPlan = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
+                return (
+                  <div key={u._id} style={{ width: '350px', background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, border: '1px solid #e0e0e0' }}>
+                    <p><strong>Name:</strong> {u.name || 'N/A'}</p>
+                    <p><strong>Email:</strong> {u.email}</p>
+                    <p><strong>Premium:</strong> {u.isPremium ? '✅ Yes' : '❌ No'}</p>
+                    {u.isPremium && <p><strong>Plan:</strong> {u.premiumPlan ? u.premiumPlan.toUpperCase() : 'N/A'}</p>}
+                    {u.isPremium && u.premiumExpiry && <p><strong>Expires:</strong> {new Date(u.premiumExpiry).toLocaleDateString()}</p>}
+                    <p><strong>Verified:</strong> {u.isVerified ? '✅ Yes' : '❌ No'}</p>
+                    <p><strong>Joined:</strong> {new Date(u.createdAt).toLocaleDateString()}</p>
+                    
+                    {/* ===== NEW: Plan Selector ===== */}
+                    <div style={{ marginTop: 15 }}>
+                      <label style={{ fontSize: 13, fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Set Premium Plan:</label>
+                      <select 
+                        value={selectedPlan[u._id] || currentPlan}
+                        onChange={(e) => setSelectedPlan(prev => ({ ...prev, [u._id]: e.target.value }))}
+                        style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc', background: 'white', fontSize: 14 }}
+                      >
+                        <option value="none">None (Remove Premium)</option>
+                        <option value="daily">Daily (₦500)</option>
+                        <option value="monthly">Monthly (₦2000)</option>
+                        <option value="yearly">Yearly (₦10000)</option>
+                      </select>
+                      <button 
+                        onClick={() => applyPlan(u._id)}
+                        style={{ width: '100%', marginTop: 6, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
+                      >
+                        Apply Plan
+                      </button>
+                    </div>
+                    {/* ================================= */}
+
+                    <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                      <button onClick={() => deleteUser(u._id)} style={{ background: '#dc3545', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 'bold' }}>Delete User</button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -3964,13 +4007,10 @@ const AdminPanel = () => {
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
-  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
-    Privacy Policy
-  </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
-  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
-    Terms & Conditions
-  </Link></p>
+          <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>Privacy Policy</Link>
+          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>Terms & Conditions</Link>
+        </p>
       </div>
     </div>
   );
