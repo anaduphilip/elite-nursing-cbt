@@ -1253,11 +1253,12 @@ const HomePage = () => {
 // Course List Component – final version (topic card shows premium exam seats)
 const CourseList = () => {
   const { categoryName, mode } = useParams();
+  const navigate = useNavigate(); // ✅ ADDED for client-side navigation
   const [displayData, setDisplayData] = useState([]);
   const [fullTopicQuizzes, setFullTopicQuizzes] = useState([]);
   const [isTopicView, setIsTopicView] = useState(true);
   const [loading, setLoading] = useState(true);
-  const { token, darkMode, user } = useContext(AuthContext); // ✅ ADDED user
+  const { token, darkMode, user } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
@@ -1386,8 +1387,6 @@ const CourseList = () => {
           <p style={{ marginTop: 8, fontSize: 14 }}>{mode === 'free' ? 'FREE MODE' : 'PREMIUM MODE'}</p>
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
         </div>
-
-        {/* ✅ Continue button REMOVED – no code here */}
 
         {/* Grid */}
         <div style={{
@@ -1519,9 +1518,16 @@ const CourseList = () => {
         </div>
       </div>
 
-      {/* Floating Back Button */}
-      <Link to={currentTopic ? `/courses/${categoryName}/${mode}` : `/?mode=${mode}`}>
-        <button style={{
+      {/* ✅ FIXED: Floating Back Button – uses useNavigate for instant navigation */}
+      <button
+        onClick={() => {
+          if (currentTopic) {
+            navigate(`/courses/${categoryName}/${mode}`, { replace: true });
+          } else {
+            navigate(`/?mode=${mode}`, { replace: true });
+          }
+        }}
+        style={{
           position: 'fixed',
           bottom: '20px',
           left: '50%',
@@ -1536,10 +1542,10 @@ const CourseList = () => {
           fontSize: '14px',
           boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
           zIndex: 1000
-        }}>
-          ← {currentTopic ? 'Back to Courses' : 'Back to Categories'}
-        </button>
-      </Link>
+        }}
+      >
+        ← {currentTopic ? 'Back to Courses' : 'Back to Categories'}
+      </button>
     </div>
   );
 };
