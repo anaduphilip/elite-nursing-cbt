@@ -4402,12 +4402,11 @@ useEffect(() => {
         headers: { Authorization: `Bearer ${auth.token}` }
       });
       const freshUser = response.data;
-      if (isMounted && freshUser.isPremium !== auth.user?.isPremium) {
-        // Update local state and localStorage
-        const updatedUser = { ...auth.user, isPremium: freshUser.isPremium };
-        setAuth({ ...auth, user: updatedUser });
-        localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
-        console.log('Premium status synced:', freshUser.isPremium);
+      if (isMounted) {
+        // ✅ FIX: Update the entire user object, not just isPremium
+        setAuth({ ...auth, user: freshUser });
+        localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: freshUser }));
+        console.log('User profile synced:', freshUser);
       }
     } catch (error) {
       console.error('Failed to refresh user status:', error);
@@ -4425,14 +4424,14 @@ useEffect(() => {
   // Also refresh on page focus (optional)
   window.addEventListener('focus', refreshUserStatus);
 
-  // ✅ NEW: Poll every 5 seconds to update premium badge quickly
+  // Poll every 5 seconds to update premium badge quickly
   const intervalId = setInterval(refreshUserStatus, 5000);
 
   return () => {
     isMounted = false;
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('focus', refreshUserStatus);
-    clearInterval(intervalId);  // ✅ NEW: Clean up the interval
+    clearInterval(intervalId);
   };
 }, [auth.token, auth.user?.isPremium]);
 
