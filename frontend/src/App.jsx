@@ -3955,7 +3955,7 @@ const PaymentReturn = () => {
   );
 };
 
-// Admin Panel Component – with plan selector for each user
+// Admin Panel Component – with plan selector and search bar
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -3984,48 +3984,53 @@ const AdminPanel = () => {
   const [resetOtpResult, setResetOtpResult] = useState('');
   const [generatingResetOtp, setGeneratingResetOtp] = useState(false);
 
-  // ---------- NEW: Selected plan per user ----------
-  const [selectedPlan, setSelectedPlan] = useState({}); // { userId: 'daily'|'monthly'|'yearly'|'none' }
-  // ------------------------------------------------
+  // Selected plan per user
+  const [selectedPlan, setSelectedPlan] = useState({});
+
+  // ===== NEW: Search state =====
+  const [searchQuery, setSearchQuery] = useState('');
+  // =============================
+
+  // ===== FIX: Wrap fetchData in useCallback =====
+  const fetchData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const [usersRes, contactsRes] = await Promise.all([
+        axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setUsers(usersRes.data);
+      setContacts(contactsRes.data);
+      // Initialize selectedPlan from existing user data
+      const initial = {};
+      usersRes.data.forEach(u => {
+        initial[u._id] = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
+      });
+      setSelectedPlan(initial);
+    } catch (error) {
+      if (error.response?.status === 403 || error.response?.status === 401) {
+        alert('Admin access only. You will be redirected.');
+        logout();
+        window.location.href = '/login';
+      } else {
+        console.error('Error fetching admin data:', error);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [token, logout]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [usersRes, contactsRes] = await Promise.all([
-          axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } })
-        ]);
-        setUsers(usersRes.data);
-        setContacts(contactsRes.data);
-        // Initialize selectedPlan from existing user data
-        const initial = {};
-        usersRes.data.forEach(u => {
-          initial[u._id] = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
-        });
-        setSelectedPlan(initial);
-      } catch (error) {
-        if (error.response?.status === 403 || error.response?.status === 401) {
-          alert('Admin access only. You will be redirected.');
-          logout();
-          window.location.href = '/login';
-        } else {
-          console.error('Error fetching admin data:', error);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     if (user?.email === 'elitenursingcbt@gmail.com') {
       fetchData();
     } else if (user) {
       alert('Admin access only');
       window.location.href = '/';
     }
-  }, [token, user, logout]);
+  }, [user, fetchData]);
+  // ==============================================
 
-  // ---------- NEW: Apply plan for a user ----------
+  // Apply plan for a user
   const applyPlan = async (userId) => {
     const plan = selectedPlan[userId];
     if (!plan) return alert('Please select a plan first.');
@@ -4035,7 +4040,6 @@ const AdminPanel = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (response.data.success) {
-        // Update the user in the local list
         const updatedUser = response.data.user || { ...users.find(u => u._id === userId), isPremium: plan !== 'none', premiumPlan: plan !== 'none' ? plan : null };
         setUsers(users.map(u => u._id === userId ? updatedUser : u));
         alert(response.data.message);
@@ -4044,7 +4048,6 @@ const AdminPanel = () => {
       alert('Failed to apply plan: ' + (error.response?.data?.error || error.message));
     }
   };
-  // ------------------------------------------------
 
   // ---------- Existing functions (unchanged) ----------
   const deleteUser = async (userId) => {
@@ -4109,7 +4112,7 @@ const AdminPanel = () => {
     }
   };
 
-  // ---------- Manual OTP function (email verification) ----------
+  // Manual OTP function
   const generateManualOtp = async () => {
     if (!manualOtpEmail.trim()) {
       alert('Please enter an email address');
@@ -4135,7 +4138,7 @@ const AdminPanel = () => {
     }
   };
 
-  // ---------- Manual Reset function (password reset) ----------
+  // Manual Reset function
   const generateManualResetOtp = async () => {
     if (!resetEmail.trim()) {
       alert('Please enter an email address');
@@ -4164,6 +4167,12 @@ const AdminPanel = () => {
   if (loading) return <LoadingWithBar message="Loading admin panel" />;
   if (user?.email !== 'elitenursingcbt@gmail.com') return <Navigate to="/" />;
 
+  // ===== Filter users by search query =====
+  const filteredUsers = users.filter(u =>
+    u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  // ========================================
+
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -4171,7 +4180,7 @@ const AdminPanel = () => {
           <h1 style={{ color: headingColor, textAlign: 'center', marginBottom: 20, fontSize: 28 }}>Admin Panel</h1>
           
           <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '2px solid #e0e0e0', paddingBottom: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={() => setActiveTab('users')} style={{ background: activeTab === 'users' ? '#1e3c72' : 'transparent', color: activeTab === 'users' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'users' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Users ({users.length})</button>
+            <button onClick={() => setActiveTab('users')} style={{ background: activeTab === 'users' ? '#1e3c72' : 'transparent', color: activeTab === 'users' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'users' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Users ({filteredUsers.length})</button>
             <button onClick={() => setActiveTab('contacts')} style={{ background: activeTab === 'contacts' ? '#1e3c72' : 'transparent', color: activeTab === 'contacts' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'contacts' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Contact Messages ({contacts.length})</button>
             <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
             <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
@@ -4179,49 +4188,78 @@ const AdminPanel = () => {
           </div>
 
           {activeTab === 'users' && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 20 }}>
-              {users.map(u => {
-                // Determine current plan from user data
-                const currentPlan = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
-                return (
-                  <div key={u._id} style={{ width: '350px', background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
-                    <p><strong>Name:</strong> {u.name || 'N/A'}</p>
-                    <p><strong>Email:</strong> {u.email}</p>
-                    <p><strong>Premium:</strong> {u.isPremium ? '✅ Yes' : '❌ No'}</p>
-                    {u.isPremium && <p><strong>Plan:</strong> {u.premiumPlan ? u.premiumPlan.toUpperCase() : 'N/A'}</p>}
-                    {u.isPremium && u.premiumExpiry && <p><strong>Expires:</strong> {new Date(u.premiumExpiry).toLocaleDateString()}</p>}
-                    <p><strong>Verified:</strong> {u.isVerified ? '✅ Yes' : '❌ No'}</p>
-                    <p><strong>Joined:</strong> {new Date(u.createdAt).toLocaleDateString()}</p>
-                    
-                    {/* ===== NEW: Plan Selector ===== */}
-                    <div style={{ marginTop: 15 }}>
-                      <label style={{ fontSize: 13, fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Set Premium Plan:</label>
-                      <select 
-                        value={selectedPlan[u._id] || currentPlan}
-                        onChange={(e) => setSelectedPlan(prev => ({ ...prev, [u._id]: e.target.value }))}
-                        style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, fontSize: 14 }}
-                      >
-                        <option value="none">None (Remove Premium)</option>
-                        <option value="daily">Daily (₦500)</option>
-                        <option value="monthly">Monthly (₦2000)</option>
-                        <option value="yearly">Yearly (₦10000)</option>
-                      </select>
-                      <button 
-                        onClick={() => applyPlan(u._id)}
-                        style={{ width: '100%', marginTop: 6, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
-                      >
-                        Apply Plan
-                      </button>
-                    </div>
-                    {/* ================================= */}
+            <>
+              {/* ===== NEW: Search Bar ===== */}
+              <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="🔍 Search by email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    maxWidth: 400,
+                    padding: '10px 16px',
+                    borderRadius: 30,
+                    border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+                    background: darkMode ? '#2d2d3d' : 'white',
+                    color: textColor,
+                    fontSize: 14,
+                    outline: 'none',
+                    transition: 'border 0.2s'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                  onBlur={(e) => e.target.style.borderColor = darkMode ? '#444' : '#ddd'}
+                />
+              </div>
+              {/* ========================== */}
 
-                    <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                      <button onClick={() => deleteUser(u._id)} style={{ background: '#dc3545', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 'bold' }}>Delete User</button>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 20 }}>
+                {filteredUsers.map(u => {
+                  const currentPlan = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
+                  return (
+                    <div key={u._id} style={{ width: '350px', background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
+                      <p><strong>Name:</strong> {u.name || 'N/A'}</p>
+                      <p><strong>Email:</strong> {u.email}</p>
+                      <p><strong>Premium:</strong> {u.isPremium ? '✅ Yes' : '❌ No'}</p>
+                      {u.isPremium && <p><strong>Plan:</strong> {u.premiumPlan ? u.premiumPlan.toUpperCase() : 'N/A'}</p>}
+                      {u.isPremium && u.premiumExpiry && <p><strong>Expires:</strong> {new Date(u.premiumExpiry).toLocaleDateString()}</p>}
+                      <p><strong>Verified:</strong> {u.isVerified ? '✅ Yes' : '❌ No'}</p>
+                      <p><strong>Joined:</strong> {new Date(u.createdAt).toLocaleDateString()}</p>
+                      
+                      <div style={{ marginTop: 15 }}>
+                        <label style={{ fontSize: 13, fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Set Premium Plan:</label>
+                        <select 
+                          value={selectedPlan[u._id] || currentPlan}
+                          onChange={(e) => setSelectedPlan(prev => ({ ...prev, [u._id]: e.target.value }))}
+                          style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, fontSize: 14 }}
+                        >
+                          <option value="none">None (Remove Premium)</option>
+                          <option value="daily">Daily (₦500)</option>
+                          <option value="monthly">Monthly (₦2000)</option>
+                          <option value="yearly">Yearly (₦10000)</option>
+                        </select>
+                        <button 
+                          onClick={() => applyPlan(u._id)}
+                          style={{ width: '100%', marginTop: 6, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
+                        >
+                          Apply Plan
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                        <button onClick={() => deleteUser(u._id)} style={{ background: '#dc3545', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 'bold' }}>Delete User</button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+              {filteredUsers.length === 0 && (
+                <p style={{ textAlign: 'center', color: secondaryText, marginTop: 20 }}>
+                  No users found matching "{searchQuery}"
+                </p>
+              )}
+            </>
           )}
 
           {activeTab === 'contacts' && (
