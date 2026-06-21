@@ -3461,9 +3461,9 @@ const borderColor = getBorderColor(darkMode);
   );
 };
 
-// Get Premium Component – with subscription plans, live countdown timer, and Back to Profile button
+// Get Premium Component – with subscription plans, live countdown timer, Back to Profile, and local 5-second polling
 const GetPremium = () => {
-  const { token, user, darkMode } = useContext(AuthContext);
+  const { token, user, darkMode, login } = useContext(AuthContext);
   const borderColor = getBorderColor(darkMode);
   const cardBg = getCardBg(darkMode);
   const headingColor = getHeadingColor(darkMode);
@@ -3479,7 +3479,7 @@ const GetPremium = () => {
     yearly: { label: 'Yearly', amount: 10000, duration: '365 days' }
   };
 
-  // Live countdown timer
+  // ----- Live countdown timer (every second) -----
   useEffect(() => {
     if (!user?.premiumExpiry) {
       setTimeLeft(null);
@@ -3508,6 +3508,48 @@ const GetPremium = () => {
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [user?.premiumExpiry]);
+
+  // ----- NEW: Poll for user status every 5 seconds (only on this page) -----
+  useEffect(() => {
+    let isMounted = true;
+
+    const refreshStatus = async () => {
+      if (!token) return;
+      try {
+        const response = await axios.get('/api/user/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const freshUser = response.data;
+        if (isMounted) {
+          // Only update if changed
+          const currentUser = user;
+          const hasChanged = (
+            currentUser?.isPremium !== freshUser.isPremium ||
+            currentUser?.premiumPlan !== freshUser.premiumPlan ||
+            currentUser?.premiumExpiry !== freshUser.premiumExpiry
+          );
+          if (hasChanged) {
+            login(token, freshUser);
+            console.log('Premium status refreshed:', freshUser);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to refresh premium status:', error);
+      }
+    };
+
+    // Refresh immediately on mount
+    refreshStatus();
+
+    // Then every 5 seconds
+    const interval = setInterval(refreshStatus, 5000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [token, user?.id, user?.isPremium, user?.premiumExpiry]);
+  // -------------------------------------------------------------------
 
   const handlePayment = async () => {
     if (!user?.id) {
@@ -4696,7 +4738,7 @@ useEffect(() => {
   return () => listener.remove();
 }, [auth.user?.id, auth.token]);
 
-// Auto-refresh user status when app becomes active
+/// Auto-refresh user status only when app becomes visible or focused (no polling)
 useEffect(() => {
   if (!auth.token) return;
 
@@ -4709,17 +4751,27 @@ useEffect(() => {
       });
       const freshUser = response.data;
       if (isMounted) {
-        // ✅ FIX: Update the entire user object, not just isPremium
-        setAuth({ ...auth, user: freshUser });
-        localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: freshUser }));
-        console.log('User profile synced:', freshUser);
+        // Only update if data actually changed
+        const currentUser = auth.user;
+        const hasChanged = (
+          currentUser?.isPremium !== freshUser.isPremium ||
+          currentUser?.premiumPlan !== freshUser.premiumPlan ||
+          currentUser?.premiumExpiry !== freshUser.premiumExpiry ||
+          currentUser?.name !== freshUser.name ||
+          currentUser?.isVerified !== freshUser.isVerified
+        );
+        if (hasChanged) {
+          setAuth({ ...auth, user: freshUser });
+          localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: freshUser }));
+          console.log('User profile synced (changed):', freshUser);
+        }
       }
     } catch (error) {
       console.error('Failed to refresh user status:', error);
     }
   };
 
-  // Refresh immediately when app becomes visible (e.g., after returning from background)
+  // Refresh when app becomes visible (e.g., after returning from background)
   const handleVisibilityChange = () => {
     if (document.visibilityState === 'visible') {
       refreshUserStatus();
@@ -4727,19 +4779,17 @@ useEffect(() => {
   };
 
   document.addEventListener('visibilitychange', handleVisibilityChange);
-  // Also refresh on page focus (optional)
+  // Also refresh on page focus
   window.addEventListener('focus', refreshUserStatus);
 
-  // Poll every 5 seconds to update premium badge quickly
-  const intervalId = setInterval(refreshUserStatus, 5000);
+  // ⛔ No polling interval – kept only for GetPremium component
 
   return () => {
     isMounted = false;
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('focus', refreshUserStatus);
-    clearInterval(intervalId);
   };
-}, [auth.token, auth.user?.isPremium]);
+}, [auth.token, auth.user?.isPremium, auth.user?.premiumExpiry]);
 
   return (
   <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
