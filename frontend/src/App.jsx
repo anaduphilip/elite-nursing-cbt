@@ -1391,26 +1391,7 @@ const CourseList = () => {
           <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
         </div>
 
-        {/* Continue button (free mode only) */}
-        {mode === 'free' && !isTopicView && firstIncompleteQuiz && (
-          <div style={{ marginBottom: 24, textAlign: 'center' }}>
-            <Link to={`/take/${firstIncompleteQuiz._id}/1/${mode}`}>
-              <button style={{
-                background: '#4caf50',
-                color: 'white',
-                border: 'none',
-                padding: '12px 24px',
-                borderRadius: 50,
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: 16,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-              }}>
-                ▶ Continue: {firstIncompleteQuiz.title}
-              </button>
-            </Link>
-          </div>
-        )}
+        {/* ✅ Continue button REMOVED – no code here */}
 
         {/* Grid */}
         <div style={{
