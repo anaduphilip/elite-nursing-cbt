@@ -4151,6 +4151,18 @@ function App() {
     delete axios.defaults.headers.common['Authorization'];
   };
 
+  // Force refresh on new version
+useEffect(() => {
+  const currentVersion = '1.0.1'; // 👈 Increment this number on every deploy
+  const savedVersion = localStorage.getItem('appVersion');
+  if (savedVersion && savedVersion !== currentVersion) {
+    localStorage.setItem('appVersion', currentVersion);
+    window.location.reload(true); // Hard reload from server
+  } else if (!savedVersion) {
+    localStorage.setItem('appVersion', currentVersion);
+  }
+}, []);
+
   // ========== ADD THIS NEW useEffect ==========
   useEffect(() => {
   const interceptor = axios.interceptors.response.use(
