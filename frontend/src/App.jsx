@@ -1257,7 +1257,7 @@ const CourseList = () => {
   const [fullTopicQuizzes, setFullTopicQuizzes] = useState([]);
   const [isTopicView, setIsTopicView] = useState(true);
   const [loading, setLoading] = useState(true);
-  const { token, darkMode } = useContext(AuthContext);
+  const { token, darkMode, user } = useContext(AuthContext); // ✅ ADDED user
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
@@ -1358,10 +1358,6 @@ const CourseList = () => {
     return null;
   };
 
-  const firstIncompleteQuiz = !isTopicView && mode === 'free' && fullTopicQuizzes.length > 0
-    ? fullTopicQuizzes.find(quiz => !getLastScore(quiz._id))
-    : null;
-
   if (loading) {
     const loadingMsg = currentTopic ? 'Loading exams...' : 'Loading courses...';
     return <LoadingWithBar message={loadingMsg} />;
@@ -1436,7 +1432,7 @@ const CourseList = () => {
                 </Link>
               );
             } else {
-              // Free mode quiz card (unchanged)
+              // Free mode quiz card
               const quiz = item;
               const totalQuestions = quiz.questions?.length || 0;
               const lastScore = getLastScore(quiz._id);
@@ -1447,11 +1443,20 @@ const CourseList = () => {
               let buttonLink = `/take/${quiz._id}/1/${mode}`;
               let buttonColor = category.color;
 
+              // ===== ✅ UPDATED BUTTON LOGIC =====
               if (mode === 'free') {
                 if (hasTakenFree) {
-                  buttonText = '⭐ Upgrade to Retake';
-                  buttonLink = '/get-premium';
-                  buttonColor = '#ff9800';
+                  if (user?.isPremium) {
+                    // Premium user can retake the free exam
+                    buttonText = '🔄 Retake Exam';
+                    buttonLink = `/take/${quiz._id}/1/${mode}`;
+                    buttonColor = category.color;
+                  } else {
+                    // Non-premium user needs to upgrade
+                    buttonText = '⭐ Upgrade to Retake';
+                    buttonLink = '/get-premium';
+                    buttonColor = '#ff9800';
+                  }
                 }
               }
 
