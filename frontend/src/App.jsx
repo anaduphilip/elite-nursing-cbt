@@ -2817,6 +2817,244 @@ const PrivacyPolicy = () => {
   );
 };
 
+// Profile Component – shows user details, premium, history, dark mode, logout
+const Profile = () => {
+  const { token, user, login, logout, darkMode, toggleDarkMode } = useContext(AuthContext);
+  const [editName, setEditName] = useState(user?.name || '');
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  // ---------- Countdown timer (copy from GetPremium) ----------
+  const [timeLeft, setTimeLeft] = useState(null);
+  useEffect(() => {
+    if (!user?.premiumExpiry) {
+      setTimeLeft(null);
+      return;
+    }
+    const updateTimer = () => {
+      const now = new Date();
+      const expiry = new Date(user.premiumExpiry);
+      const diff = expiry - now;
+      if (diff <= 0) {
+        setTimeLeft(null);
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [user?.premiumExpiry]);
+
+  // ---------- Save name ----------
+  const handleSaveName = async () => {
+    if (!editName.trim()) {
+      setError('Name cannot be empty');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const response = await axios.put('/api/user/profile', 
+        { name: editName.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // Update context with new user data
+      login(token, response.data);
+      setMessage('Name updated successfully!');
+      setIsEditing(false);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update name');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---------- Verify email ----------
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [verifyMessage, setVerifyMessage] = useState('');
+  const [verifyError, setVerifyError] = useState('');
+
+  const sendVerification = async () => {
+    setVerifyError('');
+    setVerifyMessage('');
+    try {
+      await axios.post('/api/send-verification', { email: user.email, name: user.name });
+      setOtpSent(true);
+      setVerifyMessage('Verification code sent to your email.');
+    } catch (err) {
+      setVerifyError(err.response?.data?.error || 'Failed to send code');
+    }
+  };
+
+  const verifyOtp = async () => {
+    if (!otp || otp.length !== 6) {
+      setVerifyError('Please enter a valid 6-digit code');
+      return;
+    }
+    try {
+      const res = await axios.post('/api/verify-email', { email: user.email, otp });
+      if (res.data.success) {
+        setVerifyMessage('Email verified successfully!');
+        // Refresh user to update isVerified
+        const profileRes = await axios.get('/api/user/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        login(token, profileRes.data);
+        setOtpSent(false);
+        setOtp('');
+      }
+    } catch (err) {
+      setVerifyError(err.response?.data?.error || 'Verification failed');
+    }
+  };
+
+  const isPremiumActive = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
+
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        <h1 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>👤 My Profile</h1>
+
+        {/* Name */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Name</label>
+          {isEditing ? (
+            <div style={{ display: 'flex', gap: 10 }}>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                style={{ flex: 1, padding: '8px 12px', border: '1px solid #ccc', borderRadius: 8 }}
+              />
+              <button onClick={handleSaveName} disabled={loading} style={{ background: '#1e3c72', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+                {loading ? 'Saving...' : 'Save'}
+              </button>
+              <button onClick={() => { setIsEditing(false); setEditName(user?.name || ''); }} style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Cancel</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{user?.name || 'Not set'}</span>
+              <button onClick={() => setIsEditing(true)} style={{ background: 'transparent', color: '#1e3c72', border: '1px solid #1e3c72', padding: '4px 12px', borderRadius: 6, cursor: 'pointer' }}>Edit</button>
+            </div>
+          )}
+          {message && <p style={{ color: '#2e7d32', fontSize: 13, marginTop: 4 }}>{message}</p>}
+          {error && <p style={{ color: '#c62828', fontSize: 13, marginTop: 4 }}>{error}</p>}
+        </div>
+
+        {/* Email & Verification */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Email</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span>{user?.email}</span>
+            {user?.isVerified ? (
+              <span style={{ color: '#2e7d32', fontSize: 13 }}>✅ Verified</span>
+            ) : (
+              <span style={{ color: '#ff9800', fontSize: 13 }}>⚠️ Not Verified</span>
+            )}
+          </div>
+          {!user?.isVerified && (
+            <div style={{ marginTop: 8 }}>
+              {!otpSent ? (
+                <button onClick={sendVerification} style={{ background: '#ff9800', color: 'white', padding: '6px 14px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Verify Email</button>
+              ) : (
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="Enter 6-digit code"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    style={{ width: '150px', padding: '6px 10px', border: '1px solid #ccc', borderRadius: 6 }}
+                  />
+                  <button onClick={verifyOtp} style={{ background: '#28a745', color: 'white', padding: '6px 14px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Verify</button>
+                  <button onClick={() => setOtpSent(false)} style={{ background: 'transparent', color: '#6c757d', border: 'none', cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+                </div>
+              )}
+              {verifyMessage && <p style={{ color: '#2e7d32', fontSize: 13, marginTop: 4 }}>{verifyMessage}</p>}
+              {verifyError && <p style={{ color: '#c62828', fontSize: 13, marginTop: 4 }}>{verifyError}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Premium Status */}
+        <div style={{ marginBottom: 20, background: '#f5f5f5', padding: 16, borderRadius: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <strong>Premium Status</strong>
+            {isPremiumActive ? (
+              <span style={{ color: '#2e7d32' }}>✅ Active</span>
+            ) : (
+              <span style={{ color: '#dc3545' }}>❌ Not Active</span>
+            )}
+          </div>
+          {isPremiumActive && (
+            <>
+              <p style={{ marginTop: 4 }}><strong>Plan:</strong> {user.premiumPlan ? user.premiumPlan.toUpperCase() : 'N/A'}</p>
+              <p><strong>Expires:</strong> {new Date(user.premiumExpiry).toLocaleString()}</p>
+              {timeLeft && (
+                <div style={{ marginTop: 8, padding: 10, background: '#fff3e0', borderRadius: 8 }}>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 'bold', color: '#e65100' }}>⏳ Time remaining:</p>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                    {timeLeft.days > 0 && <span><strong>{timeLeft.days}</strong>d</span>}
+                    <span><strong>{String(timeLeft.hours).padStart(2, '0')}</strong>h</span>
+                    <span><strong>{String(timeLeft.minutes).padStart(2, '0')}</strong>m</span>
+                    <span><strong>{String(timeLeft.seconds).padStart(2, '0')}</strong>s</span>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+          <Link to="/get-premium">
+            <button style={{ marginTop: 10, background: '#ff9800', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+              {isPremiumActive ? 'Renew / Upgrade' : 'Get Premium'}
+            </button>
+          </Link>
+        </div>
+
+        {/* My History */}
+        <div style={{ marginBottom: 20 }}>
+          <Link to="/history" style={{ display: 'block', background: '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: '#1e3c72', fontWeight: 'bold' }}>
+            📜 My History
+          </Link>
+        </div>
+
+        {/* Dark Mode Toggle */}
+        <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 8 }}>
+          <span>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</span>
+          <button onClick={toggleDarkMode} style={{ background: '#1e3c72', color: 'white', padding: '6px 12px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+            Toggle
+          </button>
+        </div>
+
+        {/* Admin Panel (only for admin) */}
+        {user?.email === 'elitenursingcbt@gmail.com' && (
+          <div style={{ marginBottom: 20 }}>
+            <Link to="/admin" style={{ display: 'block', background: '#ffebee', padding: 12, borderRadius: 8, textDecoration: 'none', color: '#dc3545', fontWeight: 'bold' }}>
+              👑 Admin Panel
+            </Link>
+          </div>
+        )}
+
+        {/* Logout */}
+        <button onClick={logout} style={{ width: '100%', background: '#dc3545', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+          🚪 Logout
+        </button>
+      </div>
+      <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
+        <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
+    </div>
+  );
+};
+
 // Terms and Conditions Component
 const TermsAndConditions = () => {
   const { darkMode } = useContext(AuthContext);
@@ -4016,94 +4254,30 @@ const AdminPanel = () => {
   );
 };
 
-// Dropdown Menu Component
+// Dropdown Menu Component – simplified
 const DropdownMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const { user, logout, darkMode, toggleDarkMode } = useContext(AuthContext);
-
-  const handleLogoutClick = () => {
-    setIsOpen(false);
-    setShowLogoutConfirm(true);
-  };
-
-  const confirmLogout = async () => {
-    try {
-      const token = localStorage.getItem('auth') ? JSON.parse(localStorage.getItem('auth')).token : null;
-      if (token) {
-        await axios.post('/api/logout', {}, { headers: { Authorization: `Bearer ${token}` } });
-      }
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-    setShowLogoutConfirm(false);
-    logout();
-  };
-
-  const cancelLogout = () => {
-    setShowLogoutConfirm(false);
-  };
-
-  const isAdmin = user?.email === 'elitenursingcbt@gmail.com';
+  const { user, darkMode } = useContext(AuthContext);
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
-      {showLogoutConfirm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: 16,
-            padding: 24,
-            maxWidth: 320,
-            width: '90%',
-            textAlign: 'center',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
-          }}>
-            <div style={{ fontSize: 52, marginBottom: 16 }}>🚪</div>
-            <h3 style={{ color: '#1e3c72', marginBottom: 8, fontSize: 20 }}>Confirm Logout</h3>
-            <p style={{ color: '#666', fontSize: 14, marginBottom: 24 }}>Are you sure you want to logout?</p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button onClick={cancelLogout} style={{ padding: '10px 24px', background: '#6c757d', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Cancel</button>
-              <button onClick={confirmLogout} style={{ padding: '10px 24px', background: '#dc3545', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Logout</button>
-            </div>
-          </div>
-        </div>
-      )}
       <button onClick={() => setIsOpen(!isOpen)} style={{ background: '#1e3c72', color: 'white', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
         <span>☰</span> Menu
       </button>
       {isOpen && (
         <>
           <div onClick={() => setIsOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 198 }} />
-          <div style={{ position: 'absolute', top: '48px', right: 0, width: 240, background: darkMode ? '#16213e' : 'white', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 199, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: '48px', right: 0, width: 220, background: darkMode ? '#16213e' : 'white', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 199, overflow: 'hidden' }}>
             <div style={{ padding: '12px 16px', background: '#1e3c72', color: 'white', textAlign: 'center' }}>
               <div style={{ fontSize: 14, fontWeight: 'bold' }}>{user?.name || user?.email?.split('@')[0]}</div>
               {user?.isPremium && <div style={{ background: '#ff9800', display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 11, marginTop: 4 }}>⭐ PREMIUM</div>}
             </div>
             <div style={{ padding: '8px 0' }}>
+              <Link to="/profile" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee', fontWeight: 'bold' }}>👤 MY PROFILE</Link>
               <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>🏠 Home</Link>
-              <Link to="/how-to-use" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#1e3c72', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid #eee', background: '#e8f5e9' }}>📖 How To Use</Link>
-              <Link to="/get-premium" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#e65100', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid #eee', background: '#fff3e0' }}>⭐ Get Premium</Link>
               <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>ℹ️ About Us</Link>
               <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>📞 Contact Us</Link>
               <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid #eee' }}>💬 Join WhatsApp</Link>
-              <Link to="/history" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid #eee' }}>📜 My History</Link>
-              {isAdmin && <Link to="/admin" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#dc3545', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid #eee', background: '#ffebee' }}>👑 Admin Panel</Link>}
-              <div onClick={() => { toggleDarkMode(); setIsOpen(false); }} style={{ display: 'block', padding: '10px 20px', cursor: 'pointer', borderBottom: '1px solid #eee', color: darkMode ? '#eee' : '#333', fontSize: 13 }}>
-                {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-              </div>
-              <button onClick={handleLogoutClick} style={{ width: '100%', padding: '10px 20px', background: 'none', border: 'none', cursor: 'pointer', color: '#dc3545', fontWeight: 'bold', textAlign: 'left', fontSize: 13 }}>🚪 Logout</button>
             </div>
           </div>
         </>
@@ -4172,6 +4346,7 @@ const AppContent = () => {
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/payment-return" element={<PaymentReturn />} />
         <Route path="/history" element={<MyHistory />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/review/:id" element={<ReviewExam />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsAndConditions />} />
