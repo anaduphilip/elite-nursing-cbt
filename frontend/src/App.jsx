@@ -1750,7 +1750,7 @@ const TakeExam = () => {
   const [timeUp, setTimeUp] = useState(false);
   const [loading, setLoading] = useState(true);
   const [premiumBlocked, setPremiumBlocked] = useState(false);
-  const { token, darkMode } = useContext(AuthContext);
+  const { token, darkMode, user } = useContext(AuthContext); // ✅ ADDED user
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
@@ -1775,7 +1775,8 @@ const TakeExam = () => {
         // ========== Free mode: check if already taken ==========
         if (mode === 'free') {
           const hasTaken = localStorage.getItem(`exam_${id}_taken`) === 'true';
-          if (hasTaken) {
+          // ✅ Allow premium users to retake the free exam
+          if (hasTaken && !user?.isPremium) {
             alert('You have already taken this free exam. Upgrade to Premium to retake.');
             window.location.href = '/get-premium';
             setLoading(false);
@@ -1827,7 +1828,7 @@ const TakeExam = () => {
       }
     };
     if (id && token) fetchExam();
-  }, [id, sectionNumber, token, mode]);
+  }, [id, sectionNumber, token, mode, user]); // ✅ Added user to dependencies (optional but safe)
 
   // Save answers to localStorage
   useEffect(() => {
