@@ -493,6 +493,56 @@ app.post('/api/admin/reply-message', isAdmin, async (req, res) => {
   }
 });
 
+// Admin: Set user premium plan with expiry
+app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
+  try {
+    const { userId, planType } = req.body;
+    if (!userId || !planType) return res.status(400).json({ error: 'Missing userId or planType' });
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // If planType is 'none', remove premium
+    if (planType === 'none') {
+      user.isPremium = false;
+      user.premiumPlan = null;
+      user.premiumExpiry = null;
+      await user.save();
+      return res.json({ success: true, message: 'Premium removed' });
+    }
+
+    const validPlans = ['daily', 'monthly', 'yearly'];
+    if (!validPlans.includes(planType)) {
+      return res.status(400).json({ error: 'Invalid plan type' });
+    }
+
+    // Set expiry based on plan
+    let expiryDate = new Date();
+    switch(planType) {
+      case 'daily': expiryDate.setDate(expiryDate.getDate() + 1); break;
+      case 'monthly': expiryDate.setMonth(expiryDate.getMonth() + 1); break;
+      case 'yearly': expiryDate.setFullYear(expiryDate.getFullYear() + 1); break;
+    }
+
+    user.isPremium = true;
+    user.premiumPlan = planType;
+    user.premiumExpiry = expiryDate;
+    await user.save();
+
+    // Return updated user (excluding password)
+    const updatedUser = user.toObject();
+    delete updatedUser.password;
+
+    res.json({ 
+      success: true, 
+      message: `Premium ${planType} plan applied until ${expiryDate.toISOString()}`,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Set premium plan error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============ CONTACT ROUTE ============
 app.post('/api/contact', async (req, res) => {
   try {
