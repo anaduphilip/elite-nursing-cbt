@@ -2205,7 +2205,7 @@ const ContactUs = () => {
   );
 };
 
-// My History Component – with custom delete confirmation modal
+// My History Component – with Back to Profile button
 const MyHistory = () => {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2252,6 +2252,9 @@ const MyHistory = () => {
   if (attempts.length === 0) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
+        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: '#1e3c72', textDecoration: 'none', fontWeight: 'bold' }}>
+          ← Back to Profile
+        </Link>
         <div style={{ fontSize: 64, marginBottom: 20 }}>📖</div>
         <h2 style={{ color: '#1e3c72' }}>No Exam History</h2>
         <p>Complete some exams to see your history here.</p>
@@ -2281,6 +2284,11 @@ const MyHistory = () => {
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        {/* 👇 BACK TO PROFILE BUTTON */}
+        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: '#1e3c72', textDecoration: 'none', fontWeight: 'bold' }}>
+          ← Back to Profile
+        </Link>
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <h1 style={{ color: '#1e3c72' }}>📚 My Exam History</h1>
           <button
@@ -2374,13 +2382,14 @@ const MyHistory = () => {
 
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
-  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
-    Privacy Policy
-  </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
-  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
-    Terms & Conditions
-  </Link></p>
+          <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+            Privacy Policy
+          </Link>
+          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+            Terms & Conditions
+          </Link>
+        </p>
       </div>
     </div>
   );
@@ -2817,7 +2826,7 @@ const PrivacyPolicy = () => {
   );
 };
 
-// Profile Component – shows user details, premium, history, dark mode, logout
+// Profile Component – Professional Layout
 const Profile = () => {
   const { token, user, login, logout, darkMode, toggleDarkMode } = useContext(AuthContext);
   const [editName, setEditName] = useState(user?.name || '');
@@ -2827,7 +2836,7 @@ const Profile = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // ---------- Countdown timer (copy from GetPremium) ----------
+  // Countdown timer
   const [timeLeft, setTimeLeft] = useState(null);
   useEffect(() => {
     if (!user?.premiumExpiry) {
@@ -2853,7 +2862,7 @@ const Profile = () => {
     return () => clearInterval(interval);
   }, [user?.premiumExpiry]);
 
-  // ---------- Save name ----------
+  // Save name
   const handleSaveName = async () => {
     if (!editName.trim()) {
       setError('Name cannot be empty');
@@ -2867,7 +2876,6 @@ const Profile = () => {
         { name: editName.trim() },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // Update context with new user data
       login(token, response.data);
       setMessage('Name updated successfully!');
       setIsEditing(false);
@@ -2878,7 +2886,7 @@ const Profile = () => {
     }
   };
 
-  // ---------- Verify email ----------
+  // Email verification
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
   const [verifyMessage, setVerifyMessage] = useState('');
@@ -2905,7 +2913,6 @@ const Profile = () => {
       const res = await axios.post('/api/verify-email', { email: user.email, otp });
       if (res.data.success) {
         setVerifyMessage('Email verified successfully!');
-        // Refresh user to update isVerified
         const profileRes = await axios.get('/api/user/profile', {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -2922,19 +2929,28 @@ const Profile = () => {
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
-      <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-        <h1 style={{ color: '#1e3c72', textAlign: 'center', marginBottom: 20 }}>👤 My Profile</h1>
+      <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#1e3c72', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'white' }}>
+            {user?.name?.charAt(0) || 'U'}
+          </div>
+          <div>
+            <h1 style={{ color: '#1e3c72', fontSize: 22, margin: 0 }}>My Profile</h1>
+            <p style={{ color: '#666', fontSize: 14, margin: 0 }}>{user?.email}</p>
+          </div>
+        </div>
 
         {/* Name */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Name</label>
+          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4, color: '#333' }}>Name</label>
           {isEditing ? (
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <input
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                style={{ flex: 1, padding: '8px 12px', border: '1px solid #ccc', borderRadius: 8 }}
+                style={{ flex: 1, padding: '8px 12px', border: '1px solid #ccc', borderRadius: 8, minWidth: 150 }}
               />
               <button onClick={handleSaveName} disabled={loading} style={{ background: '#1e3c72', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
                 {loading ? 'Saving...' : 'Save'}
@@ -2943,7 +2959,7 @@ const Profile = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>{user?.name || 'Not set'}</span>
+              <span style={{ fontSize: 16, color: '#333' }}>{user?.name || 'Not set'}</span>
               <button onClick={() => setIsEditing(true)} style={{ background: 'transparent', color: '#1e3c72', border: '1px solid #1e3c72', padding: '4px 12px', borderRadius: 6, cursor: 'pointer' }}>Edit</button>
             </div>
           )}
@@ -2953,13 +2969,13 @@ const Profile = () => {
 
         {/* Email & Verification */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Email</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span>{user?.email}</span>
+          <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4, color: '#333' }}>Email</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 16, color: '#333' }}>{user?.email}</span>
             {user?.isVerified ? (
-              <span style={{ color: '#2e7d32', fontSize: 13 }}>✅ Verified</span>
+              <span style={{ color: '#2e7d32', fontSize: 13, fontWeight: 'bold' }}>✅ Verified</span>
             ) : (
-              <span style={{ color: '#ff9800', fontSize: 13 }}>⚠️ Not Verified</span>
+              <span style={{ color: '#ff9800', fontSize: 13, fontWeight: 'bold' }}>⚠️ Not Verified</span>
             )}
           </div>
           {!user?.isVerified && (
@@ -2988,21 +3004,21 @@ const Profile = () => {
         {/* Premium Status */}
         <div style={{ marginBottom: 20, background: '#f5f5f5', padding: 16, borderRadius: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <strong>Premium Status</strong>
+            <strong style={{ color: '#333' }}>Premium Status</strong>
             {isPremiumActive ? (
-              <span style={{ color: '#2e7d32' }}>✅ Active</span>
+              <span style={{ color: '#2e7d32', fontWeight: 'bold' }}>✅ Active</span>
             ) : (
-              <span style={{ color: '#dc3545' }}>❌ Not Active</span>
+              <span style={{ color: '#dc3545', fontWeight: 'bold' }}>❌ Not Active</span>
             )}
           </div>
           {isPremiumActive && (
             <>
-              <p style={{ marginTop: 4 }}><strong>Plan:</strong> {user.premiumPlan ? user.premiumPlan.toUpperCase() : 'N/A'}</p>
-              <p><strong>Expires:</strong> {new Date(user.premiumExpiry).toLocaleString()}</p>
+              <p style={{ marginTop: 4, color: '#333' }}><strong>Plan:</strong> {user.premiumPlan ? user.premiumPlan.toUpperCase() : 'N/A'}</p>
+              <p style={{ color: '#333' }}><strong>Expires:</strong> {new Date(user.premiumExpiry).toLocaleString()}</p>
               {timeLeft && (
                 <div style={{ marginTop: 8, padding: 10, background: '#fff3e0', borderRadius: 8 }}>
                   <p style={{ margin: 0, fontSize: 14, fontWeight: 'bold', color: '#e65100' }}>⏳ Time remaining:</p>
-                  <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
                     {timeLeft.days > 0 && <span><strong>{timeLeft.days}</strong>d</span>}
                     <span><strong>{String(timeLeft.hours).padStart(2, '0')}</strong>h</span>
                     <span><strong>{String(timeLeft.minutes).padStart(2, '0')}</strong>m</span>
@@ -3019,32 +3035,26 @@ const Profile = () => {
           </Link>
         </div>
 
-        {/* My History */}
-        <div style={{ marginBottom: 20 }}>
-          <Link to="/history" style={{ display: 'block', background: '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: '#1e3c72', fontWeight: 'bold' }}>
-            📜 My History
+        {/* Action Links */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+          <Link to="/history" style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: '#1e3c72', fontWeight: 'bold' }}>
+            <span style={{ fontSize: 20 }}>📜</span> My History
           </Link>
-        </div>
-
-        {/* Dark Mode Toggle */}
-        <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 8 }}>
-          <span>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</span>
-          <button onClick={toggleDarkMode} style={{ background: '#1e3c72', color: 'white', padding: '6px 12px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-            Toggle
-          </button>
-        </div>
-
-        {/* Admin Panel (only for admin) */}
-        {user?.email === 'elitenursingcbt@gmail.com' && (
-          <div style={{ marginBottom: 20 }}>
-            <Link to="/admin" style={{ display: 'block', background: '#ffebee', padding: 12, borderRadius: 8, textDecoration: 'none', color: '#dc3545', fontWeight: 'bold' }}>
-              👑 Admin Panel
-            </Link>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
+            <span style={{ fontWeight: 'bold', color: '#333' }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</span>
+            <button onClick={toggleDarkMode} style={{ background: '#1e3c72', color: 'white', padding: '6px 12px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+              Toggle
+            </button>
           </div>
-        )}
+          {user?.email === 'elitenursingcbt@gmail.com' && (
+            <Link to="/admin" style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#ffebee', padding: 12, borderRadius: 8, textDecoration: 'none', color: '#dc3545', fontWeight: 'bold' }}>
+              <span style={{ fontSize: 20 }}>👑</span> Admin Panel
+            </Link>
+          )}
+        </div>
 
-        {/* Logout */}
-        <button onClick={logout} style={{ width: '100%', background: '#dc3545', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+        {/* Logout Button */}
+        <button onClick={logout} style={{ width: '100%', background: '#dc3545', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 16 }}>
           🚪 Logout
         </button>
       </div>
@@ -3392,7 +3402,7 @@ const JoinWhatsApp = () => {
   );
 };
 
-// Get Premium Component – with subscription plans and live countdown timer
+// Get Premium Component – with subscription plans, live countdown timer, and Back to Profile button
 const GetPremium = () => {
   const { token, user, darkMode } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
@@ -3497,6 +3507,11 @@ const GetPremium = () => {
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        {/* 👇 BACK TO PROFILE BUTTON */}
+        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: '#1e3c72', textDecoration: 'none', fontWeight: 'bold', textAlign: 'left' }}>
+          ← Back to Profile
+        </Link>
+
         <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
         <h2 style={{ color: '#1e3c72' }}>Upgrade to Premium</h2>
         <p style={{ marginBottom: 20 }}>Get unlimited access to all examinations and features</p>
