@@ -1996,7 +1996,7 @@ const TakeExam = () => {
             {currentQuestion.options.map((opt, optIdx) => (
               <label key={optIdx} style={{ 
                 display: 'flex', alignItems: 'center', cursor: 'pointer', padding: 12, margin: 0,
-                background: answers[currentIndex] === optIdx ? '#ff9800' : 'white', borderRadius: 10,
+                background: 'white', border: answers[currentIndex] === optIdx ? '2px solid #1e3c72' : '2px solid #e0e0e0',
                 transition: 'all 0.2s ease', fontWeight: answers[currentIndex] === optIdx ? 'bold' : 'normal'
               }}>
                 <input type="radio" name="currentQuestion" onChange={() => handleAnswer(optIdx)} checked={answers[currentIndex] === optIdx} style={{ marginRight: 15, width: 18, height: 18 }} />
@@ -2746,7 +2746,7 @@ const PremiumExam = () => {
             {currentQuestion.options.map((opt, optIdx) => (
               <label key={optIdx} style={{
                 display: 'flex', alignItems: 'center', cursor: 'pointer', padding: 12, margin: 0,
-                background: answers[currentIndex] === optIdx ? '#ff9800' : 'white', borderRadius: 10,
+                background: 'white', border: answers[currentIndex] === optIdx ? '2px solid #1e3c72' : '2px solid #e0e0e0',
                 transition: 'all 0.2s ease', fontWeight: answers[currentIndex] === optIdx ? 'bold' : 'normal'
               }}>
                 <input type="radio" name="currentQuestion" onChange={() => handleAnswer(optIdx)} checked={answers[currentIndex] === optIdx} style={{ marginRight: 15, width: 18, height: 18 }} />
@@ -3112,7 +3112,7 @@ const Profile = () => {
 
         {/* Logout Button */}
         <button onClick={logout} style={{ width: '100%', background: '#dc3545', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 16 }}>
-          🚪 Logout
+          Logout
         </button>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
