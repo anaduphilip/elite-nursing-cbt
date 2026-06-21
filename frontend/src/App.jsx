@@ -1713,7 +1713,7 @@ const ExamList = () => {
   );
 };
 
-// Take Exam Component – with question palette and single‑question navigation
+// Take Exam Component with correct premium blocking and error handling
 const TakeExam = () => {
   const { id, sectionNumber, mode } = useParams();
   const [exam, setExam] = useState(null);
@@ -1735,15 +1735,17 @@ const TakeExam = () => {
         const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         const examData = res.data;
         setExam(examData);
+        console.log('📚 Exam loaded:', examData.title, 'mode:', mode);
 
-        // ========== Premium check for Free Mode – show modal ==========
+        // ========== Premium check for Free Mode ==========
         if (mode === 'free' && examData.isPremium) {
+          console.log('🔒 Free mode: exam is premium, blocking');
           setPremiumBlocked(true);
           setLoading(false);
           return;
         }
-        // =============================================================
 
+        // ========== Free mode: check if already taken ==========
         if (mode === 'free') {
           const hasTaken = localStorage.getItem(`exam_${id}_taken`) === 'true';
           if (hasTaken) {
@@ -1752,15 +1754,33 @@ const TakeExam = () => {
             setLoading(false);
             return;
           }
-        } else {
-          const profileRes = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
-          if (!profileRes.data.isPremium) {
+        }
+
+        // ========== Premium mode: check user's premium status ==========
+        if (mode === 'premium') {
+          try {
+            console.log('🔍 Checking premium status for user...');
+            const profileRes = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
+            console.log('👤 Profile response:', profileRes.data);
+
+            if (!profileRes.data.isPremium) {
+              console.log('⛔ User is NOT premium, blocking exam');
+              setPremiumBlocked(true);
+              setLoading(false);
+              return;
+            } else {
+              console.log('✅ User is premium, allowing access');
+            }
+          } catch (profileError) {
+            console.error('❌ Error fetching profile:', profileError);
+            // If we can't verify premium status, block access to be safe
             setPremiumBlocked(true);
             setLoading(false);
             return;
           }
         }
-        
+
+        // ========== Load questions ==========
         setQuestions(examData.questions);
         const savedAnswers = localStorage.getItem(`exam_${id}_answers`);
         if (savedAnswers) {
@@ -1782,7 +1802,7 @@ const TakeExam = () => {
     if (id && token) fetchExam();
   }, [id, sectionNumber, token, mode]);
 
-  // Save answers to localStorage whenever they change
+  // Save answers to localStorage
   useEffect(() => {
     if (!submitted && Object.keys(answers).length > 0) {
       localStorage.setItem(`exam_${id}_answers`, JSON.stringify(answers));
@@ -1827,19 +1847,6 @@ const TakeExam = () => {
       localStorage.setItem(`exam_${id}_taken`, 'true');
     }
     localStorage.removeItem(`exam_${id}_answers`);
-
-    // ========== Save permanent attempt for history ==========
-    saveExamAttempt(
-      id,
-      exam.title,
-      exam.category,
-      exam.topic,
-      answers,
-      score,
-      total,
-      percentage
-    );
-    // ========================================================
   };
 
   const answeredCount = Object.keys(answers).length;
@@ -1848,6 +1855,7 @@ const TakeExam = () => {
 
   if (loading) return <LoadingWithBar message="Loading examination..." />;
   
+  // ========== Premium blocked modal ==========
   if (premiumBlocked) {
     const backCategory = exam?.category || (window.location.pathname.split('/')[2] || 'general-nursing');
     return (
@@ -1888,7 +1896,7 @@ const TakeExam = () => {
             <div style={{ marginTop: 20, padding: 16, background: '#fff3e0', borderRadius: 12 }}>
               <p style={{ color: '#ff9800', fontWeight: 'bold', margin: 0, fontSize: 14 }}>📢 You have completed the free exam!</p>
               <p style={{ color: '#666', marginTop: 8, fontSize: 13 }}>Upgrade to Premium to retake and unlock all exams.</p>
-              <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now </button></Link>
+              <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now</button></Link>
             </div>
           )}
           
@@ -1998,13 +2006,14 @@ const TakeExam = () => {
       </div>
       <div style={{ textAlign: 'center', padding: '20px' }}>
         <p style={{ color: '#999', fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
-  <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
-    Privacy Policy
-  </Link>
-  <span style={{ color: '#999', margin: '0 6px' }}>|</span>
-  <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
-    Terms & Conditions
-  </Link></p>
+          <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
+            Privacy Policy
+          </Link>
+          <span style={{ color: '#999', margin: '0 6px' }}>|</span>
+          <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+            Terms & Conditions
+          </Link>
+        </p>
       </div>
     </div>
   );
