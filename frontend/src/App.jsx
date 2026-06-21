@@ -3955,7 +3955,7 @@ const PaymentReturn = () => {
   );
 };
 
-// Admin Panel Component – with plan selector and search bar
+// Admin Panel Component – with search bar, no auto-refresh
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -3987,12 +3987,14 @@ const AdminPanel = () => {
   // Selected plan per user
   const [selectedPlan, setSelectedPlan] = useState({});
 
-  // ===== NEW: Search state =====
+  // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  // =============================
 
-  // ===== FIX: Wrap fetchData in useCallback =====
-  const fetchData = React.useCallback(async () => {
+  // ===== FIX: Use ref to prevent re-fetching =====
+  const dataFetched = useRef(false);
+  // ===============================================
+
+  const fetchData = async () => {
     try {
       setLoading(true);
       const [usersRes, contactsRes] = await Promise.all([
@@ -4017,18 +4019,18 @@ const AdminPanel = () => {
       }
     } finally {
       setLoading(false);
+      dataFetched.current = true;
     }
-  }, [token, logout]);
+  };
 
   useEffect(() => {
-    if (user?.email === 'elitenursingcbt@gmail.com') {
+    if (user?.email === 'elitenursingcbt@gmail.com' && !dataFetched.current) {
       fetchData();
     } else if (user) {
       alert('Admin access only');
       window.location.href = '/';
     }
-  }, [user, fetchData]);
-  // ==============================================
+  }, [user]); // Only run when user changes
 
   // Apply plan for a user
   const applyPlan = async (userId) => {
@@ -4167,11 +4169,10 @@ const AdminPanel = () => {
   if (loading) return <LoadingWithBar message="Loading admin panel" />;
   if (user?.email !== 'elitenursingcbt@gmail.com') return <Navigate to="/" />;
 
-  // ===== Filter users by search query =====
+  // Filter users by search query
   const filteredUsers = users.filter(u =>
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  // ========================================
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -4189,7 +4190,7 @@ const AdminPanel = () => {
 
           {activeTab === 'users' && (
             <>
-              {/* ===== NEW: Search Bar ===== */}
+              {/* Search Bar */}
               <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
                 <input
                   type="text"
@@ -4212,7 +4213,6 @@ const AdminPanel = () => {
                   onBlur={(e) => e.target.style.borderColor = darkMode ? '#444' : '#ddd'}
                 />
               </div>
-              {/* ========================== */}
 
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 20 }}>
                 {filteredUsers.map(u => {
