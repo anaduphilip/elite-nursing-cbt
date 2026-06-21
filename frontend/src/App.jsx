@@ -2465,7 +2465,7 @@ const ReviewExam = () => {
   );
 };
 
-// Premium Exam Component – for combined 250‑question exams (Premium Mode only)
+// Premium Exam Component – with premium blocking
 const PremiumExam = () => {
   const { categoryName, topic, examId, mode } = useParams();
   const [loading, setLoading] = useState(true);
@@ -2477,6 +2477,7 @@ const PremiumExam = () => {
   const [result, setResult] = useState(null);
   const [showReview, setShowReview] = useState(false);
   const [timeUp, setTimeUp] = useState(false);
+  const [premiumBlocked, setPremiumBlocked] = useState(false);
   const { token, darkMode } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -2484,6 +2485,23 @@ const PremiumExam = () => {
     const fetchExam = async () => {
       setLoading(true);
       try {
+        // ========== PREMIUM BLOCK ==========
+        if (mode === 'premium') {
+          try {
+            const profileRes = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
+            if (!profileRes.data.isPremium) {
+              setPremiumBlocked(true);
+              setLoading(false);
+              return;
+            }
+          } catch (profileError) {
+            setPremiumBlocked(true);
+            setLoading(false);
+            return;
+          }
+        }
+        // ===================================
+
         const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
         const allQuizzes = res.data.filter(q => q.category === categoryName && q.topic === topic);
         allQuizzes.sort((a, b) => {
@@ -2525,9 +2543,9 @@ const PremiumExam = () => {
     if (token && categoryName && topic && examId) {
       fetchExam();
     }
-  }, [categoryName, topic, examId, token, navigate]);
+  }, [categoryName, topic, examId, token, navigate, mode]);
 
-  // Save answers to localStorage (for the combined exam)
+  // Save answers to localStorage
   useEffect(() => {
     if (!submitted && Object.keys(answers).length > 0) {
       localStorage.setItem(`premium_exam_${examId}_answers`, JSON.stringify(answers));
@@ -2569,6 +2587,27 @@ const PremiumExam = () => {
   const allAnswered = answeredCount === totalQuestions;
 
   if (loading) return <LoadingWithBar message="Loading premium exam..." />;
+
+  // ========== PREMIUM BLOCKED MODAL ==========
+  if (premiumBlocked) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
+          <h2 style={{ color: '#1e3c72' }}>Premium Required</h2>
+          <p>This exam is only available in Premium Mode. Please upgrade to access it.</p>
+          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+            <Link to={`/courses/${categoryName}/${mode}`} style={{ flex: 1 }}>
+              <button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Back</button>
+            </Link>
+            <Link to="/get-premium" style={{ flex: 1 }}>
+              <button style={{ width: '100%', background: '#ff9800', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Upgrade Now</button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (questions.length === 0) {
     return <div style={{ padding: 40, textAlign: 'center' }}>Exam not found</div>;
@@ -2627,7 +2666,7 @@ const PremiumExam = () => {
     );
   }
 
-  // Active exam
+  // Active exam – one question at a time
   const currentQuestion = questions[currentIndex];
   const timerDuration = questions.length;
 
