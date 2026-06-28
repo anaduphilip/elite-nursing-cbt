@@ -4670,8 +4670,7 @@ useEffect(() => {
   }
 }, [auth.user?.id]);
 
-  // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
-  // ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
+// ========== 1. EXISTING: Payment verification from URL (web & fallback) ==========
 useEffect(() => {
   // Only proceed if there's an ongoing payment intent
   const waitingForPayment = localStorage.getItem('waiting_for_payment');
@@ -4695,9 +4694,22 @@ useEffect(() => {
         if (response.data.success) {
           alert('✅ Payment successful! Your account has been upgraded to PREMIUM!');
           localStorage.removeItem('payment_reference');
-          const updatedUser = { ...auth.user, isPremium: true };
-          setAuth({ ...auth, user: updatedUser });
-          localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
+          
+          // ✅ FIX: Fetch the full user profile to get premiumPlan and premiumExpiry
+          try {
+            const profileRes = await axios.get('/api/user/profile', {
+              headers: { Authorization: `Bearer ${auth.token}` }
+            });
+            const fullUser = profileRes.data;
+            setAuth({ ...auth, user: fullUser });
+            localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: fullUser }));
+          } catch (profileError) {
+            // Fallback: if profile fetch fails, keep the simple update
+            const updatedUser = { ...auth.user, isPremium: true };
+            setAuth({ ...auth, user: updatedUser });
+            localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
+          }
+          
           if (auth.token) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
           }
