@@ -450,15 +450,6 @@ app.get('/api/admin/contacts', isAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/admin/toggle-premium', isAdmin, async (req, res) => {
-  try {
-    const { userId, isPremium } = req.body;
-    await User.findByIdAndUpdate(userId, { isPremium });
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 app.delete('/api/admin/users/:userId', isAdmin, async (req, res) => {
   try {
@@ -699,7 +690,9 @@ app.post('/api/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid password' });
     
-    // Check if user is already logged in on another device
+    // Check and update premium status before login response
+    const premiumStatus = await checkAndUpdatePremium(user);
+    
     if (user.currentSessionToken) {
       return res.status(401).json({ error: 'You are already logged in on another device. Please log out from that device first.' });
     }
@@ -710,7 +703,15 @@ app.post('/api/login', async (req, res) => {
     await user.save();
     
     const token = jwt.sign({ userId: user._id, sessionToken }, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    res.json({ token, user: { id: user._id, name: user.name, email, isPremium: user.isPremium } });
+    res.json({ 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email, 
+        isPremium: premiumStatus.isPremium   // <-- updated
+      } 
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -740,7 +741,19 @@ app.get('/api/verify-session', async (req, res) => {
     if (user.currentSessionToken !== decoded.sessionToken) {
       return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
     }
-    res.json({ valid: true, user: { id: user._id, name: user.name, email: user.email, isPremium: user.isPremium } });
+    
+    // Check and update premium status before returning
+    const premiumStatus = await checkAndUpdatePremium(user);
+    
+    res.json({ 
+      valid: true, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        isPremium: premiumStatus.isPremium 
+      } 
+    });
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' });
   }
@@ -955,18 +968,6 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// Admin manual premium activation
-app.post('/api/admin/activate-premium', isAdmin, async (req, res) => {
-  try {
-    const { email } = req.body;
-    const user = await User.findOneAndUpdate({ email }, { isPremium: true, purchaseDate: new Date() }, { new: true });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    console.log(`✅ Admin manually activated premium for: ${email}`);
-    res.json({ success: true, message: `Premium activated for ${email}` });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Register device token for push notifications
 app.post('/api/register-token', async (req, res) => {
