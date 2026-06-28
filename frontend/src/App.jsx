@@ -39,7 +39,7 @@ async function getCachedQuizzes(token) {
 }
 
 // Helper functions for exam history (permanent storage)
-const saveExamAttempt = (quizId, title, category, topic, answers, score, total, percentage) => {
+const saveExamAttempt = (quizId, title, category, topic, answers, score, total, percentage, isPremium = false) => {
   const attempts = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
   attempts[quizId] = {
     title,
@@ -49,6 +49,7 @@ const saveExamAttempt = (quizId, title, category, topic, answers, score, total, 
     score,
     total,
     percentage,
+    isPremium,          // ← NEW: flag for premium exams
     completedAt: new Date().toISOString()
   };
   localStorage.setItem('exam_attempts', JSON.stringify(attempts));
@@ -1262,10 +1263,10 @@ const HomePage = () => {
   );
 };
 
-// Course List Component – final version (topic card shows premium exam seats)
+// Course List Component – final version (topic card shows free or premium info, plus premium tag in free mode)
 const CourseList = () => {
   const { categoryName, mode } = useParams();
-  const navigate = useNavigate(); // ✅ ADDED for client-side navigation
+  const navigate = useNavigate();
   const [displayData, setDisplayData] = useState([]);
   const [fullTopicQuizzes, setFullTopicQuizzes] = useState([]);
   const [isTopicView, setIsTopicView] = useState(true);
@@ -1304,13 +1305,11 @@ const CourseList = () => {
           setFullTopicQuizzes(allTopicQuizzes);
 
           if (mode === 'free') {
-            // Free mode: only first quiz
             let topicQuizzes = [...allTopicQuizzes];
             if (topicQuizzes.length > 0) topicQuizzes = topicQuizzes.slice(0, 1);
             setDisplayData(topicQuizzes);
             setIsTopicView(false);
           } else {
-            // Premium mode: flatten all questions and chunk into 250
             const allQuestions = [];
             allTopicQuizzes.forEach(quiz => {
               allQuestions.push(...quiz.questions);
@@ -1335,7 +1334,6 @@ const CourseList = () => {
             setIsTopicView(false);
           }
         } else {
-          // Category view: show topics with premium exam count
           const topicMap = new Map();
           filtered.forEach(quiz => {
             const topic = quiz.topic || 'General';
@@ -1346,10 +1344,20 @@ const CourseList = () => {
             entry.totalQuestions += quiz.questions?.length || 0;
             entry.quizCount += 1;
           });
-          const topicArray = Array.from(topicMap.values()).map(entry => ({
-            ...entry,
-            premiumExamCount: Math.ceil(entry.totalQuestions / 250)
-          }));
+          const topicArray = Array.from(topicMap.values()).map(entry => {
+            // Calculate free exam info (first 20 questions)
+            const freeQuestions = Math.min(20, entry.totalQuestions);
+            const freeExamCount = freeQuestions > 0 ? 1 : 0;
+            // Remaining questions go to premium exams (250 per exam)
+            const premiumQuestions = entry.totalQuestions - freeQuestions;
+            const premiumExamCount = premiumQuestions > 0 ? Math.ceil(premiumQuestions / 250) : 0;
+            return {
+              ...entry,
+              freeExamCount,
+              freeQuestions,
+              premiumExamCount
+            };
+          });
           setDisplayData(topicArray);
           setIsTopicView(true);
         }
@@ -1410,15 +1418,27 @@ const CourseList = () => {
         }}>
           {displayData.map(item => {
             if (isTopicView) {
-              // Topic card – show premium exam seats instead of quiz count
-              const examCount = item.premiumExamCount;
-              const label = examCount === 1 ? 'exam seat' : 'exam seats';
+              // Topic card – show info based on mode, plus premium tag in free mode
+              const { topic, totalQuestions, freeQuestions, premiumExamCount } = item;
+              let infoText = '';
+              let premiumTag = null;
+              if (mode === 'free') {
+                const freeQ = freeQuestions > 0 ? freeQuestions : totalQuestions;
+                infoText = `🎯 1 Free Exam (${freeQ} questions)`;
+                if (premiumExamCount > 0) {
+                  premiumTag = <p style={{ color: '#ff9800', fontSize: 12, marginTop: 4 }}>⭐ Access more questions in Premium</p>;
+                }
+              } else {
+                const totalExams = premiumExamCount > 0 ? premiumExamCount : 0;
+                infoText = `⭐ ${totalExams} Premium Exam${totalExams > 1 ? 's' : ''} (${totalQuestions} total questions)`;
+              }
               return (
-                <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(item.topic)}`} key={item.topic} style={{ textDecoration: 'none' }}>
+                <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(topic)}`} key={topic} style={{ textDecoration: 'none' }}>
                   <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-                    <h3 style={{ color: darkMode ? headingColor : category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{item.topic}</h3>
-                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{examCount} {label}, {item.totalQuestions} total questions</p>
+                    <h3 style={{ color: darkMode ? headingColor : category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{topic}</h3>
+                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{infoText}</p>
+                    {premiumTag && premiumTag}
                     <div style={{ marginTop: 'auto' }}>
                       <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>View Exams →</button>
                     </div>
@@ -1454,16 +1474,13 @@ const CourseList = () => {
               let buttonLink = `/take/${quiz._id}/1/${mode}`;
               let buttonColor = category.color;
 
-              // ===== ✅ UPDATED BUTTON LOGIC =====
               if (mode === 'free') {
                 if (hasTakenFree) {
                   if (user?.isPremium) {
-                    // Premium user can retake the free exam
                     buttonText = '🔄 Retake Exam';
                     buttonLink = `/take/${quiz._id}/1/${mode}`;
                     buttonColor = category.color;
                   } else {
-                    // Non-premium user needs to upgrade
                     buttonText = '⭐ Upgrade to Retake';
                     buttonLink = '/get-premium';
                     buttonColor = '#ff9800';
@@ -1530,7 +1547,7 @@ const CourseList = () => {
         </div>
       </div>
 
-      {/* ✅ FIXED: Floating Back Button – uses useNavigate for instant navigation */}
+      {/* Floating Back Button */}
       <button
         onClick={() => {
           if (currentTopic) {
@@ -1846,7 +1863,7 @@ const TakeExam = () => {
       }
     };
     if (id && token) fetchExam();
-  }, [id, sectionNumber, token, mode, user]); // ✅ Added user to dependencies (optional but safe)
+  }, [id, sectionNumber, token, mode, user]);
 
   // Save answers to localStorage
   useEffect(() => {
@@ -1870,6 +1887,7 @@ const TakeExam = () => {
     handleSubmit();
   };
 
+  // ========== UPDATED handleSubmit ==========
   const handleSubmit = () => {
     let score = 0;
     questions.forEach((question, idx) => {
@@ -1879,28 +1897,44 @@ const TakeExam = () => {
     });
     const percentage = ((score / questions.length) * 100).toFixed(1);
     const total = questions.length;
-    
+
     setResult({ score, total, percentage, passed: percentage >= 70 });
     setSubmitted(true);
-    
-    // Save score
+
+    // Save score for last-score display
     const savedScores = localStorage.getItem(`exam_${id}_scores`);
     const scores = savedScores ? JSON.parse(savedScores) : {};
     scores[1] = { score, total, percentage };
     localStorage.setItem(`exam_${id}_scores`, JSON.stringify(scores));
-    
+
+    // ✅ Save full attempt to history (non-premium)
+    if (exam) {
+      saveExamAttempt(
+        id,                           // quizId
+        exam.title,                   // title
+        exam.category || 'general-nursing', // category
+        exam.topic || 'General',      // topic
+        answers,                      // user answers (object)
+        score,
+        total,
+        parseFloat(percentage),
+        false                         // isPremium = false
+      );
+    }
+
     if (mode === 'free') {
       localStorage.setItem(`exam_${id}_taken`, 'true');
     }
     localStorage.removeItem(`exam_${id}_answers`);
   };
+  // =========================================
 
   const answeredCount = Object.keys(answers).length;
   const totalQuestions = questions.length;
   const allAnswered = answeredCount === totalQuestions;
 
   if (loading) return <LoadingWithBar message="Loading examination..." />;
-  
+
   // ========== Premium blocked modal ==========
   if (premiumBlocked) {
     const backCategory = exam?.category || (window.location.pathname.split('/')[2] || 'general-nursing');
@@ -1937,7 +1971,7 @@ const TakeExam = () => {
             {result.passed ? '✓ PASSED!' : '✗ Failed'}
           </p>
           {timeUp && <p style={{ color: '#ff9800' }}>⏰ Time's up!</p>}
-          
+
           {mode === 'free' && (
             <div style={{ marginTop: 20, padding: 16, background: '#fff3e0', borderRadius: 12 }}>
               <p style={{ color: '#ff9800', fontWeight: 'bold', margin: 0, fontSize: 14 }}>📢 You have completed the free exam!</p>
@@ -1945,7 +1979,7 @@ const TakeExam = () => {
               <Link to="/get-premium"><button style={{ width: '100%', background: '#ff9800', color: 'white', padding: 10, border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', marginTop: 8 }}>⭐ Upgrade Now</button></Link>
             </div>
           )}
-          
+
           <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center' }}>
             <button onClick={() => setShowReview(true)} style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Review Answers</button>
             <Link to={`/courses/${exam.category}/${mode}`}><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Back to Topics</button></Link>
@@ -2006,7 +2040,7 @@ const TakeExam = () => {
           <h4 style={{ color: 'white', marginBottom: 16, fontSize: 16 }}>Question {currentIndex+1}: {currentQuestion.questionText}</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {currentQuestion.options.map((opt, optIdx) => (
-              <label key={optIdx} style={{ 
+              <label key={optIdx} style={{
                 display: 'flex', alignItems: 'center', cursor: 'pointer', padding: 12, margin: 0,
                 background: 'white', border: answers[currentIndex] === optIdx ? '2px solid #1e3c72' : '2px solid #e0e0e0',
                 transition: 'all 0.2s ease', fontWeight: answers[currentIndex] === optIdx ? 'bold' : 'normal'
@@ -2260,15 +2294,16 @@ const ContactUs = () => {
   );
 };
 
-// My History Component – with Back to Profile button
+// My History Component – with premium expiry protection
 const MyHistory = () => {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // { quizId, title }
-  const { darkMode } = useContext(AuthContext);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const { darkMode, user } = useContext(AuthContext); // ← ADD user
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
 
   const loadAttempts = () => {
     const all = getAllAttempts();
@@ -2298,12 +2333,15 @@ const MyHistory = () => {
       localStorage.setItem('exam_attempts', JSON.stringify(all));
     }
     setDeleteConfirm(null);
-    loadAttempts(); // refresh list
+    loadAttempts();
   };
 
   const cancelDelete = () => {
     setDeleteConfirm(null);
   };
+
+  // Check if user is currently premium
+  const isUserPremium = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
 
   if (loading) return <LoadingWithBar message="Loading history..." />;
 
@@ -2342,7 +2380,6 @@ const MyHistory = () => {
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        {/* 👇 BACK TO PROFILE BUTTON */}
         <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: headingColor, textDecoration: 'none', fontWeight: 'bold' }}>
           ← Back to Profile
         </Link>
@@ -2366,35 +2403,65 @@ const MyHistory = () => {
               <div key={topic} style={{ marginBottom: 24 }}>
                 <h3 style={{ color: headingColor, fontSize: 18, marginBottom: 12 }}>{topic}</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                  {exams.map((exam) => (
-                    <div key={exam.quizId} style={{ background: darkMode ? '#16213e' : 'white', padding: 16, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', position: 'relative' }}>
-                      <button
-                        onClick={() => setDeleteConfirm({ quizId: exam.quizId, title: exam.title })}
-                        style={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          background: '#dc3545',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: 4,
-                          fontSize: 12,
-                          cursor: 'pointer',
-                          padding: '4px 8px',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Delete
-                      </button>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
-                      <h4 style={{ color: headingColor, marginBottom: 4 }}>{exam.title}</h4>
-                      <p style={{ fontSize: 13, color: secondaryText }}>Score: {exam.score}/{exam.total} ({exam.percentage}%)</p>
-                      <p style={{ fontSize: 12, color: secondaryText }}>Completed: {new Date(exam.completedAt).toLocaleString()}</p>
-                      <Link to={`/review/${exam.quizId}`}>
-                        <button style={{ width: '100%', marginTop: 12, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Review Exam</button>
-                      </Link>
-                    </div>
-                  ))}
+                  {exams.map((exam) => {
+                    // Check if this is a premium exam and user is not currently premium
+                    const isPremiumExam = exam.isPremium === true;
+                    const isLocked = isPremiumExam && !isUserPremium;
+
+                    return (
+                      <div key={exam.quizId} style={{ background: darkMode ? '#16213e' : 'white', padding: 16, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', position: 'relative', opacity: isLocked ? 0.7 : 1 }}>
+                        <button
+                          onClick={() => setDeleteConfirm({ quizId: exam.quizId, title: exam.title })}
+                          style={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            background: '#dc3545',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: 4,
+                            fontSize: 12,
+                            cursor: 'pointer',
+                            padding: '4px 8px',
+                            fontWeight: 'bold',
+                            zIndex: 1
+                          }}
+                        >
+                          Delete
+                        </button>
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>{isLocked ? '🔒' : '📝'}</div>
+                        <h4 style={{ color: headingColor, marginBottom: 4 }}>{exam.title}</h4>
+
+                        {isLocked ? (
+                          // Locked premium exam – show upgrade prompt
+                          <>
+                            <p style={{ fontSize: 13, color: secondaryText, fontStyle: 'italic' }}>
+                              This is a premium exam history. Upgrade to view details.
+                            </p>
+                            <Link to="/get-premium">
+                              <button style={{ width: '100%', marginTop: 12, background: '#ff9800', color: 'white', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+                                ⭐ Upgrade to View
+                              </button>
+                            </Link>
+                          </>
+                        ) : (
+                          // Regular or unlocked premium exam – show full details
+                          <>
+                            <p style={{ fontSize: 13, color: secondaryText }}>Score: {exam.score}/{exam.total} ({exam.percentage}%)</p>
+                            <p style={{ fontSize: 12, color: secondaryText }}>Completed: {new Date(exam.completedAt).toLocaleString()}</p>
+                            {isPremiumExam && isUserPremium && (
+                              <p style={{ fontSize: 11, color: '#ff9800', fontWeight: 'bold' }}>⭐ Premium Exam</p>
+                            )}
+                            <Link to={`/review/${exam.quizId}`}>
+                              <button style={{ width: '100%', marginTop: 12, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+                                Review Exam
+                              </button>
+                            </Link>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -2402,7 +2469,7 @@ const MyHistory = () => {
         ))}
       </div>
 
-      {/* Custom Delete Confirmation Modal */}
+      {/* Delete confirmation modal (unchanged) */}
       {deleteConfirm && (
         <div style={{
           position: 'fixed',
@@ -2439,15 +2506,7 @@ const MyHistory = () => {
       )}
 
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
-          <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
-            Privacy Policy
-          </Link>
-          <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
-          <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
-            Terms & Conditions
-          </Link>
-        </p>
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -2533,7 +2592,7 @@ const ReviewExam = () => {
   );
 };
 
-// Premium Exam Component – with premium blocking
+// Premium Exam Component – with premium blocking and history saving
 const PremiumExam = () => {
   const { categoryName, topic, examId, mode } = useParams();
   const [loading, setLoading] = useState(true);
@@ -2638,6 +2697,7 @@ const PremiumExam = () => {
     handleSubmit();
   };
 
+  // ========== UPDATED handleSubmit with history saving ==========
   const handleSubmit = () => {
     let score = 0;
     questions.forEach((question, idx) => {
@@ -2650,8 +2710,24 @@ const PremiumExam = () => {
 
     setResult({ score, total, percentage, passed: percentage >= 70 });
     setSubmitted(true);
+
+    // Save to history with isPremium: true
+    const quizId = `premium-${categoryName}-${topic}-${examId}`;
+    saveExamAttempt(
+      quizId,
+      examTitle,
+      categoryName,
+      topic,
+      answers,
+      score,
+      total,
+      parseFloat(percentage),
+      true // isPremium flag
+    );
+
     localStorage.removeItem(`premium_exam_${examId}_answers`);
   };
+  // ======================================================
 
   const answeredCount = Object.keys(answers).length;
   const totalQuestions = questions.length;
