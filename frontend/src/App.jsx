@@ -5208,7 +5208,7 @@ const AdminPanel = () => {
                   onClick={() => setShowQuizForm(!showQuizForm)}
                   style={{ background: showQuizForm ? '#dc3545' : '#2E7D64', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
                 >
-                  {showQuizForm ? '✕ Cancel' : '+ Create New Quiz'}
+                  {showQuizForm ? 'Cancel' : 'Create New Quiz'}
                 </button>
               </div>
 
@@ -5222,7 +5222,7 @@ const AdminPanel = () => {
                   border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
                 }}>
-                  <h4 style={{ color: headingColor, marginBottom: 20, fontSize: 18 }}>{editingQuizId ? '✏️ Edit Quiz' : 'New Weekly Quiz'}</h4>
+                  <h4 style={{ color: headingColor, marginBottom: 20, fontSize: 18 }}>{editingQuizId ? 'Edit Quiz' : 'New Weekly Quiz'}</h4>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 18 }}>
                     <div>
@@ -5430,8 +5430,8 @@ const AdminPanel = () => {
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
-                              <button onClick={() => handleEditQuestion(idx)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✏️</button>
-                              <button onClick={() => handleDeleteQuestion(idx)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✕</button>
+                              <button onClick={() => handleEditQuestion(idx)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                              <button onClick={() => handleDeleteQuestion(idx)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
                             </div>
                           </div>
                         ))}
@@ -5523,7 +5523,7 @@ const AdminPanel = () => {
                     boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-                      <h3 style={{ color: headingColor, margin: 0 }}>📊 Quiz Results</h3>
+                      <h3 style={{ color: headingColor, margin: 0 }}>Quiz Results</h3>
                       <button onClick={() => setShowResults(false)} style={{ background: '#6c757d', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Close</button>
                     </div>
                     {selectedQuizResults.length === 0 ? (
