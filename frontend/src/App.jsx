@@ -2883,7 +2883,7 @@ const PremiumExam = () => {
   );
 };
 
-// Weekly Quiz Component – complete with score and percentage display + Leaderboard links
+// Weekly Quiz Component – with caching for instant loading
 const WeeklyQuiz = () => {
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState({});
@@ -2896,26 +2896,73 @@ const WeeklyQuiz = () => {
   const [attemptPercentage, setAttemptPercentage] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
   const [showReview, setShowReview] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const { token, darkMode } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
 
+  // Cache for weekly quiz data (module-level)
+  let weeklyQuizCache = null;
+  let weeklyQuizPromise = null;
+
   useEffect(() => {
     const fetchQuiz = async () => {
       setLoading(true);
       try {
-        const res = await axios.get('/api/weekly-quiz/current', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data.success) {
-          setQuiz(res.data.quiz);
-          setAlreadyAttempted(res.data.alreadyAttempted);
-          if (res.data.alreadyAttempted) {
-            setAttemptScore(res.data.quiz.attemptScore);
-            setAttemptPercentage(res.data.quiz.attemptPercentage);
-          } else if (res.data.quiz.timeLimit) {
-            setTimeLeft(res.data.quiz.timeLimit * 60);
+        // Use caching for weekly quiz
+        if (weeklyQuizCache) {
+          setQuiz(weeklyQuizCache.quiz);
+          setAlreadyAttempted(weeklyQuizCache.alreadyAttempted);
+          if (weeklyQuizCache.alreadyAttempted) {
+            setAttemptScore(weeklyQuizCache.attemptScore);
+            setAttemptPercentage(weeklyQuizCache.attemptPercentage);
+          } else if (weeklyQuizCache.quiz.timeLimit) {
+            setTimeLeft(weeklyQuizCache.quiz.timeLimit * 60);
+          }
+          setLoading(false);
+          return;
+        }
+
+        if (weeklyQuizPromise) {
+          const data = await weeklyQuizPromise;
+          setQuiz(data.quiz);
+          setAlreadyAttempted(data.alreadyAttempted);
+          if (data.alreadyAttempted) {
+            setAttemptScore(data.attemptScore);
+            setAttemptPercentage(data.attemptPercentage);
+          } else if (data.quiz.timeLimit) {
+            setTimeLeft(data.quiz.timeLimit * 60);
+          }
+          setLoading(false);
+          return;
+        }
+
+        weeklyQuizPromise = (async () => {
+          const res = await axios.get('/api/weekly-quiz/current', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.data.success) {
+            weeklyQuizCache = {
+              quiz: res.data.quiz,
+              alreadyAttempted: res.data.alreadyAttempted,
+              attemptScore: res.data.quiz.attemptScore || null,
+              attemptPercentage: res.data.quiz.attemptPercentage || null
+            };
+            return weeklyQuizCache;
+          }
+          return null;
+        })();
+
+        const data = await weeklyQuizPromise;
+        if (data) {
+          setQuiz(data.quiz);
+          setAlreadyAttempted(data.alreadyAttempted);
+          if (data.alreadyAttempted) {
+            setAttemptScore(data.attemptScore);
+            setAttemptPercentage(data.attemptPercentage);
+          } else if (data.quiz.timeLimit) {
+            setTimeLeft(data.quiz.timeLimit * 60);
           }
         }
       } catch (error) {
@@ -2923,6 +2970,7 @@ const WeeklyQuiz = () => {
         alert('Failed to load weekly quiz. Please try again.');
       } finally {
         setLoading(false);
+        weeklyQuizPromise = null;
       }
     };
     fetchQuiz();
@@ -2955,7 +3003,7 @@ const WeeklyQuiz = () => {
       alert(`Please answer all questions (${answeredCount}/${quiz.questions.length})`);
       return;
     }
-    setLoading(true);
+    setSubmitting(true);
     try {
       const res = await axios.post('/api/weekly-quiz/submit', {
         quizId: quiz._id,
@@ -2969,7 +3017,7 @@ const WeeklyQuiz = () => {
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to submit quiz');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -2992,7 +3040,7 @@ const WeeklyQuiz = () => {
     );
   }
 
-  // ========== ALREADY ATTEMPTED VIEW – with Leaderboard link ==========
+  // Already attempted view
   if (alreadyAttempted) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -3011,7 +3059,7 @@ const WeeklyQuiz = () => {
     );
   }
 
-  // ========== REVIEW VIEW (checked before results) ==========
+  // Review view
   if (submitted && showReview && quiz) {
     const allQuestions = quiz.questions;
     return (
@@ -3044,7 +3092,7 @@ const WeeklyQuiz = () => {
     );
   }
 
-  // ========== RESULTS VIEW – with Leaderboard link ==========
+  // Results view
   if (submitted && result) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
@@ -3065,7 +3113,7 @@ const WeeklyQuiz = () => {
     );
   }
 
-  // Active quiz (unchanged)
+  // Active quiz
   const currentQuestion = quiz.questions[currentIndex];
   const totalQuestions = quiz.questions.length;
   const answeredCount = Object.keys(answers).length;
@@ -3142,10 +3190,51 @@ const WeeklyQuiz = () => {
           </div>
         </div>
 
-        {/* Submit */}
-        <button onClick={handleSubmit} disabled={answeredCount < totalQuestions} style={{ width: '100%', background: answeredCount === totalQuestions ? '#28a745' : '#ccc', color: 'white', padding: 14, border: 'none', borderRadius: 50, cursor: answeredCount === totalQuestions ? 'pointer' : 'not-allowed', fontSize: 16, fontWeight: 'bold', marginBottom: 30, opacity: answeredCount === totalQuestions ? 1 : 0.7 }}>
-          {answeredCount === totalQuestions ? 'Submit Weekly Quiz' : `Please answer all questions (${answeredCount}/${totalQuestions})`}
+        {/* Submit button with spinner */}
+        <button 
+          onClick={handleSubmit} 
+          disabled={answeredCount < totalQuestions || submitting}
+          style={{ 
+            width: '100%', 
+            background: answeredCount === totalQuestions ? '#28a745' : '#ccc', 
+            color: 'white', 
+            padding: 14, 
+            border: 'none', 
+            borderRadius: 50, 
+            cursor: (answeredCount === totalQuestions && !submitting) ? 'pointer' : 'not-allowed', 
+            fontSize: 16, 
+            fontWeight: 'bold', 
+            marginBottom: 30, 
+            opacity: (answeredCount === totalQuestions && !submitting) ? 1 : 0.7,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px'
+          }}
+        >
+          {submitting ? (
+            <>
+              <span style={{
+                display: 'inline-block',
+                width: 20,
+                height: 20,
+                border: '3px solid rgba(255,255,255,0.3)',
+                borderTop: '3px solid #fff',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite'
+              }} />
+              Submitting...
+            </>
+          ) : (
+            answeredCount === totalQuestions ? 'Submit Weekly Quiz' : `Please answer all questions (${answeredCount}/${totalQuestions})`
+          )}
         </button>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     </div>
   );
