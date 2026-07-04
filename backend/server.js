@@ -164,6 +164,42 @@ const ContactSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// ============ WEEKLY QUIZ SCHEMAS ============
+const WeeklyQuizSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: String,
+  weekNumber: { type: Number, required: true },
+  year: { type: Number, default: () => new Date().getFullYear() },
+  questions: [{
+    questionText: String,
+    options: [String],
+    correctAnswer: Number,
+    points: { type: Number, default: 1 }
+  }],
+  passingScore: { type: Number, default: 70 },
+  isActive: { type: Boolean, default: true },
+  timeLimit: { type: Number, default: 20 }, // in minutes
+  startDate: { type: Date, default: Date.now },
+  endDate: { type: Date },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const WeeklyQuizAttemptSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  weeklyQuizId: { type: mongoose.Schema.Types.ObjectId, ref: 'WeeklyQuiz', required: true },
+  answers: { type: Object, default: {} },
+  score: { type: Number, default: 0 },
+  total: { type: Number, default: 0 },
+  percentage: { type: Number, default: 0 },
+  passed: { type: Boolean, default: false },
+  startedAt: { type: Date, default: Date.now },
+  completedAt: { type: Date },
+  timeSpent: { type: Number, default: 0 } // in seconds
+});
+
+const WeeklyQuiz = mongoose.model('WeeklyQuiz', WeeklyQuizSchema);
+const WeeklyQuizAttempt = mongoose.model('WeeklyQuizAttempt', WeeklyQuizAttemptSchema);
+
 const User = mongoose.model('User', UserSchema);
 // Helper to check and update premium status
 const checkAndUpdatePremium = async (user) => {
@@ -814,6 +850,201 @@ app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
     res.json({ score, total, percentage, passed: percentage >= 70 });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+// Get current active weekly quiz
+app.get('/api/weekly-quiz/current', authenticate, async (req, res) => {
+  try {
+    const today = new Date();
+    // Find the active quiz for this week
+    const quiz = await WeeklyQuiz.findOne({ 
+      isActive: true,
+      startDate: { $lte: today },
+      $or: [
+        { endDate: { $gte: today } },
+        { endDate: null }
+      ]
+    });
+    
+    if (!quiz) {
+      return res.json({ success: false, message: 'No active weekly quiz available right now.' });
+    }
+
+    // Check if user already attempted
+    const existingAttempt = await WeeklyQuizAttempt.findOne({
+      userId: req.user._id,
+      weeklyQuizId: quiz._id
+    });
+
+    // Return quiz without exposing correct answers if already attempted
+    let quizData = quiz.toObject();
+    if (existingAttempt) {
+      // Hide correct answers if already attempted
+      quizData.questions = quizData.questions.map(q => ({
+        ...q,
+        correctAnswer: undefined
+      }));
+      quizData.alreadyAttempted = true;
+      quizData.attemptScore = existingAttempt.score;
+      quizData.attemptPercentage = existingAttempt.percentage;
+    } else {
+      quizData.alreadyAttempted = false;
+    }
+
+    res.json({ 
+      success: true, 
+      quiz: quizData,
+      alreadyAttempted: !!existingAttempt
+    });
+  } catch (error) {
+    console.error('Error fetching weekly quiz:', error);
+    res.status(500).json({ error: 'Failed to fetch weekly quiz' });
+  }
+});
+
+// Submit weekly quiz
+app.post('/api/weekly-quiz/submit', authenticate, async (req, res) => {
+  try {
+    const { quizId, answers, timeSpent } = req.body;
+    
+    if (!quizId) {
+      return res.status(400).json({ error: 'Quiz ID required' });
+    }
+
+    // Check if user already attempted
+    const existingAttempt = await WeeklyQuizAttempt.findOne({
+      userId: req.user._id,
+      weeklyQuizId: quizId
+    });
+
+    if (existingAttempt) {
+      return res.status(400).json({ error: 'You have already attempted this weekly quiz.' });
+    }
+
+    const quiz = await WeeklyQuiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    // Calculate score
+    let score = 0;
+    let total = 0;
+    quiz.questions.forEach((q, index) => {
+      total += q.points || 1;
+      if (answers[index] !== undefined && answers[index] === q.correctAnswer) {
+        score += q.points || 1;
+      }
+    });
+
+    const percentage = ((score / total) * 100);
+    const passed = percentage >= (quiz.passingScore || 70);
+
+    // Save attempt
+    const attempt = new WeeklyQuizAttempt({
+      userId: req.user._id,
+      weeklyQuizId: quizId,
+      answers: answers,
+      score: score,
+      total: total,
+      percentage: percentage,
+      passed: passed,
+      completedAt: new Date(),
+      timeSpent: timeSpent || 0
+    });
+    await attempt.save();
+
+    res.json({ 
+      success: true, 
+      score, 
+      total, 
+      percentage: percentage.toFixed(1),
+      passed
+    });
+  } catch (error) {
+    console.error('Error submitting weekly quiz:', error);
+    res.status(500).json({ error: 'Failed to submit weekly quiz' });
+  }
+});
+
+// Get user's weekly quiz history
+app.get('/api/weekly-quiz/history', authenticate, async (req, res) => {
+  try {
+    const attempts = await WeeklyQuizAttempt.find({ userId: req.user._id })
+      .sort({ completedAt: -1 })
+      .populate('weeklyQuizId', 'title weekNumber');
+
+    res.json({ success: true, attempts });
+  } catch (error) {
+    console.error('Error fetching weekly quiz history:', error);
+    res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+// Admin: Create weekly quiz
+app.post('/api/admin/weekly-quiz', isAdmin, async (req, res) => {
+  try {
+    const { title, description, weekNumber, questions, passingScore, timeLimit, startDate, endDate } = req.body;
+    
+    const quiz = new WeeklyQuiz({
+      title,
+      description,
+      weekNumber,
+      questions,
+      passingScore: passingScore || 70,
+      timeLimit: timeLimit || 20,
+      startDate: startDate || new Date(),
+      endDate: endDate || null
+    });
+    await quiz.save();
+
+    res.json({ success: true, quiz });
+  } catch (error) {
+    console.error('Error creating weekly quiz:', error);
+    res.status(500).json({ error: 'Failed to create quiz' });
+  }
+});
+
+// Admin: Update weekly quiz
+app.put('/api/admin/weekly-quiz/:id', isAdmin, async (req, res) => {
+  try {
+    const quiz = await WeeklyQuiz.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    res.json({ success: true, quiz });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update quiz' });
+  }
+});
+
+// Admin: Delete weekly quiz
+app.delete('/api/admin/weekly-quiz/:id', isAdmin, async (req, res) => {
+  try {
+    await WeeklyQuiz.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete quiz' });
+  }
+});
+
+// Admin: Get all weekly quizzes
+app.get('/api/admin/weekly-quizzes', isAdmin, async (req, res) => {
+  try {
+    const quizzes = await WeeklyQuiz.find().sort({ createdAt: -1 });
+    res.json(quizzes);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch quizzes' });
+  }
+});
+
+// Admin: Get results for a weekly quiz
+app.get('/api/admin/weekly-quiz/:id/results', isAdmin, async (req, res) => {
+  try {
+    const attempts = await WeeklyQuizAttempt.find({ weeklyQuizId: req.params.id })
+      .populate('userId', 'name email')
+      .sort({ score: -1 });
+    res.json(attempts);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch results' });
   }
 });
 
