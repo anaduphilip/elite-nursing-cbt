@@ -4455,7 +4455,7 @@ const PaymentReturn = () => {
   );
 };
 
-// Admin Panel Component – with Weekly Quiz management (improved layout and padding)
+// Admin Panel Component – with Weekly Quiz management (batch import added)
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -4494,6 +4494,9 @@ const AdminPanel = () => {
   const [qOptions, setQOptions] = useState(['', '', '', '']);
   const [qCorrect, setQCorrect] = useState(0);
   const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
+
+  // Batch import state
+  const [batchInput, setBatchInput] = useState('');
 
   // Manual OTP states
   const [manualOtpEmail, setManualOtpEmail] = useState('');
@@ -4726,6 +4729,134 @@ const AdminPanel = () => {
     setQCorrect(0);
   };
 
+  // ========== BATCH IMPORT FUNCTION ==========
+  const handleBatchImport = () => {
+    if (!batchInput.trim()) {
+      alert('Please paste some questions first.');
+      return;
+    }
+
+    const lines = batchInput.split('\n').map(l => l.trim()).filter(l => l);
+    const parsedQuestions = [];
+    let currentQuestion = null;
+
+    // Try to detect format: if any line starts with 'Q' or has options in parentheses, treat as same‑line format
+    const hasQuestionPrefix = lines.some(l => /^Q\d+\./i.test(l));
+    const hasOptionInParentheses = lines.some(l => /\([a-d]\)/i.test(l));
+
+    if (hasQuestionPrefix || hasOptionInParentheses) {
+      // Format 1: Same‑line like "Q1. ... (a) ... (b) ..."
+      // Parse each line individually
+      for (const line of lines) {
+        const qMatch = line.match(/^Q\d+\.\s*(.*)/i);
+        if (qMatch) {
+          const fullText = qMatch[1];
+          const options = [];
+          const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
+          let match;
+          while ((match = optionPattern.exec(fullText)) !== null) {
+            options.push(match[2].trim());
+          }
+          let questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
+          if (options.length === 4) {
+            parsedQuestions.push({
+              questionText,
+              options,
+              correctAnswer: 0 // placeholder, will be set if answer key found later
+            });
+          }
+        }
+      }
+    } else {
+      // Format 2: Multi‑line with options on separate lines and answer key
+      // We'll parse line by line, assuming each question block is separated by blank lines or Q lines.
+      let questionText = '';
+      let options = [];
+      let answerLetter = null;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // If line starts with Q, start new question
+        const qMatch = line.match(/^Q\d+\.\s*(.*)/i);
+        if (qMatch) {
+          if (questionText && options.length === 4) {
+            // Save previous question
+            parsedQuestions.push({
+              questionText,
+              options,
+              correctAnswer: answerLetter ? answerLetter.charCodeAt(0) - 65 : 0
+            });
+          }
+          // Start new question
+          questionText = qMatch[1];
+          options = [];
+          answerLetter = null;
+        } else if (line.match(/^\([a-d]\)/i)) {
+          const optMatch = line.match(/^\(([a-d])\)\s*(.*)/i);
+          if (optMatch) options.push(optMatch[2].trim());
+        } else if (line.match(/^Answer:\s*([a-d])/i)) {
+          const ansMatch = line.match(/^Answer:\s*([a-d])/i);
+          if (ansMatch) answerLetter = ansMatch[1].toUpperCase();
+        } else if (line && !line.match(/^[a-d]\)/i) && !line.match(/^Answer:/i) && !line.match(/^Q\d+\./i)) {
+          // continuation of question text
+          if (questionText) questionText += ' ' + line;
+        }
+        // After the block, if we have a complete question, we'll push at the end
+      }
+      // Push the last question
+      if (questionText && options.length === 4) {
+        parsedQuestions.push({
+          questionText,
+          options,
+          correctAnswer: answerLetter ? answerLetter.charCodeAt(0) - 65 : 0
+        });
+      }
+    }
+
+    // If we still have no parsed questions, try splitting by blank lines as fallback
+    if (parsedQuestions.length === 0) {
+      // Split by double newlines (blank lines)
+      const blocks = batchInput.split(/\n\s*\n/).filter(b => b.trim());
+      for (const block of blocks) {
+        const qMatch = block.match(/^Q\d+\.\s*(.*)/i);
+        if (qMatch) {
+          const fullText = qMatch[1];
+          const options = [];
+          const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
+          let match;
+          while ((match = optionPattern.exec(fullText)) !== null) {
+            options.push(match[2].trim());
+          }
+          let questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
+          if (options.length === 4) {
+            parsedQuestions.push({
+              questionText,
+              options,
+              correctAnswer: 0
+            });
+          }
+        }
+      }
+    }
+
+    if (parsedQuestions.length === 0) {
+      alert('No valid questions found. Please check the format (Q1. ... (a) ... (b) ...) or multi‑line format with options.');
+      return;
+    }
+
+    // Add parsed questions to the current quizQuestions state
+    const newQuestions = parsedQuestions.map((q, idx) => ({
+      questionText: q.questionText,
+      options: q.options,
+      correctAnswer: q.correctAnswer || 0,
+      points: 1
+    }));
+
+    setQuizQuestions(prev => [...prev, ...newQuestions]);
+    setBatchInput('');
+    alert(`✅ ${newQuestions.length} questions added successfully!`);
+  };
+
   const handleEditQuestion = (index) => {
     const q = quizQuestions[index];
     setQText(q.questionText);
@@ -4827,6 +4958,7 @@ const AdminPanel = () => {
     setQText('');
     setQOptions(['', '', '', '']);
     setQCorrect(0);
+    setBatchInput('');
     setShowQuizForm(false);
   };
 
@@ -5058,7 +5190,7 @@ const AdminPanel = () => {
             </div>
           )}
 
-          {/* ===== WEEKLY QUIZ TAB – IMPROVED LAYOUT & PADDING ===== */}
+          {/* ===== WEEKLY QUIZ TAB – WITH BATCH IMPORT ===== */}
           {activeTab === 'weeklyQuiz' && (
             <div style={{ padding: '10px 0' }}>
               {/* Quiz Form Toggle */}
@@ -5072,7 +5204,7 @@ const AdminPanel = () => {
                 </button>
               </div>
 
-              {/* Quiz Form – IMPROVED PADDING & LAYOUT */}
+              {/* Quiz Form */}
               {showQuizForm && (
                 <div style={{ 
                   background: darkMode ? '#1a1a2e' : '#f8f9fa', 
@@ -5145,7 +5277,7 @@ const AdminPanel = () => {
                     </div>
                   </div>
 
-                  {/* Question Builder – IMPROVED PADDING */}
+                  {/* Question Builder – WITH BATCH IMPORT */}
                   <div style={{ 
                     marginBottom: 20, 
                     borderTop: `2px solid ${darkMode ? '#444' : '#e0e0e0'}`, 
@@ -5153,7 +5285,55 @@ const AdminPanel = () => {
                   }}>
                     <h5 style={{ color: headingColor, marginBottom: 14, fontSize: 16 }}>Questions ({quizQuestions.length})</h5>
                     
-                    {/* Add Question Form – IMPROVED PADDING */}
+                    {/* Batch Import Section */}
+                    <div style={{ 
+                      background: darkMode ? '#2d2d3d' : '#f0f7f4', 
+                      padding: '16px 18px', 
+                      borderRadius: 12, 
+                      marginBottom: 18,
+                      border: `1px dashed ${darkMode ? '#666' : '#aaa'}`
+                    }}>
+                      <p style={{ fontSize: 13, color: secondaryText, marginBottom: 8 }}>
+                        <strong>📋 Batch Import:</strong> Paste multiple questions at once. 
+                        Format: <code>Q1. ... (a) ... (b) ... (c) ... (d) ...</code> or multi-line with options.
+                      </p>
+                      <textarea
+                        placeholder="Paste your questions here...&#10;Q1. Question text? (a) Option (b) Option (c) Option (d) Option"
+                        value={batchInput}
+                        onChange={(e) => setBatchInput(e.target.value)}
+                        rows="4"
+                        style={{ 
+                          width: '100%', 
+                          padding: '12px 14px', 
+                          border: '1px solid #ccc', 
+                          borderRadius: 8, 
+                          fontSize: 14, 
+                          background: cardBg, 
+                          color: textColor,
+                          boxSizing: 'border-box',
+                          resize: 'vertical',
+                          fontFamily: 'monospace'
+                        }}
+                      />
+                      <button
+                        onClick={handleBatchImport}
+                        style={{ 
+                          marginTop: 10, 
+                          background: '#17a2b8', 
+                          color: 'white', 
+                          padding: '8px 20px', 
+                          border: 'none', 
+                          borderRadius: 6, 
+                          cursor: 'pointer', 
+                          fontWeight: 'bold',
+                          fontSize: 13
+                        }}
+                      >
+                        📥 Import Questions
+                      </button>
+                    </div>
+
+                    {/* Single Question Add Form */}
                     <div style={{ 
                       background: darkMode ? '#2d2d3d' : 'white', 
                       padding: '18px 20px', 
@@ -5214,7 +5394,7 @@ const AdminPanel = () => {
                       </div>
                     </div>
 
-                    {/* Question List – IMPROVED PADDING */}
+                    {/* Question List */}
                     {quizQuestions.length > 0 && (
                       <div style={{ maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
                         {quizQuestions.map((q, idx) => (
@@ -5252,7 +5432,7 @@ const AdminPanel = () => {
                     )}
                   </div>
 
-                  {/* Save Quiz Button – IMPROVED PADDING */}
+                  {/* Save Quiz Button */}
                   <button
                     onClick={handleSaveQuiz}
                     style={{ 
@@ -5276,7 +5456,7 @@ const AdminPanel = () => {
                 </div>
               )}
 
-              {/* Quiz List – IMPROVED SPACING */}
+              {/* Quiz List */}
               {loadingQuizzes ? (
                 <p style={{ textAlign: 'center', color: secondaryText, padding: '30px 0' }}>Loading quizzes...</p>
               ) : weeklyQuizzes.length === 0 ? (
@@ -5305,7 +5485,7 @@ const AdminPanel = () => {
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <button onClick={() => editQuiz(quiz)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
                           <button onClick={() => handleViewResults(quiz._id)} style={{ background: '#17a2b8', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Quiz Results</button>
-                          <button onClick={() => handleDeleteQuiz(quiz._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>delete</button>
+                          <button onClick={() => handleDeleteQuiz(quiz._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
                         </div>
                       </div>
                     </div>
@@ -5313,7 +5493,7 @@ const AdminPanel = () => {
                 </div>
               )}
 
-              {/* Results Modal – IMPROVED PADDING */}
+              {/* Results Modal */}
               {showResults && selectedQuizResults && (
                 <div style={{
                   position: 'fixed',
