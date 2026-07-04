@@ -2883,7 +2883,7 @@ const PremiumExam = () => {
   );
 };
 
-// Weekly Quiz Component
+// Weekly Quiz Component – complete with score and percentage display
 const WeeklyQuiz = () => {
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState({});
@@ -2893,6 +2893,7 @@ const WeeklyQuiz = () => {
   const [loading, setLoading] = useState(true);
   const [alreadyAttempted, setAlreadyAttempted] = useState(false);
   const [attemptScore, setAttemptScore] = useState(null);
+  const [attemptPercentage, setAttemptPercentage] = useState(null); // ✅ Added
   const [timeLeft, setTimeLeft] = useState(null);
   const [showReview, setShowReview] = useState(false);
   const { token, darkMode } = useContext(AuthContext);
@@ -2911,7 +2912,8 @@ const WeeklyQuiz = () => {
           setQuiz(res.data.quiz);
           setAlreadyAttempted(res.data.alreadyAttempted);
           if (res.data.alreadyAttempted) {
-            setAttemptScore(res.data.attemptScore);
+            setAttemptScore(res.data.quiz.attemptScore);
+            setAttemptPercentage(res.data.quiz.attemptPercentage); // ✅ Store percentage
           } else if (res.data.quiz.timeLimit) {
             setTimeLeft(res.data.quiz.timeLimit * 60);
           }
@@ -2990,42 +2992,23 @@ const WeeklyQuiz = () => {
     );
   }
 
-  // Already attempted view
+  // ========== ALREADY ATTEMPTED VIEW – now shows BOTH score and percentage ==========
   if (alreadyAttempted) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: 600, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
           <h2 style={{ color: headingColor }}>You've Already Completed This Week's Quiz!</h2>
-          <p style={{ fontSize: 18, margin: '20px 0', color: headingColor }}>Your Score: <strong>{attemptScore}</strong></p>
-          <p style={{ color: secondaryText }}>Check back next week for a new quiz.</p>
+          <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Your Score: <strong>{attemptScore}</strong></p>
+          <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Percentage: <strong>{attemptPercentage}%</strong></p>
+          <p style={{ color: secondaryText, marginTop: 20 }}>Check back next week for a new quiz.</p>
           <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
         </div>
       </div>
     );
   }
 
-  // Results view
-  if (submitted && result) {
-    return (
-      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-        <div style={{ maxWidth: 500, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
-          <h2 style={{ color: headingColor, fontSize: 24 }}>Weekly Quiz Results</h2>
-          <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: headingColor }}>{result.score}</strong> / {result.total}</p>
-          <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{result.percentage}%</strong></p>
-          <p style={{ fontSize: 24, color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
-            {result.passed ? '✓ PASSED!' : '✗ Failed'}
-          </p>
-          <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center' }}>
-            <button onClick={() => setShowReview(true)} style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Review Answers</button>
-            <Link to="/"><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Home</button></Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Review answers view (similar to TakeExam review)
+  // ========== REVIEW VIEW (checked before results) ==========
   if (submitted && showReview && quiz) {
     const allQuestions = quiz.questions;
     return (
@@ -3034,7 +3017,7 @@ const WeeklyQuiz = () => {
           <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
             <h2 style={{ color: headingColor, fontSize: 22 }}>Answer Review</h2>
             <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
-            <Link to="/"><button style={{ background: '#1e3c72', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Home</button></Link>
+            <button onClick={() => setShowReview(false)} style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Results</button>
           </div>
           {allQuestions.map((q, idx) => {
             const userAnswer = answers[idx];
@@ -3058,7 +3041,27 @@ const WeeklyQuiz = () => {
     );
   }
 
-  // Active quiz – one question at a time
+  // ========== RESULTS VIEW ==========
+  if (submitted && result) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+        <div style={{ maxWidth: 500, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
+          <h2 style={{ color: headingColor, fontSize: 24 }}>Weekly Quiz Results</h2>
+          <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: headingColor }}>{result.score}</strong> / {result.total}</p>
+          <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{result.percentage}%</strong></p>
+          <p style={{ fontSize: 24, color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
+            {result.passed ? '✓ PASSED!' : '✗ Failed'}
+          </p>
+          <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center' }}>
+            <button onClick={() => setShowReview(true)} style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Review Answers</button>
+            <Link to="/"><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Home</button></Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Active quiz
   const currentQuestion = quiz.questions[currentIndex];
   const totalQuestions = quiz.questions.length;
   const answeredCount = Object.keys(answers).length;
@@ -3139,6 +3142,115 @@ const WeeklyQuiz = () => {
         <button onClick={handleSubmit} disabled={answeredCount < totalQuestions} style={{ width: '100%', background: answeredCount === totalQuestions ? '#28a745' : '#ccc', color: 'white', padding: 14, border: 'none', borderRadius: 50, cursor: answeredCount === totalQuestions ? 'pointer' : 'not-allowed', fontSize: 16, fontWeight: 'bold', marginBottom: 30, opacity: answeredCount === totalQuestions ? 1 : 0.7 }}>
           {answeredCount === totalQuestions ? 'Submit Weekly Quiz' : `Please answer all questions (${answeredCount}/${totalQuestions})`}
         </button>
+      </div>
+    </div>
+  );
+};
+
+// Weekly Leaderboard Component
+const WeeklyLeaderboard = () => {
+  const [attempts, setAttempts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userRank, setUserRank] = useState(null);
+  const { token, darkMode, user } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get('/api/weekly-quiz/current/leaderboard', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success) {
+          setAttempts(res.data.attempts);
+          // Find current user's rank
+          const idx = res.data.attempts.findIndex(a => a.userId?._id === user?.id);
+          setUserRank(idx !== -1 ? idx + 1 : null);
+        }
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        alert('Failed to load leaderboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLeaderboard();
+  }, [token, user]);
+
+  if (loading) return <LoadingWithBar message="Loading leaderboard..." />;
+
+  if (attempts.length === 0) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
+        <div style={{ fontSize: 64, marginBottom: 20 }}>🏆</div>
+        <h2 style={{ color: headingColor }}>No Attempts Yet</h2>
+        <p style={{ color: secondaryText }}>Be the first to take the weekly quiz!</p>
+        <Link to="/weekly-quiz"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Take Weekly Quiz</button></Link>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h1 style={{ color: headingColor }}>🏆 Weekly Quiz Leaderboard</h1>
+          <Link to="/weekly-quiz" style={{ color: headingColor, textDecoration: 'none' }}>← Back to Quiz</Link>
+        </div>
+        {userRank && (
+          <div style={{ background: '#e8f5e9', padding: 12, borderRadius: 8, marginBottom: 20, textAlign: 'center' }}>
+            <p style={{ color: '#2e7d32', margin: 0, fontSize: 16 }}>
+              Your Rank: <strong>#{userRank}</strong> out of {attempts.length} participants
+            </p>
+          </div>
+        )}
+        <div style={{ background: cardBg, borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#1e3c72', color: 'white' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>#</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Name</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center' }}>Score</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center' }}>Percentage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {attempts.map((attempt, index) => {
+                const isCurrentUser = attempt.userId?._id === user?.id;
+                return (
+                  <tr key={attempt._id} style={{
+                    background: isCurrentUser ? (darkMode ? '#2d2d3d' : '#e3f2fd') : 'transparent',
+                    borderBottom: `1px solid ${darkMode ? '#444' : '#eee'}`
+                  }}>
+                    <td style={{ padding: '10px 16px', fontWeight: 'bold', color: isCurrentUser ? headingColor : secondaryText }}>
+                      {index + 1}
+                    </td>
+                    <td style={{ padding: '10px 16px', fontWeight: isCurrentUser ? 'bold' : 'normal', color: textColor }}>
+                      {attempt.userId?.name || 'Unknown'}
+                      {isCurrentUser && <span style={{ marginLeft: 8, color: '#1e3c72', fontSize: 12 }}>(You)</span>}
+                    </td>
+                    <td style={{ padding: '10px 16px', textAlign: 'center', color: textColor }}>
+                      {attempt.score} / {attempt.total}
+                    </td>
+                    <td style={{ padding: '10px 16px', textAlign: 'center', color: textColor }}>
+                      {attempt.percentage.toFixed(1)}%
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 20 }}>
+          <Link to="/"><button style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Home</button></Link>
+        </div>
+      </div>
+      <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
     </div>
   );
@@ -5236,6 +5348,7 @@ const DropdownMenu = () => {
               <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>📞 Contact Us</Link>
               <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>💬 Join WhatsApp</Link>
               <Link to="/weekly-quiz" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontWeight: 'bold' }}>📅 Weekly Quiz</Link>
+              <Link to="/weekly-leaderboard" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontWeight: 'bold' }}>🏆 Leaderboard</Link>
             </div>
           </div>
         </>
@@ -5310,6 +5423,7 @@ const AppContent = () => {
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/weekly-quiz" element={<WeeklyQuiz />} />
+        <Route path="/weekly-leaderboard" element={<WeeklyLeaderboard />} />
         <Route path="/premium-exam/:categoryName/:topic/:examId/:mode" element={<PremiumExam />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
