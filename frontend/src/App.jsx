@@ -2883,7 +2883,7 @@ const PremiumExam = () => {
   );
 };
 
-// Weekly Quiz Component – complete with score and percentage display
+// Weekly Quiz Component – complete with score and percentage display + Leaderboard links
 const WeeklyQuiz = () => {
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState({});
@@ -2893,7 +2893,7 @@ const WeeklyQuiz = () => {
   const [loading, setLoading] = useState(true);
   const [alreadyAttempted, setAlreadyAttempted] = useState(false);
   const [attemptScore, setAttemptScore] = useState(null);
-  const [attemptPercentage, setAttemptPercentage] = useState(null); // ✅ Added
+  const [attemptPercentage, setAttemptPercentage] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
   const [showReview, setShowReview] = useState(false);
   const { token, darkMode } = useContext(AuthContext);
@@ -2913,7 +2913,7 @@ const WeeklyQuiz = () => {
           setAlreadyAttempted(res.data.alreadyAttempted);
           if (res.data.alreadyAttempted) {
             setAttemptScore(res.data.quiz.attemptScore);
-            setAttemptPercentage(res.data.quiz.attemptPercentage); // ✅ Store percentage
+            setAttemptPercentage(res.data.quiz.attemptPercentage);
           } else if (res.data.quiz.timeLimit) {
             setTimeLeft(res.data.quiz.timeLimit * 60);
           }
@@ -2992,7 +2992,7 @@ const WeeklyQuiz = () => {
     );
   }
 
-  // ========== ALREADY ATTEMPTED VIEW – now shows BOTH score and percentage ==========
+  // ========== ALREADY ATTEMPTED VIEW – with Leaderboard link ==========
   if (alreadyAttempted) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -3002,7 +3002,10 @@ const WeeklyQuiz = () => {
           <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Your Score: <strong>{attemptScore}</strong></p>
           <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Percentage: <strong>{attemptPercentage}%</strong></p>
           <p style={{ color: secondaryText, marginTop: 20 }}>Check back next week for a new quiz.</p>
-          <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link to="/weekly-leaderboard"><button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏆 View Leaderboard</button></Link>
+            <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
+          </div>
         </div>
       </div>
     );
@@ -3041,7 +3044,7 @@ const WeeklyQuiz = () => {
     );
   }
 
-  // ========== RESULTS VIEW ==========
+  // ========== RESULTS VIEW – with Leaderboard link ==========
   if (submitted && result) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
@@ -3052,8 +3055,9 @@ const WeeklyQuiz = () => {
           <p style={{ fontSize: 24, color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
             {result.passed ? '✓ PASSED!' : '✗ Failed'}
           </p>
-          <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => setShowReview(true)} style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Review Answers</button>
+            <Link to="/weekly-leaderboard"><button style={{ background: '#ff9800', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>🏆 View Leaderboard</button></Link>
             <Link to="/"><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Home</button></Link>
           </div>
         </div>
@@ -3061,7 +3065,7 @@ const WeeklyQuiz = () => {
     );
   }
 
-  // Active quiz
+  // Active quiz (unchanged)
   const currentQuestion = quiz.questions[currentIndex];
   const totalQuestions = quiz.questions.length;
   const answeredCount = Object.keys(answers).length;
@@ -4451,7 +4455,7 @@ const PaymentReturn = () => {
   );
 };
 
-// Admin Panel Component – with Weekly Quiz management
+// Admin Panel Component – with Weekly Quiz management (improved layout and padding)
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -4859,13 +4863,11 @@ const AdminPanel = () => {
             <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
             <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
             <button onClick={() => setActiveTab('manualReset')} style={{ background: activeTab === 'manualReset' ? '#6c757d' : 'transparent', color: activeTab === 'manualReset' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualReset' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual Reset</button>
-            {/* ===== NEW: Weekly Quiz Tab ===== */}
             <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📅 Weekly Quiz ({weeklyQuizzes.length})</button>
           </div>
 
           {activeTab === 'users' && (
             <>
-              {/* Search Bar */}
               <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
                 <input
                   type="text"
@@ -5056,7 +5058,7 @@ const AdminPanel = () => {
             </div>
           )}
 
-          {/* ===== NEW: Weekly Quiz Tab ===== */}
+          {/* ===== WEEKLY QUIZ TAB – IMPROVED LAYOUT & PADDING ===== */}
           {activeTab === 'weeklyQuiz' && (
             <div style={{ padding: '10px 0' }}>
               {/* Quiz Form Toggle */}
@@ -5064,94 +5066,111 @@ const AdminPanel = () => {
                 <h3 style={{ color: headingColor, margin: 0 }}>Manage Weekly Quizzes</h3>
                 <button
                   onClick={() => setShowQuizForm(!showQuizForm)}
-                  style={{ background: showQuizForm ? '#dc3545' : '#2E7D64', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                  style={{ background: showQuizForm ? '#dc3545' : '#2E7D64', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
                 >
-                  {showQuizForm ? 'Cancel' : '+ Create New Quiz'}
+                  {showQuizForm ? '✕ Cancel' : '+ Create New Quiz'}
                 </button>
               </div>
 
-              {/* Quiz Form */}
+              {/* Quiz Form – IMPROVED PADDING & LAYOUT */}
               {showQuizForm && (
-                <div style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, marginBottom: 24, border: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
-                  <h4 style={{ color: headingColor, marginBottom: 16 }}>{editingQuizId ? 'Edit Quiz' : 'New Weekly Quiz'}</h4>
+                <div style={{ 
+                  background: darkMode ? '#1a1a2e' : '#f8f9fa', 
+                  padding: '24px 28px', 
+                  borderRadius: 16, 
+                  marginBottom: 28, 
+                  border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                }}>
+                  <h4 style={{ color: headingColor, marginBottom: 20, fontSize: 18 }}>{editingQuizId ? '✏️ Edit Quiz' : '📝 New Weekly Quiz'}</h4>
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 18 }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Quiz Title *</label>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Quiz Title <span style={{ color: '#dc3545' }}>*</span></label>
                       <input
                         type="text"
                         placeholder="e.g., Week 1 - Fundamentals"
                         value={quizTitle}
                         onChange={(e) => setQuizTitle(e.target.value)}
-                        style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Week Number *</label>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Week Number <span style={{ color: '#dc3545' }}>*</span></label>
                       <input
                         type="number"
                         placeholder="1, 2, 3..."
                         value={quizWeekNumber}
                         onChange={(e) => setQuizWeekNumber(e.target.value)}
-                        style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
                         min="1"
                       />
                     </div>
                   </div>
 
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Description (optional)</label>
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Description <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span></label>
                     <input
                       type="text"
                       placeholder="Brief description of the quiz"
                       value={quizDescription}
                       onChange={(e) => setQuizDescription(e.target.value)}
-                      style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                      style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 20 }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Passing Score (%)</label>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Passing Score (%)</label>
                       <input
                         type="number"
                         placeholder="70"
                         value={quizPassingScore}
                         onChange={(e) => setQuizPassingScore(parseInt(e.target.value) || 70)}
-                        style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
                         min="0"
                         max="100"
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Time Limit (minutes)</label>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Time Limit (minutes)</label>
                       <input
                         type="number"
                         placeholder="20"
                         value={quizTimeLimit}
                         onChange={(e) => setQuizTimeLimit(parseInt(e.target.value) || 20)}
-                        style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
                         min="1"
                       />
                     </div>
                   </div>
 
-                  {/* Question Builder */}
-                  <div style={{ marginBottom: 16, borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingTop: 16 }}>
-                    <h5 style={{ color: headingColor, marginBottom: 12 }}>Questions ({quizQuestions.length})</h5>
+                  {/* Question Builder – IMPROVED PADDING */}
+                  <div style={{ 
+                    marginBottom: 20, 
+                    borderTop: `2px solid ${darkMode ? '#444' : '#e0e0e0'}`, 
+                    paddingTop: 20 
+                  }}>
+                    <h5 style={{ color: headingColor, marginBottom: 14, fontSize: 16 }}>Questions ({quizQuestions.length})</h5>
                     
-                    {/* Add Question Form */}
-                    <div style={{ background: darkMode ? '#2d2d3d' : 'white', padding: 16, borderRadius: 8, marginBottom: 12 }}>
-                      <div style={{ marginBottom: 12 }}>
+                    {/* Add Question Form – IMPROVED PADDING */}
+                    <div style={{ 
+                      background: darkMode ? '#2d2d3d' : 'white', 
+                      padding: '18px 20px', 
+                      borderRadius: 12, 
+                      marginBottom: 16,
+                      border: `1px solid ${darkMode ? '#555' : '#eee'}`
+                    }}>
+                      <div style={{ marginBottom: 14 }}>
                         <input
                           type="text"
                           placeholder="Enter question text"
                           value={qText}
                           onChange={(e) => setQText(e.target.value)}
-                          style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                          style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
                         />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: 14 }}>
                         {qOptions.map((opt, idx) => (
                           <input
                             key={idx}
@@ -5163,16 +5182,16 @@ const AdminPanel = () => {
                               newOpts[idx] = e.target.value;
                               setQOptions(newOpts);
                             }}
-                            style={{ padding: '8px 10px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13, background: cardBg, color: textColor }}
+                            style={{ padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13, background: cardBg, color: textColor, boxSizing: 'border-box' }}
                           />
                         ))}
                       </div>
-                      <div style={{ display: 'flex', gap: 12, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <label style={{ fontSize: 13, color: textColor }}>Correct Answer:</label>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: 13, fontWeight: 'bold', color: textColor }}>Correct Answer:</label>
                         <select
                           value={qCorrect}
                           onChange={(e) => setQCorrect(parseInt(e.target.value))}
-                          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor }}
+                          style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor, fontSize: 13 }}
                         >
                           {qOptions.map((_, idx) => (
                             <option key={idx} value={idx}>Option {String.fromCharCode(65 + idx)}</option>
@@ -5180,40 +5199,52 @@ const AdminPanel = () => {
                         </select>
                         <button
                           onClick={handleAddQuestion}
-                          style={{ background: '#2E7D64', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}
+                          style={{ background: '#2E7D64', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
                         >
-                          {editingQuestionIndex !== null ? 'Update Question' : 'Add Question'}
+                          {editingQuestionIndex !== null ? '✏️ Update' : '➕ Add'}
                         </button>
                         {editingQuestionIndex !== null && (
                           <button
                             onClick={() => { setEditingQuestionIndex(null); setQText(''); setQOptions(['', '', '', '']); setQCorrect(0); }}
                             style={{ background: '#6c757d', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
                           >
-                            Cancel Edit
+                            Cancel
                           </button>
                         )}
                       </div>
                     </div>
 
-                    {/* Question List */}
+                    {/* Question List – IMPROVED PADDING */}
                     {quizQuestions.length > 0 && (
-                      <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                      <div style={{ maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
                         {quizQuestions.map((q, idx) => (
-                          <div key={idx} style={{ background: darkMode ? '#2d2d3d' : 'white', padding: '12px', borderRadius: 8, marginBottom: 8, border: `1px solid ${darkMode ? '#444' : '#eee'}` }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div style={{ flex: 1 }}>
-                                <strong style={{ color: headingColor }}>Q{idx+1}:</strong> <span style={{ color: textColor }}>{q.questionText}</span>
-                                <div style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>
-                                  Options: {q.options.map((opt, i) => (
-                                    <span key={i} style={{ marginRight: 8 }}>{String.fromCharCode(65 + i)}: {opt}</span>
-                                  ))}
-                                  <span style={{ color: '#2E7D64', fontWeight: 'bold', marginLeft: 8 }}>✓ Answer: {String.fromCharCode(65 + q.correctAnswer)}</span>
-                                </div>
+                          <div key={idx} style={{ 
+                            background: darkMode ? '#2d2d3d' : 'white', 
+                            padding: '14px 16px', 
+                            borderRadius: 10, 
+                            marginBottom: 10, 
+                            border: `1px solid ${darkMode ? '#444' : '#eee'}`,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                                <strong style={{ color: headingColor, fontSize: 14 }}>Q{idx+1}:</strong>
+                                <span style={{ color: textColor, fontSize: 14, wordBreak: 'break-word' }}>{q.questionText}</span>
                               </div>
-                              <div style={{ display: 'flex', gap: 6 }}>
-                                <button onClick={() => handleEditQuestion(idx)} style={{ background: '#ffc107', color: '#333', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✏️</button>
-                                <button onClick={() => handleDeleteQuestion(idx)} style={{ background: '#dc3545', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✕</button>
+                              <div style={{ fontSize: 12, color: secondaryText, marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                {q.options.map((opt, i) => (
+                                  <span key={i} style={{ background: darkMode ? '#333' : '#f0f0f0', padding: '2px 8px', borderRadius: 4 }}>
+                                    {String.fromCharCode(65 + i)}: {opt}
+                                  </span>
+                                ))}
+                                <span style={{ color: '#2E7D64', fontWeight: 'bold' }}>✓ Answer: {String.fromCharCode(65 + q.correctAnswer)}</span>
                               </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
+                              <button onClick={() => handleEditQuestion(idx)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                              <button onClick={() => handleDeleteQuestion(idx)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✕</button>
                             </div>
                           </div>
                         ))}
@@ -5221,30 +5252,50 @@ const AdminPanel = () => {
                     )}
                   </div>
 
-                  {/* Save Quiz Button */}
+                  {/* Save Quiz Button – IMPROVED PADDING */}
                   <button
                     onClick={handleSaveQuiz}
-                    style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 16 }}
+                    style={{ 
+                      width: '100%', 
+                      background: '#2E7D64', 
+                      color: 'white', 
+                      padding: '14px', 
+                      border: 'none', 
+                      borderRadius: 10, 
+                      cursor: 'pointer', 
+                      fontWeight: 'bold', 
+                      fontSize: 16,
+                      marginTop: 4,
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#1a5c4a'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#2E7D64'}
                   >
-                    {editingQuizId ? 'Update Quiz' : 'Create Quiz'}
+                    {editingQuizId ? '📦 Update Quiz' : '📦 Create Quiz'}
                   </button>
                 </div>
               )}
 
-              {/* Quiz List */}
+              {/* Quiz List – IMPROVED SPACING */}
               {loadingQuizzes ? (
-                <p style={{ textAlign: 'center', color: secondaryText }}>Loading quizzes...</p>
+                <p style={{ textAlign: 'center', color: secondaryText, padding: '30px 0' }}>Loading quizzes...</p>
               ) : weeklyQuizzes.length === 0 ? (
-                <p style={{ textAlign: 'center', color: secondaryText, padding: '20px 0' }}>No weekly quizzes created yet.</p>
+                <p style={{ textAlign: 'center', color: secondaryText, padding: '30px 0' }}>No weekly quizzes created yet.</p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
                   {weeklyQuizzes.map(quiz => (
-                    <div key={quiz._id} style={{ background: darkMode ? '#1a1a2e' : 'white', padding: 16, borderRadius: 12, border: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
+                    <div key={quiz._id} style={{ 
+                      background: darkMode ? '#1a1a2e' : 'white', 
+                      padding: '18px 20px', 
+                      borderRadius: 14, 
+                      border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+                      transition: 'box-shadow 0.2s'
+                    }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                          <h4 style={{ color: headingColor, margin: 0 }}>{quiz.title}</h4>
-                          <p style={{ fontSize: 12, color: secondaryText }}>Week {quiz.weekNumber} • {quiz.questions.length} questions</p>
-                          <p style={{ fontSize: 12, color: secondaryText }}>
+                          <h4 style={{ color: headingColor, margin: 0, fontSize: 16 }}>{quiz.title}</h4>
+                          <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>Week {quiz.weekNumber} • {quiz.questions.length} questions</p>
+                          <p style={{ fontSize: 12, color: secondaryText, marginTop: 2 }}>
                             Pass: {quiz.passingScore}% • Time: {quiz.timeLimit}min
                             <span style={{ marginLeft: 12, color: quiz.isActive ? '#2e7d32' : '#dc3545' }}>
                               {quiz.isActive ? '✅ Active' : '❌ Inactive'}
@@ -5252,9 +5303,9 @@ const AdminPanel = () => {
                           </p>
                         </div>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button onClick={() => editQuiz(quiz)} style={{ background: '#ffc107', color: '#333', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✏️ Edit</button>
-                          <button onClick={() => handleViewResults(quiz._id)} style={{ background: '#17a2b8', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>📊 Results</button>
-                          <button onClick={() => handleDeleteQuiz(quiz._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>🗑️</button>
+                          <button onClick={() => editQuiz(quiz)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                          <button onClick={() => handleViewResults(quiz._id)} style={{ background: '#17a2b8', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Quiz Results</button>
+                          <button onClick={() => handleDeleteQuiz(quiz._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>delete</button>
                         </div>
                       </div>
                     </div>
@@ -5262,7 +5313,7 @@ const AdminPanel = () => {
                 </div>
               )}
 
-              {/* Results Modal */}
+              {/* Results Modal – IMPROVED PADDING */}
               {showResults && selectedQuizResults && (
                 <div style={{
                   position: 'fixed',
@@ -5277,27 +5328,34 @@ const AdminPanel = () => {
                   <div style={{
                     background: cardBg,
                     borderRadius: 20,
-                    padding: 24,
+                    padding: 28,
                     maxWidth: 600,
                     width: '100%',
                     maxHeight: '80vh',
                     overflowY: 'auto',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+                    boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                      <h3 style={{ color: headingColor }}>Quiz Results</h3>
-                      <button onClick={() => setShowResults(false)} style={{ background: '#6c757d', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Close</button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+                      <h3 style={{ color: headingColor, margin: 0 }}>📊 Quiz Results</h3>
+                      <button onClick={() => setShowResults(false)} style={{ background: '#6c757d', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Close</button>
                     </div>
                     {selectedQuizResults.length === 0 ? (
-                      <p style={{ color: secondaryText }}>No attempts yet.</p>
+                      <p style={{ color: secondaryText, textAlign: 'center', padding: '20px 0' }}>No attempts yet.</p>
                     ) : (
                       <div>
-                        <p style={{ color: secondaryText, marginBottom: 12 }}>Total Attempts: {selectedQuizResults.length}</p>
+                        <p style={{ color: secondaryText, marginBottom: 14 }}>Total Attempts: <strong>{selectedQuizResults.length}</strong></p>
                         {selectedQuizResults.map((attempt, idx) => (
-                          <div key={idx} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 12, borderRadius: 8, marginBottom: 8 }}>
-                            <p style={{ margin: 0, color: textColor }}><strong>{attempt.userId?.name || 'Unknown'}</strong> ({attempt.userId?.email || 'No email'})</p>
+                          <div key={idx} style={{ 
+                            background: darkMode ? '#1a1a2e' : '#f8f9fa', 
+                            padding: '14px 16px', 
+                            borderRadius: 10, 
+                            marginBottom: 10,
+                            borderLeft: `4px solid ${attempt.passed ? '#2e7d32' : '#dc3545'}`
+                          }}>
+                            <p style={{ margin: 0, color: textColor, fontWeight: 'bold' }}>{attempt.userId?.name || 'Unknown'}</p>
                             <p style={{ margin: 0, fontSize: 13, color: secondaryText }}>
-                              Score: {attempt.score}/{attempt.total} ({attempt.percentage.toFixed(1)}%) 
+                              {attempt.userId?.email || 'No email'} • 
+                              Score: <strong>{attempt.score}/{attempt.total}</strong> ({attempt.percentage.toFixed(1)}%) 
                               {attempt.passed ? ' ✅' : ' ❌'}
                             </p>
                             <p style={{ margin: 0, fontSize: 11, color: secondaryText }}>{new Date(attempt.completedAt).toLocaleString()}</p>
