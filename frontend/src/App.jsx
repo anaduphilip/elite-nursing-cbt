@@ -4455,7 +4455,7 @@ const PaymentReturn = () => {
   );
 };
 
-// Admin Panel Component – with Weekly Quiz management (batch import added)
+// Admin Panel Component – with Weekly Quiz management (FIXED batch import)
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -4729,7 +4729,7 @@ const AdminPanel = () => {
     setQCorrect(0);
   };
 
-  // ========== BATCH IMPORT FUNCTION ==========
+  // ========== FIXED BATCH IMPORT FUNCTION ==========
   const handleBatchImport = () => {
     if (!batchInput.trim()) {
       alert('Please paste some questions first.');
@@ -4738,101 +4738,116 @@ const AdminPanel = () => {
 
     const lines = batchInput.split('\n').map(l => l.trim()).filter(l => l);
     const parsedQuestions = [];
-    let currentQuestion = null;
-
-    // Try to detect format: if any line starts with 'Q' or has options in parentheses, treat as same‑line format
-    const hasQuestionPrefix = lines.some(l => /^Q\d+\./i.test(l));
-    const hasOptionInParentheses = lines.some(l => /\([a-d]\)/i.test(l));
-
-    if (hasQuestionPrefix || hasOptionInParentheses) {
-      // Format 1: Same‑line like "Q1. ... (a) ... (b) ..."
-      // Parse each line individually
-      for (const line of lines) {
-        const qMatch = line.match(/^Q\d+\.\s*(.*)/i);
-        if (qMatch) {
-          const fullText = qMatch[1];
-          const options = [];
-          const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
-          let match;
-          while ((match = optionPattern.exec(fullText)) !== null) {
-            options.push(match[2].trim());
-          }
-          let questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
-          if (options.length === 4) {
-            parsedQuestions.push({
-              questionText,
-              options,
-              correctAnswer: 0 // placeholder, will be set if answer key found later
-            });
-          }
+    
+    // Build a block-based parser that handles both formats
+    let currentBlock = '';
+    const blocks = [];
+    
+    // First, split by blank lines to get question blocks
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      // If line is empty or starts with Q, it might be a new question
+      if (line.match(/^Q\d+\./i)) {
+        if (currentBlock.trim()) {
+          blocks.push(currentBlock.trim());
         }
+        currentBlock = line;
+      } else {
+        currentBlock += '\n' + line;
       }
-    } else {
-      // Format 2: Multi‑line with options on separate lines and answer key
-      // We'll parse line by line, assuming each question block is separated by blank lines or Q lines.
-      let questionText = '';
-      let options = [];
+    }
+    if (currentBlock.trim()) {
+      blocks.push(currentBlock.trim());
+    }
+
+    // Process each block
+    for (const block of blocks) {
+      // Extract question text
+      const qMatch = block.match(/^Q\d+\.\s*(.*)/i);
+      if (!qMatch) continue;
+      
+      const fullText = qMatch[1];
+      let questionText = fullText;
+      const options = [];
       let answerLetter = null;
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        // If line starts with Q, start new question
-        const qMatch = line.match(/^Q\d+\.\s*(.*)/i);
-        if (qMatch) {
-          if (questionText && options.length === 4) {
-            // Save previous question
-            parsedQuestions.push({
-              questionText,
-              options,
-              correctAnswer: answerLetter ? answerLetter.charCodeAt(0) - 65 : 0
-            });
-          }
-          // Start new question
-          questionText = qMatch[1];
-          options = [];
-          answerLetter = null;
-        } else if (line.match(/^\([a-d]\)/i)) {
-          const optMatch = line.match(/^\(([a-d])\)\s*(.*)/i);
-          if (optMatch) options.push(optMatch[2].trim());
-        } else if (line.match(/^Answer:\s*([a-d])/i)) {
-          const ansMatch = line.match(/^Answer:\s*([a-d])/i);
-          if (ansMatch) answerLetter = ansMatch[1].toUpperCase();
-        } else if (line && !line.match(/^[a-d]\)/i) && !line.match(/^Answer:/i) && !line.match(/^Q\d+\./i)) {
-          // continuation of question text
-          if (questionText) questionText += ' ' + line;
-        }
-        // After the block, if we have a complete question, we'll push at the end
+      // Try to find options in the format (a) option (b) option (c) option (d) option
+      const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
+      let match;
+      while ((match = optionPattern.exec(fullText)) !== null) {
+        options.push(match[2].trim());
       }
-      // Push the last question
-      if (questionText && options.length === 4) {
+
+      // If options not found in same line, try multi-line format
+      if (options.length !== 4) {
+        // Look for options on separate lines
+        const linesInBlock = block.split('\n');
+        for (const line of linesInBlock) {
+          const optMatch = line.match(/^\(([a-d])\)\s*(.*)/i);
+          if (optMatch) {
+            options.push(optMatch[2].trim());
+          }
+        }
+      }
+
+      // Clean question text - remove options
+      questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
+      
+      // If question text is empty, try multi-line approach
+      if (!questionText) {
+        const firstLine = block.split('\n')[0];
+        if (firstLine) {
+          questionText = firstLine.replace(/^Q\d+\.\s*/i, '').trim();
+        }
+      }
+
+      // Find the answer - look for "Answer:" pattern
+      const answerMatch = block.match(/Answer:\s*([a-d])/i);
+      if (answerMatch) {
+        answerLetter = answerMatch[1].toUpperCase();
+      } else {
+        // Try to find answer in the last line
+        const lastLines = block.split('\n').slice(-3);
+        for (const line of lastLines) {
+          const ansMatch = line.match(/^([a-d])\.?\s*$/i);
+          if (ansMatch) {
+            answerLetter = ansMatch[1].toUpperCase();
+            break;
+          }
+        }
+      }
+
+      // If we have 4 options and a valid question
+      if (options.length === 4 && questionText) {
+        const correctIndex = answerLetter ? answerLetter.charCodeAt(0) - 65 : 0;
         parsedQuestions.push({
-          questionText,
-          options,
-          correctAnswer: answerLetter ? answerLetter.charCodeAt(0) - 65 : 0
+          questionText: questionText,
+          options: options,
+          correctAnswer: correctIndex,
+          points: 1
         });
       }
     }
 
-    // If we still have no parsed questions, try splitting by blank lines as fallback
+    // If still no questions parsed, try using the entire text with a different method
     if (parsedQuestions.length === 0) {
-      // Split by double newlines (blank lines)
-      const blocks = batchInput.split(/\n\s*\n/).filter(b => b.trim());
-      for (const block of blocks) {
-        const qMatch = block.match(/^Q\d+\.\s*(.*)/i);
-        if (qMatch) {
-          const fullText = qMatch[1];
-          const options = [];
-          const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
-          let match;
-          while ((match = optionPattern.exec(fullText)) !== null) {
-            options.push(match[2].trim());
+      // Try to parse each line as a complete question
+      for (const line of lines) {
+        if (line.match(/^Q\d+\./i)) {
+          const qText2 = line.replace(/^Q\d+\.\s*/i, '').trim();
+          const options2 = [];
+          const optPattern2 = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
+          let match2;
+          while ((match2 = optPattern2.exec(qText2)) !== null) {
+            options2.push(match2[2].trim());
           }
-          let questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
-          if (options.length === 4) {
+          let questionText2 = qText2.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
+          if (options2.length === 4 && questionText2) {
             parsedQuestions.push({
-              questionText,
-              options,
-              correctAnswer: 0
+              questionText: questionText2,
+              options: options2,
+              correctAnswer: 0,
+              points: 1
             });
           }
         }
@@ -4840,21 +4855,14 @@ const AdminPanel = () => {
     }
 
     if (parsedQuestions.length === 0) {
-      alert('No valid questions found. Please check the format (Q1. ... (a) ... (b) ...) or multi‑line format with options.');
+      alert('No valid questions found. Please check the format.\n\nSupported formats:\n1. Q1. Question text? (a) Option (b) Option (c) Option (d) Option\n2. Q1. Question text?\n(a) Option\n(b) Option\n(c) Option\n(d) Option\nAnswer: a');
       return;
     }
 
     // Add parsed questions to the current quizQuestions state
-    const newQuestions = parsedQuestions.map((q, idx) => ({
-      questionText: q.questionText,
-      options: q.options,
-      correctAnswer: q.correctAnswer || 0,
-      points: 1
-    }));
-
-    setQuizQuestions(prev => [...prev, ...newQuestions]);
+    setQuizQuestions(prev => [...prev, ...parsedQuestions]);
     setBatchInput('');
-    alert(`✅ ${newQuestions.length} questions added successfully!`);
+    alert(`✅ ${parsedQuestions.length} questions added successfully!`);
   };
 
   const handleEditQuestion = (index) => {
@@ -4995,7 +5003,7 @@ const AdminPanel = () => {
             <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
             <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
             <button onClick={() => setActiveTab('manualReset')} style={{ background: activeTab === 'manualReset' ? '#6c757d' : 'transparent', color: activeTab === 'manualReset' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualReset' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual Reset</button>
-            <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📅 Weekly Quiz ({weeklyQuizzes.length})</button>
+            <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Weekly Quiz ({weeklyQuizzes.length})</button>
           </div>
 
           {activeTab === 'users' && (
@@ -5190,7 +5198,7 @@ const AdminPanel = () => {
             </div>
           )}
 
-          {/* ===== WEEKLY QUIZ TAB – WITH BATCH IMPORT ===== */}
+          {/* ===== WEEKLY QUIZ TAB – WITH FIXED BATCH IMPORT ===== */}
           {activeTab === 'weeklyQuiz' && (
             <div style={{ padding: '10px 0' }}>
               {/* Quiz Form Toggle */}
@@ -5214,7 +5222,7 @@ const AdminPanel = () => {
                   border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
                 }}>
-                  <h4 style={{ color: headingColor, marginBottom: 20, fontSize: 18 }}>{editingQuizId ? '✏️ Edit Quiz' : '📝 New Weekly Quiz'}</h4>
+                  <h4 style={{ color: headingColor, marginBottom: 20, fontSize: 18 }}>{editingQuizId ? '✏️ Edit Quiz' : 'New Weekly Quiz'}</h4>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 18 }}>
                     <div>
@@ -5277,7 +5285,7 @@ const AdminPanel = () => {
                     </div>
                   </div>
 
-                  {/* Question Builder – WITH BATCH IMPORT */}
+                  {/* Question Builder – WITH FIXED BATCH IMPORT */}
                   <div style={{ 
                     marginBottom: 20, 
                     borderTop: `2px solid ${darkMode ? '#444' : '#e0e0e0'}`, 
@@ -5294,11 +5302,10 @@ const AdminPanel = () => {
                       border: `1px dashed ${darkMode ? '#666' : '#aaa'}`
                     }}>
                       <p style={{ fontSize: 13, color: secondaryText, marginBottom: 8 }}>
-                        <strong>📋 Batch Import:</strong> Paste multiple questions at once. 
-                        Format: <code>Q1. ... (a) ... (b) ... (c) ... (d) ...</code> or multi-line with options.
+                        <strong>Batch Import:</strong> Paste multiple questions at once.
                       </p>
                       <textarea
-                        placeholder="Paste your questions here...&#10;Q1. Question text? (a) Option (b) Option (c) Option (d) Option"
+                        placeholder="Paste your questions here...&#10;Q1. Question text? (a) Option (b) Option (c) Option (d) Option&#10;Answer: a"
                         value={batchInput}
                         onChange={(e) => setBatchInput(e.target.value)}
                         rows="4"
@@ -5329,7 +5336,7 @@ const AdminPanel = () => {
                           fontSize: 13
                         }}
                       >
-                        📥 Import Questions
+                        Import Questions
                       </button>
                     </div>
 
@@ -5451,7 +5458,7 @@ const AdminPanel = () => {
                     onMouseEnter={(e) => e.currentTarget.style.background = '#1a5c4a'}
                     onMouseLeave={(e) => e.currentTarget.style.background = '#2E7D64'}
                   >
-                    {editingQuizId ? '📦 Update Quiz' : '📦 Create Quiz'}
+                    {editingQuizId ? ' Update Quiz' : ' Create Quiz'}
                   </button>
                 </div>
               )}
