@@ -1048,6 +1048,32 @@ app.get('/api/admin/weekly-quiz/:id/results', isAdmin, async (req, res) => {
   }
 });
 
+// Get leaderboard for a weekly quiz (use 'current' for active quiz)
+app.get('/api/weekly-quiz/:quizId/leaderboard', authenticate, async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    let query = {};
+    if (quizId === 'current') {
+      const activeQuiz = await WeeklyQuiz.findOne({ 
+        isActive: true, 
+        startDate: { $lte: new Date() }, 
+        $or: [{ endDate: { $gte: new Date() } }, { endDate: null }] 
+      });
+      if (!activeQuiz) return res.status(404).json({ error: 'No active quiz' });
+      query = { weeklyQuizId: activeQuiz._id };
+    } else {
+      query = { weeklyQuizId: quizId };
+    }
+    const attempts = await WeeklyQuizAttempt.find(query)
+      .populate('userId', 'name email')
+      .sort({ score: -1, percentage: -1 });
+    res.json({ success: true, attempts });
+  } catch (error) {
+    console.error('Leaderboard error:', error);
+    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
+});
+
 // ============ PAYMENT ROUTES - USING TRANSACTION ID ONLY ============
 
 // Initialize payment
