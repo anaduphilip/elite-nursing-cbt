@@ -2883,6 +2883,267 @@ const PremiumExam = () => {
   );
 };
 
+// Weekly Quiz Component
+const WeeklyQuiz = () => {
+  const [quiz, setQuiz] = useState(null);
+  const [answers, setAnswers] = useState({});
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [alreadyAttempted, setAlreadyAttempted] = useState(false);
+  const [attemptScore, setAttemptScore] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [showReview, setShowReview] = useState(false);
+  const { token, darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+
+  useEffect(() => {
+    const fetchQuiz = async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get('/api/weekly-quiz/current', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success) {
+          setQuiz(res.data.quiz);
+          setAlreadyAttempted(res.data.alreadyAttempted);
+          if (res.data.alreadyAttempted) {
+            setAttemptScore(res.data.attemptScore);
+          } else if (res.data.quiz.timeLimit) {
+            setTimeLeft(res.data.quiz.timeLimit * 60);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching weekly quiz:', error);
+        alert('Failed to load weekly quiz. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQuiz();
+  }, [token]);
+
+  // Timer logic
+  useEffect(() => {
+    if (!timeLeft || timeLeft <= 0 || submitted) return;
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, submitted]);
+
+  const handleAnswer = (index, answerIndex) => {
+    setAnswers(prev => ({ ...prev, [index]: answerIndex }));
+  };
+
+  const handleSubmit = async () => {
+    if (!quiz) return;
+    const answeredCount = Object.keys(answers).length;
+    if (answeredCount < quiz.questions.length) {
+      alert(`Please answer all questions (${answeredCount}/${quiz.questions.length})`);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await axios.post('/api/weekly-quiz/submit', {
+        quizId: quiz._id,
+        answers: answers,
+        timeSpent: (quiz.timeLimit * 60) - (timeLeft || 0)
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setResult(res.data);
+      setSubmitted(true);
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to submit quiz');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const goToQuestion = (index) => {
+    if (index >= 0 && index < quiz?.questions?.length) {
+      setCurrentIndex(index);
+    }
+  };
+
+  if (loading) return <LoadingWithBar message="Loading Weekly Quiz..." />;
+
+  if (!quiz) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
+        <div style={{ fontSize: 64, marginBottom: 20 }}>📅</div>
+        <h2 style={{ color: headingColor }}>No Active Weekly Quiz</h2>
+        <p style={{ color: secondaryText }}>Check back next week for a new quiz!</p>
+        <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
+      </div>
+    );
+  }
+
+  // Already attempted view
+  if (alreadyAttempted) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+        <div style={{ maxWidth: 600, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+          <h2 style={{ color: headingColor }}>You've Already Completed This Week's Quiz!</h2>
+          <p style={{ fontSize: 18, margin: '20px 0', color: headingColor }}>Your Score: <strong>{attemptScore}</strong></p>
+          <p style={{ color: secondaryText }}>Check back next week for a new quiz.</p>
+          <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Results view
+  if (submitted && result) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+        <div style={{ maxWidth: 500, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
+          <h2 style={{ color: headingColor, fontSize: 24 }}>Weekly Quiz Results</h2>
+          <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: headingColor }}>{result.score}</strong> / {result.total}</p>
+          <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{result.percentage}%</strong></p>
+          <p style={{ fontSize: 24, color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
+            {result.passed ? '✓ PASSED!' : '✗ Failed'}
+          </p>
+          <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center' }}>
+            <button onClick={() => setShowReview(true)} style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Review Answers</button>
+            <Link to="/"><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Home</button></Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Review answers view (similar to TakeExam review)
+  if (submitted && showReview && quiz) {
+    const allQuestions = quiz.questions;
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto' }}>
+          <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
+            <h2 style={{ color: headingColor, fontSize: 22 }}>Answer Review</h2>
+            <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
+            <Link to="/"><button style={{ background: '#1e3c72', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Home</button></Link>
+          </div>
+          {allQuestions.map((q, idx) => {
+            const userAnswer = answers[idx];
+            const isCorrect = userAnswer !== undefined && userAnswer === q.correctAnswer;
+            return (
+              <div key={idx} style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 12, padding: 16, marginBottom: 12, borderLeft: `5px solid ${isCorrect ? '#4caf50' : '#f44336'}` }}>
+                <h4 style={{ fontSize: 15, marginBottom: 10 }}>Q{idx+1}: {q.questionText}</h4>
+                {q.options.map((opt, optIdx) => (
+                  <div key={optIdx} style={{ padding: '10px 12px', margin: '6px 0', background: optIdx === q.correctAnswer ? '#c8e6c9' : (optIdx === userAnswer ? '#ffcdd2' : '#f5f5f5'), borderRadius: 10, fontSize: 14 }}>
+                    <span style={{ fontWeight: 'bold', marginRight: 10 }}>{String.fromCharCode(65 + optIdx)}.</span> {opt}
+                    {optIdx === q.correctAnswer && <span style={{ color: '#4caf50', marginLeft: 10, fontSize: 12 }}>✓ Correct</span>}
+                    {optIdx === userAnswer && optIdx !== q.correctAnswer && <span style={{ color: '#f44336', marginLeft: 10, fontSize: 12 }}>✗ Your Answer</span>}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+          <Link to="/"><button style={{ width: '100%', marginTop: 20, background: '#1e3c72', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Home</button></Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Active quiz – one question at a time
+  const currentQuestion = quiz.questions[currentIndex];
+  const totalQuestions = quiz.questions.length;
+  const answeredCount = Object.keys(answers).length;
+
+  const minutes = Math.floor((timeLeft || 0) / 60);
+  const seconds = (timeLeft || 0) % 60;
+
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh' }}>
+      {/* Timer */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        background: (timeLeft || 0) < 120 ? '#f44336' : '#1e3c72',
+        color: 'white',
+        padding: '12px 20px',
+        textAlign: 'center',
+        fontSize: 22,
+        fontWeight: 'bold',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+      }}>
+        ⏰ {minutes}:{seconds.toString().padStart(2, '0')}
+        {(timeLeft || 0) < 120 && <span style={{ marginLeft: 10, fontSize: 14 }}>⚠️ TIME RUNNING OUT!</span>}
+      </div>
+      <div style={{ padding: '20px', maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
+          <h2 style={{ color: headingColor, margin: 0, fontSize: 20 }}>{quiz.title}</h2>
+          <p style={{ fontSize: 14, marginTop: 4 }}>Question {currentIndex+1} of {totalQuestions}</p>
+          <p style={{ fontSize: 13, color: secondaryText }}>Answered: {answeredCount}/{totalQuestions}</p>
+        </div>
+
+        {/* Current question */}
+        <div style={{ background: '#1e3c72', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+          <h4 style={{ color: 'white', marginBottom: 16, fontSize: 16 }}>Question {currentIndex+1}: {currentQuestion.questionText}</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {currentQuestion.options.map((opt, optIdx) => (
+              <label key={optIdx} style={{
+                display: 'flex', alignItems: 'center', cursor: 'pointer', padding: 12, margin: 0,
+                background: 'white', border: answers[currentIndex] === optIdx ? '2px solid #1e3c72' : '2px solid #e0e0e0',
+                transition: 'all 0.2s ease', fontWeight: answers[currentIndex] === optIdx ? 'bold' : 'normal'
+              }}>
+                <input type="radio" name="currentQuestion" onChange={() => handleAnswer(currentIndex, optIdx)} checked={answers[currentIndex] === optIdx} style={{ marginRight: 15, width: 18, height: 18 }} />
+                <span style={{ fontWeight: 'bold', marginRight: 10, fontSize: 14 }}>{String.fromCharCode(65 + optIdx)}.</span>
+                <span style={{ fontSize: 14 }}>{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 30 }}>
+          <button onClick={() => goToQuestion(currentIndex-1)} disabled={currentIndex === 0} style={{ background: currentIndex === 0 ? '#ccc' : '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: currentIndex === 0 ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>← Previous</button>
+          <button onClick={() => goToQuestion(currentIndex+1)} disabled={currentIndex === totalQuestions-1} style={{ background: currentIndex === totalQuestions-1 ? '#ccc' : '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: currentIndex === totalQuestions-1 ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>Next →</button>
+        </div>
+
+        {/* Question Palette */}
+        <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+          <p style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 12, color: darkMode ? '#fff' : '#333' }}>Question Palette</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {quiz.questions.map((_, idx) => {
+              const isAnswered = answers[idx] !== undefined;
+              return (
+                <button key={idx} onClick={() => goToQuestion(idx)} style={{
+                  width: 40, height: 40, borderRadius: 8,
+                  background: idx === currentIndex ? '#ff9800' : (isAnswered ? '#4caf50' : (darkMode ? '#444' : '#e0e0e0')),
+                  color: (idx === currentIndex || isAnswered) ? 'white' : (darkMode ? headingColor : '#333'),
+                  fontWeight: 'bold', border: 'none', cursor: 'pointer'
+                }}>
+                  {idx+1}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Submit */}
+        <button onClick={handleSubmit} disabled={answeredCount < totalQuestions} style={{ width: '100%', background: answeredCount === totalQuestions ? '#28a745' : '#ccc', color: 'white', padding: 14, border: 'none', borderRadius: 50, cursor: answeredCount === totalQuestions ? 'pointer' : 'not-allowed', fontSize: 16, fontWeight: 'bold', marginBottom: 30, opacity: answeredCount === totalQuestions ? 1 : 0.7 }}>
+          {answeredCount === totalQuestions ? 'Submit Weekly Quiz' : `Please answer all questions (${answeredCount}/${totalQuestions})`}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Privacy Policy Component
 const PrivacyPolicy = () => {
   const { darkMode } = useContext(AuthContext);
@@ -4078,10 +4339,11 @@ const PaymentReturn = () => {
   );
 };
 
-// Admin Panel Component – with search bar, no auto-refresh
+// Admin Panel Component – with Weekly Quiz management
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [weeklyQuizzes, setWeeklyQuizzes] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState('users');
   const [replyingTo, setReplyingTo] = useState(null);
@@ -4096,6 +4358,26 @@ const AdminPanel = () => {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [sendingNotification, setSendingNotification] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState('');
+
+  // Weekly Quiz states
+  const [quizTitle, setQuizTitle] = useState('');
+  const [quizDescription, setQuizDescription] = useState('');
+  const [quizWeekNumber, setQuizWeekNumber] = useState('');
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [quizPassingScore, setQuizPassingScore] = useState(70);
+  const [quizTimeLimit, setQuizTimeLimit] = useState(20);
+  const [editingQuizId, setEditingQuizId] = useState(null);
+  const [showQuizForm, setShowQuizForm] = useState(false);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [selectedQuizResults, setSelectedQuizResults] = useState(null);
+  const [showResults, setShowResults] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+
+  // Question form states
+  const [qText, setQText] = useState('');
+  const [qOptions, setQOptions] = useState(['', '', '', '']);
+  const [qCorrect, setQCorrect] = useState(0);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
 
   // Manual OTP states
   const [manualOtpEmail, setManualOtpEmail] = useState('');
@@ -4123,13 +4405,14 @@ const AdminPanel = () => {
 
     const fetchData = async () => {
       try {
-        const [usersRes, contactsRes] = await Promise.all([
+        const [usersRes, contactsRes, quizzesRes] = await Promise.all([
           axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } })
+          axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get('/api/admin/weekly-quizzes', { headers: { Authorization: `Bearer ${token}` } })
         ]);
         setUsers(usersRes.data);
         setContacts(contactsRes.data);
-        // Initialize selectedPlan from existing user data
+        setWeeklyQuizzes(quizzesRes.data);
         const initial = {};
         usersRes.data.forEach(u => {
           initial[u._id] = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
@@ -4148,7 +4431,7 @@ const AdminPanel = () => {
     };
 
     fetchData();
-  }, []); // Only runs once on mount
+  }, []);
 
   // Apply plan for a user
   const applyPlan = async (userId) => {
@@ -4284,6 +4567,164 @@ const AdminPanel = () => {
     }
   };
 
+  // ========== WEEKLY QUIZ FUNCTIONS ==========
+  const fetchWeeklyQuizzes = async () => {
+    setLoadingQuizzes(true);
+    try {
+      const res = await axios.get('/api/admin/weekly-quizzes', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setWeeklyQuizzes(res.data);
+    } catch (error) {
+      alert('Failed to fetch weekly quizzes');
+    } finally {
+      setLoadingQuizzes(false);
+    }
+  };
+
+  const handleAddQuestion = () => {
+    if (!qText.trim()) {
+      alert('Please enter a question');
+      return;
+    }
+    if (qOptions.some(opt => !opt.trim())) {
+      alert('Please fill in all 4 options');
+      return;
+    }
+    const newQuestion = {
+      questionText: qText.trim(),
+      options: qOptions.map(opt => opt.trim()),
+      correctAnswer: qCorrect,
+      points: 1
+    };
+    if (editingQuestionIndex !== null) {
+      const updated = [...quizQuestions];
+      updated[editingQuestionIndex] = newQuestion;
+      setQuizQuestions(updated);
+      setEditingQuestionIndex(null);
+    } else {
+      setQuizQuestions([...quizQuestions, newQuestion]);
+    }
+    setQText('');
+    setQOptions(['', '', '', '']);
+    setQCorrect(0);
+  };
+
+  const handleEditQuestion = (index) => {
+    const q = quizQuestions[index];
+    setQText(q.questionText);
+    setQOptions(q.options);
+    setQCorrect(q.correctAnswer);
+    setEditingQuestionIndex(index);
+  };
+
+  const handleDeleteQuestion = (index) => {
+    const updated = [...quizQuestions];
+    updated.splice(index, 1);
+    setQuizQuestions(updated);
+    if (editingQuestionIndex === index) {
+      setEditingQuestionIndex(null);
+      setQText('');
+      setQOptions(['', '', '', '']);
+      setQCorrect(0);
+    }
+  };
+
+  const handleSaveQuiz = async () => {
+    if (!quizTitle.trim()) {
+      alert('Please enter a quiz title');
+      return;
+    }
+    if (!quizWeekNumber || isNaN(quizWeekNumber)) {
+      alert('Please enter a valid week number');
+      return;
+    }
+    if (quizQuestions.length === 0) {
+      alert('Please add at least one question');
+      return;
+    }
+
+    const payload = {
+      title: quizTitle.trim(),
+      description: quizDescription.trim() || `${quizTitle.trim()} - Week ${quizWeekNumber}`,
+      weekNumber: parseInt(quizWeekNumber),
+      questions: quizQuestions,
+      passingScore: quizPassingScore || 70,
+      timeLimit: quizTimeLimit || 20
+    };
+
+    try {
+      let res;
+      if (editingQuizId) {
+        res = await axios.put(`/api/admin/weekly-quiz/${editingQuizId}`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        res = await axios.post('/api/admin/weekly-quiz', payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      if (res.data.success) {
+        alert(editingQuizId ? 'Quiz updated successfully!' : 'Quiz created successfully!');
+        resetQuizForm();
+        await fetchWeeklyQuizzes();
+      }
+    } catch (error) {
+      alert('Failed to save quiz: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const handleDeleteQuiz = async (quizId) => {
+    if (!window.confirm('Are you sure you want to delete this quiz? All attempts will be lost.')) return;
+    try {
+      await axios.delete(`/api/admin/weekly-quiz/${quizId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('Quiz deleted successfully');
+      await fetchWeeklyQuizzes();
+    } catch (error) {
+      alert('Failed to delete quiz');
+    }
+  };
+
+  const handleViewResults = async (quizId) => {
+    try {
+      const res = await axios.get(`/api/admin/weekly-quiz/${quizId}/results`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSelectedQuizResults(res.data);
+      setShowResults(true);
+    } catch (error) {
+      alert('Failed to fetch results');
+    }
+  };
+
+  const resetQuizForm = () => {
+    setQuizTitle('');
+    setQuizDescription('');
+    setQuizWeekNumber('');
+    setQuizQuestions([]);
+    setQuizPassingScore(70);
+    setQuizTimeLimit(20);
+    setEditingQuizId(null);
+    setEditingQuestionIndex(null);
+    setQText('');
+    setQOptions(['', '', '', '']);
+    setQCorrect(0);
+    setShowQuizForm(false);
+  };
+
+  const editQuiz = (quiz) => {
+    setQuizTitle(quiz.title);
+    setQuizDescription(quiz.description || '');
+    setQuizWeekNumber(quiz.weekNumber.toString());
+    setQuizQuestions(quiz.questions);
+    setQuizPassingScore(quiz.passingScore || 70);
+    setQuizTimeLimit(quiz.timeLimit || 20);
+    setEditingQuizId(quiz._id);
+    setShowQuizForm(true);
+  };
+
   // Show loading only on first render if data not yet loaded
   if (!dataLoaded) return <LoadingWithBar message="Loading admin panel" />;
 
@@ -4306,6 +4747,8 @@ const AdminPanel = () => {
             <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
             <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
             <button onClick={() => setActiveTab('manualReset')} style={{ background: activeTab === 'manualReset' ? '#6c757d' : 'transparent', color: activeTab === 'manualReset' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualReset' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual Reset</button>
+            {/* ===== NEW: Weekly Quiz Tab ===== */}
+            <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📅 Weekly Quiz ({weeklyQuizzes.length})</button>
           </div>
 
           {activeTab === 'users' && (
@@ -4500,6 +4943,261 @@ const AdminPanel = () => {
               )}
             </div>
           )}
+
+          {/* ===== NEW: Weekly Quiz Tab ===== */}
+          {activeTab === 'weeklyQuiz' && (
+            <div style={{ padding: '10px 0' }}>
+              {/* Quiz Form Toggle */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+                <h3 style={{ color: headingColor, margin: 0 }}>Manage Weekly Quizzes</h3>
+                <button
+                  onClick={() => setShowQuizForm(!showQuizForm)}
+                  style={{ background: showQuizForm ? '#dc3545' : '#2E7D64', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  {showQuizForm ? 'Cancel' : '+ Create New Quiz'}
+                </button>
+              </div>
+
+              {/* Quiz Form */}
+              {showQuizForm && (
+                <div style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, marginBottom: 24, border: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
+                  <h4 style={{ color: headingColor, marginBottom: 16 }}>{editingQuizId ? 'Edit Quiz' : 'New Weekly Quiz'}</h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Quiz Title *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Week 1 - Fundamentals"
+                        value={quizTitle}
+                        onChange={(e) => setQuizTitle(e.target.value)}
+                        style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Week Number *</label>
+                      <input
+                        type="number"
+                        placeholder="1, 2, 3..."
+                        value={quizWeekNumber}
+                        onChange={(e) => setQuizWeekNumber(e.target.value)}
+                        style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                        min="1"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Description (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Brief description of the quiz"
+                      value={quizDescription}
+                      onChange={(e) => setQuizDescription(e.target.value)}
+                      style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Passing Score (%)</label>
+                      <input
+                        type="number"
+                        placeholder="70"
+                        value={quizPassingScore}
+                        onChange={(e) => setQuizPassingScore(parseInt(e.target.value) || 70)}
+                        style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Time Limit (minutes)</label>
+                      <input
+                        type="number"
+                        placeholder="20"
+                        value={quizTimeLimit}
+                        onChange={(e) => setQuizTimeLimit(parseInt(e.target.value) || 20)}
+                        style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                        min="1"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Question Builder */}
+                  <div style={{ marginBottom: 16, borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingTop: 16 }}>
+                    <h5 style={{ color: headingColor, marginBottom: 12 }}>Questions ({quizQuestions.length})</h5>
+                    
+                    {/* Add Question Form */}
+                    <div style={{ background: darkMode ? '#2d2d3d' : 'white', padding: 16, borderRadius: 8, marginBottom: 12 }}>
+                      <div style={{ marginBottom: 12 }}>
+                        <input
+                          type="text"
+                          placeholder="Enter question text"
+                          value={qText}
+                          onChange={(e) => setQText(e.target.value)}
+                          style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                        />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {qOptions.map((opt, idx) => (
+                          <input
+                            key={idx}
+                            type="text"
+                            placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                            value={opt}
+                            onChange={(e) => {
+                              const newOpts = [...qOptions];
+                              newOpts[idx] = e.target.value;
+                              setQOptions(newOpts);
+                            }}
+                            style={{ padding: '8px 10px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13, background: cardBg, color: textColor }}
+                          />
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: 13, color: textColor }}>Correct Answer:</label>
+                        <select
+                          value={qCorrect}
+                          onChange={(e) => setQCorrect(parseInt(e.target.value))}
+                          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor }}
+                        >
+                          {qOptions.map((_, idx) => (
+                            <option key={idx} value={idx}>Option {String.fromCharCode(65 + idx)}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={handleAddQuestion}
+                          style={{ background: '#2E7D64', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                          {editingQuestionIndex !== null ? 'Update Question' : 'Add Question'}
+                        </button>
+                        {editingQuestionIndex !== null && (
+                          <button
+                            onClick={() => { setEditingQuestionIndex(null); setQText(''); setQOptions(['', '', '', '']); setQCorrect(0); }}
+                            style={{ background: '#6c757d', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
+                          >
+                            Cancel Edit
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Question List */}
+                    {quizQuestions.length > 0 && (
+                      <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                        {quizQuestions.map((q, idx) => (
+                          <div key={idx} style={{ background: darkMode ? '#2d2d3d' : 'white', padding: '12px', borderRadius: 8, marginBottom: 8, border: `1px solid ${darkMode ? '#444' : '#eee'}` }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ flex: 1 }}>
+                                <strong style={{ color: headingColor }}>Q{idx+1}:</strong> <span style={{ color: textColor }}>{q.questionText}</span>
+                                <div style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>
+                                  Options: {q.options.map((opt, i) => (
+                                    <span key={i} style={{ marginRight: 8 }}>{String.fromCharCode(65 + i)}: {opt}</span>
+                                  ))}
+                                  <span style={{ color: '#2E7D64', fontWeight: 'bold', marginLeft: 8 }}>✓ Answer: {String.fromCharCode(65 + q.correctAnswer)}</span>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button onClick={() => handleEditQuestion(idx)} style={{ background: '#ffc107', color: '#333', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                                <button onClick={() => handleDeleteQuestion(idx)} style={{ background: '#dc3545', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✕</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Save Quiz Button */}
+                  <button
+                    onClick={handleSaveQuiz}
+                    style={{ width: '100%', background: '#2E7D64', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 16 }}
+                  >
+                    {editingQuizId ? 'Update Quiz' : 'Create Quiz'}
+                  </button>
+                </div>
+              )}
+
+              {/* Quiz List */}
+              {loadingQuizzes ? (
+                <p style={{ textAlign: 'center', color: secondaryText }}>Loading quizzes...</p>
+              ) : weeklyQuizzes.length === 0 ? (
+                <p style={{ textAlign: 'center', color: secondaryText, padding: '20px 0' }}>No weekly quizzes created yet.</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
+                  {weeklyQuizzes.map(quiz => (
+                    <div key={quiz._id} style={{ background: darkMode ? '#1a1a2e' : 'white', padding: 16, borderRadius: 12, border: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <h4 style={{ color: headingColor, margin: 0 }}>{quiz.title}</h4>
+                          <p style={{ fontSize: 12, color: secondaryText }}>Week {quiz.weekNumber} • {quiz.questions.length} questions</p>
+                          <p style={{ fontSize: 12, color: secondaryText }}>
+                            Pass: {quiz.passingScore}% • Time: {quiz.timeLimit}min
+                            <span style={{ marginLeft: 12, color: quiz.isActive ? '#2e7d32' : '#dc3545' }}>
+                              {quiz.isActive ? '✅ Active' : '❌ Inactive'}
+                            </span>
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button onClick={() => editQuiz(quiz)} style={{ background: '#ffc107', color: '#333', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✏️ Edit</button>
+                          <button onClick={() => handleViewResults(quiz._id)} style={{ background: '#17a2b8', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>📊 Results</button>
+                          <button onClick={() => handleDeleteQuiz(quiz._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>🗑️</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Results Modal */}
+              {showResults && selectedQuizResults && (
+                <div style={{
+                  position: 'fixed',
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  background: 'rgba(0,0,0,0.7)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 2000,
+                  padding: '20px'
+                }}>
+                  <div style={{
+                    background: cardBg,
+                    borderRadius: 20,
+                    padding: 24,
+                    maxWidth: 600,
+                    width: '100%',
+                    maxHeight: '80vh',
+                    overflowY: 'auto',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <h3 style={{ color: headingColor }}>Quiz Results</h3>
+                      <button onClick={() => setShowResults(false)} style={{ background: '#6c757d', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Close</button>
+                    </div>
+                    {selectedQuizResults.length === 0 ? (
+                      <p style={{ color: secondaryText }}>No attempts yet.</p>
+                    ) : (
+                      <div>
+                        <p style={{ color: secondaryText, marginBottom: 12 }}>Total Attempts: {selectedQuizResults.length}</p>
+                        {selectedQuizResults.map((attempt, idx) => (
+                          <div key={idx} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 12, borderRadius: 8, marginBottom: 8 }}>
+                            <p style={{ margin: 0, color: textColor }}><strong>{attempt.userId?.name || 'Unknown'}</strong> ({attempt.userId?.email || 'No email'})</p>
+                            <p style={{ margin: 0, fontSize: 13, color: secondaryText }}>
+                              Score: {attempt.score}/{attempt.total} ({attempt.percentage.toFixed(1)}%) 
+                              {attempt.passed ? ' ✅' : ' ❌'}
+                            </p>
+                            <p style={{ margin: 0, fontSize: 11, color: secondaryText }}>{new Date(attempt.completedAt).toLocaleString()}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
@@ -4537,6 +5235,7 @@ const DropdownMenu = () => {
               <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>ℹ️ About Us</Link>
               <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>📞 Contact Us</Link>
               <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>💬 Join WhatsApp</Link>
+              <Link to="/weekly-quiz" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontWeight: 'bold' }}>📅 Weekly Quiz</Link>
             </div>
           </div>
         </>
@@ -4610,6 +5309,7 @@ const AppContent = () => {
         <Route path="/review/:id" element={<ReviewExam />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsAndConditions />} />
+        <Route path="/weekly-quiz" element={<WeeklyQuiz />} />
         <Route path="/premium-exam/:categoryName/:topic/:examId/:mode" element={<PremiumExam />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
