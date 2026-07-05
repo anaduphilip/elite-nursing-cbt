@@ -25,6 +25,13 @@ export const AdminPanel = () => {
   const [sendingNotification, setSendingNotification] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState('');
 
+  // ---- Broadcast states ----
+  const [broadcastSubject, setBroadcastSubject] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastTemplate, setBroadcastTemplate] = useState('upgrade');
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
+  const [broadcastResult, setBroadcastResult] = useState('');
+
   const [quizTitle, setQuizTitle] = useState('');
   const [quizDescription, setQuizDescription] = useState('');
   const [quizInstructions, setQuizInstructions] = useState('');
@@ -622,6 +629,7 @@ export const AdminPanel = () => {
             <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
             <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
             <button onClick={() => setActiveTab('manualReset')} style={{ background: activeTab === 'manualReset' ? '#6c757d' : 'transparent', color: activeTab === 'manualReset' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualReset' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual Reset</button>
+            <button onClick={() => setActiveTab('broadcast')} style={{ background: activeTab === 'broadcast' ? '#1e3c72' : 'transparent', color: activeTab === 'broadcast' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'broadcast' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Broadcast</button>
             <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
           </div>
 
@@ -814,6 +822,67 @@ export const AdminPanel = () => {
                   <p style={{ margin: 0, color: '#2e7d32' }}>{resetOtpResult}</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'broadcast' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>Send Email Broadcast to Free Users</h3>
+              <p style={{ color: secondaryText, marginBottom: 16 }}>
+                Send a promotional email to all free users who have opted in to marketing emails.
+              </p>
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  type="text"
+                  placeholder="Email Subject"
+                  value={broadcastSubject}
+                  onChange={(e) => setBroadcastSubject(e.target.value)}
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <textarea
+                  placeholder="Custom Message (optional – if empty, uses template)"
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  rows="4"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <select
+                  value={broadcastTemplate}
+                  onChange={(e) => setBroadcastTemplate(e.target.value)}
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : 'white', color: darkMode ? 'white' : '#333' }}
+                >
+                  <option value="upgrade">Upgrade Reminder</option>
+                  <option value="reminder">Re-engagement</option>
+                  <option value="winback">Win-back</option>
+                </select>
+              </div>
+              <button
+                onClick={async () => {
+                  setBroadcastLoading(true);
+                  setBroadcastResult('');
+                  try {
+                    const res = await axios.post('/api/admin/broadcast-email', {
+                      subject: broadcastSubject,
+                      message: broadcastMessage,
+                      templateType: broadcastTemplate
+                    }, { headers: { Authorization: `Bearer ${token}` } });
+                    setBroadcastResult(`✅ ${res.data.message}`);
+                  } catch (error) {
+                    setBroadcastResult('❌ Failed to send broadcast: ' + (error.response?.data?.error || error.message));
+                  } finally {
+                    setBroadcastLoading(false);
+                  }
+                }}
+                disabled={broadcastLoading}
+                style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: broadcastLoading ? 0.7 : 1 }}
+              >
+                {broadcastLoading ? 'Sending...' : 'Send Broadcast'}
+              </button>
+              {broadcastResult && <p style={{ marginTop: 16, color: '#2e7d32' }}>{broadcastResult}</p>}
             </div>
           )}
 

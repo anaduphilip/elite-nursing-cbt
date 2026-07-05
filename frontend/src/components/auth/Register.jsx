@@ -9,6 +9,7 @@ export const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); // NEW
   const [step, setStep] = useState('form');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +17,7 @@ export const Register = () => {
   const [message, setMessage] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // NEW
   const [showWelcome, setShowWelcome] = useState(true);
   const [agreeChecked, setAgreeChecked] = useState(false);
   const { login } = useContext(AuthContext);
@@ -40,6 +42,13 @@ export const Register = () => {
 
   const handleSendVerification = async (e) => {
     e.preventDefault();
+
+    // ---- VALIDATE PASSWORD MATCH ----
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     if (!name.trim()) {
       setError('Please enter your full name');
       return;
@@ -191,7 +200,9 @@ export const Register = () => {
                   required 
                 />
               </div>
-              <div style={{ marginBottom: 20 }}>
+
+              
+              <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Password</label>
                 <div style={{ position: 'relative' }}>
                   <input 
@@ -206,6 +217,25 @@ export const Register = () => {
                     minLength="6"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showPassword ? '🙈' : '👁️'}</button>
+                </div>
+              </div>
+
+             
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Confirm Password</label>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Confirm your password" 
+                    value={confirmPassword} 
+                    onChange={(e) => setConfirmPassword(e.target.value)} 
+                    style={{ width: '100%', padding: '12px 14px', paddingRight: '45px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                    onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
+                    onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                    required 
+                    minLength="6"
+                  />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>{showConfirmPassword ? '🙈' : '👁️'}</button>
                 </div>
               </div>
 

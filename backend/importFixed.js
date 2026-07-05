@@ -20,143 +20,186 @@ const quizSchema = new mongoose.Schema({
     correctAnswer: Number,
     points: Number
   }],
-  isPremium: Boolean          // will be set based on order
+  isPremium: Boolean
 });
 
 const Quiz = mongoose.model('Quiz', quizSchema);
 
 // ========== Extract starting number from filename ==========
 function getStartNumber(filename) {
-  const match = filename.match(/Questions\s+(\d+)\s+to\s+\d+/i);
+  const match = filename.match(/Questions?\s*(\d+)\s*(?:to|-)\s*\d+/i);
   if (match) return parseInt(match[1], 10);
-  return Infinity; // fallback
+  return Infinity;
 }
 
-// ========== Question Extraction (same as before) ==========
+// ========== Robust option extraction ==========
+function extractOptions(text) {
+  // Try (a) ... (b) ... (c) ... (d) ...
+  const markers = ['(a)', '(b)', '(c)', '(d)'];
+  let positions = [];
+  for (const marker of markers) {
+    const idx = text.indexOf(marker);
+    if (idx !== -1) positions.push({ marker, index: idx });
+  }
+  if (positions.length === 4) {
+    positions.sort((a, b) => a.index - b.index);
+    const options = [];
+    for (let i = 0; i < positions.length; i++) {
+      const start = positions[i].index + positions[i].marker.length;
+      const end = i < positions.length - 1 ? positions[i+1].index : text.length;
+      let opt = text.substring(start, end).trim();
+      // Remove trailing spaces and any extra closing parenthesis that might belong to the next marker
+      opt = opt.replace(/\s*\)?\s*$/, '').trim();
+      options.push(opt);
+    }
+    // Remove the option part from the question text
+    const firstMarkerIndex = positions[0].index;
+    const questionText = text.substring(0, firstMarkerIndex).trim();
+    return { options, questionText };
+  }
+
+  // Try a. b. c. d.
+  const altMarkers = ['a.', 'b.', 'c.', 'd.'];
+  positions = [];
+  for (const marker of altMarkers) {
+    const idx = text.indexOf(marker);
+    if (idx !== -1) positions.push({ marker, index: idx });
+  }
+  if (positions.length === 4) {
+    positions.sort((a, b) => a.index - b.index);
+    const options = [];
+    for (let i = 0; i < positions.length; i++) {
+      const start = positions[i].index + positions[i].marker.length;
+      const end = i < positions.length - 1 ? positions[i+1].index : text.length;
+      let opt = text.substring(start, end).trim();
+      opt = opt.replace(/\s*$/,'').trim();
+      options.push(opt);
+    }
+    const firstMarkerIndex = positions[0].index;
+    const questionText = text.substring(0, firstMarkerIndex).trim();
+    return { options, questionText };
+  }
+
+  // If we can't find 4 options, return empty
+  return { options: [], questionText: text };
+}
+
+// ========== Extract questions from a document ==========
 async function extractQuestionsFromDocx(filePath) {
   const result = await mammoth.extractRawText({ path: filePath });
-  const text = result.value;
-  const questions = [];
-  const answers = {};
-  const lines = text.split('\n');
+  let text = result.value;
+  // Remove ** and normalize
+  text = text.replace(/\*\*/g, '').replace(/\*/g, '');
+  text = text.replace(/\r/g, '');
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
+  // ---------- Extract Answer Key ----------
+  const answers = {};
   let inAnswerKey = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.match(/^ANSWER\s+KEY/i)) {
+  for (const line of lines) {
+    if (/^Answer\s+Key/i.test(line)) {
       inAnswerKey = true;
       continue;
     }
     if (inAnswerKey) {
-      const match = line.match(/^Q(\d+)\.\s*([A-Da-d])/i);
-      if (match) {
-        const qNum = parseInt(match[1]);
-        const answer = match[2].toUpperCase();
-        answers[qNum] = answer;
+      const m = line.match(/^Q(\d+)\s*[.:]\s*\(?([A-Da-d])\)?/i);
+      if (m) {
+        answers[parseInt(m[1])] = m[2].toUpperCase();
       }
     }
   }
+  // Fallback: scan all lines
   if (Object.keys(answers).length === 0) {
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i].trim();
-      const match = line.match(/^Q(\d+)\.\s*([A-Da-d])/i);
-      if (match) {
-        const qNum = parseInt(match[1]);
-        const answer = match[2].toUpperCase();
-        answers[qNum] = answer;
-      } else if (line.length > 0 && !match) break;
+    for (const line of lines) {
+      const m = line.match(/^Q(\d+)\s*[.:]\s*\(?([A-Da-d])\)?/i);
+      if (m) {
+        answers[parseInt(m[1])] = m[2].toUpperCase();
+      }
     }
   }
 
-  let currentQuestion = null;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    const qMatch = line.match(/^\*?Q(\d+)\.\s*(.*)/i);
+  // ---------- Extract questions (line by line) ----------
+  const questions = [];
+  let currentNumber = null;
+  let currentBlock = '';
+
+  for (const line of lines) {
+    // Check if this line starts a new question
+    const qMatch = line.match(/^Q(\d+)\s*[.:]\s*/i);
     if (qMatch) {
-      if (currentQuestion && currentQuestion.options.length === 4 && currentQuestion.number) {
-        if (answers[currentQuestion.number]) {
-          currentQuestion.correctAnswer = answers[currentQuestion.number].charCodeAt(0) - 65;
-          questions.push(currentQuestion);
+      // Save previous question if any
+      if (currentNumber !== null && currentBlock.trim().length > 0) {
+        const { options, questionText } = extractOptions(currentBlock);
+        if (options.length === 4 && answers[currentNumber]) {
+          const correctIndex = answers[currentNumber].charCodeAt(0) - 65;
+          if (correctIndex >= 0 && correctIndex < 4) {
+            questions.push({
+              number: currentNumber,
+              text: questionText || `Question ${currentNumber}`,
+              options: options,
+              correctAnswer: correctIndex
+            });
+          }
         }
       }
-      const qNum = parseInt(qMatch[1]);
-      const rest = qMatch[2];
-      const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
-      const options = [];
-      let optMatch;
-      while ((optMatch = optionPattern.exec(rest)) !== null) {
-        options.push(optMatch[2].trim());
+      // Start new question
+      currentNumber = parseInt(qMatch[1]);
+      const rest = line.substring(qMatch[0].length);
+      currentBlock = rest;
+    } else {
+      // Append line to current block (if we are inside a question)
+      if (currentNumber !== null) {
+        currentBlock += ' ' + line;
       }
-      let questionText = rest.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
-      currentQuestion = {
-        number: qNum,
-        text: questionText,
-        options: options,
-        correctAnswer: null
-      };
-    } else if (currentQuestion && line && !line.match(/^\([a-d]\)/i) && !line.match(/^Q\d+\./i)) {
-      currentQuestion.text += ' ' + line;
     }
   }
-  if (currentQuestion && currentQuestion.options.length === 4 && currentQuestion.number) {
-    if (answers[currentQuestion.number]) {
-      currentQuestion.correctAnswer = answers[currentQuestion.number].charCodeAt(0) - 65;
-      questions.push(currentQuestion);
+  // Save the last question
+  if (currentNumber !== null && currentBlock.trim().length > 0) {
+    const { options, questionText } = extractOptions(currentBlock);
+    if (options.length === 4 && answers[currentNumber]) {
+      const correctIndex = answers[currentNumber].charCodeAt(0) - 65;
+      if (correctIndex >= 0 && correctIndex < 4) {
+        questions.push({
+          number: currentNumber,
+          text: questionText || `Question ${currentNumber}`,
+          options: options,
+          correctAnswer: correctIndex
+        });
+      }
     }
   }
-  return questions.filter(q => q.correctAnswer !== null && q.options.length === 4);
+
+  // Log missing numbers
+  const answerKeys = Object.keys(answers).map(Number).sort((a, b) => a - b);
+  const extractedNumbers = questions.map(q => q.number);
+  const missingNumbers = answerKeys.filter(num => !extractedNumbers.includes(num));
+  if (missingNumbers.length > 0) {
+    console.log(`   ❌ Missing: [${missingNumbers.join(', ')}]`);
+  }
+
+  console.log(`   Extracted ${questions.length} questions from ${answerKeys.length} answer keys`);
+  return questions;
 }
 
-// ========== Recursive import with ordering and premium flag ==========
-async function importFromFolder(folderPath) {
-  if (!fs.existsSync(folderPath)) {
-    console.log(`❌ Folder not found: ${folderPath}`);
-    return;
-  }
-
-  const entries = fs.readdirSync(folderPath, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(folderPath, entry.name);
-    if (entry.isDirectory()) {
-      await importFromFolder(fullPath);
-    } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.docx')) {
-      // Determine topic
-      const relativePath = path.relative(BASE_FOLDER, fullPath);
-      const pathParts = relativePath.split(path.sep);
-      let topic = pathParts.length > 1 ? pathParts[0] : 'General';
-
-      // We will collect all files in the same topic and folder level later.
-      // But for now, we need to store them temporarily.
-      // To handle ordering, we need to process after scanning all files.
-      // We'll use a global map to accumulate all quizzes per topic.
-      // Let's restructure: first collect all docx files, then process per topic.
-      // Simpler: use a Map outside this function, but we'll refactor.
-    }
-  }
-}
-
-// Better approach: scan all files first, group by topic, then import.
+// ========== Recursive import ==========
 async function main() {
   try {
     await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected to MongoDB\n');
 
-    // Delete existing quizzes for this category
     await Quiz.deleteMany({ category: CATEGORY });
     console.log(`🗑️ Deleted existing quizzes for category: ${CATEGORY}\n`);
 
-    // Collect all .docx files with their full path, topic, and start number
     const files = [];
     function walk(dir, currentTopic) {
+      if (!fs.existsSync(dir)) return;
       const items = fs.readdirSync(dir, { withFileTypes: true });
       for (const item of items) {
         const fullPath = path.join(dir, item.name);
         if (item.isDirectory()) {
           walk(fullPath, item.name);
         } else if (item.isFile() && item.name.toLowerCase().endsWith('.docx')) {
-          let topic = currentTopic;
-          // If no topic (directly under BASE_FOLDER), set to 'General'
-          if (!topic) topic = 'General';
+          const topic = currentTopic || 'General';
           const startNum = getStartNumber(item.name);
           files.push({ fullPath, topic, filename: item.name, startNum });
         }
@@ -164,35 +207,45 @@ async function main() {
     }
     walk(BASE_FOLDER, null);
 
-    // Group by topic
+    if (files.length === 0) {
+      console.log('⚠️ No .docx files found in', BASE_FOLDER);
+      process.exit(0);
+    }
+
+    console.log(`📁 Found ${files.length} .docx files\n`);
+
     const grouped = new Map();
     for (const file of files) {
       if (!grouped.has(file.topic)) grouped.set(file.topic, []);
       grouped.get(file.topic).push(file);
     }
 
-    // For each topic, sort by startNum and import
+    let totalImported = 0;
+
     for (const [topic, fileList] of grouped.entries()) {
-      // Sort ascending by start number
       fileList.sort((a, b) => a.startNum - b.startNum);
       console.log(`\n📁 Topic: ${topic} (${fileList.length} files)`);
 
       for (let idx = 0; idx < fileList.length; idx++) {
         const file = fileList[idx];
-        const isPremium = idx !== 0; // first is free, others premium
+        const isPremium = idx !== 0;
         const title = file.filename.replace(/\.docx$/i, '');
         console.log(`   📖 ${title} (${isPremium ? 'Premium' : 'Free'})`);
+
         const questions = await extractQuestionsFromDocx(file.fullPath);
+
         if (questions.length === 0) {
           console.log(`      ⚠️ No valid questions, skipping.`);
           continue;
         }
+
         const quizQuestions = questions.map(q => ({
           questionText: q.text,
           options: q.options,
           correctAnswer: q.correctAnswer,
           points: 1
         }));
+
         await Quiz.create({
           title: title,
           description: `${title} - ${questions.length} practice questions`,
@@ -201,6 +254,8 @@ async function main() {
           questions: quizQuestions,
           isPremium: isPremium
         });
+
+        totalImported++;
         console.log(`      ✅ Imported ${questions.length} questions`);
       }
     }
