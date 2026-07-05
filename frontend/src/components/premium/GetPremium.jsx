@@ -24,6 +24,7 @@ export const GetPremium = () => {
     yearly: { label: 'Yearly', amount: 10000, duration: '365 days' }
   };
 
+  // ----- Live countdown timer (every second) -----
   useEffect(() => {
     if (!user?.premiumExpiry) {
       setTimeLeft(null);
@@ -53,6 +54,7 @@ export const GetPremium = () => {
     return () => clearInterval(interval);
   }, [user?.premiumExpiry]);
 
+  // ----- Poll for user status every 5 seconds -----
   useEffect(() => {
     let isMounted = true;
 
@@ -132,6 +134,7 @@ export const GetPremium = () => {
     }
   };
 
+  // Format expiry date
   const formatExpiry = (date) => {
     if (!date) return 'N/A';
     const d = new Date(date);
@@ -144,6 +147,7 @@ export const GetPremium = () => {
     });
   };
 
+  // Check if premium is still active
   const isPremiumActive = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
 
   return (

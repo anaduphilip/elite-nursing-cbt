@@ -19,6 +19,7 @@ export const PaymentReturn = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  // Progress animation
   useEffect(() => {
     if (status === 'verifying') {
       const interval = setInterval(() => {
@@ -33,6 +34,7 @@ export const PaymentReturn = () => {
 
   useEffect(() => {
     const verifyPayment = async () => {
+      // Get parameters from URL: tx_ref (reference) and transaction_id
       let tx_ref = searchParams.get('reference') || searchParams.get('tx_ref');
       let transaction_id = searchParams.get('transaction_id') || searchParams.get('id');
       const storedRef = localStorage.getItem('payment_reference');
@@ -49,6 +51,7 @@ export const PaymentReturn = () => {
         return;
       }
       
+      // Get current user from context or localStorage
       let currentUser = user;
       let currentToken = token;
       
