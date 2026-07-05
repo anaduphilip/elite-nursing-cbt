@@ -137,7 +137,9 @@ const UserSchema = new mongoose.Schema({
     percentage: Number,
     date: { type: Date, default: Date.now }
   }],
-  deviceTokens: [{ type: String }]
+  deviceTokens: [{ type: String }],
+  marketingConsent: { type: Boolean, default: false },
+  lastMarketingEmailSent: { type: Date, default: null }
 });
 
 // Quiz Schema
@@ -679,7 +681,7 @@ app.post('/api/force-logout', async (req, res) => {
 // ============ AUTH ROUTES ============
 app.post('/api/register', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, marketingConsent } = req.body;  
     const verifiedData = otpStore.get(`verified_${email}`);
     if (!verifiedData || !verifiedData.verified) {
       return res.status(400).json({ error: 'Please verify your email first' });
@@ -694,13 +696,14 @@ app.post('/api/register', async (req, res) => {
       existingUser.name = name || verifiedData.name;
       existingUser.password = hashedPassword;
       existingUser.isVerified = true;
+      existingUser.marketingConsent = marketingConsent || false;  
       const sessionToken = generateSessionToken();
       existingUser.currentSessionToken = sessionToken;
       existingUser.lastLoginAt = new Date();
       await existingUser.save();
       const token = jwt.sign({ userId: existingUser._id, sessionToken }, process.env.JWT_SECRET || 'elite_secret_key_2024');
       otpStore.delete(`verified_${email}`);
-      return res.json({ success: true, token, user: { id: existingUser._id, name: existingUser.name, email, isPremium: existingUser.isPremium } });
+      return res.json({ success: true, token, user: { id: existingUser._id, name: existingUser.name, email, isPremium: existingUser.isPremium, marketingConsent: existingUser.marketingConsent } });
     }
     const sessionToken = generateSessionToken();
     const user = new User({ 
@@ -709,12 +712,13 @@ app.post('/api/register', async (req, res) => {
       password: hashedPassword, 
       isVerified: true,
       currentSessionToken: sessionToken,
-      lastLoginAt: new Date()
+      lastLoginAt: new Date(),
+      marketingConsent: marketingConsent || false  
     });
     await user.save();
     otpStore.delete(`verified_${email}`);
     const token = jwt.sign({ userId: user._id, sessionToken }, process.env.JWT_SECRET || 'elite_secret_key_2024');
-    res.json({ success: true, token, user: { id: user._id, name: user.name, email, isPremium: user.isPremium } });
+    res.json({ success: true, token, user: { id: user._id, name: user.name, email, isPremium: user.isPremium, marketingConsent: user.marketingConsent } });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -850,8 +854,47 @@ app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
       if (answers[i] === q.correctAnswer) score += q.points || 1;
     });
     const percentage = (score / total) * 100;
-    res.json({ score, total, percentage, passed: percentage >= 70 });
+    const passed = percentage >= 70;
+
+    // ==== SAVE QUIZ RESULT TO USER ====
+    const user = await User.findById(req.user._id);
+    if (user) {
+      user.quizResults.push({
+        quizId: req.params.quizId,
+        score: score,
+        total: total,
+        percentage: percentage,
+        date: new Date()
+      });
+      await user.save();
+    }
+
+    // ==== MARKETING EMAIL TRIGGER ====
+    if (user && !user.isPremium && user.marketingConsent) {
+      const freeExamsTaken = user.quizResults.length || 0;
+      const lastEmailDate = user.lastMarketingEmailSent || new Date(0);
+      const daysSinceLast = (Date.now() - lastEmailDate.getTime()) / (1000 * 60 * 60 * 24);
+
+      // Trigger after 3 free exams, but only if at least 7 days since last email
+      if (freeExamsTaken >= 3 && daysSinceLast > 7) {
+        // Send asynchronously – don't block the response
+        sendMarketingEmail(user.email, user.name, 'upgrade')
+          .then(sent => {
+            if (sent) {
+              console.log(`✅ Upgrade email sent to ${user.email} after ${freeExamsTaken} free exams`);
+            }
+          })
+          .catch(err => console.error('Async email error:', err));
+
+        user.lastMarketingEmailSent = new Date();
+        await user.save();
+      }
+    }
+
+    res.json({ score, total, percentage, passed });
+
   } catch (error) {
+    console.error('Submit error:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -1142,6 +1185,97 @@ app.get('/api/weekly-quiz/:quizId/leaderboard', authenticate, async (req, res) =
   }
 });
 
+// Send marketing/promotional email
+const sendMarketingEmail = async (to, name, templateType, customSubject = null, customMessage = null) => {
+  try {
+    const templates = {
+      upgrade: {
+        subject: 'Upgrade to Premium – Unlock All Exams! 🚀',
+        html: `<p>Hi <strong>${name}</strong>,</p>
+               <p>You've been crushing it with our free exams – great job! 🎉</p>
+               <p>Imagine what you could achieve with <strong>full, unlimited access</strong> to all our premium content.</p>
+               <p><strong>Upgrade to Premium today and get:</strong></p>
+               <ul>
+                 <li>✅ Unlimited access to all <strong>20,000+ questions</strong></li>
+                 <li>✅ Retake any exam as many times as you want</li>
+                 <li>✅ Weekly premium quizzes with leaderboard</li>
+                 <li>✅ Detailed answer explanations</li>
+                 <li>✅ And much more!</li>
+               </ul>
+               <div style="text-align:center;margin:30px 0;">
+                 <a href="https://elite-nursing-cbt.vercel.app/get-premium" style="background:#ff9800;color:white;padding:14px 32px;text-decoration:none;border-radius:50px;font-weight:bold;font-size:16px;">⭐ Upgrade Now</a>
+               </div>
+               <p>Don't stop now – unlock your full potential!</p>
+               <p>Best regards,<br/>ELITE Nursing CBT Team</p>`
+      },
+      reminder: {
+        subject: 'Ready for More? 🎯 Unlock Premium Exams',
+        html: `<p>Hi <strong>${name}</strong>,</p>
+               <p>You've already shown great dedication by using ELITE Nursing CBT.</p>
+               <p>With <strong>Premium access</strong>, you'll never have to worry about exam limits again. Tackle every topic, master every subject.</p>
+               <p><strong>Here's what you're missing:</strong></p>
+               <ul>
+                 <li>✅ Unlimited exam attempts</li>
+                 <li>✅ All premium categories unlocked</li>
+                 <li>✅ Weekly premium quizzes</li>
+                 <li>✅ Leaderboard rankings</li>
+               </ul>
+               <div style="text-align:center;margin:30px 0;">
+                 <a href="https://elite-nursing-cbt.vercel.app/get-premium" style="background:#ff9800;color:white;padding:14px 32px;text-decoration:none;border-radius:50px;font-weight:bold;font-size:16px;">⭐ See Premium Plans</a>
+               </div>
+               <p>Your success is our mission!</p>
+               <p>Best regards,<br/>ELITE Nursing CBT Team</p>`
+      },
+      winback: {
+        subject: 'We Miss You! Come Back to ELITE Nursing CBT 💙',
+        html: `<p>Hi <strong>${name}</strong>,</p>
+               <p>It's been a while since you last visited ELITE Nursing CBT.</p>
+               <p>We've added new questions, improved our platform, and there's so much more waiting for you!</p>
+               <p><strong>Don't miss out on:</strong></p>
+               <ul>
+                 <li>✅ New 5,000+ practice questions</li>
+                 <li>✅ Weekly premium quizzes</li>
+                 <li>✅ Improved user experience</li>
+                 <li>✅ And much more!</li>
+               </ul>
+               <div style="text-align:center;margin:30px 0;">
+                 <a href="https://elite-nursing-cbt.vercel.app" style="background:#1e3c72;color:white;padding:14px 32px;text-decoration:none;border-radius:50px;font-weight:bold;font-size:16px;">📚 Start Studying Now</a>
+               </div>
+               <p>We can't wait to see you again!</p>
+               <p>Best regards,<br/>ELITE Nursing CBT Team</p>`
+      }
+    };
+
+    const template = templates[templateType] || templates.upgrade;
+    const subject = customSubject || template.subject;
+
+    let htmlContent = template.html;
+    if (customMessage) {
+      // If admin provides a custom message, use it with the standard CTA
+      htmlContent = `<p>Hi ${name},</p>
+                     <p>${customMessage}</p>
+                     <div style="text-align:center;margin:30px 0;">
+                       <a href="https://elite-nursing-cbt.vercel.app/get-premium" style="background:#ff9800;color:white;padding:14px 32px;text-decoration:none;border-radius:50px;font-weight:bold;font-size:16px;">⭐ Upgrade Now</a>
+                     </div>
+                     <p>Best regards,<br/>ELITE Nursing CBT Team</p>`;
+    }
+
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: to }];
+    sendSmtpEmail.sender = { email: 'elitenursingcbt@gmail.com', name: 'ELITE Nursing CBT' };
+    sendSmtpEmail.subject = subject;
+    sendSmtpEmail.htmlContent = htmlContent;
+    sendSmtpEmail.textContent = `Hi ${name}, upgrade to Premium for full access to all exams. Visit https://elite-nursing-cbt.vercel.app/get-premium`;
+
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Marketing email sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Marketing email failed:', error.response?.body || error.message);
+    return false;
+  }
+};
+
 // ============ PAYMENT ROUTES - USING TRANSACTION ID ONLY ============
 
 // Initialize payment
@@ -1375,6 +1509,56 @@ app.post('/api/admin/generate-reset-code', isAdmin, async (req, res) => {
 
   console.log(`Admin generated reset OTP for ${email}: ${otp}`);
   res.json({ otp, message: 'Reset code generated successfully' });
+});
+
+// Admin: Broadcast email to all free users
+app.post('/api/admin/broadcast-email', isAdmin, async (req, res) => {
+  const { subject, message, templateType } = req.body;
+
+  try {
+    const freeUsers = await User.find({
+      isPremium: false,
+      isVerified: true,
+      marketingConsent: true  // Only send to users who opted in
+    });
+
+    if (freeUsers.length === 0) {
+      return res.json({ success: true, sent: 0, message: 'No eligible free users found.' });
+    }
+
+    let successCount = 0;
+    const failures = [];
+
+    for (const user of freeUsers) {
+      try {
+        const sent = await sendMarketingEmail(
+          user.email,
+          user.name,
+          templateType || 'upgrade',
+          subject || null,
+          message || null
+        );
+        if (sent) {
+          successCount++;
+          user.lastMarketingEmailSent = new Date();
+          await user.save();
+        }
+      } catch (err) {
+        failures.push(user.email);
+      }
+    }
+
+    res.json({
+      success: true,
+      sent: successCount,
+      total: freeUsers.length,
+      failures: failures,
+      message: `Sent to ${successCount} out of ${freeUsers.length} users.`
+    });
+  } catch (error) {
+    console.error('Broadcast error:', error);
+    res.status(500).json({ error: 'Failed to send broadcast' });
+  }
 });
 
 // Update user profile (name)
