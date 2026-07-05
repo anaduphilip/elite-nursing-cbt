@@ -168,6 +168,7 @@ const ContactSchema = new mongoose.Schema({
 const WeeklyQuizSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
+  instructions: { type: String, default: '' }, // NEW: instructions shown before quiz
   weekNumber: { type: Number, required: true },
   year: { type: Number, default: () => new Date().getFullYear() },
   questions: [{
@@ -177,11 +178,13 @@ const WeeklyQuizSchema = new mongoose.Schema({
     points: { type: Number, default: 1 }
   }],
   passingScore: { type: Number, default: 70 },
-  isActive: { type: Boolean, default: true },
-  timeLimit: { type: Number, default: 20 }, // in minutes
-  startDate: { type: Date, default: Date.now },
-  endDate: { type: Date },
-  createdAt: { type: Date, default: Date.now }
+  timeLimit: { type: Number, default: 20 },
+  isActive: { type: Boolean, default: false }, 
+  isPremium: { type: Boolean, default: false }, 
+  startDate: { type: Date, default: null }, 
+  endDate: { type: Date, default: null },
+  createdAt: { type: Date, default: Date.now },
+  publishedAt: { type: Date, default: null } 
 });
 
 const WeeklyQuizAttemptSchema = new mongoose.Schema({
@@ -194,7 +197,7 @@ const WeeklyQuizAttemptSchema = new mongoose.Schema({
   passed: { type: Boolean, default: false },
   startedAt: { type: Date, default: Date.now },
   completedAt: { type: Date },
-  timeSpent: { type: Number, default: 0 } // in seconds
+  timeSpent: { type: Number, default: 0 }
 });
 
 const WeeklyQuiz = mongoose.model('WeeklyQuiz', WeeklyQuizSchema);
@@ -853,19 +856,23 @@ app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
   }
 });
 
-// Get current active weekly quiz
+// Get current active weekly quiz (respects publish status and dates)
 app.get('/api/weekly-quiz/current', authenticate, async (req, res) => {
   try {
     const today = new Date();
-    // Find the active quiz for this week
+    
+    // Find the active quiz: must be published (isActive: true) and within date range
     const quiz = await WeeklyQuiz.findOne({ 
       isActive: true,
-      startDate: { $lte: today },
+      $or: [
+        { startDate: { $lte: today } },
+        { startDate: null }
+      ],
       $or: [
         { endDate: { $gte: today } },
         { endDate: null }
       ]
-    });
+    }).sort({ weekNumber: -1 }); // Get the most recent active quiz
     
     if (!quiz) {
       return res.json({ success: false, message: 'No active weekly quiz available right now.' });
@@ -877,10 +884,8 @@ app.get('/api/weekly-quiz/current', authenticate, async (req, res) => {
       weeklyQuizId: quiz._id
     });
 
-    // Return quiz without exposing correct answers if already attempted
     let quizData = quiz.toObject();
     if (existingAttempt) {
-      // Hide correct answers if already attempted
       quizData.questions = quizData.questions.map(q => ({
         ...q,
         correctAnswer: undefined
@@ -895,7 +900,8 @@ app.get('/api/weekly-quiz/current', authenticate, async (req, res) => {
     res.json({ 
       success: true, 
       quiz: quizData,
-      alreadyAttempted: !!existingAttempt
+      alreadyAttempted: !!existingAttempt,
+      isPremium: quiz.isPremium
     });
   } catch (error) {
     console.error('Error fetching weekly quiz:', error);
@@ -925,6 +931,18 @@ app.post('/api/weekly-quiz/submit', authenticate, async (req, res) => {
     const quiz = await WeeklyQuiz.findById(quizId);
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    // Check if quiz is still active and within date range
+    const now = new Date();
+    if (!quiz.isActive) {
+      return res.status(400).json({ error: 'This quiz is no longer available.' });
+    }
+    if (quiz.startDate && quiz.startDate > now) {
+      return res.status(400).json({ error: 'This quiz has not started yet.' });
+    }
+    if (quiz.endDate && quiz.endDate < now) {
+      return res.status(400).json({ error: 'This quiz has already expired.' });
     }
 
     // Calculate score
@@ -981,20 +999,28 @@ app.get('/api/weekly-quiz/history', authenticate, async (req, res) => {
   }
 });
 
-// Admin: Create weekly quiz
+// Admin: Create weekly quiz (with save/publish)
 app.post('/api/admin/weekly-quiz', isAdmin, async (req, res) => {
   try {
-    const { title, description, weekNumber, questions, passingScore, timeLimit, startDate, endDate } = req.body;
+    const { 
+      title, description, instructions, weekNumber, questions, 
+      passingScore, timeLimit, startDate, endDate, 
+      isActive, isPremium 
+    } = req.body;
     
     const quiz = new WeeklyQuiz({
       title,
       description,
+      instructions: instructions || '',
       weekNumber,
       questions,
       passingScore: passingScore || 70,
       timeLimit: timeLimit || 20,
-      startDate: startDate || new Date(),
-      endDate: endDate || null
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      isActive: isActive || false,
+      isPremium: isPremium || false,
+      publishedAt: isActive ? new Date() : null
     });
     await quiz.save();
 
@@ -1005,13 +1031,55 @@ app.post('/api/admin/weekly-quiz', isAdmin, async (req, res) => {
   }
 });
 
+// Admin: Toggle publish status (publish/unpublish)
+app.post('/api/admin/weekly-quiz/:id/toggle-publish', isAdmin, async (req, res) => {
+  try {
+    const { isActive } = req.body;
+    const quiz = await WeeklyQuiz.findById(req.params.id);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    
+    quiz.isActive = isActive;
+    quiz.publishedAt = isActive ? new Date() : null;
+    await quiz.save();
+    
+    res.json({ success: true, quiz });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to toggle publish status' });
+  }
+});
+
+// Admin: Toggle premium status
+app.post('/api/admin/weekly-quiz/:id/toggle-premium', isAdmin, async (req, res) => {
+  try {
+    const { isPremium } = req.body;
+    const quiz = await WeeklyQuiz.findById(req.params.id);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    
+    quiz.isPremium = isPremium;
+    await quiz.save();
+    
+    res.json({ success: true, quiz });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to toggle premium status' });
+  }
+});
+
 // Admin: Update weekly quiz
 app.put('/api/admin/weekly-quiz/:id', isAdmin, async (req, res) => {
   try {
-    const quiz = await WeeklyQuiz.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updateData = { ...req.body };
+    
+    // If the quiz is being published (isActive set to true), set publishedAt
+    if (updateData.isActive === true) {
+      updateData.publishedAt = new Date();
+    }
+    // If unpublishing, we keep publishedAt as is (for history)
+    
+    const quiz = await WeeklyQuiz.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
     res.json({ success: true, quiz });
   } catch (error) {
+    console.error('Update quiz error:', error);
     res.status(500).json({ error: 'Failed to update quiz' });
   }
 });
