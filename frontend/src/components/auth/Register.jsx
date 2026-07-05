@@ -9,7 +9,7 @@ export const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState(''); // NEW
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [step, setStep] = useState('form');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,9 +17,11 @@ export const Register = () => {
   const [message, setMessage] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // NEW
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [agreeChecked, setAgreeChecked] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false); // ← NEW
+
   const { login } = useContext(AuthContext);
   const { darkMode } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
@@ -57,6 +59,12 @@ export const Register = () => {
       setError('You must agree to the Terms and Privacy Policy');
       return;
     }
+
+    // 👇 Include marketing consent in the verification request (optional – you can also send it later)
+    // We'll send marketingConsent in the final registration call, but we can also store it now.
+    // We'll set it in the store so it's available later.
+    // We'll use a global or context, but simplest: we'll pass it in the register call.
+
     setIsLoading(true);
     setError('');
     setMessage('');
@@ -79,7 +87,13 @@ export const Register = () => {
     setMessage('');
     try {
       await axios.post('/api/verify-email', { email, otp });
-      const res = await axios.post('/api/register', { name, email, password });
+      // 👇 Include marketingConsent in registration
+      const res = await axios.post('/api/register', {
+        name,
+        email,
+        password,
+        marketingConsent   // ← SEND THE CHECKBOX VALUE
+      });
       if (res.data.success) {
         setMessage('Registration successful! Redirecting...');
         setTimeout(() => {
@@ -201,7 +215,6 @@ export const Register = () => {
                 />
               </div>
 
-              
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Password</label>
                 <div style={{ position: 'relative' }}>
@@ -220,7 +233,6 @@ export const Register = () => {
                 </div>
               </div>
 
-             
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>Confirm Password</label>
                 <div style={{ position: 'relative' }}>
@@ -256,6 +268,20 @@ export const Register = () => {
                   <Link to="/privacy" style={{ color: '#0c5bed', textDecoration: 'none' }}>
                     Privacy Policy
                   </Link>
+                </label>
+              </div>
+
+              {/* ===== MARKETING CONSENT CHECKBOX ===== */}
+              <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  id="marketingConsent"
+                  checked={marketingConsent}
+                  onChange={(e) => setMarketingConsent(e.target.checked)}
+                  style={{ marginTop: 3, cursor: 'pointer' }}
+                />
+                <label htmlFor="marketingConsent" style={{ fontSize: 13, color: '#555', cursor: 'pointer' }}>
+                  I agree to receive occasional promotional emails about new features and premium offers.
                 </label>
               </div>
 
