@@ -5433,7 +5433,7 @@ const AdminPanel = () => {
             <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
             <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
             <button onClick={() => setActiveTab('manualReset')} style={{ background: activeTab === 'manualReset' ? '#6c757d' : 'transparent', color: activeTab === 'manualReset' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualReset' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual Reset</button>
-            <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📅 Weekly Quiz ({weeklyQuizzes.length})</button>
+            <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
           </div>
 
           {activeTab === 'users' && (
@@ -5652,7 +5652,7 @@ const AdminPanel = () => {
                   border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
                 }}>
-                  <h4 style={{ color: headingColor, marginBottom: 20, fontSize: 18 }}>{editingQuizId ? '✏️ Edit Quiz' : '📝 New Weekly Quiz'}</h4>
+                  <h4 style={{ color: headingColor, marginBottom: 20, fontSize: 18 }}>{editingQuizId ? ' Edit Quiz' : ' New Weekly Quiz'}</h4>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 18 }}>
                     <div>
@@ -5780,7 +5780,7 @@ const AdminPanel = () => {
                       border: `1px dashed ${darkMode ? '#666' : '#aaa'}`
                     }}>
                       <p style={{ fontSize: 13, color: secondaryText, marginBottom: 8 }}>
-                        <strong>📋 Batch Import:</strong> Paste multiple questions at once.
+                        <strong>Batch Import:</strong> Paste multiple questions at once.
                       </p>
                       <textarea
                         placeholder="Paste your questions here...&#10;Q1. Question text? (a) Option (b) Option (c) Option (d) Option&#10;Answer: a"
@@ -5814,7 +5814,7 @@ const AdminPanel = () => {
                           fontSize: 13
                         }}
                       >
-                        📥 Import Questions
+                         Import Questions
                       </button>
                     </div>
 
@@ -5866,7 +5866,7 @@ const AdminPanel = () => {
                           onClick={handleAddQuestion}
                           style={{ background: '#2E7D64', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
                         >
-                          {editingQuestionIndex !== null ? '✏️ Update' : '➕ Add'}
+                          {editingQuestionIndex !== null ? 'Update' : '➕ Add'}
                         </button>
                         {editingQuestionIndex !== null && (
                           <button
@@ -5908,8 +5908,8 @@ const AdminPanel = () => {
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
-                              <button onClick={() => handleEditQuestion(idx)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✏️</button>
-                              <button onClick={() => handleDeleteQuestion(idx)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✕</button>
+                              <button onClick={() => handleEditQuestion(idx)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                              <button onClick={() => handleDeleteQuestion(idx)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
                             </div>
                           </div>
                         ))}
@@ -5936,7 +5936,7 @@ const AdminPanel = () => {
                       onMouseEnter={(e) => e.currentTarget.style.background = '#5a6268'}
                       onMouseLeave={(e) => e.currentTarget.style.background = '#6c757d'}
                     >
-                      💾 Save as Draft
+                       Save as Draft
                     </button>
                     <button
                       onClick={handlePublishQuiz}
@@ -5955,7 +5955,7 @@ const AdminPanel = () => {
                       onMouseEnter={(e) => e.currentTarget.style.background = '#218838'}
                       onMouseLeave={(e) => e.currentTarget.style.background = '#28a745'}
                     >
-                      {editingQuizId ? '📤 Update & Publish' : '📤 Publish Now'}
+                      {editingQuizId ? ' Update & Publish' : ' Publish Now'}
                     </button>
                   </div>
                 </div>
@@ -6016,7 +6016,7 @@ const AdminPanel = () => {
                                   borderRadius: 12, 
                                   fontSize: 11
                                 }}>
-                                  📅 {new Date(quiz.startDate).toLocaleDateString()}
+                                  Time Published {new Date(quiz.startDate).toLocaleDateString()}
                                 </span>
                               )}
                             </div>
@@ -6025,15 +6025,15 @@ const AdminPanel = () => {
                             </p>
                           </div>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            <button onClick={() => editQuiz(quiz)} style={{ background: '#ffc107', color: '#333', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>✏️</button>
+                            <button onClick={() => editQuiz(quiz)} style={{ background: '#ffc107', color: '#333', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Edit</button>
                             <button onClick={() => handleTogglePublish(quiz._id, quiz.isActive)} style={{ background: quiz.isActive ? '#dc3545' : '#28a745', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                              {quiz.isActive ? '🔽 Unpublish' : '🔼 Publish'}
+                              {quiz.isActive ? ' Unpublish' : ' Publish'}
                             </button>
                             <button onClick={() => handleTogglePremium(quiz._id, quiz.isPremium)} style={{ background: quiz.isPremium ? '#dc3545' : '#ff9800', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
                               {quiz.isPremium ? '⭐ Remove Premium' : '⭐ Make Premium'}
                             </button>
-                            <button onClick={() => handleViewResults(quiz._id)} style={{ background: '#17a2b8', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>📊</button>
-                            <button onClick={() => handleDeleteQuiz(quiz._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>🗑️</button>
+                            <button onClick={() => handleViewResults(quiz._id)} style={{ background: '#17a2b8', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Quiz Results</button>
+                            <button onClick={() => handleDeleteQuiz(quiz._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Delete</button>
                           </div>
                         </div>
                       </div>
@@ -6065,7 +6065,7 @@ const AdminPanel = () => {
                     boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-                      <h3 style={{ color: headingColor, margin: 0 }}>📊 Quiz Results</h3>
+                      <h3 style={{ color: headingColor, margin: 0 }}>Quiz Results</h3>
                       <button onClick={() => setShowResults(false)} style={{ background: '#6c757d', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Close</button>
                     </div>
                     {selectedQuizResults.length === 0 ? (
@@ -6129,13 +6129,13 @@ const DropdownMenu = () => {
               {user?.isPremium && <div style={{ background: '#ff9800', display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 11, marginTop: 4 }}>⭐ PREMIUM</div>}
             </div>
             <div style={{ padding: '8px 0' }}>
-              <Link to="/profile" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontWeight: 'bold' }}>👤 MY PROFILE</Link>
-              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>🏠 Home</Link>
-              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>ℹ️ About Us</Link>
-              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>📞 Contact Us</Link>
-              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>💬 Join WhatsApp</Link>
-              <Link to="/weekly-quiz" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontWeight: 'bold' }}>📅 Weekly Quiz</Link>
-              <Link to="/weekly-leaderboard" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontWeight: 'bold' }}>🏆 Leaderboard</Link>
+              <Link to="/profile" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontWeight: 'bold' }}> MY PROFILE</Link>
+              <Link to="/" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}> Home</Link>
+              <Link to="/about" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>ℹAbout Us</Link>
+              <Link to="/contact" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}> Contact Us</Link>
+              <Link to="/whatsapp" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: '#25D366', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}> Join WhatsApp</Link>
+              <Link to="/weekly-quiz" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontWeight: 'bold' }}> Weekly Quiz</Link>
+              <Link to="/weekly-leaderboard" onClick={() => setIsOpen(false)} style={{ display: 'block', padding: '10px 20px', textDecoration: 'none', color: darkMode ? '#eee' : '#333', fontSize: 13, borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontWeight: 'bold' }}> Leaderboard</Link>
             </div>
           </div>
         </>
