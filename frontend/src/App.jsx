@@ -2294,6 +2294,255 @@ const ContactUs = () => {
   );
 };
 
+// Weekly Quiz Landing Page – shows quiz info, instructions, and start dialog
+const WeeklyQuizLanding = () => {
+  const [quiz, setQuiz] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showStartDialog, setShowStartDialog] = useState(false);
+  const [alreadyAttempted, setAlreadyAttempted] = useState(false);
+  const [attemptScore, setAttemptScore] = useState(null);
+  const [attemptPercentage, setAttemptPercentage] = useState(null);
+  const { token, darkMode, user } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
+
+  useEffect(() => {
+    const fetchQuiz = async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get('/api/weekly-quiz/current', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success) {
+          setQuiz(res.data.quiz);
+          setAlreadyAttempted(res.data.alreadyAttempted);
+          if (res.data.alreadyAttempted) {
+            setAttemptScore(res.data.quiz.attemptScore);
+            setAttemptPercentage(res.data.quiz.attemptPercentage);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching weekly quiz:', error);
+        alert('Failed to load weekly quiz. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQuiz();
+  }, [token]);
+
+  const handleStartQuiz = () => {
+    setShowStartDialog(true);
+  };
+
+  const handleConfirmStart = () => {
+    setShowStartDialog(false);
+    window.location.href = `/weekly-quiz/take/${quiz._id}`;
+  };
+
+  if (loading) return <LoadingWithBar message="Loading Weekly Quiz..." />;
+
+  if (!quiz) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
+        <div style={{ fontSize: 64, marginBottom: 20 }}>📅</div>
+        <h2 style={{ color: headingColor }}>No Active Weekly Quiz</h2>
+        <p style={{ color: secondaryText }}>Check back soon for a new quiz!</p>
+        <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
+      </div>
+    );
+  }
+
+  // Already attempted view
+  if (alreadyAttempted) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+        <div style={{ maxWidth: 600, margin: '0 auto', background: cardBg, borderRadius: 20, padding: 30, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+          <h2 style={{ color: headingColor }}>You've Already Completed This Week's Quiz!</h2>
+          <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Your Score: <strong>{attemptScore}</strong></p>
+          <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Percentage: <strong>{attemptPercentage}%</strong></p>
+          <p style={{ color: secondaryText, marginTop: 20 }}>Check back next week for a new quiz.</p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link to="/weekly-leaderboard"><button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏆 View Leaderboard</button></Link>
+            <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Premium block
+  if (quiz.isPremium && !user?.isPremium) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ background: cardBg, borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
+          <h2 style={{ color: headingColor }}>Premium Quiz</h2>
+          <p style={{ color: secondaryText }}>This week's quiz is premium content. Upgrade to access it.</p>
+          <Link to="/get-premium">
+            <button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Upgrade Now</button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Quiz landing page
+  return (
+    <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      {/* Start Dialog */}
+      {showStartDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: cardBg,
+            borderRadius: 20,
+            padding: 28,
+            maxWidth: 450,
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            textAlign: 'center',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📝</div>
+            <h2 style={{ color: headingColor, marginBottom: 8 }}>Ready to Start?</h2>
+            <p style={{ color: secondaryText, marginBottom: 16 }}>Please read the instructions before you begin.</p>
+            
+            <div style={{
+              background: darkMode ? '#1a1a2e' : '#f0f7f4',
+              padding: '16px 18px',
+              borderRadius: 12,
+              marginBottom: 20,
+              textAlign: 'left'
+            }}>
+              <h4 style={{ color: headingColor, marginBottom: 8 }}>📋 Instructions</h4>
+              <p style={{ color: textColor, fontSize: 14, whiteSpace: 'pre-wrap' }}>
+                {quiz.instructions || 'No specific instructions for this quiz. Answer all questions and submit before the timer runs out.'}
+              </p>
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
+                <p style={{ color: textColor, fontSize: 13, margin: '4px 0' }}>
+                  <strong>Questions:</strong> {quiz.questions?.length || 0}
+                </p>
+                <p style={{ color: textColor, fontSize: 13, margin: '4px 0' }}>
+                  <strong>Time Limit:</strong> {quiz.timeLimit || 20} minutes
+                </p>
+                <p style={{ color: textColor, fontSize: 13, margin: '4px 0' }}>
+                  <strong>Passing Score:</strong> {quiz.passingScore || 70}%
+                </p>
+                {quiz.isPremium && (
+                  <p style={{ color: '#ff9800', fontSize: 13, margin: '4px 0', fontWeight: 'bold' }}>
+                    ⭐ This is a Premium Quiz
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowStartDialog(false)}
+                style={{ flex: 1, background: '#6c757d', color: 'white', padding: '12px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Back
+              </button>
+              <button
+                onClick={handleConfirmStart}
+                style={{ flex: 1, background: '#28a745', color: 'white', padding: '12px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Start Quiz →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main landing page */}
+      <div style={{ maxWidth: 700, margin: '0 auto' }}>
+        <Link to="/" style={{ display: 'inline-block', marginBottom: 20, color: headingColor, textDecoration: 'none' }}>
+          ← Back to Home
+        </Link>
+
+        <div style={{
+          background: `linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)`,
+          borderRadius: 20,
+          padding: '32px 24px',
+          marginBottom: 24,
+          color: 'white',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📅</div>
+          <h1 style={{ margin: 0, fontSize: 'clamp(24px, 5vw, 28px)' }}>{quiz.title}</h1>
+          <p style={{ marginTop: 8, fontSize: 14, opacity: 0.9 }}>{quiz.description}</p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
+            <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 14px', borderRadius: 20, fontSize: 13 }}>
+              📝 {quiz.questions?.length || 0} Questions
+            </span>
+            <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 14px', borderRadius: 20, fontSize: 13 }}>
+              ⏰ {quiz.timeLimit || 20} minutes
+            </span>
+            <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 14px', borderRadius: 20, fontSize: 13 }}>
+              🎯 {quiz.passingScore || 70}% to pass
+            </span>
+            {quiz.isPremium && (
+              <span style={{ background: '#ff9800', padding: '4px 14px', borderRadius: 20, fontSize: 13, fontWeight: 'bold' }}>
+                ⭐ Premium
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div style={{ background: cardBg, borderRadius: 16, padding: 24, marginBottom: 20 }}>
+          <h3 style={{ color: headingColor, marginBottom: 12 }}>📋 Instructions</h3>
+          <p style={{ color: textColor, fontSize: 14, lineHeight: 1.6 }}>
+            {quiz.instructions || 'Answer all questions carefully. You cannot go back to previous questions after submitting. Make sure you complete all questions before the timer runs out.'}
+          </p>
+        </div>
+
+        <button
+          onClick={handleStartQuiz}
+          style={{
+            width: '100%',
+            background: '#28a745',
+            color: 'white',
+            padding: '16px',
+            border: 'none',
+            borderRadius: 12,
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '18px',
+            boxShadow: '0 4px 15px rgba(40, 167, 69, 0.3)',
+            transition: 'transform 0.2s, box-shadow 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(40, 167, 69, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 15px rgba(40, 167, 69, 0.3)';
+          }}
+        >
+          🚀 Start Quiz
+        </button>
+      </div>
+      <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
+        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
+      </div>
+    </div>
+  );
+};
+
 // My History Component – with premium expiry protection
 const MyHistory = () => {
   const [attempts, setAttempts] = useState([]);
@@ -4544,7 +4793,7 @@ const PaymentReturn = () => {
   );
 };
 
-// Admin Panel Component – with Weekly Quiz management (FIXED batch import)
+// Admin Panel Component – with Weekly Quiz management (FIXED batch import + NEW features)
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -4567,10 +4816,14 @@ const AdminPanel = () => {
   // Weekly Quiz states
   const [quizTitle, setQuizTitle] = useState('');
   const [quizDescription, setQuizDescription] = useState('');
+  const [quizInstructions, setQuizInstructions] = useState(''); // NEW
   const [quizWeekNumber, setQuizWeekNumber] = useState('');
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [quizPassingScore, setQuizPassingScore] = useState(70);
   const [quizTimeLimit, setQuizTimeLimit] = useState(20);
+  const [quizStartDate, setQuizStartDate] = useState(''); // NEW
+  const [quizEndDate, setQuizEndDate] = useState(''); // NEW
+  const [quizIsPremium, setQuizIsPremium] = useState(false); // NEW
   const [editingQuizId, setEditingQuizId] = useState(null);
   const [showQuizForm, setShowQuizForm] = useState(false);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
@@ -4828,14 +5081,11 @@ const AdminPanel = () => {
     const lines = batchInput.split('\n').map(l => l.trim()).filter(l => l);
     const parsedQuestions = [];
     
-    // Build a block-based parser that handles both formats
     let currentBlock = '';
     const blocks = [];
     
-    // First, split by blank lines to get question blocks
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      // If line is empty or starts with Q, it might be a new question
       if (line.match(/^Q\d+\./i)) {
         if (currentBlock.trim()) {
           blocks.push(currentBlock.trim());
@@ -4849,9 +5099,7 @@ const AdminPanel = () => {
       blocks.push(currentBlock.trim());
     }
 
-    // Process each block
     for (const block of blocks) {
-      // Extract question text
       const qMatch = block.match(/^Q\d+\.\s*(.*)/i);
       if (!qMatch) continue;
       
@@ -4860,16 +5108,13 @@ const AdminPanel = () => {
       const options = [];
       let answerLetter = null;
 
-      // Try to find options in the format (a) option (b) option (c) option (d) option
       const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
       let match;
       while ((match = optionPattern.exec(fullText)) !== null) {
         options.push(match[2].trim());
       }
 
-      // If options not found in same line, try multi-line format
       if (options.length !== 4) {
-        // Look for options on separate lines
         const linesInBlock = block.split('\n');
         for (const line of linesInBlock) {
           const optMatch = line.match(/^\(([a-d])\)\s*(.*)/i);
@@ -4879,10 +5124,8 @@ const AdminPanel = () => {
         }
       }
 
-      // Clean question text - remove options
       questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
       
-      // If question text is empty, try multi-line approach
       if (!questionText) {
         const firstLine = block.split('\n')[0];
         if (firstLine) {
@@ -4890,12 +5133,10 @@ const AdminPanel = () => {
         }
       }
 
-      // Find the answer - look for "Answer:" pattern
       const answerMatch = block.match(/Answer:\s*([a-d])/i);
       if (answerMatch) {
         answerLetter = answerMatch[1].toUpperCase();
       } else {
-        // Try to find answer in the last line
         const lastLines = block.split('\n').slice(-3);
         for (const line of lastLines) {
           const ansMatch = line.match(/^([a-d])\.?\s*$/i);
@@ -4906,7 +5147,6 @@ const AdminPanel = () => {
         }
       }
 
-      // If we have 4 options and a valid question
       if (options.length === 4 && questionText) {
         const correctIndex = answerLetter ? answerLetter.charCodeAt(0) - 65 : 0;
         parsedQuestions.push({
@@ -4918,9 +5158,7 @@ const AdminPanel = () => {
       }
     }
 
-    // If still no questions parsed, try using the entire text with a different method
     if (parsedQuestions.length === 0) {
-      // Try to parse each line as a complete question
       for (const line of lines) {
         if (line.match(/^Q\d+\./i)) {
           const qText2 = line.replace(/^Q\d+\.\s*/i, '').trim();
@@ -4948,7 +5186,6 @@ const AdminPanel = () => {
       return;
     }
 
-    // Add parsed questions to the current quizQuestions state
     setQuizQuestions(prev => [...prev, ...parsedQuestions]);
     setBatchInput('');
     alert(`✅ ${parsedQuestions.length} questions added successfully!`);
@@ -4974,6 +5211,7 @@ const AdminPanel = () => {
     }
   };
 
+  // ========== SAVE AS DRAFT ==========
   const handleSaveQuiz = async () => {
     if (!quizTitle.trim()) {
       alert('Please enter a quiz title');
@@ -4991,10 +5229,15 @@ const AdminPanel = () => {
     const payload = {
       title: quizTitle.trim(),
       description: quizDescription.trim() || `${quizTitle.trim()} - Week ${quizWeekNumber}`,
+      instructions: quizInstructions.trim() || '',
       weekNumber: parseInt(quizWeekNumber),
       questions: quizQuestions,
       passingScore: quizPassingScore || 70,
-      timeLimit: quizTimeLimit || 20
+      timeLimit: quizTimeLimit || 20,
+      startDate: quizStartDate ? new Date(quizStartDate) : null,
+      endDate: quizEndDate ? new Date(quizEndDate) : null,
+      isActive: false, // Draft
+      isPremium: quizIsPremium
     };
 
     try {
@@ -5015,6 +5258,88 @@ const AdminPanel = () => {
       }
     } catch (error) {
       alert('Failed to save quiz: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  // ========== PUBLISH QUIZ ==========
+  const handlePublishQuiz = async () => {
+    if (!quizTitle.trim()) {
+      alert('Please enter a quiz title');
+      return;
+    }
+    if (!quizWeekNumber || isNaN(quizWeekNumber)) {
+      alert('Please enter a valid week number');
+      return;
+    }
+    if (quizQuestions.length === 0) {
+      alert('Please add at least one question');
+      return;
+    }
+
+    const payload = {
+      title: quizTitle.trim(),
+      description: quizDescription.trim() || `${quizTitle.trim()} - Week ${quizWeekNumber}`,
+      instructions: quizInstructions.trim() || '',
+      weekNumber: parseInt(quizWeekNumber),
+      questions: quizQuestions,
+      passingScore: quizPassingScore || 70,
+      timeLimit: quizTimeLimit || 20,
+      startDate: quizStartDate ? new Date(quizStartDate) : null,
+      endDate: quizEndDate ? new Date(quizEndDate) : null,
+      isActive: true, // Published
+      isPremium: quizIsPremium
+    };
+
+    try {
+      let res;
+      if (editingQuizId) {
+        res = await axios.put(`/api/admin/weekly-quiz/${editingQuizId}`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        res = await axios.post('/api/admin/weekly-quiz', payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      if (res.data.success) {
+        alert('✅ Quiz published successfully!');
+        resetQuizForm();
+        await fetchWeeklyQuizzes();
+      }
+    } catch (error) {
+      alert('Failed to publish quiz: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  // ========== TOGGLE PUBLISH STATUS ==========
+  const handleTogglePublish = async (quizId, currentStatus) => {
+    try {
+      const res = await axios.post(`/api/admin/weekly-quiz/${quizId}/toggle-publish`, 
+        { isActive: !currentStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        await fetchWeeklyQuizzes();
+        alert(currentStatus ? 'Quiz unpublished' : 'Quiz published!');
+      }
+    } catch (error) {
+      alert('Failed to toggle publish status: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  // ========== TOGGLE PREMIUM STATUS ==========
+  const handleTogglePremium = async (quizId, currentStatus) => {
+    try {
+      const res = await axios.post(`/api/admin/weekly-quiz/${quizId}/toggle-premium`, 
+        { isPremium: !currentStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        await fetchWeeklyQuizzes();
+        alert(currentStatus ? 'Premium removed' : 'Quiz is now Premium!');
+      }
+    } catch (error) {
+      alert('Failed to toggle premium status: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -5046,10 +5371,14 @@ const AdminPanel = () => {
   const resetQuizForm = () => {
     setQuizTitle('');
     setQuizDescription('');
+    setQuizInstructions('');
     setQuizWeekNumber('');
     setQuizQuestions([]);
     setQuizPassingScore(70);
     setQuizTimeLimit(20);
+    setQuizStartDate('');
+    setQuizEndDate('');
+    setQuizIsPremium(false);
     setEditingQuizId(null);
     setEditingQuestionIndex(null);
     setQText('');
@@ -5062,10 +5391,14 @@ const AdminPanel = () => {
   const editQuiz = (quiz) => {
     setQuizTitle(quiz.title);
     setQuizDescription(quiz.description || '');
+    setQuizInstructions(quiz.instructions || '');
     setQuizWeekNumber(quiz.weekNumber.toString());
     setQuizQuestions(quiz.questions);
     setQuizPassingScore(quiz.passingScore || 70);
     setQuizTimeLimit(quiz.timeLimit || 20);
+    setQuizStartDate(quiz.startDate ? new Date(quiz.startDate).toISOString().slice(0, 16) : '');
+    setQuizEndDate(quiz.endDate ? new Date(quiz.endDate).toISOString().slice(0, 16) : '');
+    setQuizIsPremium(quiz.isPremium || false);
     setEditingQuizId(quiz._id);
     setShowQuizForm(true);
   };
@@ -5080,6 +5413,14 @@ const AdminPanel = () => {
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Helper to get quiz status
+  const getQuizStatus = (quiz) => {
+    if (!quiz.isActive) return { label: 'Draft', color: '#6c757d' };
+    if (quiz.startDate && new Date(quiz.startDate) > new Date()) return { label: 'Scheduled', color: '#17a2b8' };
+    if (quiz.endDate && new Date(quiz.endDate) < new Date()) return { label: 'Expired', color: '#dc3545' };
+    return { label: 'Published', color: '#28a745' };
+  };
+
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -5092,7 +5433,7 @@ const AdminPanel = () => {
             <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
             <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
             <button onClick={() => setActiveTab('manualReset')} style={{ background: activeTab === 'manualReset' ? '#6c757d' : 'transparent', color: activeTab === 'manualReset' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualReset' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual Reset</button>
-            <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Weekly Quiz ({weeklyQuizzes.length})</button>
+            <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📅 Weekly Quiz ({weeklyQuizzes.length})</button>
           </div>
 
           {activeTab === 'users' && (
@@ -5287,7 +5628,7 @@ const AdminPanel = () => {
             </div>
           )}
 
-          {/* ===== WEEKLY QUIZ TAB – WITH FIXED BATCH IMPORT ===== */}
+          {/* ===== UPDATED WEEKLY QUIZ TAB ===== */}
           {activeTab === 'weeklyQuiz' && (
             <div style={{ padding: '10px 0' }}>
               {/* Quiz Form Toggle */}
@@ -5297,11 +5638,11 @@ const AdminPanel = () => {
                   onClick={() => setShowQuizForm(!showQuizForm)}
                   style={{ background: showQuizForm ? '#dc3545' : '#2E7D64', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
                 >
-                  {showQuizForm ? 'Cancel' : 'Create New Quiz'}
+                  {showQuizForm ? '✕ Cancel' : '+ Create New Quiz'}
                 </button>
               </div>
 
-              {/* Quiz Form */}
+              {/* Quiz Form – UPDATED with new fields */}
               {showQuizForm && (
                 <div style={{ 
                   background: darkMode ? '#1a1a2e' : '#f8f9fa', 
@@ -5311,7 +5652,7 @@ const AdminPanel = () => {
                   border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
                 }}>
-                  <h4 style={{ color: headingColor, marginBottom: 20, fontSize: 18 }}>{editingQuizId ? 'Edit Quiz' : 'New Weekly Quiz'}</h4>
+                  <h4 style={{ color: headingColor, marginBottom: 20, fontSize: 18 }}>{editingQuizId ? '✏️ Edit Quiz' : '📝 New Weekly Quiz'}</h4>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 18 }}>
                     <div>
@@ -5337,6 +5678,7 @@ const AdminPanel = () => {
                     </div>
                   </div>
 
+                  {/* Description */}
                   <div style={{ marginBottom: 18 }}>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Description <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span></label>
                     <input
@@ -5346,6 +5688,53 @@ const AdminPanel = () => {
                       onChange={(e) => setQuizDescription(e.target.value)}
                       style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
                     />
+                  </div>
+
+                  {/* NEW: Instructions */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Instructions <span style={{ color: '#999', fontWeight: 'normal' }}>(shown before quiz starts)</span></label>
+                    <textarea
+                      placeholder="e.g., Answer all questions carefully. You cannot go back after submitting."
+                      value={quizInstructions}
+                      onChange={(e) => setQuizInstructions(e.target.value)}
+                      rows="3"
+                      style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  {/* NEW: Start & End Dates */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 18 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Start Date <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span></label>
+                      <input
+                        type="datetime-local"
+                        value={quizStartDate}
+                        onChange={(e) => setQuizStartDate(e.target.value)}
+                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>End Date <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span></label>
+                      <input
+                        type="datetime-local"
+                        value={quizEndDate}
+                        onChange={(e) => setQuizEndDate(e.target.value)}
+                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* NEW: Premium Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, padding: '12px 16px', background: darkMode ? '#2d2d3d' : '#f0f7f4', borderRadius: 8 }}>
+                    <label style={{ fontSize: 13, fontWeight: 'bold', color: textColor, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={quizIsPremium}
+                        onChange={(e) => setQuizIsPremium(e.target.checked)}
+                        style={{ marginRight: 8, width: 18, height: 18, cursor: 'pointer' }}
+                      />
+                      Premium Quiz <span style={{ fontWeight: 'normal', color: secondaryText }}>(users need premium to access)</span>
+                    </label>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 20 }}>
@@ -5374,7 +5763,7 @@ const AdminPanel = () => {
                     </div>
                   </div>
 
-                  {/* Question Builder – WITH FIXED BATCH IMPORT */}
+                  {/* Question Builder */}
                   <div style={{ 
                     marginBottom: 20, 
                     borderTop: `2px solid ${darkMode ? '#444' : '#e0e0e0'}`, 
@@ -5391,7 +5780,7 @@ const AdminPanel = () => {
                       border: `1px dashed ${darkMode ? '#666' : '#aaa'}`
                     }}>
                       <p style={{ fontSize: 13, color: secondaryText, marginBottom: 8 }}>
-                        <strong>Batch Import:</strong> Paste multiple questions at once.
+                        <strong>📋 Batch Import:</strong> Paste multiple questions at once.
                       </p>
                       <textarea
                         placeholder="Paste your questions here...&#10;Q1. Question text? (a) Option (b) Option (c) Option (d) Option&#10;Answer: a"
@@ -5425,7 +5814,7 @@ const AdminPanel = () => {
                           fontSize: 13
                         }}
                       >
-                        Import Questions
+                        📥 Import Questions
                       </button>
                     </div>
 
@@ -5519,8 +5908,8 @@ const AdminPanel = () => {
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
-                              <button onClick={() => handleEditQuestion(idx)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
-                              <button onClick={() => handleDeleteQuestion(idx)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                              <button onClick={() => handleEditQuestion(idx)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                              <button onClick={() => handleDeleteQuestion(idx)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>✕</button>
                             </div>
                           </div>
                         ))}
@@ -5528,64 +5917,128 @@ const AdminPanel = () => {
                     )}
                   </div>
 
-                  {/* Save Quiz Button */}
-                  <button
-                    onClick={handleSaveQuiz}
-                    style={{ 
-                      width: '100%', 
-                      background: '#2E7D64', 
-                      color: 'white', 
-                      padding: '14px', 
-                      border: 'none', 
-                      borderRadius: 10, 
-                      cursor: 'pointer', 
-                      fontWeight: 'bold', 
-                      fontSize: 16,
-                      marginTop: 4,
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#1a5c4a'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#2E7D64'}
-                  >
-                    {editingQuizId ? ' Update Quiz' : ' Create Quiz'}
-                  </button>
+                  {/* NEW: Save and Publish buttons */}
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={handleSaveQuiz}
+                      style={{ 
+                        flex: 1,
+                        background: '#6c757d', 
+                        color: 'white', 
+                        padding: '14px', 
+                        border: 'none', 
+                        borderRadius: 10, 
+                        cursor: 'pointer', 
+                        fontWeight: 'bold', 
+                        fontSize: 16,
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#5a6268'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = '#6c757d'}
+                    >
+                      💾 Save as Draft
+                    </button>
+                    <button
+                      onClick={handlePublishQuiz}
+                      style={{ 
+                        flex: 1,
+                        background: '#28a745', 
+                        color: 'white', 
+                        padding: '14px', 
+                        border: 'none', 
+                        borderRadius: 10, 
+                        cursor: 'pointer', 
+                        fontWeight: 'bold', 
+                        fontSize: 16,
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#218838'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = '#28a745'}
+                    >
+                      {editingQuizId ? '📤 Update & Publish' : '📤 Publish Now'}
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Quiz List */}
+              {/* Quiz List – UPDATED with status badges */}
               {loadingQuizzes ? (
                 <p style={{ textAlign: 'center', color: secondaryText, padding: '30px 0' }}>Loading quizzes...</p>
               ) : weeklyQuizzes.length === 0 ? (
                 <p style={{ textAlign: 'center', color: secondaryText, padding: '30px 0' }}>No weekly quizzes created yet.</p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
-                  {weeklyQuizzes.map(quiz => (
-                    <div key={quiz._id} style={{ 
-                      background: darkMode ? '#1a1a2e' : 'white', 
-                      padding: '18px 20px', 
-                      borderRadius: 14, 
-                      border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
-                      transition: 'box-shadow 0.2s'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <h4 style={{ color: headingColor, margin: 0, fontSize: 16 }}>{quiz.title}</h4>
-                          <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>Week {quiz.weekNumber} • {quiz.questions.length} questions</p>
-                          <p style={{ fontSize: 12, color: secondaryText, marginTop: 2 }}>
-                            Pass: {quiz.passingScore}% • Time: {quiz.timeLimit}min
-                            <span style={{ marginLeft: 12, color: quiz.isActive ? '#2e7d32' : '#dc3545' }}>
-                              {quiz.isActive ? '✅ Active' : '❌ Inactive'}
-                            </span>
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button onClick={() => editQuiz(quiz)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
-                          <button onClick={() => handleViewResults(quiz._id)} style={{ background: '#17a2b8', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Quiz Results</button>
-                          <button onClick={() => handleDeleteQuiz(quiz._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                  {weeklyQuizzes.map(quiz => {
+                    const status = getQuizStatus(quiz);
+                    return (
+                      <div key={quiz._id} style={{ 
+                        background: darkMode ? '#1a1a2e' : 'white', 
+                        padding: '18px 20px', 
+                        borderRadius: 14, 
+                        border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+                        transition: 'box-shadow 0.2s',
+                        position: 'relative'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <h4 style={{ color: headingColor, margin: 0, fontSize: 16 }}>{quiz.title}</h4>
+                            <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>
+                              Week {quiz.weekNumber} • {quiz.questions.length} questions
+                            </p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                              <span style={{ 
+                                background: status.color, 
+                                color: 'white', 
+                                padding: '2px 10px', 
+                                borderRadius: 12, 
+                                fontSize: 11,
+                                fontWeight: 'bold'
+                              }}>
+                                {status.label}
+                              </span>
+                              {quiz.isPremium && (
+                                <span style={{ 
+                                  background: '#ff9800', 
+                                  color: 'white', 
+                                  padding: '2px 10px', 
+                                  borderRadius: 12, 
+                                  fontSize: 11,
+                                  fontWeight: 'bold'
+                                }}>
+                                  ⭐ Premium
+                                </span>
+                              )}
+                              {quiz.startDate && (
+                                <span style={{ 
+                                  background: '#17a2b8', 
+                                  color: 'white', 
+                                  padding: '2px 10px', 
+                                  borderRadius: 12, 
+                                  fontSize: 11
+                                }}>
+                                  📅 {new Date(quiz.startDate).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>
+                              Pass: {quiz.passingScore}% • Time: {quiz.timeLimit}min
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            <button onClick={() => editQuiz(quiz)} style={{ background: '#ffc107', color: '#333', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>✏️</button>
+                            <button onClick={() => handleTogglePublish(quiz._id, quiz.isActive)} style={{ background: quiz.isActive ? '#dc3545' : '#28a745', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                              {quiz.isActive ? '🔽 Unpublish' : '🔼 Publish'}
+                            </button>
+                            <button onClick={() => handleTogglePremium(quiz._id, quiz.isPremium)} style={{ background: quiz.isPremium ? '#dc3545' : '#ff9800', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                              {quiz.isPremium ? '⭐ Remove Premium' : '⭐ Make Premium'}
+                            </button>
+                            <button onClick={() => handleViewResults(quiz._id)} style={{ background: '#17a2b8', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>📊</button>
+                            <button onClick={() => handleDeleteQuiz(quiz._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>🗑️</button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -5612,7 +6065,7 @@ const AdminPanel = () => {
                     boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-                      <h3 style={{ color: headingColor, margin: 0 }}>Quiz Results</h3>
+                      <h3 style={{ color: headingColor, margin: 0 }}>📊 Quiz Results</h3>
                       <button onClick={() => setShowResults(false)} style={{ background: '#6c757d', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Close</button>
                     </div>
                     {selectedQuizResults.length === 0 ? (
