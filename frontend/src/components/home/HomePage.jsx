@@ -30,6 +30,10 @@ export const HomePage = () => {
     return localStorage.getItem('consentBannerDismissed') || '0';
   });
 
+  // ---- NEW: DYNAMIC CATEGORIES FROM API ----
+  const [apiCategories, setApiCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
   // ---- FETCH ANNOUNCEMENT ----
   useEffect(() => {
     const fetchAnnouncement = async () => {
@@ -72,7 +76,32 @@ export const HomePage = () => {
     fetchConsentBanner();
   }, [user?.marketingConsent, consentDismissedVersion]);
 
-  // ---- ORIGINAL CODE (unchanged) ----
+  // ---- NEW: FETCH CATEGORIES FROM API ----
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await axios.get('/api/categories');
+        if (res.data.success) {
+          setApiCategories(res.data.categories);
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        // Fallback to hardcoded categories if API fails
+        setApiCategories([
+          { slug: 'general-nursing', name: 'General Nursing', icon: '🩺', active: true },
+          { slug: 'midwifery', name: 'Midwifery', icon: '🤰', active: true },
+          { slug: 'public-health', name: 'Public Health', icon: '🌍', active: true },
+          { slug: 'pediatric-nursing', name: 'Pediatric Nursing', icon: '👶', active: true },
+          { slug: 'dental-nursing', name: 'Dental Nursing', icon: '🦷', active: true }
+        ]);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // ---- ORIGINAL QUIZ FETCH (unchanged) ----
   useEffect(() => {
     const fetchQuizzes = async () => {
       setLoading(true);
@@ -88,7 +117,9 @@ export const HomePage = () => {
     fetchQuizzes();
   }, [token]);
 
-  const getCategories = () => {
+  // ---- UPDATED: Get categories with topic count from quizzes ----
+  const getCategoriesWithCount = () => {
+    // Build category -> topics count from quizzes
     const categoryTopics = {};
     quizzes.forEach(quiz => {
       if (!categoryTopics[quiz.category]) {
@@ -98,13 +129,58 @@ export const HomePage = () => {
         categoryTopics[quiz.category].add(quiz.topic);
       }
     });
-    const categories = {};
-    for (const [category, topics] of Object.entries(categoryTopics)) {
-      categories[category] = topics.size;
+    
+    // Map API categories to include topic count and icon
+    const result = [];
+    const activeSlugs = apiCategories.filter(c => c.active).map(c => c.slug);
+    
+    // First, include all active categories from API
+    for (const cat of apiCategories) {
+      if (!cat.active) continue;
+      const topics = categoryTopics[cat.slug] || new Set();
+      result.push({
+        slug: cat.slug,
+        name: cat.name,
+        icon: cat.icon || '📚',
+        topicCount: topics.size,
+        active: true
+      });
     }
-    return categories;
+    
+    // Also include any categories that exist in quizzes but not in API (fallback)
+    for (const [slug, topics] of Object.entries(categoryTopics)) {
+      if (!activeSlugs.includes(slug)) {
+        const iconMap = {
+          'general-nursing': '🩺',
+          'midwifery': '🤰',
+          'public-health': '🌍',
+          'pediatric-nursing': '👶',
+          'dental-nursing': '🦷'
+        };
+        const nameMap = {
+          'general-nursing': 'General Nursing',
+          'midwifery': 'Midwifery',
+          'public-health': 'Public Health',
+          'pediatric-nursing': 'Pediatric Nursing',
+          'dental-nursing': 'Dental Nursing'
+        };
+        result.push({
+          slug: slug,
+          name: nameMap[slug] || slug,
+          icon: iconMap[slug] || '📚',
+          topicCount: topics.size,
+          active: true
+        });
+      }
+    }
+    
+    // Sort by topicCount descending (most popular first) or by order if available
+    // For now, sort by topicCount descending
+    result.sort((a, b) => b.topicCount - a.topicCount);
+    return result;
   };
 
+  // ---- Get icon for a category (fallback) ----
   const getCategoryIcon = (category) => {
     const icons = {
       'general-nursing': '🩺',
@@ -116,6 +192,7 @@ export const HomePage = () => {
     return icons[category] || '📚';
   };
 
+  // ---- Get name for a category (fallback) ----
   const getCategoryName = (category) => {
     const names = {
       'general-nursing': 'General Nursing',
@@ -127,20 +204,12 @@ export const HomePage = () => {
     return names[category] || category;
   };
 
-  if (loading) {
+  // ---- Loading states ----
+  if (loading || categoriesLoading) {
     return <LoadingWithBar message="Loading courses" />;
   }
 
-  const categories = getCategories();
-  const categoryPriority = ['general-nursing', 'midwifery', 'public-health', 'pediatric-nursing', 'dental-nursing'];
-  const sortedCategories = Object.entries(categories).sort((a, b) => {
-    const indexA = categoryPriority.indexOf(a[0]);
-    const indexB = categoryPriority.indexOf(b[0]);
-    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-    if (indexA !== -1) return -1;
-    if (indexB !== -1) return 1;
-    return a[0].localeCompare(b[0]);
-  });
+  const displayCategories = getCategoriesWithCount();
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -150,7 +219,7 @@ export const HomePage = () => {
           <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 16px)' }}>Computer Based Testing Platform</p>
         </div>
 
-        {/* ---- ANNOUNCEMENT BANNER ---- */}
+        {/* ---- ANNOUNCEMENT BANNER (unchanged) ---- */}
         {showBanner && announcement && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#fff3e0',
@@ -207,7 +276,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ---- MARKETING CONSENT BANNER (NEW) ---- */}
+        {/* ---- MARKETING CONSENT BANNER (unchanged) ---- */}
         {showConsentBanner && consentBanner && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#e3f2fd',
@@ -276,6 +345,7 @@ export const HomePage = () => {
           </div>
         )}
 
+        {/* ---- MODE BUTTONS (unchanged) ---- */}
         <div style={{ display: 'flex', gap: 16, marginBottom: 32, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => setMode('free')}
@@ -309,6 +379,7 @@ export const HomePage = () => {
           </button>
         </div>
 
+        {/* ---- MODE INFO BANNERS (unchanged) ---- */}
         {mode === 'free' && (
           <div style={{ background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 16, borderRadius: 12, textAlign: 'center', marginBottom: 24 }}>
             <p style={{ color: headingColor, margin: 0, fontSize: 'clamp(14px, 4vw, 16px)' }}>
@@ -324,9 +395,10 @@ export const HomePage = () => {
           </div>
         )}
 
+        {/* ---- DYNAMIC CATEGORIES GRID ---- */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
-          {sortedCategories.map(([category, topicCount]) => (
-            <Link to={`/courses/${category}/${mode}`} key={category} style={{ textDecoration: 'none' }}>
+          {displayCategories.map((cat) => (
+            <Link to={`/courses/${cat.slug}/${mode}`} key={cat.slug} style={{ textDecoration: 'none' }}>
               <div style={{ 
                 background: darkMode ? '#16213e' : 'white', 
                 padding: 24, 
@@ -339,9 +411,9 @@ export const HomePage = () => {
               }}
               onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
               onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                <div style={{ fontSize: 56, marginBottom: 12 }}>{getCategoryIcon(category)}</div>
-                <h2 style={{ color: darkMode ? headingColor : (mode === 'free' ? '#1e3c72' : '#ff9800'), fontSize: 'clamp(18px, 4vw, 20px)', marginBottom: 8 }}>{getCategoryName(category)}</h2>
-                <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 14, marginBottom: 12 }}>{topicCount} courses</p>
+                <div style={{ fontSize: 56, marginBottom: 12 }}>{cat.icon}</div>
+                <h2 style={{ color: darkMode ? headingColor : (mode === 'free' ? '#1e3c72' : '#ff9800'), fontSize: 'clamp(18px, 4vw, 20px)', marginBottom: 8 }}>{cat.name}</h2>
+                <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 14, marginBottom: 12 }}>{cat.topicCount} courses</p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <span style={{ background: darkMode ? '#333' : '#e8f5e9', color: headingColor, padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 Free Exam 1</span>
                   <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ Premium</span>
