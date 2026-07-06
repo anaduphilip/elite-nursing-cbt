@@ -41,6 +41,14 @@ export const AdminPanel = () => {
   const [announcementLoading, setAnnouncementLoading] = useState(false);
   const [announcementResult, setAnnouncementResult] = useState('');
 
+  // ---- Marketing Consent states ----
+  const [consentMessage, setConsentMessage] = useState('');
+  const [consentButtonText, setConsentButtonText] = useState('Yes, Opt me in!');
+  const [consentActive, setConsentActive] = useState(false);
+  const [consentVersion, setConsentVersion] = useState(0);
+  const [consentLoading, setConsentLoading] = useState(false);
+  const [consentResult, setConsentResult] = useState('');
+
   const [quizTitle, setQuizTitle] = useState('');
   const [quizDescription, setQuizDescription] = useState('');
   const [quizInstructions, setQuizInstructions] = useState('');
@@ -640,6 +648,7 @@ export const AdminPanel = () => {
             <button onClick={() => setActiveTab('manualReset')} style={{ background: activeTab === 'manualReset' ? '#6c757d' : 'transparent', color: activeTab === 'manualReset' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualReset' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual Reset</button>
             <button onClick={() => setActiveTab('broadcast')} style={{ background: activeTab === 'broadcast' ? '#1e3c72' : 'transparent', color: activeTab === 'broadcast' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'broadcast' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Broadcast</button>
             <button onClick={() => setActiveTab('announcement')} style={{ background: activeTab === 'announcement' ? '#1e3c72' : 'transparent', color: activeTab === 'announcement' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'announcement' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Announcement</button>
+            <button onClick={() => setActiveTab('marketingConsent')} style={{ background: activeTab === 'marketingConsent' ? '#1e3c72' : 'transparent', color: activeTab === 'marketingConsent' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'marketingConsent' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Consent Banner</button>
             <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
           </div>
 
@@ -1025,6 +1034,127 @@ export const AdminPanel = () => {
                 </button>
               </div>
               {announcementResult && <p style={{ marginTop: 16, color: '#2e7d32' }}>{announcementResult}</p>}
+            </div>
+          )}
+
+          {activeTab === 'marketingConsent' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>Marketing Consent Banner</h3>
+              <p style={{ color: secondaryText, marginBottom: 16 }}>
+                Show a one‑time consent banner on the Home page to ask users to opt in for promotional emails.
+                Users who have already opted in will not see it.
+              </p>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Message</label>
+                <textarea
+                  placeholder="e.g., Stay updated! Get special offers and new exam notifications via email."
+                  value={consentMessage}
+                  onChange={(e) => setConsentMessage(e.target.value)}
+                  rows="3"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Button Text</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Yes, Opt me in!"
+                  value={consentButtonText}
+                  onChange={(e) => setConsentButtonText(e.target.value)}
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={consentActive}
+                    onChange={(e) => setConsentActive(e.target.checked)}
+                  />
+                  Active (banner will be shown to users who haven't opted in)
+                </label>
+                <span style={{ color: secondaryText, fontSize: 13 }}>
+                  Version: {consentVersion}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <button
+                  onClick={async () => {
+                    if (!consentMessage.trim()) {
+                      alert('Message is required');
+                      return;
+                    }
+                    setConsentLoading(true);
+                    setConsentResult('');
+                    try {
+                      const res = await axios.post('/api/admin/marketing-consent', {
+                        message: consentMessage,
+                        buttonText: consentButtonText,
+                        active: consentActive
+                      }, { headers: { Authorization: `Bearer ${token}` } });
+                      if (res.data.success) {
+                        setConsentResult(`✅ Consent banner updated! Version: ${res.data.consent.version}`);
+                        setConsentVersion(res.data.consent.version);
+                      }
+                    } catch (error) {
+                      setConsentResult('❌ Failed to update banner: ' + (error.response?.data?.error || error.message));
+                    } finally {
+                      setConsentLoading(false);
+                    }
+                  }}
+                  disabled={consentLoading}
+                  style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: consentLoading ? 0.7 : 1 }}
+                >
+                  {consentLoading ? 'Saving...' : 'Publish Consent Banner'}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('Deactivate the consent banner? Users will not see it.')) return;
+                    setConsentLoading(true);
+                    try {
+                      const res = await axios.delete('/api/admin/marketing-consent', { headers: { Authorization: `Bearer ${token}` } });
+                      if (res.data.success) {
+                        setConsentResult('✅ Consent banner deactivated.');
+                        setConsentActive(false);
+                        setConsentVersion(prev => prev + 1);
+                      }
+                    } catch (error) {
+                      setConsentResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
+                    } finally {
+                      setConsentLoading(false);
+                    }
+                  }}
+                  style={{ background: '#dc3545', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Deactivate Banner
+                </button>
+                <button
+                  onClick={async () => {
+                    setConsentLoading(true);
+                    try {
+                      const res = await axios.get('/api/admin/marketing-consent', { headers: { Authorization: `Bearer ${token}` } });
+                      if (res.data.consent) {
+                        const c = res.data.consent;
+                        setConsentMessage(c.message || '');
+                        setConsentButtonText(c.buttonText || 'Yes, Opt me in!');
+                        setConsentActive(c.active || false);
+                        setConsentVersion(c.version || 0);
+                        setConsentResult('✅ Loaded current consent banner.');
+                      } else {
+                        setConsentResult('No consent banner found. Create one now.');
+                      }
+                    } catch (error) {
+                      setConsentResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
+                    } finally {
+                      setConsentLoading(false);
+                    }
+                  }}
+                  style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Load Current
+                </button>
+              </div>
+              {consentResult && <p style={{ marginTop: 16, color: '#2e7d32' }}>{consentResult}</p>}
             </div>
           )}
 
