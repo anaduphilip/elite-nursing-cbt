@@ -58,7 +58,7 @@ export const WeeklyQuizLanding = () => {
   if (!quiz) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
-        <div style={{ fontSize: 64, marginBottom: 20 }}>📅</div>
+        <div style={{ fontSize: 64, marginBottom: 20 }}></div>
         <h2 style={{ color: headingColor }}>No Active Weekly Quiz</h2>
         <p style={{ color: secondaryText }}>Check back soon for a new quiz!</p>
         <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
@@ -123,7 +123,7 @@ export const WeeklyQuizLanding = () => {
             textAlign: 'center',
             boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
           }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📝</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}></div>
             <h2 style={{ color: headingColor, marginBottom: 8 }}>Ready to Start?</h2>
             <p style={{ color: secondaryText, marginBottom: 16 }}>Please read the instructions before you begin.</p>
             
@@ -134,7 +134,7 @@ export const WeeklyQuizLanding = () => {
               marginBottom: 20,
               textAlign: 'left'
             }}>
-              <h4 style={{ color: headingColor, marginBottom: 8 }}>📋 Instructions</h4>
+              <h4 style={{ color: headingColor, marginBottom: 8 }}>Instructions</h4>
               <p style={{ color: textColor, fontSize: 14, whiteSpace: 'pre-wrap' }}>
                 {quiz.instructions || 'No specific instructions for this quiz. Answer all questions and submit before the timer runs out.'}
               </p>
@@ -187,18 +187,18 @@ export const WeeklyQuizLanding = () => {
           color: 'white',
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📅</div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}></div>
           <h1 style={{ margin: 0, fontSize: 'clamp(24px, 5vw, 28px)' }}>{quiz.title}</h1>
           <p style={{ marginTop: 8, fontSize: 14, opacity: 0.9 }}>{quiz.description}</p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
             <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 14px', borderRadius: 20, fontSize: 13 }}>
-              📝 {quiz.questions?.length || 0} Questions
+              {quiz.questions?.length || 0} Questions
             </span>
             <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 14px', borderRadius: 20, fontSize: 13 }}>
-              ⏰ {quiz.timeLimit || 20} minutes
+              {quiz.timeLimit || 20} minutes
             </span>
             <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 14px', borderRadius: 20, fontSize: 13 }}>
-              🎯 {quiz.passingScore || 70}% to pass
+              {quiz.passingScore || 70}% to pass
             </span>
             {quiz.isPremium && (
               <span style={{ background: '#ff9800', padding: '4px 14px', borderRadius: 20, fontSize: 13, fontWeight: 'bold' }}>
@@ -209,7 +209,7 @@ export const WeeklyQuizLanding = () => {
         </div>
 
         <div style={{ background: cardBg, borderRadius: 16, padding: 24, marginBottom: 20 }}>
-          <h3 style={{ color: headingColor, marginBottom: 12 }}>📋 Instructions</h3>
+          <h3 style={{ color: headingColor, marginBottom: 12 }}> Instructions</h3>
           <p style={{ color: textColor, fontSize: 14, lineHeight: 1.6 }}>
             {quiz.instructions || 'Answer all questions carefully. You cannot go back to previous questions after submitting. Make sure you complete all questions before the timer runs out.'}
           </p>
@@ -239,7 +239,7 @@ export const WeeklyQuizLanding = () => {
             e.currentTarget.style.boxShadow = '0 4px 15px rgba(40, 167, 69, 0.3)';
           }}
         >
-          🚀 Start Quiz
+          Start Quiz
         </button>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
