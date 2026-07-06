@@ -166,6 +166,18 @@ const ContactSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// ============ ANNOUNCEMENT SCHEMA ============
+const AnnouncementSchema = new mongoose.Schema({
+  message: { type: String, required: true },
+  buttonText: { type: String, default: 'Learn More' },
+  buttonLink: { type: String, default: '/get-premium' },
+  active: { type: Boolean, default: false },
+  version: { type: Number, default: 1 },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const Announcement = mongoose.model('Announcement', AnnouncementSchema);
+
 // ============ WEEKLY QUIZ SCHEMAS ============
 const WeeklyQuizSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -572,6 +584,81 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Set premium plan error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ ANNOUNCEMENT ROUTES ============
+
+// Get active announcement (public)
+app.get('/api/announcement', async (req, res) => {
+  try {
+    const announcement = await Announcement.findOne({ active: true });
+    if (!announcement) {
+      return res.json({ success: false, message: 'No active announcement' });
+    }
+    res.json({ success: true, announcement });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch announcement' });
+  }
+});
+
+// Admin: Create or update announcement
+app.post('/api/admin/announcement', isAdmin, async (req, res) => {
+  try {
+    const { message, buttonText, buttonLink, active } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    // Find existing announcement or create new
+    let announcement = await Announcement.findOne();
+    if (announcement) {
+      // Update existing
+      announcement.message = message;
+      announcement.buttonText = buttonText || 'Learn More';
+      announcement.buttonLink = buttonLink || '/get-premium';
+      announcement.active = active !== undefined ? active : true;
+      announcement.version += 1; // increment version so it reappears for users
+      announcement.updatedAt = new Date();
+    } else {
+      // Create new
+      announcement = new Announcement({
+        message,
+        buttonText: buttonText || 'Learn More',
+        buttonLink: buttonLink || '/get-premium',
+        active: active !== undefined ? active : true,
+        version: 1
+      });
+    }
+    await announcement.save();
+    res.json({ success: true, announcement });
+  } catch (error) {
+    console.error('Announcement save error:', error);
+    res.status(500).json({ error: 'Failed to save announcement' });
+  }
+});
+
+// Admin: Deactivate announcement (set active: false)
+app.delete('/api/admin/announcement', isAdmin, async (req, res) => {
+  try {
+    const announcement = await Announcement.findOne();
+    if (!announcement) {
+      return res.status(404).json({ error: 'No announcement found' });
+    }
+    announcement.active = false;
+    announcement.version += 1; // version bump so banner won't show again (since it's inactive)
+    await announcement.save();
+    res.json({ success: true, message: 'Announcement deactivated' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to deactivate announcement' });
+  }
+});
+
+// Admin: Get current announcement (for preview in admin panel)
+app.get('/api/admin/announcement', isAdmin, async (req, res) => {
+  try {
+    const announcement = await Announcement.findOne();
+    res.json({ success: true, announcement });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch announcement' });
   }
 });
 
