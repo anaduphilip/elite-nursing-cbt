@@ -6,7 +6,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
 
 export const Profile = () => {
-  const { token, user, login, logout, darkMode, toggleDarkMode } = useContext(AuthContext);
+  const { token, user, login, logout, darkMode, toggleDarkMode, openLogoutModal } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
@@ -105,6 +105,11 @@ export const Profile = () => {
   };
 
   const isPremiumActive = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
+
+  // Handle logout click – opens the confirmation modal
+  const handleLogoutClick = () => {
+    openLogoutModal();
+  };
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -227,7 +232,11 @@ export const Profile = () => {
           )}
         </div>
 
-        <button onClick={logout} style={{ width: '100%', background: '#dc3545', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 16 }}>
+        {/* Logout button – now triggers the confirmation modal */}
+        <button 
+          onClick={handleLogoutClick} 
+          style={{ width: '100%', background: '#dc3545', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 16 }}
+        >
           Logout
         </button>
       </div>

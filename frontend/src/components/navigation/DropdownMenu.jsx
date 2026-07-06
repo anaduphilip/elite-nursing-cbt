@@ -2,10 +2,13 @@
 import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 
 export const DropdownMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, darkMode } = useContext(AuthContext);
+  const { user, darkMode, toggleDarkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>

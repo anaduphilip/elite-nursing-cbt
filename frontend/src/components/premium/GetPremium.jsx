@@ -24,7 +24,7 @@ export const GetPremium = () => {
     yearly: { label: 'Yearly', amount: 10000, duration: '365 days' }
   };
 
-  // ----- Live countdown timer (every second) -----
+  // Live countdown timer
   useEffect(() => {
     if (!user?.premiumExpiry) {
       setTimeLeft(null);
@@ -54,7 +54,7 @@ export const GetPremium = () => {
     return () => clearInterval(interval);
   }, [user?.premiumExpiry]);
 
-  // ----- Poll for user status every 5 seconds -----
+  // Poll premium status every 5 seconds while on this page
   useEffect(() => {
     let isMounted = true;
 
@@ -91,6 +91,7 @@ export const GetPremium = () => {
     };
   }, [token, user?.id, user?.isPremium, user?.premiumExpiry]);
 
+  // ========== UPDATED handlePayment ==========
   const handlePayment = async () => {
     if (!user?.id) {
       alert('Please log in again to make payment.');
@@ -122,19 +123,28 @@ export const GetPremium = () => {
       localStorage.setItem('payment_reference', response.data.reference);
 
       if (isNative) {
+        // Open the payment page in the browser
         await Browser.open({ url: response.data.authorization_url });
+        // When the browser closes (user returns), reset loading
+        setLoading(false);
         localStorage.setItem('waiting_for_payment', 'true');
+        // Optionally, the PaymentReturn page will handle verification.
       } else {
+        // For web, redirect – the page will reload, so no need to reset loading
         window.location.href = response.data.authorization_url;
       }
     } catch (error) {
       console.error('Payment error:', error);
-      alert('Payment initialization failed. Please try again.');
-      setLoading(false);
+      // Show a specific message if available, otherwise a generic one
+      const errorMsg = error.response?.data?.error || error.message || 'Payment initialization failed.';
+      // If the user canceled (e.g., closed the browser), we can't detect it here,
+      // but we can show a clear message.
+      alert('Payment initialization failed: ' + errorMsg + '. Please try again.');
+      setLoading(false); // Reset loading on error
     }
   };
+  // ==========================================
 
-  // Format expiry date
   const formatExpiry = (date) => {
     if (!date) return 'N/A';
     const d = new Date(date);

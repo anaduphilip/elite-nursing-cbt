@@ -9,6 +9,7 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 
 import { AuthContext } from './context/AuthContext';
+import { AlertProvider } from './context/AlertContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from './utils/theme';
 
 // Import all components
@@ -37,11 +38,12 @@ import { PaymentReturn } from './components/payment/PaymentReturn';
 import { DropdownMenu } from './components/navigation/DropdownMenu';
 import { FloatingChatButton } from './components/common/FloatingChatButton';
 import { WeeklyQuizLanding } from './components/weekly/WeeklyQuizLanding';
+import { LogoutModal } from './components/common/LogoutModal';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
 
-// Helper to get text color based on dark mode
+// Helper functions
 const getTextColorHelper = (darkMode) => darkMode ? '#f0f7f4' : '#333';
 const getSecondaryTextHelper = (darkMode) => darkMode ? '#aaa' : '#666';
 const getHeadingColorHelper = (darkMode) => darkMode ? '#e0e0e0' : '#1e3c72';
@@ -133,6 +135,7 @@ function App() {
     const saved = localStorage.getItem('darkMode');
     return saved === 'true';
   });
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const headingColor = getHeadingColorHelper(darkMode);
   const secondaryText = getSecondaryTextHelper(darkMode);
@@ -150,6 +153,9 @@ function App() {
     localStorage.removeItem('auth');
     delete axios.defaults.headers.common['Authorization'];
   };
+
+  const openLogoutModal = () => setShowLogoutModal(true);
+  const closeLogoutModal = () => setShowLogoutModal(false);
 
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
@@ -383,48 +389,51 @@ function App() {
   }, [auth.token, auth.user?.isPremium, auth.user?.premiumExpiry]);
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode }}>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
-      {notificationModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999
-        }}>
+    <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode, openLogoutModal }}>
+      <AlertProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+        {notificationModal && (
           <div style={{
-            background: cardBg,
-            borderRadius: 20,
-            padding: 24,
-            maxWidth: 320,
-            textAlign: 'center',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
           }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📢</div>
-            <h3 style={{ color: headingColor, marginBottom: 8 }}>{notificationModal.title}</h3>
-            <p style={{ color: secondaryText, marginBottom: 20 }}>{notificationModal.body}</p>
-            <button
-              onClick={() => setNotificationModal(null)}
-              style={{
-                background: '#1e3c72',
-                color: 'white',
-                border: 'none',
-                padding: '8px 20px',
-                borderRadius: 30,
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              OK
-            </button>
+            <div style={{
+              background: cardBg,
+              borderRadius: 20,
+              padding: 24,
+              maxWidth: 320,
+              textAlign: 'center',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+            }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📢</div>
+              <h3 style={{ color: headingColor, marginBottom: 8 }}>{notificationModal.title}</h3>
+              <p style={{ color: secondaryText, marginBottom: 20 }}>{notificationModal.body}</p>
+              <button
+                onClick={() => setNotificationModal(null)}
+                style={{
+                  background: '#1e3c72',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 20px',
+                  borderRadius: 30,
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                OK
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+        <LogoutModal isOpen={showLogoutModal} onClose={closeLogoutModal} />
+      </AlertProvider>
     </AuthContext.Provider>
   );
 }
