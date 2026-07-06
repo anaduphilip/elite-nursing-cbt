@@ -11,7 +11,7 @@ export const HomePage = () => {
   const [mode, setMode] = useState('premium');
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { token, darkMode, user } = useContext(AuthContext);
+  const { token, darkMode, user, login } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const navigate = useNavigate(); 
@@ -21,6 +21,13 @@ export const HomePage = () => {
   const [showBanner, setShowBanner] = useState(false);
   const [dismissedVersion, setDismissedVersion] = useState(() => {
     return localStorage.getItem('announcementDismissed') || '0';
+  });
+
+  // ---- MARKETING CONSENT BANNER STATE ----
+  const [consentBanner, setConsentBanner] = useState(null);
+  const [showConsentBanner, setShowConsentBanner] = useState(false);
+  const [consentDismissedVersion, setConsentDismissedVersion] = useState(() => {
+    return localStorage.getItem('consentBannerDismissed') || '0';
   });
 
   // ---- FETCH ANNOUNCEMENT ----
@@ -43,6 +50,27 @@ export const HomePage = () => {
     };
     fetchAnnouncement();
   }, [dismissedVersion]);
+
+  // ---- FETCH MARKETING CONSENT BANNER ----
+  useEffect(() => {
+    const fetchConsentBanner = async () => {
+      try {
+        const res = await axios.get('/api/marketing-consent');
+        if (res.data.success && res.data.consent) {
+          const banner = res.data.consent;
+          setConsentBanner(banner);
+          if (banner.active && !user?.marketingConsent && parseInt(consentDismissedVersion) !== banner.version) {
+            setShowConsentBanner(true);
+          } else {
+            setShowConsentBanner(false);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch consent banner:', error);
+      }
+    };
+    fetchConsentBanner();
+  }, [user?.marketingConsent, consentDismissedVersion]);
 
   // ---- ORIGINAL CODE (unchanged) ----
   useEffect(() => {
@@ -122,7 +150,7 @@ export const HomePage = () => {
           <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 16px)' }}>Computer Based Testing Platform</p>
         </div>
 
-        {/* ---- ANNOUNCEMENT BANNER (NEW) ---- */}
+        {/* ---- ANNOUNCEMENT BANNER ---- */}
         {showBanner && announcement && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#fff3e0',
@@ -178,7 +206,75 @@ export const HomePage = () => {
             </div>
           </div>
         )}
-        {/* ---- END ANNOUNCEMENT BANNER ---- */}
+
+        {/* ---- MARKETING CONSENT BANNER (NEW) ---- */}
+        {showConsentBanner && consentBanner && (
+          <div style={{
+            background: darkMode ? '#2d2d3d' : '#e3f2fd',
+            borderRadius: 12,
+            padding: '16px 24px',
+            marginBottom: 24,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 16,
+            border: `1px solid ${darkMode ? '#444' : '#90caf9'}`
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 24 }}>📬</span>
+              <span style={{ color: darkMode ? '#eee' : '#333' }}>{consentBanner.message}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await axios.put('/api/user/marketing-consent',
+                      { consent: true },
+                      { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    if (res.data.success) {
+                      const updatedUser = { ...user, marketingConsent: true };
+                      login(token, updatedUser);
+                      setShowConsentBanner(false);
+                      localStorage.setItem('consentBannerDismissed', consentBanner.version);
+                      alert('✅ You are now opted in for promotional emails!');
+                    }
+                  } catch (err) {
+                    alert('Failed to update preference. Please try again later.');
+                  }
+                }}
+                style={{
+                  background: '#1e3c72',
+                  color: 'white',
+                  padding: '8px 24px',
+                  border: 'none',
+                  borderRadius: 30,
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                {consentBanner.buttonText || 'Yes, Opt me in!'}
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem('consentBannerDismissed', consentBanner.version);
+                  setShowConsentBanner(false);
+                }}
+                style={{
+                  background: 'transparent',
+                  color: secondaryText,
+                  border: '1px solid ' + secondaryText,
+                  padding: '8px 20px',
+                  borderRadius: 30,
+                  cursor: 'pointer'
+                }}
+              >
+                No thanks
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 16, marginBottom: 32, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
