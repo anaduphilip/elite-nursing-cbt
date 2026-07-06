@@ -538,24 +538,6 @@ app.get('/api/admin/marketing-consent', isAdmin, async (req, res) => {
   }
 });
 
-// ============ USER MARKETING CONSENT UPDATE ============
-
-// Update user's marketing consent preference
-app.put('/api/user/marketing-consent', authenticate, async (req, res) => {
-  try {
-    const { consent } = req.body;
-    if (typeof consent !== 'boolean') {
-      return res.status(400).json({ error: 'Consent must be a boolean' });
-    }
-    req.user.marketingConsent = consent;
-    await req.user.save();
-    res.json({ success: true, marketingConsent: consent });
-  } catch (error) {
-    console.error('Marketing consent update error:', error);
-    res.status(500).json({ error: 'Failed to update consent' });
-  }
-});
-
 // ============ AUTHENTICATION MIDDLEWARE ============
 const authenticate = async (req, res, next) => {
   try {
@@ -758,6 +740,24 @@ app.get('/api/admin/announcement', isAdmin, async (req, res) => {
     res.json({ success: true, announcement });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch announcement' });
+  }
+});
+
+// ============ USER MARKETING CONSENT UPDATE ============
+
+// Update user's marketing consent preference
+app.put('/api/user/marketing-consent', authenticate, async (req, res) => {
+  try {
+    const { consent } = req.body;
+    if (typeof consent !== 'boolean') {
+      return res.status(400).json({ error: 'Consent must be a boolean' });
+    }
+    req.user.marketingConsent = consent;
+    await req.user.save();
+    res.json({ success: true, marketingConsent: consent });
+  } catch (error) {
+    console.error('Marketing consent update error:', error);
+    res.status(500).json({ error: 'Failed to update consent' });
   }
 });
 
