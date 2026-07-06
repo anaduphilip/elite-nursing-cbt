@@ -11,7 +11,7 @@ export const AdminPanel = () => {
   const [contacts, setContacts] = useState([]);
   const [weeklyQuizzes, setWeeklyQuizzes] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState('dashboard'); // Default to dashboard
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
@@ -32,6 +32,14 @@ export const AdminPanel = () => {
   const [broadcastLoading, setBroadcastLoading] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState('');
 
+  // ---- Marketing Consent states ----
+  const [consentMessage, setConsentMessage] = useState('');
+  const [consentButtonText, setConsentButtonText] = useState('Yes, Opt me in!');
+  const [consentActive, setConsentActive] = useState(false);
+  const [consentVersion, setConsentVersion] = useState(0);
+  const [consentLoading, setConsentLoading] = useState(false);
+  const [consentResult, setConsentResult] = useState('');
+
   // ---- Announcement states ----
   const [announcementMessage, setAnnouncementMessage] = useState('');
   const [announcementButtonText, setAnnouncementButtonText] = useState('Learn More');
@@ -41,14 +49,7 @@ export const AdminPanel = () => {
   const [announcementLoading, setAnnouncementLoading] = useState(false);
   const [announcementResult, setAnnouncementResult] = useState('');
 
-  // ---- Marketing Consent states ----
-  const [consentMessage, setConsentMessage] = useState('');
-  const [consentButtonText, setConsentButtonText] = useState('Yes, Opt me in!');
-  const [consentActive, setConsentActive] = useState(false);
-  const [consentVersion, setConsentVersion] = useState(0);
-  const [consentLoading, setConsentLoading] = useState(false);
-  const [consentResult, setConsentResult] = useState('');
-
+  // ---- Weekly Quiz states (unchanged) ----
   const [quizTitle, setQuizTitle] = useState('');
   const [quizDescription, setQuizDescription] = useState('');
   const [quizInstructions, setQuizInstructions] = useState('');
@@ -83,6 +84,53 @@ export const AdminPanel = () => {
   const [selectedPlan, setSelectedPlan] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ========== NEW: Dashboard data ==========
+  const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+
+  // ========== NEW: Config states ==========
+  const [config, setConfig] = useState({});
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configResult, setConfigResult] = useState('');
+
+  // ========== NEW: Category states ==========
+  const [categories, setCategories] = useState([]);
+  const [catLoading, setCatLoading] = useState(false);
+  const [catName, setCatName] = useState('');
+  const [catIcon, setCatIcon] = useState('📚');
+  const [catDescription, setCatDescription] = useState('');
+  const [catOrder, setCatOrder] = useState(0);
+  const [catActive, setCatActive] = useState(true);
+  const [editingCatId, setEditingCatId] = useState(null);
+  const [catResult, setCatResult] = useState('');
+
+  // ========== NEW: Coupon states ==========
+  const [coupons, setCoupons] = useState([]);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscountType, setCouponDiscountType] = useState('percentage');
+  const [couponDiscountValue, setCouponDiscountValue] = useState('');
+  const [couponMinPurchase, setCouponMinPurchase] = useState('');
+  const [couponMaxDiscount, setCouponMaxDiscount] = useState('');
+  const [couponExpiryDate, setCouponExpiryDate] = useState('');
+  const [couponUsageLimit, setCouponUsageLimit] = useState(1);
+  const [couponActive, setCouponActive] = useState(true);
+  const [couponDescription, setCouponDescription] = useState('');
+  const [editingCouponId, setEditingCouponId] = useState(null);
+  const [couponResult, setCouponResult] = useState('');
+
+  // ========== NEW: FAQ states ==========
+  const [faqs, setFaqs] = useState([]);
+  const [faqLoading, setFaqLoading] = useState(false);
+  const [faqQuestion, setFaqQuestion] = useState('');
+  const [faqAnswer, setFaqAnswer] = useState('');
+  const [faqCategory, setFaqCategory] = useState('General');
+  const [faqOrder, setFaqOrder] = useState(0);
+  const [faqActive, setFaqActive] = useState(true);
+  const [editingFaqId, setEditingFaqId] = useState(null);
+  const [faqResult, setFaqResult] = useState('');
+
+  // Fetch all data on mount
   useEffect(() => {
     if (!user || user.email !== 'elitenursingcbt@gmail.com') {
       alert('Admin access only');
@@ -105,6 +153,14 @@ export const AdminPanel = () => {
           initial[u._id] = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
         });
         setSelectedPlan(initial);
+        // Also fetch dashboard, config, categories, coupons, faqs
+        await Promise.all([
+          fetchDashboard(),
+          fetchConfig(),
+          fetchCategories(),
+          fetchCoupons(),
+          fetchFaqs()
+        ]);
         setDataLoaded(true);
       } catch (error) {
         if (error.response?.status === 403 || error.response?.status === 401) {
@@ -120,6 +176,277 @@ export const AdminPanel = () => {
     fetchData();
   }, []);
 
+  // ========== NEW: Dashboard ==========
+  const fetchDashboard = async () => {
+    setDashboardLoading(true);
+    try {
+      const res = await axios.get('/api/admin/dashboard', { headers: { Authorization: `Bearer ${token}` } });
+      setDashboardData(res.data.dashboard);
+    } catch (error) {
+      console.error('Dashboard fetch error:', error);
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  // ========== NEW: Config ==========
+  const fetchConfig = async () => {
+    try {
+      const res = await axios.get('/api/admin/config', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        setConfig(res.data.config);
+      }
+    } catch (error) {
+      console.error('Config fetch error:', error);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    setConfigLoading(true);
+    setConfigResult('');
+    try {
+      const res = await axios.put('/api/admin/config', config, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        setConfig(res.data.config);
+        setConfigResult('✅ Configuration updated successfully!');
+      }
+    } catch (error) {
+      setConfigResult('❌ Failed to update config: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  // ========== NEW: Categories ==========
+  const fetchCategories = async () => {
+    setCatLoading(true);
+    try {
+      const res = await axios.get('/api/admin/categories', { headers: { Authorization: `Bearer ${token}` } });
+      setCategories(res.data.categories || []);
+    } catch (error) {
+      console.error('Category fetch error:', error);
+    } finally {
+      setCatLoading(false);
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    if (!catName.trim()) {
+      setCatResult('❌ Category name is required');
+      return;
+    }
+    setCatLoading(true);
+    setCatResult('');
+    try {
+      const payload = {
+        name: catName,
+        icon: catIcon || '📚',
+        description: catDescription,
+        order: catOrder || 0,
+        active: catActive
+      };
+      let res;
+      if (editingCatId) {
+        res = await axios.put(`/api/admin/categories/${editingCatId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        res = await axios.post('/api/admin/categories', payload, { headers: { Authorization: `Bearer ${token}` } });
+      }
+      if (res.data.success) {
+        setCatResult(editingCatId ? '✅ Category updated!' : '✅ Category created!');
+        setCatName('');
+        setCatIcon('📚');
+        setCatDescription('');
+        setCatOrder(0);
+        setCatActive(true);
+        setEditingCatId(null);
+        await fetchCategories();
+      }
+    } catch (error) {
+      setCatResult('❌ Failed to save category: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setCatLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (!window.confirm('Deactivate this category? It will be hidden from users.')) return;
+    try {
+      await axios.delete(`/api/admin/categories/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await fetchCategories();
+      setCatResult('✅ Category deactivated');
+    } catch (error) {
+      setCatResult('❌ Failed to deactivate category');
+    }
+  };
+
+  const editCategory = (cat) => {
+    setCatName(cat.name);
+    setCatIcon(cat.icon || '📚');
+    setCatDescription(cat.description || '');
+    setCatOrder(cat.order || 0);
+    setCatActive(cat.active);
+    setEditingCatId(cat._id);
+  };
+
+  // ========== NEW: Coupons ==========
+  const fetchCoupons = async () => {
+    setCouponLoading(true);
+    try {
+      const res = await axios.get('/api/admin/coupons', { headers: { Authorization: `Bearer ${token}` } });
+      setCoupons(res.data.coupons || []);
+    } catch (error) {
+      console.error('Coupon fetch error:', error);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleSaveCoupon = async () => {
+    if (!couponCode.trim() || !couponDiscountValue || !couponExpiryDate) {
+      setCouponResult('❌ Code, discount value, and expiry date are required');
+      return;
+    }
+    setCouponLoading(true);
+    setCouponResult('');
+    try {
+      const payload = {
+        code: couponCode,
+        discountType: couponDiscountType,
+        discountValue: parseFloat(couponDiscountValue),
+        minPurchase: parseFloat(couponMinPurchase) || 0,
+        maxDiscount: couponMaxDiscount ? parseFloat(couponMaxDiscount) : null,
+        expiryDate: new Date(couponExpiryDate),
+        usageLimit: parseInt(couponUsageLimit) || 1,
+        active: couponActive,
+        description: couponDescription
+      };
+      let res;
+      if (editingCouponId) {
+        res = await axios.put(`/api/admin/coupons/${editingCouponId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        res = await axios.post('/api/admin/coupons', payload, { headers: { Authorization: `Bearer ${token}` } });
+      }
+      if (res.data.success) {
+        setCouponResult(editingCouponId ? '✅ Coupon updated!' : '✅ Coupon created!');
+        resetCouponForm();
+        await fetchCoupons();
+      }
+    } catch (error) {
+      setCouponResult('❌ Failed to save coupon: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const resetCouponForm = () => {
+    setCouponCode('');
+    setCouponDiscountType('percentage');
+    setCouponDiscountValue('');
+    setCouponMinPurchase('');
+    setCouponMaxDiscount('');
+    setCouponExpiryDate('');
+    setCouponUsageLimit(1);
+    setCouponActive(true);
+    setCouponDescription('');
+    setEditingCouponId(null);
+  };
+
+  const editCoupon = (c) => {
+    setCouponCode(c.code);
+    setCouponDiscountType(c.discountType);
+    setCouponDiscountValue(c.discountValue);
+    setCouponMinPurchase(c.minPurchase || '');
+    setCouponMaxDiscount(c.maxDiscount || '');
+    setCouponExpiryDate(c.expiryDate ? new Date(c.expiryDate).toISOString().slice(0, 16) : '');
+    setCouponUsageLimit(c.usageLimit);
+    setCouponActive(c.active);
+    setCouponDescription(c.description || '');
+    setEditingCouponId(c._id);
+  };
+
+  const handleDeleteCoupon = async (id) => {
+    if (!window.confirm('Delete this coupon permanently?')) return;
+    try {
+      await axios.delete(`/api/admin/coupons/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await fetchCoupons();
+      setCouponResult('✅ Coupon deleted');
+    } catch (error) {
+      setCouponResult('❌ Failed to delete coupon');
+    }
+  };
+
+  // ========== NEW: FAQs ==========
+  const fetchFaqs = async () => {
+    setFaqLoading(true);
+    try {
+      const res = await axios.get('/api/admin/faqs', { headers: { Authorization: `Bearer ${token}` } });
+      setFaqs(res.data.faqs || []);
+    } catch (error) {
+      console.error('FAQ fetch error:', error);
+    } finally {
+      setFaqLoading(false);
+    }
+  };
+
+  const handleSaveFaq = async () => {
+    if (!faqQuestion.trim() || !faqAnswer.trim()) {
+      setFaqResult('❌ Question and answer are required');
+      return;
+    }
+    setFaqLoading(true);
+    setFaqResult('');
+    try {
+      const payload = {
+        question: faqQuestion,
+        answer: faqAnswer,
+        category: faqCategory || 'General',
+        order: faqOrder || 0,
+        active: faqActive
+      };
+      let res;
+      if (editingFaqId) {
+        res = await axios.put(`/api/admin/faqs/${editingFaqId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        res = await axios.post('/api/admin/faqs', payload, { headers: { Authorization: `Bearer ${token}` } });
+      }
+      if (res.data.success) {
+        setFaqResult(editingFaqId ? '✅ FAQ updated!' : '✅ FAQ created!');
+        setFaqQuestion('');
+        setFaqAnswer('');
+        setFaqCategory('General');
+        setFaqOrder(0);
+        setFaqActive(true);
+        setEditingFaqId(null);
+        await fetchFaqs();
+      }
+    } catch (error) {
+      setFaqResult('❌ Failed to save FAQ: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setFaqLoading(false);
+    }
+  };
+
+  const editFaq = (f) => {
+    setFaqQuestion(f.question);
+    setFaqAnswer(f.answer);
+    setFaqCategory(f.category || 'General');
+    setFaqOrder(f.order || 0);
+    setFaqActive(f.active);
+    setEditingFaqId(f._id);
+  };
+
+  const handleDeleteFaq = async (id) => {
+    if (!window.confirm('Delete this FAQ permanently?')) return;
+    try {
+      await axios.delete(`/api/admin/faqs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await fetchFaqs();
+      setFaqResult('✅ FAQ deleted');
+    } catch (error) {
+      setFaqResult('❌ Failed to delete FAQ');
+    }
+  };
+
+  // ========== Existing functions (unchanged) ==========
   const applyPlan = async (userId) => {
     const plan = selectedPlan[userId];
     if (!plan) return alert('Please select a plan first.');
@@ -250,6 +577,7 @@ export const AdminPanel = () => {
     }
   };
 
+  // Existing weekly quiz functions (unchanged)
   const fetchWeeklyQuizzes = async () => {
     setLoadingQuizzes(true);
     try {
@@ -619,8 +947,154 @@ export const AdminPanel = () => {
     setShowQuizForm(true);
   };
 
-  if (!dataLoaded) return <LoadingWithBar message="Loading admin panel" />;
+  // ========== Announcement functions (unchanged) ==========
+  const handleSaveAnnouncement = async () => {
+    if (!announcementMessage.trim()) {
+      alert('Message is required');
+      return;
+    }
+    setAnnouncementLoading(true);
+    setAnnouncementResult('');
+    try {
+      const res = await axios.post('/api/admin/announcement', {
+        message: announcementMessage,
+        buttonText: announcementButtonText,
+        buttonLink: announcementButtonLink,
+        active: announcementActive
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        setAnnouncementResult(`✅ Banner updated! Version: ${res.data.announcement.version}`);
+        setAnnouncementVersion(res.data.announcement.version);
+      }
+    } catch (error) {
+      setAnnouncementResult('❌ Failed to update banner: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setAnnouncementLoading(false);
+    }
+  };
 
+  const handleDeactivateAnnouncement = async () => {
+    if (!window.confirm('Deactivate the banner? Users who haven\'t seen it will not see it.')) return;
+    setAnnouncementLoading(true);
+    try {
+      const res = await axios.delete('/api/admin/announcement', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        setAnnouncementResult('✅ Banner deactivated.');
+        setAnnouncementActive(false);
+        setAnnouncementVersion(prev => prev + 1);
+      }
+    } catch (error) {
+      setAnnouncementResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setAnnouncementLoading(false);
+    }
+  };
+
+  const loadAnnouncement = async () => {
+    setAnnouncementLoading(true);
+    try {
+      const res = await axios.get('/api/admin/announcement', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.announcement) {
+        const a = res.data.announcement;
+        setAnnouncementMessage(a.message || '');
+        setAnnouncementButtonText(a.buttonText || 'Learn More');
+        setAnnouncementButtonLink(a.buttonLink || '/get-premium');
+        setAnnouncementActive(a.active || false);
+        setAnnouncementVersion(a.version || 0);
+        setAnnouncementResult('✅ Loaded current banner.');
+      } else {
+        setAnnouncementResult('No banner found. Create one now.');
+      }
+    } catch (error) {
+      setAnnouncementResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setAnnouncementLoading(false);
+    }
+  };
+
+  // ========== Marketing Consent functions (unchanged) ==========
+  const handleSaveConsent = async () => {
+    if (!consentMessage.trim()) {
+      alert('Message is required');
+      return;
+    }
+    setConsentLoading(true);
+    setConsentResult('');
+    try {
+      const res = await axios.post('/api/admin/marketing-consent', {
+        message: consentMessage,
+        buttonText: consentButtonText,
+        active: consentActive
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        setConsentResult(`✅ Consent banner updated! Version: ${res.data.consent.version}`);
+        setConsentVersion(res.data.consent.version);
+      }
+    } catch (error) {
+      setConsentResult('❌ Failed to update banner: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setConsentLoading(false);
+    }
+  };
+
+  const handleDeactivateConsent = async () => {
+    if (!window.confirm('Deactivate the consent banner? Users will not see it.')) return;
+    setConsentLoading(true);
+    try {
+      const res = await axios.delete('/api/admin/marketing-consent', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        setConsentResult('✅ Consent banner deactivated.');
+        setConsentActive(false);
+        setConsentVersion(prev => prev + 1);
+      }
+    } catch (error) {
+      setConsentResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setConsentLoading(false);
+    }
+  };
+
+  const loadConsent = async () => {
+    setConsentLoading(true);
+    try {
+      const res = await axios.get('/api/admin/marketing-consent', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.consent) {
+        const c = res.data.consent;
+        setConsentMessage(c.message || '');
+        setConsentButtonText(c.buttonText || 'Yes, Opt me in!');
+        setConsentActive(c.active || false);
+        setConsentVersion(c.version || 0);
+        setConsentResult('✅ Loaded current consent banner.');
+      } else {
+        setConsentResult('No consent banner found. Create one now.');
+      }
+    } catch (error) {
+      setConsentResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setConsentLoading(false);
+    }
+  };
+
+  // ========== Broadcast functions (unchanged) ==========
+  const handleBroadcast = async () => {
+    setBroadcastLoading(true);
+    setBroadcastResult('');
+    try {
+      const res = await axios.post('/api/admin/broadcast-email', {
+        subject: broadcastSubject,
+        message: broadcastMessage,
+        templateType: broadcastTemplate
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      setBroadcastResult(`✅ ${res.data.message}`);
+    } catch (error) {
+      setBroadcastResult('❌ Failed to send broadcast: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setBroadcastLoading(false);
+    }
+  };
+
+  // ========== Render ==========
+  if (!dataLoaded) return <LoadingWithBar message="Loading admin panel" />;
   if (user?.email !== 'elitenursingcbt@gmail.com') return <Navigate to="/" />;
 
   const filteredUsers = users.filter(u =>
@@ -641,42 +1115,247 @@ export const AdminPanel = () => {
           <h1 style={{ color: headingColor, textAlign: 'center', marginBottom: 20, fontSize: 28 }}>Admin Panel</h1>
           
           <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '2px solid #e0e0e0', paddingBottom: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button onClick={() => setActiveTab('dashboard')} style={{ background: activeTab === 'dashboard' ? '#1e3c72' : 'transparent', color: activeTab === 'dashboard' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'dashboard' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Dashboard</button>
             <button onClick={() => setActiveTab('users')} style={{ background: activeTab === 'users' ? '#1e3c72' : 'transparent', color: activeTab === 'users' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'users' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Users ({filteredUsers.length})</button>
             <button onClick={() => setActiveTab('contacts')} style={{ background: activeTab === 'contacts' ? '#1e3c72' : 'transparent', color: activeTab === 'contacts' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'contacts' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Contact Messages ({contacts.length})</button>
             <button onClick={() => setActiveTab('notifications')} style={{ background: activeTab === 'notifications' ? '#ff9800' : 'transparent', color: activeTab === 'notifications' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'notifications' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Send Notification</button>
             <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
             <button onClick={() => setActiveTab('manualReset')} style={{ background: activeTab === 'manualReset' ? '#6c757d' : 'transparent', color: activeTab === 'manualReset' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualReset' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual Reset</button>
             <button onClick={() => setActiveTab('broadcast')} style={{ background: activeTab === 'broadcast' ? '#1e3c72' : 'transparent', color: activeTab === 'broadcast' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'broadcast' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Broadcast</button>
+            <button onClick={() => setActiveTab('marketingConsent')} style={{ background: activeTab === 'marketingConsent' ? '#1e3c72' : 'transparent', color: activeTab === 'marketingConsent' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'marketingConsent' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Consent Banner</button>
             <button onClick={() => setActiveTab('announcement')} style={{ background: activeTab === 'announcement' ? '#1e3c72' : 'transparent', color: activeTab === 'announcement' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'announcement' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Announcement</button>
-            <button onClick={() => setActiveTab('marketingConsent')} style={{ background: activeTab === 'marketingConsent' ? '#1e3c72' : 'transparent', color: activeTab === 'marketingConsent' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'marketingConsent' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Consent Banner</button>
+            <button onClick={() => setActiveTab('settings')} style={{ background: activeTab === 'settings' ? '#1e3c72' : 'transparent', color: activeTab === 'settings' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'settings' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Settings</button>
+            <button onClick={() => setActiveTab('categories')} style={{ background: activeTab === 'categories' ? '#1e3c72' : 'transparent', color: activeTab === 'categories' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'categories' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Categories</button>
+            <button onClick={() => setActiveTab('coupons')} style={{ background: activeTab === 'coupons' ? '#1e3c72' : 'transparent', color: activeTab === 'coupons' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'coupons' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Coupons</button>
+            <button onClick={() => setActiveTab('faq')} style={{ background: activeTab === 'faq' ? '#1e3c72' : 'transparent', color: activeTab === 'faq' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'faq' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> FAQ</button>
             <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
           </div>
 
+          {/* ========== DASHBOARD TAB ========== */}
+          {activeTab === 'dashboard' && (
+            <div style={{ padding: 20 }}>
+              <h2 style={{ color: headingColor, marginBottom: 20 }}>📊 Dashboard</h2>
+              {dashboardLoading ? <LoadingWithBar message="Loading dashboard..." /> : dashboardData ? (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 30 }}>
+                    <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, fontWeight: 'bold', color: headingColor }}>{dashboardData.users.total}</div>
+                      <div style={{ color: secondaryText }}>Total Users</div>
+                    </div>
+                    <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, fontWeight: 'bold', color: '#2e7d32' }}>{dashboardData.users.premium}</div>
+                      <div style={{ color: secondaryText }}>Premium Users</div>
+                    </div>
+                    <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, fontWeight: 'bold', color: '#ff9800' }}>₦{dashboardData.revenue.total}</div>
+                      <div style={{ color: secondaryText }}>Total Revenue</div>
+                    </div>
+                    <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, fontWeight: 'bold', color: headingColor }}>{dashboardData.quizzes.completions}</div>
+                      <div style={{ color: secondaryText }}>Quiz Completions</div>
+                    </div>
+                    <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, fontWeight: 'bold', color: headingColor }}>{dashboardData.users.newToday}</div>
+                      <div style={{ color: secondaryText }}>New Today</div>
+                    </div>
+                    <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, fontWeight: 'bold', color: headingColor }}>{dashboardData.users.newThisMonth}</div>
+                      <div style={{ color: secondaryText }}>New This Month</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                    <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12 }}>
+                      <h4 style={{ color: headingColor, marginBottom: 12 }}>Popular Categories</h4>
+                      {dashboardData.popularCategories.map(cat => (
+                        <div key={cat._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>
+                          <span style={{ color: textColor }}>{cat._id || 'Uncategorized'}</span>
+                          <span style={{ color: headingColor }}>{cat.count} quizzes</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12 }}>
+                      <h4 style={{ color: headingColor, marginBottom: 12 }}>Recent Users</h4>
+                      {dashboardData.recentUsers.map(u => (
+                        <div key={u._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>
+                          <span style={{ color: textColor }}>{u.name || u.email}</span>
+                          <span style={{ color: secondaryText, fontSize: 12 }}>{new Date(u.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : <p>No data</p>}
+            </div>
+          )}
+
+          {/* ========== SETTINGS TAB ========== */}
+          {activeTab === 'settings' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>⚙️ System Settings</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ color: textColor, fontSize: 13 }}>Daily Premium Price (₦)</label>
+                  <input type="number" value={config.premiumDailyPrice || 500} onChange={(e) => setConfig({...config, premiumDailyPrice: parseFloat(e.target.value)})} style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                </div>
+                <div>
+                  <label style={{ color: textColor, fontSize: 13 }}>Monthly Premium Price (₦)</label>
+                  <input type="number" value={config.premiumMonthlyPrice || 2000} onChange={(e) => setConfig({...config, premiumMonthlyPrice: parseFloat(e.target.value)})} style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                </div>
+                <div>
+                  <label style={{ color: textColor, fontSize: 13 }}>Yearly Premium Price (₦)</label>
+                  <input type="number" value={config.premiumYearlyPrice || 10000} onChange={(e) => setConfig({...config, premiumYearlyPrice: parseFloat(e.target.value)})} style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                </div>
+                <div>
+                  <label style={{ color: textColor, fontSize: 13 }}>Free Exam Limit</label>
+                  <input type="number" value={config.freeExamLimit || 1} onChange={(e) => setConfig({...config, freeExamLimit: parseInt(e.target.value)})} style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                </div>
+                <div>
+                  <label style={{ color: textColor, fontSize: 13 }}>Default Passing Score (%)</label>
+                  <input type="number" value={config.defaultPassingScore || 70} onChange={(e) => setConfig({...config, defaultPassingScore: parseInt(e.target.value)})} style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                </div>
+                <div>
+                  <label style={{ color: textColor, fontSize: 13 }}>Default Time Limit (minutes)</label>
+                  <input type="number" value={config.defaultTimeLimit || 20} onChange={(e) => setConfig({...config, defaultTimeLimit: parseInt(e.target.value)})} style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ color: textColor, fontSize: 13 }}>App Name</label>
+                  <input type="text" value={config.appName || ''} onChange={(e) => setConfig({...config, appName: e.target.value})} style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ color: textColor, fontSize: 13 }}>Maintenance Mode</label>
+                  <label style={{ marginLeft: 16 }}>
+                    <input type="checkbox" checked={config.maintenanceMode || false} onChange={(e) => setConfig({...config, maintenanceMode: e.target.checked})} /> Active
+                  </label>
+                </div>
+                {config.maintenanceMode && (
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ color: textColor, fontSize: 13 }}>Maintenance Message</label>
+                    <textarea value={config.maintenanceMessage || ''} onChange={(e) => setConfig({...config, maintenanceMessage: e.target.value})} rows="2" style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                  </div>
+                )}
+                <div style={{ gridColumn: 'span 2', display: 'flex', gap: 12 }}>
+                  <button onClick={handleSaveConfig} disabled={configLoading} style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>{configLoading ? 'Saving...' : 'Save Settings'}</button>
+                </div>
+                {configResult && <p style={{ marginTop: 12, color: configResult.includes('✅') ? '#2e7d32' : '#dc3545' }}>{configResult}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* ========== CATEGORIES TAB ========== */}
+          {activeTab === 'categories' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>📂 Categories</h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+                <input placeholder="Category name" value={catName} onChange={(e) => setCatName(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <input placeholder="Icon (emoji)" value={catIcon} onChange={(e) => setCatIcon(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor, width: 80 }} />
+                <input placeholder="Description" value={catDescription} onChange={(e) => setCatDescription(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <input type="number" placeholder="Order" value={catOrder} onChange={(e) => setCatOrder(parseInt(e.target.value))} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor, width: 80 }} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" checked={catActive} onChange={(e) => setCatActive(e.target.checked)} /> Active
+                </label>
+                <button onClick={handleSaveCategory} disabled={catLoading} style={{ background: '#1e3c72', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}>{editingCatId ? 'Update' : 'Add'}</button>
+                {editingCatId && <button onClick={() => { setEditingCatId(null); setCatName(''); setCatIcon('📚'); setCatDescription(''); setCatOrder(0); setCatActive(true); }} style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>}
+              </div>
+              {catResult && <p style={{ marginBottom: 16, color: catResult.includes('✅') ? '#2e7d32' : '#dc3545' }}>{catResult}</p>}
+              {catLoading ? <p>Loading...</p> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {categories.map(c => (
+                    <div key={c._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: '12px 16px', borderRadius: 8, border: '1px solid ' + (darkMode ? '#444' : '#eee') }}>
+                      <div><span style={{ fontSize: 24 }}>{c.icon}</span> <strong>{c.name}</strong> {c.active ? '✅' : '❌'} <span style={{ color: secondaryText, fontSize: 12 }}>({c.slug})</span></div>
+                      <div>
+                        <button onClick={() => editCategory(c)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', marginRight: 8 }}>Edit</button>
+                        <button onClick={() => handleDeleteCategory(c._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Deactivate</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========== COUPONS TAB ========== */}
+          {activeTab === 'coupons' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>🏷️ Coupons</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                <input placeholder="Code (e.g. ELITE20)" value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <select value={couponDiscountType} onChange={(e) => setCouponDiscountType(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }}>
+                  <option value="percentage">Percentage</option>
+                  <option value="fixed">Fixed</option>
+                </select>
+                <input type="number" placeholder="Discount Value" value={couponDiscountValue} onChange={(e) => setCouponDiscountValue(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <input type="number" placeholder="Min Purchase (₦)" value={couponMinPurchase} onChange={(e) => setCouponMinPurchase(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <input type="number" placeholder="Max Discount (₦)" value={couponMaxDiscount} onChange={(e) => setCouponMaxDiscount(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <input type="datetime-local" value={couponExpiryDate} onChange={(e) => setCouponExpiryDate(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <input type="number" placeholder="Usage Limit" value={couponUsageLimit} onChange={(e) => setCouponUsageLimit(parseInt(e.target.value))} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <input placeholder="Description" value={couponDescription} onChange={(e) => setCouponDescription(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" checked={couponActive} onChange={(e) => setCouponActive(e.target.checked)} /> Active
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                <button onClick={handleSaveCoupon} disabled={couponLoading} style={{ background: '#1e3c72', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}>{editingCouponId ? 'Update' : 'Add'}</button>
+                {editingCouponId && <button onClick={resetCouponForm} style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>}
+              </div>
+              {couponResult && <p style={{ marginBottom: 16, color: couponResult.includes('✅') ? '#2e7d32' : '#dc3545' }}>{couponResult}</p>}
+              {couponLoading ? <p>Loading...</p> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {coupons.map(c => (
+                    <div key={c._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: '12px 16px', borderRadius: 8, border: '1px solid ' + (darkMode ? '#444' : '#eee') }}>
+                      <div><strong>{c.code}</strong> - {c.discountType === 'percentage' ? `${c.discountValue}%` : `₦${c.discountValue}`} {c.active ? '✅' : '❌'} <span style={{ color: secondaryText, fontSize: 12 }}>Used: {c.usedCount}/{c.usageLimit}</span></div>
+                      <div>
+                        <button onClick={() => editCoupon(c)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', marginRight: 8 }}>Edit</button>
+                        <button onClick={() => handleDeleteCoupon(c._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========== FAQ TAB ========== */}
+          {activeTab === 'faq' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>📄 FAQ</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                <input placeholder="Question" value={faqQuestion} onChange={(e) => setFaqQuestion(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <textarea placeholder="Answer" value={faqAnswer} onChange={(e) => setFaqAnswer(e.target.value)} rows="3" style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <input placeholder="Category (e.g. Payments)" value={faqCategory} onChange={(e) => setFaqCategory(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                <input type="number" placeholder="Order" value={faqOrder} onChange={(e) => setFaqOrder(parseInt(e.target.value))} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor, width: 80 }} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" checked={faqActive} onChange={(e) => setFaqActive(e.target.checked)} /> Active
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                <button onClick={handleSaveFaq} disabled={faqLoading} style={{ background: '#1e3c72', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}>{editingFaqId ? 'Update' : 'Add'}</button>
+                {editingFaqId && <button onClick={() => { setEditingFaqId(null); setFaqQuestion(''); setFaqAnswer(''); setFaqCategory('General'); setFaqOrder(0); setFaqActive(true); }} style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>}
+              </div>
+              {faqResult && <p style={{ marginBottom: 16, color: faqResult.includes('✅') ? '#2e7d32' : '#dc3545' }}>{faqResult}</p>}
+              {faqLoading ? <p>Loading...</p> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {faqs.map(f => (
+                    <div key={f._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: '12px 16px', borderRadius: 8, border: '1px solid ' + (darkMode ? '#444' : '#eee') }}>
+                      <div><strong>{f.question}</strong> - <span style={{ color: secondaryText }}>{f.category}</span> {f.active ? '✅' : '❌'}</div>
+                      <div>
+                        <button onClick={() => editFaq(f)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', marginRight: 8 }}>Edit</button>
+                        <button onClick={() => handleDeleteFaq(f._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========== ALL OTHER EXISTING TABS (unchanged) ========== */}
+          {/* Users, Contacts, Notifications, Manual OTP, Manual Reset, Broadcast, Marketing Consent, Announcement, Weekly Quiz */}
           {activeTab === 'users' && (
+            // ... (existing users code – keep as is)
             <>
               <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
-                <input
-                  type="text"
-                  placeholder="🔍 Search by email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    width: '100%',
-                    maxWidth: 400,
-                    padding: '10px 16px',
-                    borderRadius: 30,
-                    border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
-                    background: darkMode ? '#2d2d3d' : 'white',
-                    color: textColor,
-                    fontSize: 14,
-                    outline: 'none',
-                    transition: 'border 0.2s'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#1e3c72'}
-                  onBlur={(e) => e.target.style.borderColor = darkMode ? '#444' : '#ddd'}
-                />
+                <input type="text" placeholder="🔍 Search by email..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '100%', maxWidth: 400, padding: '10px 16px', borderRadius: 30, border: `1px solid ${darkMode ? '#444' : '#ddd'}`, background: darkMode ? '#2d2d3d' : 'white', color: textColor, fontSize: 14, outline: 'none' }} />
               </div>
-
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 20 }}>
                 {filteredUsers.map(u => {
                   const currentPlan = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
@@ -689,27 +1368,16 @@ export const AdminPanel = () => {
                       {u.isPremium && u.premiumExpiry && <p><strong>Expires:</strong> {new Date(u.premiumExpiry).toLocaleDateString()}</p>}
                       <p><strong>Verified:</strong> {u.isVerified ? '✅ Yes' : '❌ No'}</p>
                       <p><strong>Joined:</strong> {new Date(u.createdAt).toLocaleDateString()}</p>
-                      
                       <div style={{ marginTop: 15 }}>
                         <label style={{ fontSize: 13, fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Set Premium Plan:</label>
-                        <select 
-                          value={selectedPlan[u._id] || currentPlan}
-                          onChange={(e) => setSelectedPlan(prev => ({ ...prev, [u._id]: e.target.value }))}
-                          style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, fontSize: 14 }}
-                        >
+                        <select value={selectedPlan[u._id] || currentPlan} onChange={(e) => setSelectedPlan(prev => ({ ...prev, [u._id]: e.target.value }))} style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, fontSize: 14 }}>
                           <option value="none">None (Remove Premium)</option>
                           <option value="daily">Daily (₦500)</option>
                           <option value="monthly">Monthly (₦2000)</option>
                           <option value="yearly">Yearly (₦10000)</option>
                         </select>
-                        <button 
-                          onClick={() => applyPlan(u._id)}
-                          style={{ width: '100%', marginTop: 6, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
-                        >
-                          Apply Plan
-                        </button>
+                        <button onClick={() => applyPlan(u._id)} style={{ width: '100%', marginTop: 6, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>Apply Plan</button>
                       </div>
-
                       <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                         <button onClick={() => deleteUser(u._id)} style={{ background: '#dc3545', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 'bold' }}>Delete User</button>
                       </div>
@@ -717,15 +1385,12 @@ export const AdminPanel = () => {
                   );
                 })}
               </div>
-              {filteredUsers.length === 0 && (
-                <p style={{ textAlign: 'center', color: secondaryText, marginTop: 20 }}>
-                  No users found matching "{searchQuery}"
-                </p>
-              )}
+              {filteredUsers.length === 0 && <p style={{ textAlign: 'center', color: secondaryText, marginTop: 20 }}>No users found matching "{searchQuery}"</p>}
             </>
           )}
 
           {activeTab === 'contacts' && (
+            // ... (existing contacts code – keep as is)
             <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
               {contacts.map(c => (
                 <div key={c._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, marginBottom: 16, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
@@ -734,17 +1399,9 @@ export const AdminPanel = () => {
                   <p><strong>Received:</strong> {new Date(c.createdAt).toLocaleString()}</p>
                   {replyingTo === c._id ? (
                     <div style={{ marginTop: 16 }}>
-                      <textarea
-                        placeholder="Type your reply here..."
-                        value={replyMessage}
-                        onChange={(e) => setReplyMessage(e.target.value)}
-                        rows="4"
-                        style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }}
-                      />
+                      <textarea placeholder="Type your reply here..." value={replyMessage} onChange={(e) => setReplyMessage(e.target.value)} rows="4" style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }} />
                       <div style={{ display: 'flex', gap: 12 }}>
-                        <button onClick={() => sendReply(c.email, c.name, c.message)} disabled={sendingReply} style={{ background: '#28a745', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}>
-                          {sendingReply ? 'Sending...' : 'Send Reply'}
-                        </button>
+                        <button onClick={() => sendReply(c.email, c.name, c.message)} disabled={sendingReply} style={{ background: '#28a745', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}>{sendingReply ? 'Sending...' : 'Send Reply'}</button>
                         <button onClick={() => { setReplyingTo(null); setReplyMessage(''); }} style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}>Cancel</button>
                       </div>
                     </div>
@@ -757,672 +1414,206 @@ export const AdminPanel = () => {
           )}
 
           {activeTab === 'notifications' && (
+            // ... (existing notifications code – keep as is)
             <div style={{ padding: 20 }}>
               <h3 style={{ color: headingColor, marginBottom: 20 }}>Send Push Notification to All Users</h3>
-              <div style={{ marginBottom: 16 }}>
-                <input
-                  type="text"
-                  placeholder="Notification Title"
-                  value={notificationTitle}
-                  onChange={(e) => setNotificationTitle(e.target.value)}
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14 }}
-                />
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <textarea
-                  placeholder="Notification Message"
-                  value={notificationMessage}
-                  onChange={(e) => setNotificationMessage(e.target.value)}
-                  rows="4"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, resize: 'vertical' }}
-                />
-              </div>
-              <button
-                onClick={sendNotification}
-                disabled={sendingNotification}
-                style={{ background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                {sendingNotification ? 'Sending...' : 'Send Notification'}
-              </button>
+              <div style={{ marginBottom: 16 }}><input type="text" placeholder="Notification Title" value={notificationTitle} onChange={(e) => setNotificationTitle(e.target.value)} style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14 }} /></div>
+              <div style={{ marginBottom: 16 }}><textarea placeholder="Notification Message" value={notificationMessage} onChange={(e) => setNotificationMessage(e.target.value)} rows="4" style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, resize: 'vertical' }} /></div>
+              <button onClick={sendNotification} disabled={sendingNotification} style={{ background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>{sendingNotification ? 'Sending...' : 'Send Notification'}</button>
               {notificationStatus && <p style={{ marginTop: 16, color: '#2e7d32' }}>{notificationStatus}</p>}
             </div>
           )}
 
           {activeTab === 'manualOtp' && (
+            // ... (existing manual OTP code – keep as is)
             <div style={{ padding: 20 }}>
               <h3 style={{ color: headingColor, marginBottom: 20 }}>Generate Manual Verification Code</h3>
               <p style={{ marginBottom: 16, color: secondaryText }}>Use this only when a user cannot receive email. The code will be shown here and can be given to the user.</p>
-              <div style={{ marginBottom: 16 }}>
-                <input
-                  type="email"
-                  placeholder="User's email address"
-                  value={manualOtpEmail}
-                  onChange={(e) => setManualOtpEmail(e.target.value)}
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14 }}
-                />
-              </div>
-              <button
-                onClick={generateManualOtp}
-                disabled={generatingOtp}
-                style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                {generatingOtp ? 'Generating...' : 'Generate Code'}
-              </button>
-              {manualOtpResult && (
-                <div style={{ marginTop: 16, padding: 12, background: darkMode ? '#2d2d3d' : '#e8f5e9', borderRadius: 8, borderLeft: '4px solid #2e7d32' }}>
-                  <p style={{ margin: 0, color: '#2e7d32' }}>{manualOtpResult}</p>
-                </div>
-              )}
+              <div style={{ marginBottom: 16 }}><input type="email" placeholder="User's email address" value={manualOtpEmail} onChange={(e) => setManualOtpEmail(e.target.value)} style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14 }} /></div>
+              <button onClick={generateManualOtp} disabled={generatingOtp} style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>{generatingOtp ? 'Generating...' : 'Generate Code'}</button>
+              {manualOtpResult && <div style={{ marginTop: 16, padding: 12, background: darkMode ? '#2d2d3d' : '#e8f5e9', borderRadius: 8, borderLeft: '4px solid #2e7d32' }}><p style={{ margin: 0, color: '#2e7d32' }}>{manualOtpResult}</p></div>}
             </div>
           )}
 
           {activeTab === 'manualReset' && (
+            // ... (existing manual reset code – keep as is)
             <div style={{ padding: 20 }}>
               <h3 style={{ color: headingColor, marginBottom: 20 }}>Generate Password Reset Code</h3>
               <p style={{ marginBottom: 16, color: secondaryText }}>Use this when a user cannot receive password reset email. The code will be shown here and can be given to the user.</p>
-              <div style={{ marginBottom: 16 }}>
-                <input
-                  type="email"
-                  placeholder="User's email address"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14 }}
-                />
-              </div>
-              <button
-                onClick={generateManualResetOtp}
-                disabled={generatingResetOtp}
-                style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                {generatingResetOtp ? 'Generating...' : 'Generate Reset Code'}
-              </button>
-              {resetOtpResult && (
-                <div style={{ marginTop: 16, padding: 12, background: darkMode ? '#2d2d3d' : '#e8f5e9', borderRadius: 8, borderLeft: '4px solid #2e7d32' }}>
-                  <p style={{ margin: 0, color: '#2e7d32' }}>{resetOtpResult}</p>
-                </div>
-              )}
+              <div style={{ marginBottom: 16 }}><input type="email" placeholder="User's email address" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14 }} /></div>
+              <button onClick={generateManualResetOtp} disabled={generatingResetOtp} style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>{generatingResetOtp ? 'Generating...' : 'Generate Reset Code'}</button>
+              {resetOtpResult && <div style={{ marginTop: 16, padding: 12, background: darkMode ? '#2d2d3d' : '#e8f5e9', borderRadius: 8, borderLeft: '4px solid #2e7d32' }}><p style={{ margin: 0, color: '#2e7d32' }}>{resetOtpResult}</p></div>}
             </div>
           )}
 
           {activeTab === 'broadcast' && (
+            // ... (existing broadcast code – keep as is)
             <div style={{ padding: 20 }}>
               <h3 style={{ color: headingColor, marginBottom: 20 }}>Send Email Broadcast to Free Users</h3>
-              <p style={{ color: secondaryText, marginBottom: 16 }}>
-                Send a promotional email to all free users who have opted in to marketing emails.
-              </p>
+              <p style={{ color: secondaryText, marginBottom: 16 }}>Send a promotional email to all free users who have opted in to marketing emails.</p>
+              <div style={{ marginBottom: 16 }}><input type="text" placeholder="Email Subject" value={broadcastSubject} onChange={(e) => setBroadcastSubject(e.target.value)} style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} /></div>
+              <div style={{ marginBottom: 16 }}><textarea placeholder="Custom Message (optional – if empty, uses template)" value={broadcastMessage} onChange={(e) => setBroadcastMessage(e.target.value)} rows="4" style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', resize: 'vertical', boxSizing: 'border-box' }} /></div>
               <div style={{ marginBottom: 16 }}>
-                <input
-                  type="text"
-                  placeholder="Email Subject"
-                  value={broadcastSubject}
-                  onChange={(e) => setBroadcastSubject(e.target.value)}
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <textarea
-                  placeholder="Custom Message (optional – if empty, uses template)"
-                  value={broadcastMessage}
-                  onChange={(e) => setBroadcastMessage(e.target.value)}
-                  rows="4"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', resize: 'vertical', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <select
-                  value={broadcastTemplate}
-                  onChange={(e) => setBroadcastTemplate(e.target.value)}
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : 'white', color: darkMode ? 'white' : '#333' }}
-                >
+                <select value={broadcastTemplate} onChange={(e) => setBroadcastTemplate(e.target.value)} style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : 'white', color: darkMode ? 'white' : '#333' }}>
                   <option value="upgrade">Upgrade Reminder</option>
                   <option value="reminder">Re-engagement</option>
                   <option value="winback">Win-back</option>
                 </select>
               </div>
-              <button
-                onClick={async () => {
-                  setBroadcastLoading(true);
-                  setBroadcastResult('');
-                  try {
-                    const res = await axios.post('/api/admin/broadcast-email', {
-                      subject: broadcastSubject,
-                      message: broadcastMessage,
-                      templateType: broadcastTemplate
-                    }, { headers: { Authorization: `Bearer ${token}` } });
-                    setBroadcastResult(`✅ ${res.data.message}`);
-                  } catch (error) {
-                    setBroadcastResult('❌ Failed to send broadcast: ' + (error.response?.data?.error || error.message));
-                  } finally {
-                    setBroadcastLoading(false);
-                  }
-                }}
-                disabled={broadcastLoading}
-                style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: broadcastLoading ? 0.7 : 1 }}
-              >
-                {broadcastLoading ? 'Sending...' : 'Send Broadcast'}
-              </button>
+              <button onClick={handleBroadcast} disabled={broadcastLoading} style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: broadcastLoading ? 0.7 : 1 }}>{broadcastLoading ? 'Sending...' : 'Send Broadcast'}</button>
               {broadcastResult && <p style={{ marginTop: 16, color: '#2e7d32' }}>{broadcastResult}</p>}
             </div>
           )}
 
-          {activeTab === 'announcement' && (
-            <div style={{ padding: 20 }}>
-              <h3 style={{ color: headingColor, marginBottom: 20 }}>One-Time Home Page Banner</h3>
-              <p style={{ color: secondaryText, marginBottom: 16 }}>
-                Create a banner that each user sees once on the home page. Update it anytime – it will reappear for all users with the new version.
-              </p>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Message</label>
-                <textarea
-                  placeholder="Enter the banner message"
-                  value={announcementMessage}
-                  onChange={(e) => setAnnouncementMessage(e.target.value)}
-                  rows="3"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', resize: 'vertical', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Button Text</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Get Premium Now"
-                  value={announcementButtonText}
-                  onChange={(e) => setAnnouncementButtonText(e.target.value)}
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Button Link</label>
-                <input
-                  type="text"
-                  placeholder="/get-premium, /weekly-quiz, /contact, etc."
-                  value={announcementButtonLink}
-                  onChange={(e) => setAnnouncementButtonLink(e.target.value)}
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={announcementActive}
-                    onChange={(e) => setAnnouncementActive(e.target.checked)}
-                  />
-                  Active (banner will be shown)
-                </label>
-                <span style={{ color: secondaryText, fontSize: 13 }}>
-                  Version: {announcementVersion}
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <button
-                  onClick={async () => {
-                    if (!announcementMessage.trim()) {
-                      alert('Message is required');
-                      return;
-                    }
-                    setAnnouncementLoading(true);
-                    setAnnouncementResult('');
-                    try {
-                      const res = await axios.post('/api/admin/announcement', {
-                        message: announcementMessage,
-                        buttonText: announcementButtonText,
-                        buttonLink: announcementButtonLink,
-                        active: announcementActive
-                      }, { headers: { Authorization: `Bearer ${token}` } });
-                      if (res.data.success) {
-                        setAnnouncementResult(`✅ Banner updated! Version: ${res.data.announcement.version}`);
-                        setAnnouncementVersion(res.data.announcement.version);
-                      }
-                    } catch (error) {
-                      setAnnouncementResult('❌ Failed to update banner: ' + (error.response?.data?.error || error.message));
-                    } finally {
-                      setAnnouncementLoading(false);
-                    }
-                  }}
-                  disabled={announcementLoading}
-                  style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: announcementLoading ? 0.7 : 1 }}
-                >
-                  {announcementLoading ? 'Saving...' : 'Publish Banner'}
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!window.confirm('Deactivate the banner? Users who haven\'t seen it will not see it.')) return;
-                    setAnnouncementLoading(true);
-                    try {
-                      const res = await axios.delete('/api/admin/announcement', { headers: { Authorization: `Bearer ${token}` } });
-                      if (res.data.success) {
-                        setAnnouncementResult('✅ Banner deactivated.');
-                        setAnnouncementActive(false);
-                        setAnnouncementVersion(prev => prev + 1);
-                      }
-                    } catch (error) {
-                      setAnnouncementResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
-                    } finally {
-                      setAnnouncementLoading(false);
-                    }
-                  }}
-                  style={{ background: '#dc3545', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Deactivate Banner
-                </button>
-                <button
-                  onClick={async () => {
-                    setAnnouncementLoading(true);
-                    try {
-                      const res = await axios.get('/api/admin/announcement', { headers: { Authorization: `Bearer ${token}` } });
-                      if (res.data.announcement) {
-                        const a = res.data.announcement;
-                        setAnnouncementMessage(a.message || '');
-                        setAnnouncementButtonText(a.buttonText || 'Learn More');
-                        setAnnouncementButtonLink(a.buttonLink || '/get-premium');
-                        setAnnouncementActive(a.active || false);
-                        setAnnouncementVersion(a.version || 0);
-                        setAnnouncementResult('✅ Loaded current banner.');
-                      } else {
-                        setAnnouncementResult('No banner found. Create one now.');
-                      }
-                    } catch (error) {
-                      setAnnouncementResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
-                    } finally {
-                      setAnnouncementLoading(false);
-                    }
-                  }}
-                  style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Load Current
-                </button>
-              </div>
-              {announcementResult && <p style={{ marginTop: 16, color: '#2e7d32' }}>{announcementResult}</p>}
-            </div>
-          )}
-
           {activeTab === 'marketingConsent' && (
+            // ... (existing marketing consent code – keep as is)
             <div style={{ padding: 20 }}>
               <h3 style={{ color: headingColor, marginBottom: 20 }}>Marketing Consent Banner</h3>
-              <p style={{ color: secondaryText, marginBottom: 16 }}>
-                Show a one‑time consent banner on the Home page to ask users to opt in for promotional emails.
-                Users who have already opted in will not see it.
-              </p>
+              <p style={{ color: secondaryText, marginBottom: 16 }}>Show a one‑time consent banner on the Home page to ask users to opt in for promotional emails. Users who have already opted in will not see it.</p>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Message</label>
-                <textarea
-                  placeholder="e.g., Stay updated! Get special offers and new exam notifications via email."
-                  value={consentMessage}
-                  onChange={(e) => setConsentMessage(e.target.value)}
-                  rows="3"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', resize: 'vertical', boxSizing: 'border-box' }}
-                />
+                <textarea placeholder="e.g., Stay updated! Get special offers and new exam notifications via email." value={consentMessage} onChange={(e) => setConsentMessage(e.target.value)} rows="3" style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Button Text</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Yes, Opt me in!"
-                  value={consentButtonText}
-                  onChange={(e) => setConsentButtonText(e.target.value)}
-                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }}
-                />
+                <input type="text" placeholder="e.g., Yes, Opt me in!" value={consentButtonText} onChange={(e) => setConsentButtonText(e.target.value)} style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} />
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={consentActive}
-                    onChange={(e) => setConsentActive(e.target.checked)}
-                  />
-                  Active (banner will be shown to users who haven't opted in)
+                  <input type="checkbox" checked={consentActive} onChange={(e) => setConsentActive(e.target.checked)} /> Active (banner will be shown to users who haven't opted in)
                 </label>
-                <span style={{ color: secondaryText, fontSize: 13 }}>
-                  Version: {consentVersion}
-                </span>
+                <span style={{ color: secondaryText, fontSize: 13 }}>Version: {consentVersion}</span>
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <button
-                  onClick={async () => {
-                    if (!consentMessage.trim()) {
-                      alert('Message is required');
-                      return;
-                    }
-                    setConsentLoading(true);
-                    setConsentResult('');
-                    try {
-                      const res = await axios.post('/api/admin/marketing-consent', {
-                        message: consentMessage,
-                        buttonText: consentButtonText,
-                        active: consentActive
-                      }, { headers: { Authorization: `Bearer ${token}` } });
-                      if (res.data.success) {
-                        setConsentResult(`✅ Consent banner updated! Version: ${res.data.consent.version}`);
-                        setConsentVersion(res.data.consent.version);
-                      }
-                    } catch (error) {
-                      setConsentResult('❌ Failed to update banner: ' + (error.response?.data?.error || error.message));
-                    } finally {
-                      setConsentLoading(false);
-                    }
-                  }}
-                  disabled={consentLoading}
-                  style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: consentLoading ? 0.7 : 1 }}
-                >
-                  {consentLoading ? 'Saving...' : 'Publish Consent Banner'}
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!window.confirm('Deactivate the consent banner? Users will not see it.')) return;
-                    setConsentLoading(true);
-                    try {
-                      const res = await axios.delete('/api/admin/marketing-consent', { headers: { Authorization: `Bearer ${token}` } });
-                      if (res.data.success) {
-                        setConsentResult('✅ Consent banner deactivated.');
-                        setConsentActive(false);
-                        setConsentVersion(prev => prev + 1);
-                      }
-                    } catch (error) {
-                      setConsentResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
-                    } finally {
-                      setConsentLoading(false);
-                    }
-                  }}
-                  style={{ background: '#dc3545', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Deactivate Banner
-                </button>
-                <button
-                  onClick={async () => {
-                    setConsentLoading(true);
-                    try {
-                      const res = await axios.get('/api/admin/marketing-consent', { headers: { Authorization: `Bearer ${token}` } });
-                      if (res.data.consent) {
-                        const c = res.data.consent;
-                        setConsentMessage(c.message || '');
-                        setConsentButtonText(c.buttonText || 'Yes, Opt me in!');
-                        setConsentActive(c.active || false);
-                        setConsentVersion(c.version || 0);
-                        setConsentResult('✅ Loaded current consent banner.');
-                      } else {
-                        setConsentResult('No consent banner found. Create one now.');
-                      }
-                    } catch (error) {
-                      setConsentResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
-                    } finally {
-                      setConsentLoading(false);
-                    }
-                  }}
-                  style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Load Current
-                </button>
+                <button onClick={handleSaveConsent} disabled={consentLoading} style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: consentLoading ? 0.7 : 1 }}>{consentLoading ? 'Saving...' : 'Publish Consent Banner'}</button>
+                <button onClick={handleDeactivateConsent} style={{ background: '#dc3545', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Deactivate Banner</button>
+                <button onClick={loadConsent} style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Load Current</button>
               </div>
               {consentResult && <p style={{ marginTop: 16, color: '#2e7d32' }}>{consentResult}</p>}
             </div>
           )}
 
+          {activeTab === 'announcement' && (
+            // ... (existing announcement code – keep as is)
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>One-Time Home Page Banner</h3>
+              <p style={{ color: secondaryText, marginBottom: 16 }}>Create a banner that each user sees once on the home page. Update it anytime – it will reappear for all users with the new version.</p>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Message</label>
+                <textarea placeholder="Enter the banner message" value={announcementMessage} onChange={(e) => setAnnouncementMessage(e.target.value)} rows="3" style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', resize: 'vertical', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Button Text</label>
+                <input type="text" placeholder="e.g., Get Premium Now" value={announcementButtonText} onChange={(e) => setAnnouncementButtonText(e.target.value)} style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Button Link</label>
+                <input type="text" placeholder="/get-premium, /weekly-quiz, /contact, etc." value={announcementButtonLink} onChange={(e) => setAnnouncementButtonLink(e.target.value)} style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, fontSize: 14 }}>
+                  <input type="checkbox" checked={announcementActive} onChange={(e) => setAnnouncementActive(e.target.checked)} /> Active (banner will be shown)
+                </label>
+                <span style={{ color: secondaryText, fontSize: 13 }}>Version: {announcementVersion}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <button onClick={handleSaveAnnouncement} disabled={announcementLoading} style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: announcementLoading ? 0.7 : 1 }}>{announcementLoading ? 'Saving...' : 'Publish Banner'}</button>
+                <button onClick={handleDeactivateAnnouncement} style={{ background: '#dc3545', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Deactivate Banner</button>
+                <button onClick={loadAnnouncement} style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Load Current</button>
+              </div>
+              {announcementResult && <p style={{ marginTop: 16, color: '#2e7d32' }}>{announcementResult}</p>}
+            </div>
+          )}
+
           {activeTab === 'weeklyQuiz' && (
+            // ... (existing weekly quiz code – keep as is)
             <div style={{ padding: '10px 0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
                 <h3 style={{ color: headingColor, margin: 0 }}>Manage Weekly Quizzes</h3>
-                <button
-                  onClick={() => setShowQuizForm(!showQuizForm)}
-                  style={{ background: showQuizForm ? '#dc3545' : '#2E7D64', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  {showQuizForm ? '✕ Cancel' : '+ Create New Quiz'}
-                </button>
+                <button onClick={() => setShowQuizForm(!showQuizForm)} style={{ background: showQuizForm ? '#dc3545' : '#2E7D64', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>{showQuizForm ? '✕ Cancel' : '+ Create New Quiz'}</button>
               </div>
 
               {showQuizForm && (
-                <div style={{ 
-                  background: darkMode ? '#1a1a2e' : '#f8f9fa', 
-                  padding: '24px 28px', 
-                  borderRadius: 16, 
-                  marginBottom: 28, 
-                  border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-                }}>
+                <div style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: '24px 28px', borderRadius: 16, marginBottom: 28, border: `1px solid ${darkMode ? '#444' : '#ddd'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
                   <h4 style={{ color: headingColor, marginBottom: 20, fontSize: 18 }}>{editingQuizId ? ' Edit Quiz' : ' New Weekly Quiz'}</h4>
-                  
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 18 }}>
                     <div>
                       <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Quiz Title <span style={{ color: '#dc3545' }}>*</span></label>
-                      <input
-                        type="text"
-                        placeholder="e.g., Week 1 - Fundamentals"
-                        value={quizTitle}
-                        onChange={(e) => setQuizTitle(e.target.value)}
-                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                      />
+                      <input type="text" placeholder="e.g., Week 1 - Fundamentals" value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Week Number <span style={{ color: '#dc3545' }}>*</span></label>
-                      <input
-                        type="number"
-                        placeholder="1, 2, 3..."
-                        value={quizWeekNumber}
-                        onChange={(e) => setQuizWeekNumber(e.target.value)}
-                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                        min="1"
-                      />
+                      <input type="number" placeholder="1, 2, 3..." value={quizWeekNumber} onChange={(e) => setQuizWeekNumber(e.target.value)} style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }} min="1" />
                     </div>
                   </div>
-
                   <div style={{ marginBottom: 18 }}>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Description <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span></label>
-                    <input
-                      type="text"
-                      placeholder="Brief description of the quiz"
-                      value={quizDescription}
-                      onChange={(e) => setQuizDescription(e.target.value)}
-                      style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                    />
+                    <input type="text" placeholder="Brief description of the quiz" value={quizDescription} onChange={(e) => setQuizDescription(e.target.value)} style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }} />
                   </div>
-
                   <div style={{ marginBottom: 18 }}>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Instructions <span style={{ color: '#999', fontWeight: 'normal' }}>(shown before quiz starts)</span></label>
-                    <textarea
-                      placeholder="e.g., Answer all questions carefully. You cannot go back after submitting."
-                      value={quizInstructions}
-                      onChange={(e) => setQuizInstructions(e.target.value)}
-                      rows="3"
-                      style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box', resize: 'vertical' }}
-                    />
+                    <textarea placeholder="e.g., Answer all questions carefully. You cannot go back after submitting." value={quizInstructions} onChange={(e) => setQuizInstructions(e.target.value)} rows="3" style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box', resize: 'vertical' }} />
                   </div>
-
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 18 }}>
                     <div>
                       <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Start Date <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span></label>
-                      <input
-                        type="datetime-local"
-                        value={quizStartDate}
-                        onChange={(e) => setQuizStartDate(e.target.value)}
-                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                      />
+                      <input type="datetime-local" value={quizStartDate} onChange={(e) => setQuizStartDate(e.target.value)} style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>End Date <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span></label>
-                      <input
-                        type="datetime-local"
-                        value={quizEndDate}
-                        onChange={(e) => setQuizEndDate(e.target.value)}
-                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                      />
+                      <input type="datetime-local" value={quizEndDate} onChange={(e) => setQuizEndDate(e.target.value)} style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }} />
                     </div>
                   </div>
-
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, padding: '12px 16px', background: darkMode ? '#2d2d3d' : '#f0f7f4', borderRadius: 8 }}>
                     <label style={{ fontSize: 13, fontWeight: 'bold', color: textColor, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={quizIsPremium}
-                        onChange={(e) => setQuizIsPremium(e.target.checked)}
-                        style={{ marginRight: 8, width: 18, height: 18, cursor: 'pointer' }}
-                      />
+                      <input type="checkbox" checked={quizIsPremium} onChange={(e) => setQuizIsPremium(e.target.checked)} style={{ marginRight: 8, width: 18, height: 18, cursor: 'pointer' }} />
                       Premium Quiz <span style={{ fontWeight: 'normal', color: secondaryText }}>(users need premium to access)</span>
                     </label>
                   </div>
-
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px', marginBottom: 20 }}>
                     <div>
                       <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Passing Score (%)</label>
-                      <input
-                        type="number"
-                        placeholder="70"
-                        value={quizPassingScore}
-                        onChange={(e) => setQuizPassingScore(parseInt(e.target.value) || 70)}
-                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                        min="0"
-                        max="100"
-                      />
+                      <input type="number" placeholder="70" value={quizPassingScore} onChange={(e) => setQuizPassingScore(parseInt(e.target.value) || 70)} style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }} min="0" max="100" />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: textColor }}>Time Limit (minutes)</label>
-                      <input
-                        type="number"
-                        placeholder="20"
-                        value={quizTimeLimit}
-                        onChange={(e) => setQuizTimeLimit(parseInt(e.target.value) || 20)}
-                        style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                        min="1"
-                      />
+                      <input type="number" placeholder="20" value={quizTimeLimit} onChange={(e) => setQuizTimeLimit(parseInt(e.target.value) || 20)} style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }} min="1" />
                     </div>
                   </div>
-
-                  <div style={{ 
-                    marginBottom: 20, 
-                    borderTop: `2px solid ${darkMode ? '#444' : '#e0e0e0'}`, 
-                    paddingTop: 20 
-                  }}>
+                  <div style={{ marginBottom: 20, borderTop: `2px solid ${darkMode ? '#444' : '#e0e0e0'}`, paddingTop: 20 }}>
                     <h5 style={{ color: headingColor, marginBottom: 14, fontSize: 16 }}>Questions ({quizQuestions.length})</h5>
                     
-                    <div style={{ 
-                      background: darkMode ? '#2d2d3d' : '#f0f7f4', 
-                      padding: '16px 18px', 
-                      borderRadius: 12, 
-                      marginBottom: 18,
-                      border: `1px dashed ${darkMode ? '#666' : '#aaa'}`
-                    }}>
-                      <p style={{ fontSize: 13, color: secondaryText, marginBottom: 8 }}>
-                        <strong>Batch Import:</strong> Paste multiple questions at once.
-                      </p>
-                      <textarea
-                        placeholder="Paste your questions here...&#10;Q1. Question text? (a) Option (b) Option (c) Option (d) Option&#10;Answer: a"
-                        value={batchInput}
-                        onChange={(e) => setBatchInput(e.target.value)}
-                        rows="4"
-                        style={{ 
-                          width: '100%', 
-                          padding: '12px 14px', 
-                          border: '1px solid #ccc', 
-                          borderRadius: 8, 
-                          fontSize: 14, 
-                          background: cardBg, 
-                          color: textColor,
-                          boxSizing: 'border-box',
-                          resize: 'vertical',
-                          fontFamily: 'monospace'
-                        }}
-                      />
-                      <button
-                        onClick={handleBatchImport}
-                        style={{ 
-                          marginTop: 10, 
-                          background: '#17a2b8', 
-                          color: 'white', 
-                          padding: '8px 20px', 
-                          border: 'none', 
-                          borderRadius: 6, 
-                          cursor: 'pointer', 
-                          fontWeight: 'bold',
-                          fontSize: 13
-                        }}
-                      >
-                         Import Questions
-                      </button>
+                    <div style={{ background: darkMode ? '#2d2d3d' : '#f0f7f4', padding: '16px 18px', borderRadius: 12, marginBottom: 18, border: `1px dashed ${darkMode ? '#666' : '#aaa'}` }}>
+                      <p style={{ fontSize: 13, color: secondaryText, marginBottom: 8 }}><strong>Batch Import:</strong> Paste multiple questions at once.</p>
+                      <textarea placeholder="Paste your questions here...&#10;Q1. Question text? (a) Option (b) Option (c) Option (d) Option&#10;Answer: a" value={batchInput} onChange={(e) => setBatchInput(e.target.value)} rows="4" style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'monospace' }} />
+                      <button onClick={handleBatchImport} style={{ marginTop: 10, background: '#17a2b8', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}> Import Questions</button>
                     </div>
 
-                    <div style={{ 
-                      background: darkMode ? '#2d2d3d' : 'white', 
-                      padding: '18px 20px', 
-                      borderRadius: 12, 
-                      marginBottom: 16,
-                      border: `1px solid ${darkMode ? '#555' : '#eee'}`
-                    }}>
-                      <div style={{ marginBottom: 14 }}>
-                        <input
-                          type="text"
-                          placeholder="Enter question text"
-                          value={qText}
-                          onChange={(e) => setQText(e.target.value)}
-                          style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                        />
-                      </div>
+                    <div style={{ background: darkMode ? '#2d2d3d' : 'white', padding: '18px 20px', borderRadius: 12, marginBottom: 16, border: `1px solid ${darkMode ? '#555' : '#eee'}` }}>
+                      <div style={{ marginBottom: 14 }}><input type="text" placeholder="Enter question text" value={qText} onChange={(e) => setQText(e.target.value)} style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }} /></div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: 14 }}>
                         {qOptions.map((opt, idx) => (
-                          <input
-                            key={idx}
-                            type="text"
-                            placeholder={`Option ${String.fromCharCode(65 + idx)}`}
-                            value={opt}
-                            onChange={(e) => {
-                              const newOpts = [...qOptions];
-                              newOpts[idx] = e.target.value;
-                              setQOptions(newOpts);
-                            }}
-                            style={{ padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                          />
+                          <input key={idx} type="text" placeholder={`Option ${String.fromCharCode(65 + idx)}`} value={opt} onChange={(e) => { const newOpts = [...qOptions]; newOpts[idx] = e.target.value; setQOptions(newOpts); }} style={{ padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13, background: cardBg, color: textColor, boxSizing: 'border-box' }} />
                         ))}
                       </div>
                       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                         <label style={{ fontSize: 13, fontWeight: 'bold', color: textColor }}>Correct Answer:</label>
-                        <select
-                          value={qCorrect}
-                          onChange={(e) => setQCorrect(parseInt(e.target.value))}
-                          style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor, fontSize: 13 }}
-                        >
-                          {qOptions.map((_, idx) => (
-                            <option key={idx} value={idx}>Option {String.fromCharCode(65 + idx)}</option>
-                          ))}
+                        <select value={qCorrect} onChange={(e) => setQCorrect(parseInt(e.target.value))} style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor, fontSize: 13 }}>
+                          {qOptions.map((_, idx) => <option key={idx} value={idx}>Option {String.fromCharCode(65 + idx)}</option>)}
                         </select>
-                        <button
-                          onClick={handleAddQuestion}
-                          style={{ background: '#2E7D64', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
-                        >
-                          {editingQuestionIndex !== null ? 'Update' : '➕ Add'}
-                        </button>
-                        {editingQuestionIndex !== null && (
-                          <button
-                            onClick={() => { setEditingQuestionIndex(null); setQText(''); setQOptions(['', '', '', '']); setQCorrect(0); }}
-                            style={{ background: '#6c757d', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
-                          >
-                            Cancel
-                          </button>
-                        )}
+                        <button onClick={handleAddQuestion} style={{ background: '#2E7D64', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>{editingQuestionIndex !== null ? 'Update' : '➕ Add'}</button>
+                        {editingQuestionIndex !== null && <button onClick={() => { setEditingQuestionIndex(null); setQText(''); setQOptions(['', '', '', '']); setQCorrect(0); }} style={{ background: '#6c757d', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Cancel</button>}
                       </div>
                     </div>
 
                     {quizQuestions.length > 0 && (
                       <div style={{ maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
                         {quizQuestions.map((q, idx) => (
-                          <div key={idx} style={{ 
-                            background: darkMode ? '#2d2d3d' : 'white', 
-                            padding: '14px 16px', 
-                            borderRadius: 10, 
-                            marginBottom: 10, 
-                            border: `1px solid ${darkMode ? '#444' : '#eee'}`,
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                          }}>
+                          <div key={idx} style={{ background: darkMode ? '#2d2d3d' : 'white', padding: '14px 16px', borderRadius: 10, marginBottom: 10, border: `1px solid ${darkMode ? '#444' : '#eee'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                                <strong style={{ color: headingColor, fontSize: 14 }}>Q{idx+1}:</strong>
-                                <span style={{ color: textColor, fontSize: 14, wordBreak: 'break-word' }}>{q.questionText}</span>
-                              </div>
+                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}><strong style={{ color: headingColor, fontSize: 14 }}>Q{idx+1}:</strong> <span style={{ color: textColor, fontSize: 14, wordBreak: 'break-word' }}>{q.questionText}</span></div>
                               <div style={{ fontSize: 12, color: secondaryText, marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                                {q.options.map((opt, i) => (
-                                  <span key={i} style={{ background: darkMode ? '#333' : '#f0f0f0', padding: '2px 8px', borderRadius: 4 }}>
-                                    {String.fromCharCode(65 + i)}: {opt}
-                                  </span>
-                                ))}
+                                {q.options.map((opt, i) => <span key={i} style={{ background: darkMode ? '#333' : '#f0f0f0', padding: '2px 8px', borderRadius: 4 }}>{String.fromCharCode(65 + i)}: {opt}</span>)}
                                 <span style={{ color: '#2E7D64', fontWeight: 'bold' }}>✓ Answer: {String.fromCharCode(65 + q.correctAnswer)}</span>
                               </div>
                             </div>
@@ -1435,120 +1626,34 @@ export const AdminPanel = () => {
                       </div>
                     )}
                   </div>
-
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <button
-                      onClick={handleSaveQuiz}
-                      style={{ 
-                        flex: 1,
-                        background: '#6c757d', 
-                        color: 'white', 
-                        padding: '14px', 
-                        border: 'none', 
-                        borderRadius: 10, 
-                        cursor: 'pointer', 
-                        fontWeight: 'bold', 
-                        fontSize: 16,
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#5a6268'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = '#6c757d'}
-                    >
-                       Save as Draft
-                    </button>
-                    <button
-                      onClick={handlePublishQuiz}
-                      style={{ 
-                        flex: 1,
-                        background: '#28a745', 
-                        color: 'white', 
-                        padding: '14px', 
-                        border: 'none', 
-                        borderRadius: 10, 
-                        cursor: 'pointer', 
-                        fontWeight: 'bold', 
-                        fontSize: 16,
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#218838'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = '#28a745'}
-                    >
-                      {editingQuizId ? ' Update & Publish' : ' Publish Now'}
-                    </button>
+                    <button onClick={handleSaveQuiz} style={{ flex: 1, background: '#6c757d', color: 'white', padding: '14px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 16, transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#5a6268'} onMouseLeave={(e) => e.currentTarget.style.background = '#6c757d'}> Save as Draft</button>
+                    <button onClick={handlePublishQuiz} style={{ flex: 1, background: '#28a745', color: 'white', padding: '14px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 16, transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#218838'} onMouseLeave={(e) => e.currentTarget.style.background = '#28a745'}>{editingQuizId ? ' Update & Publish' : ' Publish Now'}</button>
                   </div>
                 </div>
               )}
 
-              {loadingQuizzes ? (
-                <p style={{ textAlign: 'center', color: secondaryText, padding: '30px 0' }}>Loading quizzes...</p>
-              ) : weeklyQuizzes.length === 0 ? (
-                <p style={{ textAlign: 'center', color: secondaryText, padding: '30px 0' }}>No weekly quizzes created yet.</p>
-              ) : (
+              {loadingQuizzes ? <p style={{ textAlign: 'center', color: secondaryText, padding: '30px 0' }}>Loading quizzes...</p> : weeklyQuizzes.length === 0 ? <p style={{ textAlign: 'center', color: secondaryText, padding: '30px 0' }}>No weekly quizzes created yet.</p> : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
                   {weeklyQuizzes.map(quiz => {
                     const status = getQuizStatus(quiz);
                     return (
-                      <div key={quiz._id} style={{ 
-                        background: darkMode ? '#1a1a2e' : 'white', 
-                        padding: '18px 20px', 
-                        borderRadius: 14, 
-                        border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
-                        transition: 'box-shadow 0.2s',
-                        position: 'relative'
-                      }}>
+                      <div key={quiz._id} style={{ background: darkMode ? '#1a1a2e' : 'white', padding: '18px 20px', borderRadius: 14, border: `1px solid ${darkMode ? '#444' : '#ddd'}`, transition: 'box-shadow 0.2s', position: 'relative' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div>
                             <h4 style={{ color: headingColor, margin: 0, fontSize: 16 }}>{quiz.title}</h4>
-                            <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>
-                              Week {quiz.weekNumber} • {quiz.questions.length} questions
-                            </p>
+                            <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>Week {quiz.weekNumber} • {quiz.questions.length} questions</p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                              <span style={{ 
-                                background: status.color, 
-                                color: 'white', 
-                                padding: '2px 10px', 
-                                borderRadius: 12, 
-                                fontSize: 11,
-                                fontWeight: 'bold'
-                              }}>
-                                {status.label}
-                              </span>
-                              {quiz.isPremium && (
-                                <span style={{ 
-                                  background: '#ff9800', 
-                                  color: 'white', 
-                                  padding: '2px 10px', 
-                                  borderRadius: 12, 
-                                  fontSize: 11,
-                                  fontWeight: 'bold'
-                                }}>
-                                  ⭐ Premium
-                                </span>
-                              )}
-                              {quiz.startDate && (
-                                <span style={{ 
-                                  background: '#17a2b8', 
-                                  color: 'white', 
-                                  padding: '2px 10px', 
-                                  borderRadius: 12, 
-                                  fontSize: 11
-                                }}>
-                                  Time Published {new Date(quiz.startDate).toLocaleDateString()}
-                                </span>
-                              )}
+                              <span style={{ background: status.color, color: 'white', padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 'bold' }}>{status.label}</span>
+                              {quiz.isPremium && <span style={{ background: '#ff9800', color: 'white', padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 'bold' }}>⭐ Premium</span>}
+                              {quiz.startDate && <span style={{ background: '#17a2b8', color: 'white', padding: '2px 10px', borderRadius: 12, fontSize: 11 }}>Time Published {new Date(quiz.startDate).toLocaleDateString()}</span>}
                             </div>
-                            <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>
-                              Pass: {quiz.passingScore}% • Time: {quiz.timeLimit}min
-                            </p>
+                            <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>Pass: {quiz.passingScore}% • Time: {quiz.timeLimit}min</p>
                           </div>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                             <button onClick={() => editQuiz(quiz)} style={{ background: '#ffc107', color: '#333', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Edit</button>
-                            <button onClick={() => handleTogglePublish(quiz._id, quiz.isActive)} style={{ background: quiz.isActive ? '#dc3545' : '#28a745', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                              {quiz.isActive ? ' Unpublish' : ' Publish'}
-                            </button>
-                            <button onClick={() => handleTogglePremium(quiz._id, quiz.isPremium)} style={{ background: quiz.isPremium ? '#dc3545' : '#ff9800', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                              {quiz.isPremium ? '⭐ Remove Premium' : '⭐ Make Premium'}
-                            </button>
+                            <button onClick={() => handleTogglePublish(quiz._id, quiz.isActive)} style={{ background: quiz.isActive ? '#dc3545' : '#28a745', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>{quiz.isActive ? ' Unpublish' : ' Publish'}</button>
+                            <button onClick={() => handleTogglePremium(quiz._id, quiz.isPremium)} style={{ background: quiz.isPremium ? '#dc3545' : '#ff9800', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>{quiz.isPremium ? '⭐ Remove Premium' : '⭐ Make Premium'}</button>
                             <button onClick={() => handleViewResults(quiz._id)} style={{ background: '#17a2b8', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Quiz Results</button>
                             <button onClick={() => handleDeleteQuiz(quiz._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Delete</button>
                           </div>
@@ -1558,51 +1663,20 @@ export const AdminPanel = () => {
                   })}
                 </div>
               )}
-
               {showResults && selectedQuizResults && (
-                <div style={{
-                  position: 'fixed',
-                  top: 0, left: 0, right: 0, bottom: 0,
-                  background: 'rgba(0,0,0,0.7)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 2000,
-                  padding: '20px'
-                }}>
-                  <div style={{
-                    background: cardBg,
-                    borderRadius: 20,
-                    padding: 28,
-                    maxWidth: 600,
-                    width: '100%',
-                    maxHeight: '80vh',
-                    overflowY: 'auto',
-                    boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
-                  }}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px' }}>
+                  <div style={{ background: cardBg, borderRadius: 20, padding: 28, maxWidth: 600, width: '100%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 8px 30px rgba(0,0,0,0.3)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
                       <h3 style={{ color: headingColor, margin: 0 }}>Quiz Results</h3>
                       <button onClick={() => setShowResults(false)} style={{ background: '#6c757d', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Close</button>
                     </div>
-                    {selectedQuizResults.length === 0 ? (
-                      <p style={{ color: secondaryText, textAlign: 'center', padding: '20px 0' }}>No attempts yet.</p>
-                    ) : (
+                    {selectedQuizResults.length === 0 ? <p style={{ color: secondaryText, textAlign: 'center', padding: '20px 0' }}>No attempts yet.</p> : (
                       <div>
                         <p style={{ color: secondaryText, marginBottom: 14 }}>Total Attempts: <strong>{selectedQuizResults.length}</strong></p>
                         {selectedQuizResults.map((attempt, idx) => (
-                          <div key={idx} style={{ 
-                            background: darkMode ? '#1a1a2e' : '#f8f9fa', 
-                            padding: '14px 16px', 
-                            borderRadius: 10, 
-                            marginBottom: 10,
-                            borderLeft: `4px solid ${attempt.passed ? '#2e7d32' : '#dc3545'}`
-                          }}>
+                          <div key={idx} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: '14px 16px', borderRadius: 10, marginBottom: 10, borderLeft: `4px solid ${attempt.passed ? '#2e7d32' : '#dc3545'}` }}>
                             <p style={{ margin: 0, color: textColor, fontWeight: 'bold' }}>{attempt.userId?.name || 'Unknown'}</p>
-                            <p style={{ margin: 0, fontSize: 13, color: secondaryText }}>
-                              {attempt.userId?.email || 'No email'} • 
-                              Score: <strong>{attempt.score}/{attempt.total}</strong> ({attempt.percentage.toFixed(1)}%) 
-                              {attempt.passed ? ' ✅' : ' ❌'}
-                            </p>
+                            <p style={{ margin: 0, fontSize: 13, color: secondaryText }}>{attempt.userId?.email || 'No email'} • Score: <strong>{attempt.score}/{attempt.total}</strong> ({attempt.percentage.toFixed(1)}%) {attempt.passed ? ' ✅' : ' ❌'}</p>
                             <p style={{ margin: 0, fontSize: 11, color: secondaryText }}>{new Date(attempt.completedAt).toLocaleString()}</p>
                           </div>
                         ))}
@@ -1613,6 +1687,7 @@ export const AdminPanel = () => {
               )}
             </div>
           )}
+
         </div>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>

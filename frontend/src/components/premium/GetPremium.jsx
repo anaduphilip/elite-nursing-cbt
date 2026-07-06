@@ -18,6 +18,13 @@ export const GetPremium = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [timeLeft, setTimeLeft] = useState(null);
 
+  // ========== NEW: Coupon states ==========
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(null);
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  // ========================================
+
   const plans = {
     daily: { label: 'Daily', amount: 500, duration: '24 hours' },
     monthly: { label: 'Monthly', amount: 2000, duration: '30 days' },
@@ -91,6 +98,36 @@ export const GetPremium = () => {
     };
   }, [token, user?.id, user?.isPremium, user?.premiumExpiry]);
 
+  // ========== NEW: Apply coupon ==========
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+    setCouponLoading(true);
+    setCouponError('');
+    setCouponApplied(null);
+    try {
+      const res = await axios.post('/api/validate-coupon', {
+        code: couponCode,
+        amount: plans[selectedPlan].amount
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setCouponApplied(res.data.coupon);
+        setCouponError('');
+      } else {
+        setCouponError(res.data.error || 'Invalid coupon');
+      }
+    } catch (error) {
+      setCouponError('Failed to validate coupon');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+  // ======================================
+
   // ========== UPDATED handlePayment ==========
   const handlePayment = async () => {
     if (!user?.id) {
@@ -102,6 +139,9 @@ export const GetPremium = () => {
     try {
       console.log('User ID for payment:', user.id);
 
+      // Use discounted amount if coupon applied
+      const amountToPay = couponApplied ? couponApplied.finalAmount : plans[selectedPlan].amount;
+
       const isNative = Capacitor.isNativePlatform();
       const redirectUrl = isNative
         ? 'https://elite-nursing-cbt.vercel.app/payment-success.html'
@@ -109,13 +149,14 @@ export const GetPremium = () => {
 
       const response = await axios.post('/api/initialize-payment', {
         email: user.email,
-        amount: plans[selectedPlan].amount,
+        amount: amountToPay,
         userId: user.id,
         planType: selectedPlan,
         examId: null,
         examTitle: null,
         sectionNumber: null,
-        redirect_url: redirectUrl
+        redirect_url: redirectUrl,
+        couponCode: couponApplied ? couponCode : null   // <-- NEW: pass coupon code if applied
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -137,10 +178,8 @@ export const GetPremium = () => {
       console.error('Payment error:', error);
       // Show a specific message if available, otherwise a generic one
       const errorMsg = error.response?.data?.error || error.message || 'Payment initialization failed.';
-      // If the user canceled (e.g., closed the browser), we can't detect it here,
-      // but we can show a clear message.
       alert('Payment initialization failed: ' + errorMsg + '. Please try again.');
-      setLoading(false); // Reset loading on error
+      setLoading(false);
     }
   };
   // ==========================================
@@ -159,6 +198,11 @@ export const GetPremium = () => {
 
   // Check if premium is still active
   const isPremiumActive = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
+
+  // Determine the display amount
+  const displayAmount = couponApplied ? couponApplied.finalAmount : plans[selectedPlan].amount;
+  const originalAmount = plans[selectedPlan].amount;
+  const hasDiscount = couponApplied && displayAmount < originalAmount;
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -243,14 +287,53 @@ export const GetPremium = () => {
                 </div>
               ))}
             </div>
+
+            {/* ========== COUPON SECTION (NEW) ========== */}
+            <div style={{ margin: '16px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Enter coupon code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  style={{ padding: '8px 14px', border: '1px solid #ccc', borderRadius: 8, background: cardBg, color: textColor, fontSize: 14, width: 200 }}
+                />
+                <button
+                  onClick={applyCoupon}
+                  disabled={couponLoading}
+                  style={{ background: '#6c757d', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  {couponLoading ? '...' : 'Apply'}
+                </button>
+              </div>
+              {couponError && <p style={{ color: '#dc3545', fontSize: 13, margin: 0 }}>{couponError}</p>}
+              {couponApplied && (
+                <div style={{ background: '#e8f5e9', padding: '8px 16px', borderRadius: 8, display: 'inline-block' }}>
+                  <p style={{ color: '#2e7d32', fontSize: 14, margin: 0 }}>
+                    ✅ Coupon applied! You save {couponApplied.discountType === 'percentage' ? `${couponApplied.discountValue}%` : `₦${couponApplied.discountValue}`}.
+                    {hasDiscount && <span> New total: ₦{displayAmount}</span>}
+                  </p>
+                </div>
+              )}
+            </div>
+            {/* ========================================= */}
+
             <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: 16, borderRadius: 12, margin: '20px 0' }}>
               <div style={{ fontSize: 18, fontWeight: 'bold', color: headingColor }}>
                 Selected: <span style={{ color: '#ff9800' }}>{plans[selectedPlan].label}</span> – 
-                ₦{plans[selectedPlan].amount}
+                {hasDiscount ? (
+                  <>
+                    <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{originalAmount}</span>
+                    <span style={{ color: '#2e7d32', marginLeft: 8 }}>₦{displayAmount}</span>
+                  </>
+                ) : (
+                  <span> ₦{displayAmount}</span>
+                )}
               </div>
             </div>
+
             <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>
-              {loading ? 'Processing...' : `Pay ₦${plans[selectedPlan].amount} (${plans[selectedPlan].label})`}
+              {loading ? 'Processing...' : `Pay ₦${displayAmount} (${plans[selectedPlan].label})`}
             </button>
           </>
         )}
