@@ -32,6 +32,15 @@ export const AdminPanel = () => {
   const [broadcastLoading, setBroadcastLoading] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState('');
 
+  // ---- Announcement states ----
+  const [announcementMessage, setAnnouncementMessage] = useState('');
+  const [announcementButtonText, setAnnouncementButtonText] = useState('Learn More');
+  const [announcementButtonLink, setAnnouncementButtonLink] = useState('/get-premium');
+  const [announcementActive, setAnnouncementActive] = useState(false);
+  const [announcementVersion, setAnnouncementVersion] = useState(0);
+  const [announcementLoading, setAnnouncementLoading] = useState(false);
+  const [announcementResult, setAnnouncementResult] = useState('');
+
   const [quizTitle, setQuizTitle] = useState('');
   const [quizDescription, setQuizDescription] = useState('');
   const [quizInstructions, setQuizInstructions] = useState('');
@@ -630,6 +639,7 @@ export const AdminPanel = () => {
             <button onClick={() => setActiveTab('manualOtp')} style={{ background: activeTab === 'manualOtp' ? '#6c757d' : 'transparent', color: activeTab === 'manualOtp' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualOtp' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual OTP</button>
             <button onClick={() => setActiveTab('manualReset')} style={{ background: activeTab === 'manualReset' ? '#6c757d' : 'transparent', color: activeTab === 'manualReset' ? 'white' : '#6c757d', padding: '10px 24px', border: activeTab === 'manualReset' ? 'none' : '1px solid #6c757d', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Manual Reset</button>
             <button onClick={() => setActiveTab('broadcast')} style={{ background: activeTab === 'broadcast' ? '#1e3c72' : 'transparent', color: activeTab === 'broadcast' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'broadcast' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Broadcast</button>
+            <button onClick={() => setActiveTab('announcement')} style={{ background: activeTab === 'announcement' ? '#1e3c72' : 'transparent', color: activeTab === 'announcement' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'announcement' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Announcement</button>
             <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
           </div>
 
@@ -883,6 +893,138 @@ export const AdminPanel = () => {
                 {broadcastLoading ? 'Sending...' : 'Send Broadcast'}
               </button>
               {broadcastResult && <p style={{ marginTop: 16, color: '#2e7d32' }}>{broadcastResult}</p>}
+            </div>
+          )}
+
+          {activeTab === 'announcement' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>One-Time Home Page Banner</h3>
+              <p style={{ color: secondaryText, marginBottom: 16 }}>
+                Create a banner that each user sees once on the home page. Update it anytime – it will reappear for all users with the new version.
+              </p>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Message</label>
+                <textarea
+                  placeholder="Enter the banner message"
+                  value={announcementMessage}
+                  onChange={(e) => setAnnouncementMessage(e.target.value)}
+                  rows="3"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Button Text</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Get Premium Now"
+                  value={announcementButtonText}
+                  onChange={(e) => setAnnouncementButtonText(e.target.value)}
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Button Link</label>
+                <input
+                  type="text"
+                  placeholder="/get-premium, /weekly-quiz, /contact, etc."
+                  value={announcementButtonLink}
+                  onChange={(e) => setAnnouncementButtonLink(e.target.value)}
+                  style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={announcementActive}
+                    onChange={(e) => setAnnouncementActive(e.target.checked)}
+                  />
+                  Active (banner will be shown)
+                </label>
+                <span style={{ color: secondaryText, fontSize: 13 }}>
+                  Version: {announcementVersion}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <button
+                  onClick={async () => {
+                    if (!announcementMessage.trim()) {
+                      alert('Message is required');
+                      return;
+                    }
+                    setAnnouncementLoading(true);
+                    setAnnouncementResult('');
+                    try {
+                      const res = await axios.post('/api/admin/announcement', {
+                        message: announcementMessage,
+                        buttonText: announcementButtonText,
+                        buttonLink: announcementButtonLink,
+                        active: announcementActive
+                      }, { headers: { Authorization: `Bearer ${token}` } });
+                      if (res.data.success) {
+                        setAnnouncementResult(`✅ Banner updated! Version: ${res.data.announcement.version}`);
+                        setAnnouncementVersion(res.data.announcement.version);
+                      }
+                    } catch (error) {
+                      setAnnouncementResult('❌ Failed to update banner: ' + (error.response?.data?.error || error.message));
+                    } finally {
+                      setAnnouncementLoading(false);
+                    }
+                  }}
+                  disabled={announcementLoading}
+                  style={{ background: '#1e3c72', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: announcementLoading ? 0.7 : 1 }}
+                >
+                  {announcementLoading ? 'Saving...' : 'Publish Banner'}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('Deactivate the banner? Users who haven\'t seen it will not see it.')) return;
+                    setAnnouncementLoading(true);
+                    try {
+                      const res = await axios.delete('/api/admin/announcement', { headers: { Authorization: `Bearer ${token}` } });
+                      if (res.data.success) {
+                        setAnnouncementResult('✅ Banner deactivated.');
+                        setAnnouncementActive(false);
+                        setAnnouncementVersion(prev => prev + 1);
+                      }
+                    } catch (error) {
+                      setAnnouncementResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
+                    } finally {
+                      setAnnouncementLoading(false);
+                    }
+                  }}
+                  style={{ background: '#dc3545', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Deactivate Banner
+                </button>
+                <button
+                  onClick={async () => {
+                    setAnnouncementLoading(true);
+                    try {
+                      const res = await axios.get('/api/admin/announcement', { headers: { Authorization: `Bearer ${token}` } });
+                      if (res.data.announcement) {
+                        const a = res.data.announcement;
+                        setAnnouncementMessage(a.message || '');
+                        setAnnouncementButtonText(a.buttonText || 'Learn More');
+                        setAnnouncementButtonLink(a.buttonLink || '/get-premium');
+                        setAnnouncementActive(a.active || false);
+                        setAnnouncementVersion(a.version || 0);
+                        setAnnouncementResult('✅ Loaded current banner.');
+                      } else {
+                        setAnnouncementResult('No banner found. Create one now.');
+                      }
+                    } catch (error) {
+                      setAnnouncementResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
+                    } finally {
+                      setAnnouncementLoading(false);
+                    }
+                  }}
+                  style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Load Current
+                </button>
+              </div>
+              {announcementResult && <p style={{ marginTop: 16, color: '#2e7d32' }}>{announcementResult}</p>}
             </div>
           )}
 

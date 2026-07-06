@@ -1,6 +1,7 @@
 // src/components/home/HomePage.jsx
 import React, { useState, useEffect, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';   
+import axios from 'axios';                                
 import { AuthContext } from '../../context/AuthContext';
 import { getCachedQuizzes } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText } from '../../utils/theme';
@@ -13,7 +14,37 @@ export const HomePage = () => {
   const { token, darkMode, user } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
+  const navigate = useNavigate(); 
 
+  // ---- ANNOUNCEMENT BANNER STATE ----
+  const [announcement, setAnnouncement] = useState(null);
+  const [showBanner, setShowBanner] = useState(false);
+  const [dismissedVersion, setDismissedVersion] = useState(() => {
+    return localStorage.getItem('announcementDismissed') || '0';
+  });
+
+  // ---- FETCH ANNOUNCEMENT ----
+  useEffect(() => {
+    const fetchAnnouncement = async () => {
+      try {
+        const res = await axios.get('/api/announcement');
+        if (res.data.success && res.data.announcement) {
+          const ann = res.data.announcement;
+          setAnnouncement(ann);
+          if (ann.active && parseInt(dismissedVersion) !== ann.version) {
+            setShowBanner(true);
+          } else {
+            setShowBanner(false);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch announcement:', error);
+      }
+    };
+    fetchAnnouncement();
+  }, [dismissedVersion]);
+
+  // ---- ORIGINAL CODE (unchanged) ----
   useEffect(() => {
     const fetchQuizzes = async () => {
       setLoading(true);
@@ -90,6 +121,64 @@ export const HomePage = () => {
           <h1 style={{ color: headingColor, fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h1>
           <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 16px)' }}>Computer Based Testing Platform</p>
         </div>
+
+        {/* ---- ANNOUNCEMENT BANNER (NEW) ---- */}
+        {showBanner && announcement && (
+          <div style={{
+            background: darkMode ? '#2d2d3d' : '#fff3e0',
+            borderRadius: 12,
+            padding: '16px 24px',
+            marginBottom: 24,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 16,
+            border: `1px solid ${darkMode ? '#444' : '#ffcc80'}`
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 24 }}>📢</span>
+              <span style={{ color: darkMode ? '#eee' : '#333' }}>{announcement.message}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => {
+                  navigate(announcement.buttonLink);
+                  localStorage.setItem('announcementDismissed', announcement.version);
+                  setShowBanner(false);
+                }}
+                style={{
+                  background: '#ff9800',
+                  color: 'white',
+                  padding: '8px 24px',
+                  border: 'none',
+                  borderRadius: 30,
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                {announcement.buttonText}
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem('announcementDismissed', announcement.version);
+                  setShowBanner(false);
+                }}
+                style={{
+                  background: 'transparent',
+                  color: secondaryText,
+                  border: '1px solid ' + secondaryText,
+                  padding: '8px 20px',
+                  borderRadius: 30,
+                  cursor: 'pointer'
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+        {/* ---- END ANNOUNCEMENT BANNER ---- */}
 
         <div style={{ display: 'flex', gap: 16, marginBottom: 32, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
