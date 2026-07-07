@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
+import { AdminLoginModal } from '../admin/AdminLoginModal'; // ← NEW IMPORT
 
 export const Profile = () => {
   const { token, user, login, logout, darkMode, toggleDarkMode, openLogoutModal } = useContext(AuthContext);
@@ -17,6 +18,12 @@ export const Profile = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  // ===== ADMIN SECURITY STATES =====
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminAuthenticated, setAdminAuthenticated] = useState(() => {
+    return localStorage.getItem('admin_token') ? true : false;
+  });
 
   const [timeLeft, setTimeLeft] = useState(null);
   useEffect(() => {
@@ -111,9 +118,27 @@ export const Profile = () => {
     openLogoutModal();
   };
 
+  // ===== ADMIN LINK HANDLER =====
+  const handleAdminClick = (e) => {
+    e.preventDefault();
+    if (adminAuthenticated) {
+      navigate('/admin');
+    } else {
+      setShowAdminLogin(true);
+    }
+  };
+
+  // ===== ADMIN LOGIN SUCCESS =====
+  const handleAdminLoginSuccess = () => {
+    setAdminAuthenticated(true);
+    setShowAdminLogin(false);
+    navigate('/admin');
+  };
+
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        {/* ... existing profile content ... */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
           <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#1e3c72', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'white' }}>
             {user?.name?.charAt(0) || 'U'}
@@ -226,8 +251,35 @@ export const Profile = () => {
             </button>
           </div>
           {user?.email === 'elitenursingcbt@gmail.com' && (
-            <Link to="/admin" style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#ffebee', padding: 12, borderRadius: 8, textDecoration: 'none', color: '#dc3545', fontWeight: 'bold' }}>
+            // ===== UPDATED ADMIN LINK WITH SECURITY =====
+            <Link 
+              to="#" 
+              onClick={handleAdminClick}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 10, 
+                background: '#ffebee', 
+                padding: 12, 
+                borderRadius: 8, 
+                textDecoration: 'none', 
+                color: '#dc3545', 
+                fontWeight: 'bold' 
+              }}
+            >
               <span style={{ fontSize: 20 }}>👑</span> Admin Panel
+              {adminAuthenticated && (
+                <span style={{ 
+                  fontSize: 11, 
+                  background: '#4caf50', 
+                  color: 'white', 
+                  padding: '2px 10px', 
+                  borderRadius: 12,
+                  marginLeft: 'auto'
+                }}>
+                  ✅ Authenticated
+                </span>
+              )}
             </Link>
           )}
         </div>
@@ -243,6 +295,15 @@ export const Profile = () => {
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
+
+      {/* ===== ADMIN LOGIN MODAL ===== */}
+      {showAdminLogin && (
+        <AdminLoginModal
+          darkMode={darkMode}
+          onClose={() => setShowAdminLogin(false)}
+          onSuccess={handleAdminLoginSuccess}
+        />
+      )}
     </div>
   );
 };

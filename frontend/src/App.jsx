@@ -52,6 +52,16 @@ const getHeadingColorHelper = (darkMode) => darkMode ? '#e0e0e0' : '#1e3c72';
 const getBorderColorHelper = (darkMode) => darkMode ? '#444' : '#e0e0e0';
 const getCardBgHelper = (darkMode) => darkMode ? '#2d2d3d' : 'white';
 
+// ========== ADMIN ROUTE PROTECTION ==========
+const ProtectedAdminRoute = ({ children }) => {
+  const adminToken = localStorage.getItem('admin_token');
+  if (!adminToken) {
+    alert('Please authenticate to access the admin panel.');
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
+
 // Main App Content
 const AppContent = () => {
   const { token, darkMode, user } = useContext(AuthContext);
@@ -111,7 +121,15 @@ const AppContent = () => {
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/whatsapp" element={<JoinWhatsApp />} />
-        <Route path="/admin" element={<AdminPanel />} />
+        {/* ===== PROTECTED ADMIN ROUTE ===== */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedAdminRoute>
+              <AdminPanel />
+            </ProtectedAdminRoute>
+          }
+        />
         <Route path="/payment-return" element={<PaymentReturn />} />
         <Route path="/history" element={<MyHistory />} />
         <Route path="/profile" element={<Profile />} />

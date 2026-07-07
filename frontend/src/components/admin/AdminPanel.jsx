@@ -84,6 +84,14 @@ export const AdminPanel = () => {
   const [selectedPlan, setSelectedPlan] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ---- Admin Security states ----
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminKey, setAdminKey] = useState('');
+  const [adminSecurityQuestion, setAdminSecurityQuestion] = useState('What is your pet\'s name?');
+  const [adminSecurityAnswer, setAdminSecurityAnswer] = useState('');
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [securityMessage, setSecurityMessage] = useState('');
+
   // ========== Dashboard data ==========
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -129,6 +137,21 @@ export const AdminPanel = () => {
   const [faqActive, setFaqActive] = useState(true);
   const [editingFaqId, setEditingFaqId] = useState(null);
   const [faqResult, setFaqResult] = useState('');
+
+  // ============================================================
+  // ========== DIRECT ACCESS PROTECTION (NEW) ==================
+  // ============================================================
+  useEffect(() => {
+    // Check if admin token exists
+    const adminToken = localStorage.getItem('admin_token');
+    if (!adminToken) {
+      alert('Please authenticate to access the admin panel.');
+      window.location.href = '/';
+      return;
+    }
+    // Optional: verify token expiration (you can add backend check)
+    // For now, we assume token is valid (it expires in 1 hour)
+  }, []);
 
   // Fetch all data on mount
   useEffect(() => {
@@ -1187,7 +1210,7 @@ export const AdminPanel = () => {
             </div>
           )}
 
-          {/* ========== SETTINGS TAB (IMPROVED LAYOUT) ========== */}
+          {/* ========== SETTINGS TAB (WITH ADMIN SECURITY) ========== */}
           {activeTab === 'settings' && (
             <div style={{ padding: 24 }}>
               <h3 style={{ color: headingColor, marginBottom: 24 }}>⚙️ System Settings</h3>
@@ -1273,6 +1296,118 @@ export const AdminPanel = () => {
                   <button onClick={handleSaveConfig} disabled={configLoading} style={{ background: '#1e3c72', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 16, opacity: configLoading ? 0.7 : 1, transition: 'opacity 0.2s' }}>{configLoading ? 'Saving...' : 'Save Settings'}</button>
                   {configResult && <p style={{ marginLeft: 16, alignSelf: 'center', color: configResult.includes('✅') ? '#2e7d32' : '#dc3545' }}>{configResult}</p>}
                 </div>
+              </div>
+
+              {/* ===== ADMIN SECURITY SECTION (NEW) ===== */}
+              <hr style={{ margin: '40px 0', borderColor: darkMode ? '#444' : '#ddd' }} />
+
+              <div style={{ 
+                background: darkMode ? '#1a1a2e' : '#f8f9fa',
+                padding: 24,
+                borderRadius: 12,
+              }}>
+                <h3 style={{ color: headingColor, marginBottom: 20 }}>🔐 Admin Security</h3>
+                <p style={{ color: secondaryText, marginBottom: 16 }}>
+                  Set up a 3-step verification for accessing the admin panel. Keep these credentials safe.
+                </p>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 500, fontSize: 14 }}>Admin Password</label>
+                    <input
+                      type="password"
+                      placeholder="Set a strong password"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  
+                  <div style={{ minWidth: 0 }}>
+                    <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 500, fontSize: 14 }}>Admin Key</label>
+                    <input
+                      type="password"
+                      placeholder="A secret key (e.g., a random string)"
+                      value={adminKey}
+                      onChange={(e) => setAdminKey(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  
+                  <div style={{ minWidth: 0, gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 500, fontSize: 14 }}>Security Question</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., What is your pet's name?"
+                      value={adminSecurityQuestion}
+                      onChange={(e) => setAdminSecurityQuestion(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  
+                  <div style={{ minWidth: 0, gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 500, fontSize: 14 }}>Security Answer</label>
+                    <input
+                      type="password"
+                      placeholder="Your answer"
+                      value={adminSecurityAnswer}
+                      onChange={(e) => setAdminSecurityAnswer(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 }}>
+                  <button
+                    onClick={async () => {
+                      if (!adminPassword || !adminKey || !adminSecurityAnswer) {
+                        alert('All fields are required.');
+                        return;
+                      }
+                      setSecurityLoading(true);
+                      setSecurityMessage('');
+                      try {
+                        const res = await axios.post('/api/admin/set-security', {
+                          password: adminPassword,
+                          key: adminKey,
+                          securityQuestion: adminSecurityQuestion,
+                          securityAnswer: adminSecurityAnswer
+                        }, { headers: { Authorization: `Bearer ${token}` } });
+                        setSecurityMessage('✅ Admin security updated successfully!');
+                        setAdminPassword('');
+                        setAdminKey('');
+                        setAdminSecurityAnswer('');
+                      } catch (error) {
+                        setSecurityMessage('❌ Failed to update: ' + (error.response?.data?.error || error.message));
+                      } finally {
+                        setSecurityLoading(false);
+                      }
+                    }}
+                    disabled={securityLoading}
+                    style={{ background: '#1e3c72', color: 'white', padding: '12px 28px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: securityLoading ? 0.7 : 1 }}
+                  >
+                    {securityLoading ? 'Saving...' : 'Save Security Settings'}
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm('Are you sure you want to reset admin security? You will need to reconfigure it.')) return;
+                      try {
+                        await axios.post('/api/admin/reset-security', { email: 'elitenursingcbt@gmail.com' });
+                        alert('Admin security has been reset. Please reconfigure it now.');
+                        localStorage.removeItem('admin_token');
+                        window.location.reload();
+                      } catch (error) {
+                        alert('Failed to reset admin security: ' + (error.response?.data?.error || error.message));
+                      }
+                    }}
+                    style={{ background: '#dc3545', color: 'white', padding: '12px 28px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    Reset Security
+                  </button>
+                </div>
+                
+                {securityMessage && <p style={{ marginTop: 16, color: securityMessage.includes('✅') ? '#2e7d32' : '#dc3545' }}>{securityMessage}</p>}
               </div>
             </div>
           )}
