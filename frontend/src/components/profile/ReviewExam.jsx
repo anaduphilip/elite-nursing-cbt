@@ -173,7 +173,7 @@ export const ReviewExam = () => {
                     Generating...
                   </>
                 ) : (
-                  '🤖 Explain with AI'
+                  'Explain'
                 )}
               </button>
 
@@ -185,7 +185,7 @@ export const ReviewExam = () => {
                   borderRadius: 8,
                   borderLeft: '4px solid #ff9800'
                 }}>
-                  <div style={{ fontWeight: 'bold', color: '#ff9800', marginBottom: 8 }}>🤖 AI Explanation</div>
+                  <div style={{ fontWeight: 'bold', color: '#ff9800', marginBottom: 8 }}>Explanation</div>
                   {explanation[idx].split('\n').filter(line => line.trim()).map((line, i) => (
                     <p key={i} style={{ margin: '4px 0', fontSize: 14, color: textColor, lineHeight: 1.6 }}>
                       {line}
