@@ -95,6 +95,15 @@ export const ReviewExam = () => {
     }
   };
 
+  // ===== Close/Dismiss explanation =====
+  const closeExplanation = (idx) => {
+    setExplanation((prev) => {
+      const updated = { ...prev };
+      delete updated[idx];
+      return updated;
+    });
+  };
+
   if (loading) return <LoadingWithBar message="Loading review..." />;
   if (!attempt || !quiz) return <div>Review data not found</div>;
 
@@ -170,28 +179,55 @@ export const ReviewExam = () => {
               >
                 {loadingExplanation[idx] ? (
                   <>
-                    <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>⚡</span>
+                    <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
                     Generating...
                   </>
                 ) : (
-                  'Explain'
+                  'Explain with AI'
                 )}
               </button>
 
-              {/* ===== AI EXPLANATION DISPLAY (WITH MARKDOWN) ===== */}
+              {/* ===== AI EXPLANATION DISPLAY WITH CLOSE BUTTON ===== */}
               {explanation[idx] && (
                 <div style={{
                   marginTop: 12,
                   padding: 16,
+                  paddingRight: 40,
                   background: darkMode ? '#1a1a2e' : '#f0f7f4',
                   borderRadius: 8,
-                  borderLeft: '4px solid #ff9800'
+                  borderLeft: '4px solid #ff9800',
+                  textAlign: 'left',
+                  position: 'relative'
                 }}>
-                  <div style={{ fontWeight: 'bold', color: '#ff9800', marginBottom: 8 }}>Explanation</div>
+                  {/* Close button */}
+                  <button
+                    onClick={() => closeExplanation(idx)}
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 10,
+                      background: 'none',
+                      border: 'none',
+                      fontSize: 18,
+                      cursor: 'pointer',
+                      color: secondaryText,
+                      padding: '4px 8px',
+                      borderRadius: 4,
+                      lineHeight: 1,
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = darkMode ? '#333' : '#e0e0e0'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                    aria-label="Close explanation"
+                  >
+                    ✕
+                  </button>
+
+                  <div style={{ fontWeight: 'bold', color: '#ff9800', marginBottom: 8, textAlign: 'left' }}>AI Explanation</div>
                   <ReactMarkdown
                     components={{
                       p: ({ children }) => (
-                        <p style={{ margin: '4px 0', fontSize: 14, color: textColor, lineHeight: 1.6 }}>
+                        <p style={{ margin: '4px 0', fontSize: 14, color: textColor, lineHeight: 1.6, textAlign: 'left' }}>
                           {children}
                         </p>
                       ),
@@ -199,17 +235,17 @@ export const ReviewExam = () => {
                         <strong style={{ color: headingColor, fontWeight: 'bold' }}>{children}</strong>
                       ),
                       ul: ({ children }) => (
-                        <ul style={{ paddingLeft: 20, margin: '4px 0', listStyleType: 'disc' }}>
+                        <ul style={{ paddingLeft: 20, margin: '4px 0', listStyleType: 'disc', textAlign: 'left' }}>
                           {children}
                         </ul>
                       ),
                       li: ({ children }) => (
-                        <li style={{ margin: '2px 0', fontSize: 14, color: textColor, lineHeight: 1.6 }}>
+                        <li style={{ margin: '2px 0', fontSize: 14, color: textColor, lineHeight: 1.6, textAlign: 'left' }}>
                           {children}
                         </li>
                       ),
                       h3: ({ children }) => (
-                        <h3 style={{ margin: '8px 0 4px', fontSize: 15, color: headingColor, fontWeight: 'bold' }}>
+                        <h3 style={{ margin: '8px 0 4px', fontSize: 15, color: headingColor, fontWeight: 'bold', textAlign: 'left' }}>
                           {children}
                         </h3>
                       )
