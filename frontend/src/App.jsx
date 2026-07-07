@@ -40,7 +40,7 @@ import { FloatingChatButton } from './components/common/FloatingChatButton';
 import { WeeklyQuizLanding } from './components/weekly/WeeklyQuizLanding';
 import { LogoutModal } from './components/common/LogoutModal';
 import { FAQ } from './components/pages/FAQ';
-import { Maintenance } from './components/pages/Maintenance'; // NEW: Maintenance page
+import { Maintenance } from './components/pages/Maintenance';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -141,7 +141,7 @@ function App() {
   });
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // ========== NEW: Maintenance mode states ==========
+  // ========== Maintenance mode states ==========
   const [maintenance, setMaintenance] = useState(null);
   const [maintenanceLoading, setMaintenanceLoading] = useState(true);
 
@@ -189,7 +189,7 @@ function App() {
     localStorage.setItem('darkMode', !darkMode);
   };
 
-  // ========== NEW: Fetch maintenance config ==========
+  // ========== Fetch maintenance config with polling ==========
   useEffect(() => {
     const fetchConfig = async () => {
       try {
@@ -203,7 +203,14 @@ function App() {
         setMaintenanceLoading(false);
       }
     };
+
+    // Initial fetch
     fetchConfig();
+
+    // Poll every 30 seconds to check for maintenance mode changes
+    const interval = setInterval(fetchConfig, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const [notificationModal, setNotificationModal] = useState(null);
@@ -418,6 +425,7 @@ function App() {
   // 1. Config is loaded
   // 2. Maintenance mode is enabled
   // 3. User is NOT admin (elitenursingcbt@gmail.com)
+  // This check runs on every render, so it will reflect the latest state from polling.
   if (maintenanceLoading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>Loading...</div>;
   }
