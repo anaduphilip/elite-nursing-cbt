@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 require('dotenv').config();
 const admin = require('firebase-admin');
+const OpenAI = require('openai'); // ← NEW: For AI explanations
 
 if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   try {
@@ -143,7 +144,10 @@ const UserSchema = new mongoose.Schema({
     code: String,
     discountAmount: Number,
     appliedAt: { type: Date, default: Date.now }
-  }]
+  }],
+  // ============ NEW: AI Explanations ============
+  dailyExplanations: { type: Number, default: 0 },
+  lastExplanationReset: { type: Date, default: null }
 });
 
 // Quiz Schema
@@ -197,7 +201,7 @@ const Announcement = mongoose.model('Announcement', AnnouncementSchema);
 const WeeklyQuizSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
-  instructions: { type: String, default: '' }, // NEW: instructions shown before quiz
+  instructions: { type: String, default: '' },
   weekNumber: { type: Number, required: true },
   year: { type: Number, default: () => new Date().getFullYear() },
   questions: [{
@@ -564,6 +568,132 @@ const authenticate = async (req, res, next) => {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
+
+// ============ NEW: AI EXPLANATIONS WITH RELAYFREELLM ============
+
+// Initialize the client pointing to your own RelayFreeLLM gateway
+const aiClient = new OpenAI({
+  apiKey: 'dummy', // The gateway doesn't require a real key
+  baseURL: 'https://relay-free-llm.onrender.com/v1',
+  timeout: 60000,
+  maxRetries: 2
+});
+
+// Helper: Check user's daily limit (free users get 10/day)
+const checkUserExplanationLimit = async (user) => {
+  if (user.isPremium) return { allowed: true, remaining: Infinity };
+
+  const today = new Date().toDateString();
+  const lastReset = user.lastExplanationReset ? new Date(user.lastExplanationReset).toDateString() : null;
+  
+  if (lastReset !== today) {
+    user.dailyExplanations = 0;
+    user.lastExplanationReset = new Date();
+    await user.save();
+  }
+  
+  const limit = 10;
+  const used = user.dailyExplanations || 0;
+  const remaining = Math.max(0, limit - used);
+  return { allowed: remaining > 0, remaining };
+};
+
+// Generate AI explanation
+app.post('/api/explain-question', authenticate, async (req, res) => {
+  try {
+    const { questionText, options, correctAnswer, userAnswer } = req.body;
+    
+    if (!questionText || !options || options.length !== 4) {
+      return res.status(400).json({ error: 'Invalid question data' });
+    }
+    
+    // Check user limit
+    const limitCheck = await checkUserExplanationLimit(req.user);
+    if (!limitCheck.allowed) {
+      return res.status(403).json({
+        error: 'Daily explanation limit reached (10/day for free users). Upgrade to Premium for unlimited!',
+        limitReached: true,
+        remaining: 0
+      });
+    }
+    
+    const correctLetter = String.fromCharCode(65 + correctAnswer);
+    const userLetter = userAnswer !== undefined ? String.fromCharCode(65 + userAnswer) : 'Not answered';
+    
+    const prompt = `You are a nursing educator. Provide a helpful, educational explanation for the following multiple-choice question.
+
+Question: ${questionText}
+Options:
+A: ${options[0]}
+B: ${options[1]}
+C: ${options[2]}
+D: ${options[3]}
+Correct Answer: ${correctLetter}
+User's Answer: ${userLetter}
+
+Please provide:
+1. Why the correct answer is right (1-2 sentences)
+2. Why each wrong answer is wrong (1 sentence each)
+3. One brief study tip for this topic
+
+Keep explanations concise and educational. Use bullet points.`;
+
+    const response = await aiClient.chat.completions.create({
+      model: 'gemini-2.0-flash',
+      messages: [
+        { role: 'system', content: 'You are a helpful nursing educator.' },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 400,
+      temperature: 0.7
+    });
+    
+    const explanation = response.choices[0].message.content;
+    
+    // Increment user's daily count (if not premium)
+    if (!req.user.isPremium) {
+      req.user.dailyExplanations = (req.user.dailyExplanations || 0) + 1;
+      await req.user.save();
+    }
+    
+    res.json({
+      success: true,
+      explanation: explanation,
+      remaining: limitCheck.remaining - 1,
+      isPremium: req.user.isPremium
+    });
+    
+  } catch (error) {
+    console.error('AI explanation error:', error);
+    res.status(500).json({
+      error: 'Failed to generate AI explanation. Please try again later.',
+      fallback: true
+    });
+  }
+});
+
+// Get remaining explanations for today
+app.get('/api/explanation-remaining', authenticate, async (req, res) => {
+  if (req.user.isPremium) {
+    return res.json({ remaining: Infinity, isPremium: true });
+  }
+  
+  const today = new Date().toDateString();
+  const lastReset = req.user.lastExplanationReset ? new Date(req.user.lastExplanationReset).toDateString() : null;
+  
+  if (lastReset !== today) {
+    req.user.dailyExplanations = 0;
+    req.user.lastExplanationReset = new Date();
+    await req.user.save();
+  }
+  
+  const limit = 10;
+  const used = req.user.dailyExplanations || 0;
+  const remaining = Math.max(0, limit - used);
+  res.json({ remaining, isPremium: false });
+});
+
+// ============ END AI EXPLANATIONS ============
 
 // ============ MARKETING CONSENT ROUTES ============
 
@@ -1560,7 +1690,7 @@ app.post('/api/initialize-payment', async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' });
     }
 
-    // ===== COUPON VALIDATION (NEW) =====
+    // ===== COUPON VALIDATION =====
     let finalAmount = amount;
     let appliedCoupon = null;
     let discountAmount = 0;
