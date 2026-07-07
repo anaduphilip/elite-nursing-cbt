@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import { AuthContext } from '../../context/AuthContext';
 import { getExamAttempt } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/theme';
@@ -148,7 +149,7 @@ export const ReviewExam = () => {
                 );
               })}
 
-              {/* ===== AI EXPLANATION BUTTON & DISPLAY ===== */}
+              {/* ===== AI EXPLANATION BUTTON ===== */}
               <button
                 onClick={() => getExplanation(idx)}
                 disabled={loadingExplanation[idx]}
@@ -177,6 +178,7 @@ export const ReviewExam = () => {
                 )}
               </button>
 
+              {/* ===== AI EXPLANATION DISPLAY (WITH MARKDOWN) ===== */}
               {explanation[idx] && (
                 <div style={{
                   marginTop: 12,
@@ -186,14 +188,37 @@ export const ReviewExam = () => {
                   borderLeft: '4px solid #ff9800'
                 }}>
                   <div style={{ fontWeight: 'bold', color: '#ff9800', marginBottom: 8 }}>Explanation</div>
-                  {explanation[idx].split('\n').filter(line => line.trim()).map((line, i) => (
-                    <p key={i} style={{ margin: '4px 0', fontSize: 14, color: textColor, lineHeight: 1.6 }}>
-                      {line}
-                    </p>
-                  ))}
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => (
+                        <p style={{ margin: '4px 0', fontSize: 14, color: textColor, lineHeight: 1.6 }}>
+                          {children}
+                        </p>
+                      ),
+                      strong: ({ children }) => (
+                        <strong style={{ color: headingColor, fontWeight: 'bold' }}>{children}</strong>
+                      ),
+                      ul: ({ children }) => (
+                        <ul style={{ paddingLeft: 20, margin: '4px 0', listStyleType: 'disc' }}>
+                          {children}
+                        </ul>
+                      ),
+                      li: ({ children }) => (
+                        <li style={{ margin: '2px 0', fontSize: 14, color: textColor, lineHeight: 1.6 }}>
+                          {children}
+                        </li>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 style={{ margin: '8px 0 4px', fontSize: 15, color: headingColor, fontWeight: 'bold' }}>
+                          {children}
+                        </h3>
+                      )
+                    }}
+                  >
+                    {explanation[idx]}
+                  </ReactMarkdown>
                 </div>
               )}
-              {/* ===== END AI EXPLANATION ===== */}
             </div>
           );
         })}
