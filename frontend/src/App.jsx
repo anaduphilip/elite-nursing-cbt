@@ -40,6 +40,7 @@ import { FloatingChatButton } from './components/common/FloatingChatButton';
 import { WeeklyQuizLanding } from './components/weekly/WeeklyQuizLanding';
 import { LogoutModal } from './components/common/LogoutModal';
 import { FAQ } from './components/pages/FAQ';
+import { Maintenance } from './components/pages/Maintenance'; // NEW: Maintenance page
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -53,7 +54,7 @@ const getCardBgHelper = (darkMode) => darkMode ? '#2d2d3d' : 'white';
 
 // Main App Content
 const AppContent = () => {
-  const { token, darkMode } = useContext(AuthContext);
+  const { token, darkMode, user } = useContext(AuthContext);
   const headingColor = getHeadingColorHelper(darkMode);
 
   useEffect(() => {
@@ -140,6 +141,10 @@ function App() {
   });
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+  // ========== NEW: Maintenance mode states ==========
+  const [maintenance, setMaintenance] = useState(null);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(true);
+
   const headingColor = getHeadingColorHelper(darkMode);
   const secondaryText = getSecondaryTextHelper(darkMode);
   const textColor = getTextColorHelper(darkMode);
@@ -183,6 +188,23 @@ function App() {
     setDarkMode(!darkMode);
     localStorage.setItem('darkMode', !darkMode);
   };
+
+  // ========== NEW: Fetch maintenance config ==========
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await axios.get('/api/config');
+        if (res.data.success) {
+          setMaintenance(res.data.config);
+        }
+      } catch (error) {
+        console.error('Failed to fetch config:', error);
+      } finally {
+        setMaintenanceLoading(false);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   const [notificationModal, setNotificationModal] = useState(null);
 
@@ -390,6 +412,19 @@ function App() {
       window.removeEventListener('focus', refreshUserStatus);
     };
   }, [auth.token, auth.user?.isPremium, auth.user?.premiumExpiry]);
+
+  // ========== MAINTENANCE MODE CHECK ==========
+  // Show maintenance page if:
+  // 1. Config is loaded
+  // 2. Maintenance mode is enabled
+  // 3. User is NOT admin (elitenursingcbt@gmail.com)
+  if (maintenanceLoading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>Loading...</div>;
+  }
+
+  if (maintenance?.maintenanceMode && auth.user?.email !== 'elitenursingcbt@gmail.com') {
+    return <Maintenance message={maintenance.maintenanceMessage} />;
+  }
 
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode, openLogoutModal }}>
