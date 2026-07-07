@@ -240,6 +240,7 @@ const WeeklyQuizAttempt = mongoose.model('WeeklyQuizAttempt', WeeklyQuizAttemptS
 
 // 1. System Settings / Config
 const ConfigSchema = new mongoose.Schema({
+  // ===== EXISTING FIELDS =====
   premiumDailyPrice: { type: Number, default: 500 },
   premiumMonthlyPrice: { type: Number, default: 2000 },
   premiumYearlyPrice: { type: Number, default: 10000 },
@@ -254,7 +255,16 @@ const ConfigSchema = new mongoose.Schema({
   defaultTimeLimit: { type: Number, default: 20 },
   showWeeklyQuiz: { type: Boolean, default: true },
   showLeaderboard: { type: Boolean, default: true },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
+
+  // ===== NEW ADMIN SECURITY FIELDS (add these) =====
+  adminPasswordHash: { type: String, default: null },
+  adminKeyHash: { type: String, default: null },
+  adminSecurityQuestion: { type: String, default: 'What is your pet\'s name?' },
+  adminSecurityAnswerHash: { type: String, default: null },
+  adminLockedUntil: { type: Date, default: null },
+  adminFailedAttempts: { type: Number, default: 0 },
+  adminLastAttempt: { type: Date, default: null }
 });
 
 const Config = mongoose.model('Config', ConfigSchema);
@@ -951,6 +961,155 @@ app.get('/api/admin/announcement', isAdmin, async (req, res) => {
     res.json({ success: true, announcement });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch announcement' });
+  }
+});
+
+// =============================================
+// ============ ADMIN SECURITY ROUTES ============
+// =============================================
+
+// Get admin security status (public)
+app.get('/api/admin/security-status', async (req, res) => {
+  try {
+    const config = await Config.findOne();
+    const isConfigured = config && config.adminPasswordHash ? true : false;
+    res.json({
+      success: true,
+      isConfigured,
+      securityQuestion: config?.adminSecurityQuestion || null
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Set/Update admin security (existing admin only)
+app.post('/api/admin/set-security', isAdmin, async (req, res) => {
+  try {
+    const { password, key, securityQuestion, securityAnswer } = req.body;
+    if (!password || !key || !securityAnswer) {
+      return res.status(400).json({ error: 'Password, key, and security answer are required' });
+    }
+
+    let config = await Config.findOne();
+    if (!config) {
+      config = new Config();
+    }
+
+    const bcrypt = require('bcryptjs');
+    const saltRounds = 10;
+
+    config.adminPasswordHash = await bcrypt.hash(password, saltRounds);
+    config.adminKeyHash = await bcrypt.hash(key, saltRounds);
+    config.adminSecurityQuestion = securityQuestion || 'What is your pet\'s name?';
+    config.adminSecurityAnswerHash = await bcrypt.hash(securityAnswer, saltRounds);
+    config.adminFailedAttempts = 0;
+    config.adminLockedUntil = null;
+
+    await config.save();
+    res.json({ success: true, message: 'Admin security updated successfully' });
+  } catch (error) {
+    console.error('Admin security update error:', error);
+    res.status(500).json({ error: 'Failed to update admin security' });
+  }
+});
+
+// Verify admin credentials (3 steps)
+app.post('/api/admin/verify', async (req, res) => {
+  try {
+    const { password, key, securityAnswer } = req.body;
+    const bcrypt = require('bcryptjs');
+
+    const config = await Config.findOne();
+    if (!config || !config.adminPasswordHash) {
+      return res.status(401).json({ success: false, error: 'Admin security not configured' });
+    }
+
+    // Check if locked
+    if (config.adminLockedUntil && config.adminLockedUntil > new Date()) {
+      const remaining = Math.ceil((config.adminLockedUntil - new Date()) / 1000 / 60);
+      return res.status(401).json({
+        success: false,
+        error: `Too many failed attempts. Try again in ${remaining} minutes.`,
+        locked: true,
+        remainingMinutes: remaining
+      });
+    }
+
+    // Step 1: Verify password (always required)
+    const passwordValid = await bcrypt.compare(password, config.adminPasswordHash);
+    if (!passwordValid) {
+      await handleFailedAttempt(config);
+      return res.status(401).json({ success: false, error: 'Invalid password', step: 'password' });
+    }
+
+    // Step 2: Verify key
+    const keyValid = await bcrypt.compare(key, config.adminKeyHash);
+    if (!keyValid) {
+      await handleFailedAttempt(config);
+      return res.status(401).json({ success: false, error: 'Invalid admin key', step: 'key' });
+    }
+
+    // Step 3: Verify security answer
+    const answerValid = await bcrypt.compare(securityAnswer, config.adminSecurityAnswerHash);
+    if (!answerValid) {
+      await handleFailedAttempt(config);
+      return res.status(401).json({ success: false, error: 'Invalid security answer', step: 'security' });
+    }
+
+    // All valid – reset failed attempts and grant access
+    config.adminFailedAttempts = 0;
+    config.adminLockedUntil = null;
+    await config.save();
+
+    // Generate a temporary admin token (valid for 1 hour)
+    const adminToken = jwt.sign(
+      { userId: 'admin', role: 'admin', temp: true },
+      process.env.JWT_SECRET || 'elite_secret_key_2024',
+      { expiresIn: '1h' }
+    );
+
+    res.json({
+      success: true,
+      adminToken,
+      expiresIn: 3600
+    });
+  } catch (error) {
+    console.error('Admin verify error:', error);
+    res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
+// Helper function for failed attempts
+async function handleFailedAttempt(config) {
+  config.adminFailedAttempts += 1;
+  config.adminLastAttempt = new Date();
+  if (config.adminFailedAttempts >= 5) {
+    config.adminLockedUntil = new Date(Date.now() + 30 * 60 * 1000); // lock 30 min
+  }
+  await config.save();
+}
+
+// Reset admin security (requires admin email for verification)
+app.post('/api/admin/reset-security', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (email !== 'elitenursingcbt@gmail.com') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const config = await Config.findOne();
+    if (config) {
+      config.adminPasswordHash = null;
+      config.adminKeyHash = null;
+      config.adminSecurityAnswerHash = null;
+      config.adminFailedAttempts = 0;
+      config.adminLockedUntil = null;
+      await config.save();
+    }
+    res.json({ success: true, message: 'Admin security has been reset.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
