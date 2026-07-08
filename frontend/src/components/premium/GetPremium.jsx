@@ -306,7 +306,11 @@ export const GetPremium = () => {
               {Object.entries(plans).map(([key, plan]) => (
                 <div 
                   key={key} 
-                  onClick={() => setSelectedPlan(key)}
+                  onClick={() => {
+                    setSelectedPlan(key);
+                    // ✅ Reset loading state if it's stuck
+                    if (loading) setLoading(false);
+                  }}
                   style={{
                     padding: 16,
                     borderRadius: 12,
