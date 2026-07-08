@@ -179,7 +179,7 @@ export const GetPremium = () => {
       console.log('User ID for payment:', user.id);
 
       // Use discounted amount if coupon applied
-      const amountToPay = couponApplied ? couponApplied.finalAmount : plans[selectedPlan].amount;
+      const amountToPay = plans[selectedPlan].amount; // always send the original amount
 
       const isNative = Capacitor.isNativePlatform();
       const redirectUrl = isNative
