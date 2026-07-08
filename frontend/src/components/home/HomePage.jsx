@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';   
 import axios from 'axios';                                
 import { AuthContext } from '../../context/AuthContext';
-import { getCachedQuizzes } from '../../utils/quizHelpers';
+import { getCachedQuizzes, hasCachedQuizzes } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 
@@ -101,10 +101,13 @@ export const HomePage = () => {
     fetchCategories();
   }, []);
 
-  // ---- ORIGINAL QUIZ FETCH (unchanged) ----
+  // ---- ORIGINAL QUIZ FETCH (with cache check) ----
   useEffect(() => {
     const fetchQuizzes = async () => {
-      setLoading(true);
+      // ✅ Only show loading if data is NOT already cached
+      if (!hasCachedQuizzes()) {
+        setLoading(true);
+      }
       try {
         const data = await getCachedQuizzes(token);
         setQuizzes(data);

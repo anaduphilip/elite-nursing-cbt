@@ -1,5 +1,5 @@
 // src/utils/quizHelpers.js
-import axios from 'axios';   // ← ADD THIS
+import axios from 'axios';
 
 // Module-level cache for quizzes
 let globalQuizzesCache = null;
@@ -18,6 +18,11 @@ export async function getCachedQuizzes(token) {
   
   return await globalQuizzesPromise;
 }
+
+// ✅ NEW: Check if quizzes are already cached
+export const hasCachedQuizzes = () => {
+  return globalQuizzesCache !== null;
+};
 
 // Helper functions for exam history (permanent storage)
 export const saveExamAttempt = (quizId, title, category, topic, answers, score, total, percentage, isPremium = false) => {

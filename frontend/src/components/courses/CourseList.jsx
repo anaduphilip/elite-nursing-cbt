@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { getCachedQuizzes } from '../../utils/quizHelpers';
+import { getCachedQuizzes, hasCachedQuizzes } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 
@@ -32,7 +32,10 @@ export const CourseList = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
+      // ✅ Only show loading if data is NOT already cached
+      if (!hasCachedQuizzes()) {
+        setLoading(true);
+      }
       try {
         const quizzesData = await getCachedQuizzes(token);
         let filtered = quizzesData.filter(q => q.category === categoryName);
