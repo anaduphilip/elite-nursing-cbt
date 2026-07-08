@@ -18,12 +18,13 @@ export const GetPremium = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [timeLeft, setTimeLeft] = useState(null);
 
-  // ========== NEW: Coupon states ==========
+  // ========== Coupon states ==========
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(null);
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
-  // ========================================
+  const [couponAppliedPlan, setCouponAppliedPlan] = useState(null); // 👈 NEW: track which plan the coupon was applied to
+  // ===================================
 
   const plans = {
     daily: { label: 'Daily', amount: 500, duration: '24 hours' },
@@ -98,7 +99,41 @@ export const GetPremium = () => {
     };
   }, [token, user?.id, user?.isPremium, user?.premiumExpiry]);
 
-  // ========== NEW: Apply coupon ==========
+  // ========== NEW: Re‑validate coupon when plan changes ==========
+  useEffect(() => {
+    // If a coupon is applied and the plan changed, re‑validate or clear
+    if (couponApplied && couponAppliedPlan && couponAppliedPlan !== selectedPlan) {
+      const revalidateCoupon = async () => {
+        try {
+          const res = await axios.post('/api/validate-coupon', {
+            code: couponCode,
+            amount: plans[selectedPlan].amount
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.data.success) {
+            setCouponApplied(res.data.coupon);
+            setCouponAppliedPlan(selectedPlan);
+            setCouponError('');
+          } else {
+            // Coupon invalid for new plan – clear it
+            setCouponApplied(null);
+            setCouponAppliedPlan(null);
+            setCouponError('Coupon not valid for this plan. Please re-apply.');
+            setCouponCode('');
+          }
+        } catch (error) {
+          setCouponApplied(null);
+          setCouponAppliedPlan(null);
+          setCouponError('Error re-validating coupon. Please try again.');
+        }
+      };
+      revalidateCoupon();
+    }
+  }, [selectedPlan, couponApplied, couponAppliedPlan, couponCode, token]);
+  // ============================================================
+
+  // ========== Apply coupon ==========
   const applyCoupon = async () => {
     if (!couponCode.trim()) {
       setCouponError('Please enter a coupon code');
@@ -107,6 +142,7 @@ export const GetPremium = () => {
     setCouponLoading(true);
     setCouponError('');
     setCouponApplied(null);
+    setCouponAppliedPlan(null); // clear previous plan
     try {
       const res = await axios.post('/api/validate-coupon', {
         code: couponCode,
@@ -116,6 +152,7 @@ export const GetPremium = () => {
       });
       if (res.data.success) {
         setCouponApplied(res.data.coupon);
+        setCouponAppliedPlan(selectedPlan); // 👈 store the plan it was applied to
         setCouponError('');
       } else {
         setCouponError(res.data.error || 'Invalid coupon');
@@ -126,9 +163,9 @@ export const GetPremium = () => {
       setCouponLoading(false);
     }
   };
-  // ======================================
+  // ==================================
 
-  // ========== UPDATED handlePayment ==========
+  // ========== Updated handlePayment ==========
   const handlePayment = async () => {
     if (!user?.id) {
       alert('Please log in again to make payment.');
@@ -156,7 +193,7 @@ export const GetPremium = () => {
         examTitle: null,
         sectionNumber: null,
         redirect_url: redirectUrl,
-        couponCode: couponApplied ? couponCode : null   // <-- NEW: pass coupon code if applied
+        couponCode: couponApplied ? couponCode : null   // pass coupon code if applied
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -288,7 +325,7 @@ export const GetPremium = () => {
               ))}
             </div>
 
-            {/* ========== COUPON SECTION (NEW) ========== */}
+
             <div style={{ margin: '16px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <input
