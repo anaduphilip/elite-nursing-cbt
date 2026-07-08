@@ -1,7 +1,7 @@
 // src/utils/quizHelpers.js
 import axios from 'axios';
 
-// Module-level cache for quizzes
+// ---------- Quiz Cache ----------
 let globalQuizzesCache = null;
 let globalQuizzesPromise = null;
 
@@ -19,12 +19,29 @@ export async function getCachedQuizzes(token) {
   return await globalQuizzesPromise;
 }
 
-// ✅ NEW: Check if quizzes are already cached
-export const hasCachedQuizzes = () => {
-  return globalQuizzesCache !== null;
-};
+export const hasCachedQuizzes = () => globalQuizzesCache !== null;
 
-// Helper functions for exam history (permanent storage)
+// ---------- Category Cache ----------
+let globalCategoriesCache = null;
+let globalCategoriesPromise = null;
+
+export async function getCachedCategories() {
+  if (globalCategoriesCache) return globalCategoriesCache;
+  if (globalCategoriesPromise) return await globalCategoriesPromise;
+  
+  globalCategoriesPromise = (async () => {
+    const res = await axios.get('/api/categories');
+    globalCategoriesCache = res.data.categories || [];
+    globalCategoriesPromise = null;
+    return globalCategoriesCache;
+  })();
+  
+  return await globalCategoriesPromise;
+}
+
+export const hasCachedCategories = () => globalCategoriesCache !== null;
+
+// ---------- Exam History Helpers ----------
 export const saveExamAttempt = (quizId, title, category, topic, answers, score, total, percentage, isPremium = false) => {
   const attempts = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
   attempts[quizId] = {

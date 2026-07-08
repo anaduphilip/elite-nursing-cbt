@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';   
 import axios from 'axios';                                
 import { AuthContext } from '../../context/AuthContext';
-import { getCachedQuizzes, hasCachedQuizzes } from '../../utils/quizHelpers';
+import { getCachedQuizzes, hasCachedQuizzes, getCachedCategories, hasCachedCategories } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 
@@ -30,7 +30,7 @@ export const HomePage = () => {
     return localStorage.getItem('consentBannerDismissed') || '0';
   });
 
-  // ---- NEW: DYNAMIC CATEGORIES FROM API ----
+  // ---- DYNAMIC CATEGORIES FROM API (with cache) ----
   const [apiCategories, setApiCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
@@ -76,14 +76,16 @@ export const HomePage = () => {
     fetchConsentBanner();
   }, [user?.marketingConsent, consentDismissedVersion]);
 
-  // ---- NEW: FETCH CATEGORIES FROM API ----
+  // ---- FETCH CATEGORIES (CACHED) ----
   useEffect(() => {
     const fetchCategories = async () => {
+      // Only show loading if categories are NOT cached
+      if (!hasCachedCategories()) {
+        setCategoriesLoading(true);
+      }
       try {
-        const res = await axios.get('/api/categories');
-        if (res.data.success) {
-          setApiCategories(res.data.categories);
-        }
+        const categories = await getCachedCategories();
+        setApiCategories(categories);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
         // Fallback to hardcoded categories if API fails
@@ -101,10 +103,9 @@ export const HomePage = () => {
     fetchCategories();
   }, []);
 
-  // ---- ORIGINAL QUIZ FETCH (with cache check) ----
+  // ---- FETCH QUIZZES (CACHED) ----
   useEffect(() => {
     const fetchQuizzes = async () => {
-      // ✅ Only show loading if data is NOT already cached
       if (!hasCachedQuizzes()) {
         setLoading(true);
       }
@@ -120,7 +121,7 @@ export const HomePage = () => {
     fetchQuizzes();
   }, [token]);
 
-  // ---- UPDATED: Get categories with topic count from quizzes ----
+  // ---- Get categories with topic count from quizzes ----
   const getCategoriesWithCount = () => {
     // Build category -> topics count from quizzes
     const categoryTopics = {};
@@ -177,13 +178,10 @@ export const HomePage = () => {
       }
     }
     
-    // Sort by topicCount descending (most popular first) or by order if available
-    // For now, sort by topicCount descending
     result.sort((a, b) => b.topicCount - a.topicCount);
     return result;
   };
 
-  // ---- Get icon for a category (fallback) ----
   const getCategoryIcon = (category) => {
     const icons = {
       'general-nursing': '🩺',
@@ -195,7 +193,6 @@ export const HomePage = () => {
     return icons[category] || '📚';
   };
 
-  // ---- Get name for a category (fallback) ----
   const getCategoryName = (category) => {
     const names = {
       'general-nursing': 'General Nursing',
@@ -207,7 +204,6 @@ export const HomePage = () => {
     return names[category] || category;
   };
 
-  // ---- Loading states ----
   if (loading || categoriesLoading) {
     return <LoadingWithBar message="Loading courses" />;
   }
