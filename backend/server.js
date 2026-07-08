@@ -313,6 +313,15 @@ const FAQ = mongoose.model('FAQ', FAQSchema);
 
 // ============ END NEW SCHEMAS ============
 
+// Add this near your other schemas
+const AdminResetSchema = new mongoose.Schema({
+  email: { type: String, required: true },
+  code: { type: String, required: true },
+  expires: { type: Date, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+const AdminReset = mongoose.model('AdminReset', AdminResetSchema);
+
 const User = mongoose.model('User', UserSchema);
 const Quiz = mongoose.model('Quiz', QuizSchema);
 const Contact = mongoose.model('Contact', ContactSchema);
