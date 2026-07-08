@@ -84,14 +84,6 @@ export const AdminPanel = () => {
   const [selectedPlan, setSelectedPlan] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
 
-  // ---- Admin Security states ----
-  const [adminPassword, setAdminPassword] = useState('');
-  const [adminKey, setAdminKey] = useState('');
-  const [adminSecurityQuestion, setAdminSecurityQuestion] = useState('What is your pet\'s name?');
-  const [adminSecurityAnswer, setAdminSecurityAnswer] = useState('');
-  const [securityLoading, setSecurityLoading] = useState(false);
-  const [securityMessage, setSecurityMessage] = useState('');
-
   // ========== Dashboard data ==========
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -139,16 +131,10 @@ export const AdminPanel = () => {
   const [faqResult, setFaqResult] = useState('');
 
   // ============================================================
-  // ========== DIRECT ACCESS PROTECTION ========================
+  // ========== DIRECT ACCESS PROTECTION =======================
   // ============================================================
-  useEffect(() => {
-    const adminToken = localStorage.getItem('admin_token');
-    if (!adminToken) {
-      alert('Please authenticate to access the admin panel.');
-      window.location.href = '/';
-      return;
-    }
-  }, []);
+  // Admin access is controlled by the isAdmin middleware in the backend.
+  // This frontend check ensures only the admin email can access this panel.
 
   // Fetch all data on mount
   useEffect(() => {
@@ -1112,44 +1098,6 @@ export const AdminPanel = () => {
     }
   };
 
-  // ========== Admin Security functions ==========
-  const handleSaveSecurity = async () => {
-    if (!adminPassword || !adminKey || !adminSecurityAnswer) {
-      alert('All fields are required.');
-      return;
-    }
-    setSecurityLoading(true);
-    setSecurityMessage('');
-    try {
-      const res = await axios.post('/api/admin/set-security', {
-        password: adminPassword,
-        key: adminKey,
-        securityQuestion: adminSecurityQuestion,
-        securityAnswer: adminSecurityAnswer
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      setSecurityMessage('✅ Admin security updated successfully!');
-      setAdminPassword('');
-      setAdminKey('');
-      setAdminSecurityAnswer('');
-    } catch (error) {
-      setSecurityMessage('❌ Failed to update: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setSecurityLoading(false);
-    }
-  };
-
-  const handleResetSecurity = async () => {
-    if (!window.confirm('Are you sure you want to reset admin security? You will need to reconfigure it.')) return;
-    try {
-      await axios.post('/api/admin/reset-security', { email: 'elitenursingcbt@gmail.com' });
-      alert('Admin security has been reset. Please reconfigure it now.');
-      localStorage.removeItem('admin_token');
-      window.location.reload();
-    } catch (error) {
-      alert('Failed to reset admin security: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
   // ========== Render ==========
   if (!dataLoaded) return <LoadingWithBar message="Loading admin panel" />;
   if (user?.email !== 'elitenursingcbt@gmail.com') return <Navigate to="/" />;
@@ -1182,7 +1130,6 @@ export const AdminPanel = () => {
             <button onClick={() => setActiveTab('marketingConsent')} style={{ background: activeTab === 'marketingConsent' ? '#1e3c72' : 'transparent', color: activeTab === 'marketingConsent' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'marketingConsent' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📬 Consent</button>
             <button onClick={() => setActiveTab('announcement')} style={{ background: activeTab === 'announcement' ? '#1e3c72' : 'transparent', color: activeTab === 'announcement' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'announcement' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📢 Announcement</button>
             <button onClick={() => setActiveTab('system')} style={{ background: activeTab === 'system' ? '#1e3c72' : 'transparent', color: activeTab === 'system' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'system' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>⚙️ System Settings</button>
-            <button onClick={() => setActiveTab('adminSecurity')} style={{ background: activeTab === 'adminSecurity' ? '#1e3c72' : 'transparent', color: activeTab === 'adminSecurity' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'adminSecurity' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🔐 Admin Security</button>
             <button onClick={() => setActiveTab('categories')} style={{ background: activeTab === 'categories' ? '#1e3c72' : 'transparent', color: activeTab === 'categories' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'categories' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📂 Categories</button>
             <button onClick={() => setActiveTab('coupons')} style={{ background: activeTab === 'coupons' ? '#1e3c72' : 'transparent', color: activeTab === 'coupons' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'coupons' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏷️ Coupons</button>
             <button onClick={() => setActiveTab('faq')} style={{ background: activeTab === 'faq' ? '#1e3c72' : 'transparent', color: activeTab === 'faq' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'faq' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📄 FAQ</button>
@@ -1246,7 +1193,7 @@ export const AdminPanel = () => {
             </div>
           )}
 
-          {/* ========== SYSTEM SETTINGS TAB (NEW) ========== */}
+          {/* ========== SYSTEM SETTINGS TAB ========== */}
           {activeTab === 'system' && (
             <div style={{ padding: 24 }}>
               <h3 style={{ color: headingColor, marginBottom: 24 }}>⚙️ System Settings</h3>
@@ -1333,88 +1280,6 @@ export const AdminPanel = () => {
                   {configResult && <p style={{ marginLeft: 16, alignSelf: 'center', color: configResult.includes('✅') ? '#2e7d32' : '#dc3545' }}>{configResult}</p>}
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* ========== ADMIN SECURITY TAB (NEW) ========== */}
-          {activeTab === 'adminSecurity' && (
-            <div style={{ padding: 24 }}>
-              <h3 style={{ color: headingColor, marginBottom: 20 }}>🔐 Admin Security</h3>
-              <p style={{ color: secondaryText, marginBottom: 16 }}>
-                Set up a 3-step verification for accessing the admin panel. Keep these credentials safe.
-              </p>
-              
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: '1fr 1fr', 
-                gap: '18px 24px',
-                background: darkMode ? '#1a1a2e' : '#f8f9fa',
-                padding: 24,
-                borderRadius: 12,
-              }}>
-                <div style={{ minWidth: 0 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 500, fontSize: 14 }}>Admin Password</label>
-                  <input
-                    type="password"
-                    placeholder="Set a strong password"
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                    style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                  />
-                </div>
-                
-                <div style={{ minWidth: 0 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 500, fontSize: 14 }}>Admin Key</label>
-                  <input
-                    type="password"
-                    placeholder="A secret key (e.g., a random string)"
-                    value={adminKey}
-                    onChange={(e) => setAdminKey(e.target.value)}
-                    style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                  />
-                </div>
-                
-                <div style={{ minWidth: 0, gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 500, fontSize: 14 }}>Security Question</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., What is your pet's name?"
-                    value={adminSecurityQuestion}
-                    onChange={(e) => setAdminSecurityQuestion(e.target.value)}
-                    style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                  />
-                </div>
-                
-                <div style={{ minWidth: 0, gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 500, fontSize: 14 }}>Security Answer</label>
-                  <input
-                    type="password"
-                    placeholder="Your answer"
-                    value={adminSecurityAnswer}
-                    onChange={(e) => setAdminSecurityAnswer(e.target.value)}
-                    style={{ width: '100%', padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-              
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 }}>
-                <button
-                  onClick={handleSaveSecurity}
-                  disabled={securityLoading}
-                  style={{ background: '#1e3c72', color: 'white', padding: '12px 28px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', opacity: securityLoading ? 0.7 : 1 }}
-                >
-                  {securityLoading ? 'Saving...' : 'Save Security Settings'}
-                </button>
-                
-                <button
-                  onClick={handleResetSecurity}
-                  style={{ background: '#dc3545', color: 'white', padding: '12px 28px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Reset Security
-                </button>
-              </div>
-              
-              {securityMessage && <p style={{ marginTop: 16, color: securityMessage.includes('✅') ? '#2e7d32' : '#dc3545' }}>{securityMessage}</p>}
             </div>
           )}
 
