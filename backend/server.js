@@ -279,6 +279,7 @@ const CouponSchema = new mongoose.Schema({
   code: { type: String, required: true, unique: true, uppercase: true },
   discountType: { type: String, enum: ['percentage', 'fixed'], default: 'percentage' },
   discountValue: { type: Number, required: true },
+  planType: { type: String, enum: ['daily', 'monthly', 'yearly', 'all'], default: 'all' }, // 👈 NEW
   minPurchase: { type: Number, default: 0 },
   maxDiscount: { type: Number, default: null },
   expiryDate: { type: Date, required: true },
@@ -2126,13 +2127,14 @@ app.delete('/api/admin/categories/:id/permanent', isAdmin, async (req, res) => {
   }
 });
 
-// ============ 3. COUPON ROUTES ============
+// ============ 3. COUPON ROUTES ============ (with planType support)
 
 // Validate coupon (public, for checkout)
 app.post('/api/validate-coupon', authenticate, async (req, res) => {
   try {
-    const { code, amount } = req.body;
+    const { code, amount, planType } = req.body; // 👈 added planType
     if (!code) return res.status(400).json({ error: 'Coupon code is required' });
+    if (!planType) return res.status(400).json({ error: 'Plan type is required' });
 
     const coupon = await Coupon.findOne({
       code: code.toUpperCase(),
@@ -2142,6 +2144,14 @@ app.post('/api/validate-coupon', authenticate, async (req, res) => {
 
     if (!coupon) {
       return res.json({ success: false, error: 'Invalid or expired coupon code' });
+    }
+
+    // 👇 NEW: Check plan-specific validity
+    if (coupon.planType !== 'all' && coupon.planType !== planType) {
+      return res.json({
+        success: false,
+        error: `This coupon is valid for ${coupon.planType} plan only.`
+      });
     }
 
     if (coupon.usedCount >= coupon.usageLimit) {
@@ -2175,7 +2185,8 @@ app.post('/api/validate-coupon', authenticate, async (req, res) => {
         discountType: coupon.discountType,
         discountValue: coupon.discountValue,
         discountAmount: Math.round(discountAmount * 100) / 100,
-        finalAmount: Math.round(finalAmount * 100) / 100
+        finalAmount: Math.round(finalAmount * 100) / 100,
+        planType: coupon.planType // optional, for frontend
       }
     });
   } catch (error) {
@@ -2197,7 +2208,7 @@ app.get('/api/admin/coupons', isAdmin, async (req, res) => {
 // Admin: Create coupon
 app.post('/api/admin/coupons', isAdmin, async (req, res) => {
   try {
-    const { code, discountType, discountValue, minPurchase, maxDiscount, expiryDate, usageLimit, active, description } = req.body;
+    const { code, discountType, discountValue, planType, minPurchase, maxDiscount, expiryDate, usageLimit, active, description } = req.body;
 
     if (!code || !discountValue || !expiryDate) {
       return res.status(400).json({ error: 'Code, discount value, and expiry date are required' });
@@ -2210,6 +2221,7 @@ app.post('/api/admin/coupons', isAdmin, async (req, res) => {
       code: code.toUpperCase(),
       discountType: discountType || 'percentage',
       discountValue,
+      planType: planType || 'all', // 👈 NEW
       minPurchase: minPurchase || 0,
       maxDiscount: maxDiscount || null,
       expiryDate: new Date(expiryDate),
@@ -2232,7 +2244,7 @@ app.put('/api/admin/coupons/:id', isAdmin, async (req, res) => {
     const coupon = await Coupon.findById(req.params.id);
     if (!coupon) return res.status(404).json({ error: 'Coupon not found' });
 
-    const { code, discountType, discountValue, minPurchase, maxDiscount, expiryDate, usageLimit, active, description } = req.body;
+    const { code, discountType, discountValue, planType, minPurchase, maxDiscount, expiryDate, usageLimit, active, description } = req.body;
 
     if (code && code !== coupon.code) {
       const existing = await Coupon.findOne({ code: code.toUpperCase() });
@@ -2241,6 +2253,7 @@ app.put('/api/admin/coupons/:id', isAdmin, async (req, res) => {
     }
     if (discountType) coupon.discountType = discountType;
     if (discountValue !== undefined) coupon.discountValue = discountValue;
+    if (planType) coupon.planType = planType; // 👈 NEW
     if (minPurchase !== undefined) coupon.minPurchase = minPurchase;
     if (maxDiscount !== undefined) coupon.maxDiscount = maxDiscount;
     if (expiryDate) coupon.expiryDate = new Date(expiryDate);
@@ -2453,5 +2466,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 http://localhost:${PORT}`);
-  console.log(`📚 MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
+  console.log(`📚 MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'`);
 });

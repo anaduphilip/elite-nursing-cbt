@@ -23,7 +23,7 @@ export const GetPremium = () => {
   const [couponApplied, setCouponApplied] = useState(null);
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
-  const [couponAppliedPlan, setCouponAppliedPlan] = useState(null); // 👈 NEW: track which plan the coupon was applied to
+  const [couponAppliedPlan, setCouponAppliedPlan] = useState(null);
   // ===================================
 
   const plans = {
@@ -99,7 +99,7 @@ export const GetPremium = () => {
     };
   }, [token, user?.id, user?.isPremium, user?.premiumExpiry]);
 
-  // ========== NEW: Re‑validate coupon when plan changes ==========
+  // ========== Re‑validate coupon when plan changes ==========
   useEffect(() => {
     // If a coupon is applied and the plan changed, re‑validate or clear
     if (couponApplied && couponAppliedPlan && couponAppliedPlan !== selectedPlan) {
@@ -107,7 +107,8 @@ export const GetPremium = () => {
         try {
           const res = await axios.post('/api/validate-coupon', {
             code: couponCode,
-            amount: plans[selectedPlan].amount
+            amount: plans[selectedPlan].amount,
+            planType: selectedPlan   // 👈 ADDED: pass the plan type
           }, {
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -142,17 +143,18 @@ export const GetPremium = () => {
     setCouponLoading(true);
     setCouponError('');
     setCouponApplied(null);
-    setCouponAppliedPlan(null); // clear previous plan
+    setCouponAppliedPlan(null);
     try {
       const res = await axios.post('/api/validate-coupon', {
         code: couponCode,
-        amount: plans[selectedPlan].amount
+        amount: plans[selectedPlan].amount,
+        planType: selectedPlan   // 👈 ADDED: pass the plan type
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
         setCouponApplied(res.data.coupon);
-        setCouponAppliedPlan(selectedPlan); // 👈 store the plan it was applied to
+        setCouponAppliedPlan(selectedPlan);
         setCouponError('');
       } else {
         setCouponError(res.data.error || 'Invalid coupon');
@@ -193,7 +195,7 @@ export const GetPremium = () => {
         examTitle: null,
         sectionNumber: null,
         redirect_url: redirectUrl,
-        couponCode: couponApplied ? couponCode : null   // pass coupon code if applied
+        couponCode: couponApplied ? couponCode : null
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });

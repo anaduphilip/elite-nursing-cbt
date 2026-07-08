@@ -116,6 +116,8 @@ export const AdminPanel = () => {
   const [couponUsageLimit, setCouponUsageLimit] = useState(1);
   const [couponActive, setCouponActive] = useState(true);
   const [couponDescription, setCouponDescription] = useState('');
+  // 👇 NEW: planType for coupon
+  const [couponPlanType, setCouponPlanType] = useState('all');
   const [editingCouponId, setEditingCouponId] = useState(null);
   const [couponResult, setCouponResult] = useState('');
 
@@ -318,6 +320,7 @@ export const AdminPanel = () => {
         code: couponCode,
         discountType: couponDiscountType,
         discountValue: parseFloat(couponDiscountValue),
+        planType: couponPlanType, // 👈 NEW
         minPurchase: parseFloat(couponMinPurchase) || 0,
         maxDiscount: couponMaxDiscount ? parseFloat(couponMaxDiscount) : null,
         expiryDate: new Date(couponExpiryDate),
@@ -353,6 +356,7 @@ export const AdminPanel = () => {
     setCouponUsageLimit(1);
     setCouponActive(true);
     setCouponDescription('');
+    setCouponPlanType('all'); // 👈 NEW
     setEditingCouponId(null);
   };
 
@@ -366,6 +370,7 @@ export const AdminPanel = () => {
     setCouponUsageLimit(c.usageLimit);
     setCouponActive(c.active);
     setCouponDescription(c.description || '');
+    setCouponPlanType(c.planType || 'all'); // 👈 NEW
     setEditingCouponId(c._id);
   };
 
@@ -1326,6 +1331,13 @@ export const AdminPanel = () => {
                   <option value="fixed">Fixed</option>
                 </select>
                 <input type="number" placeholder="Discount Value" value={couponDiscountValue} onChange={(e) => setCouponDiscountValue(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
+                {/* 👇 NEW: Plan Type dropdown */}
+                <select value={couponPlanType} onChange={(e) => setCouponPlanType(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }}>
+                  <option value="all">All Plans</option>
+                  <option value="daily">Daily</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
                 <input type="number" placeholder="Min Purchase (₦)" value={couponMinPurchase} onChange={(e) => setCouponMinPurchase(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
                 <input type="number" placeholder="Max Discount (₦)" value={couponMaxDiscount} onChange={(e) => setCouponMaxDiscount(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
                 <input type="datetime-local" value={couponExpiryDate} onChange={(e) => setCouponExpiryDate(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
@@ -1344,7 +1356,7 @@ export const AdminPanel = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {coupons.map(c => (
                     <div key={c._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: '12px 16px', borderRadius: 8, border: '1px solid ' + (darkMode ? '#444' : '#eee') }}>
-                      <div><strong>{c.code}</strong> - {c.discountType === 'percentage' ? `${c.discountValue}%` : `₦${c.discountValue}`} {c.active ? '✅' : '❌'} <span style={{ color: secondaryText, fontSize: 12 }}>Used: {c.usedCount}/{c.usageLimit}</span></div>
+                      <div><strong>{c.code}</strong> - {c.discountType === 'percentage' ? `${c.discountValue}%` : `₦${c.discountValue}`} {c.active ? '✅' : '❌'} <span style={{ color: secondaryText, fontSize: 12 }}>Used: {c.usedCount}/{c.usageLimit}</span> <span style={{ background: '#e8f5e9', padding: '2px 10px', borderRadius: 12, fontSize: 11, color: '#1e3c72', marginLeft: 6 }}>{c.planType === 'all' ? 'All' : c.planType}</span></div>
                       <div>
                         <button onClick={() => editCoupon(c)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', marginRight: 8 }}>Edit</button>
                         <button onClick={() => handleDeleteCoupon(c._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Delete</button>
