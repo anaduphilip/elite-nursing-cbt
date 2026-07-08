@@ -705,6 +705,74 @@ app.get('/api/explanation-remaining', authenticate, async (req, res) => {
 
 // ============ END AI EXPLANATIONS ============
 
+// ============ ADMIN PASSWORD RESET ROUTES ============
+
+// Send reset code to admin email
+app.post('/api/admin/send-reset-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+    // Only allow the admin email
+    if (email !== 'elitenursingcbt@gmail.com') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Generate OTP and store temporarily
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(`admin_reset_${email}`, {
+      otp,
+      expires: Date.now() + 10 * 60000 // 10 minutes
+    });
+
+    // Send email with OTP
+    await sendEmail(email, 'Admin', otp, 'password-reset');
+    res.json({ success: true, message: 'Reset code sent to admin email.' });
+  } catch (error) {
+    console.error('Admin reset code error:', error);
+    res.status(500).json({ error: 'Failed to send reset code' });
+  }
+});
+
+// Reset admin password, key, and security answer
+app.post('/api/admin/reset-admin-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword, newKey, newSecurityQuestion, newSecurityAnswer } = req.body;
+
+    if (email !== 'elitenursingcbt@gmail.com') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Verify OTP
+    const stored = otpStore.get(`admin_reset_${email}`);
+    if (!stored || stored.otp !== otp || Date.now() > stored.expires) {
+      return res.status(400).json({ error: 'Invalid or expired code' });
+    }
+
+    // Update config
+    let config = await Config.findOne();
+    if (!config) {
+      config = new Config();
+    }
+
+    const bcrypt = require('bcryptjs');
+    const saltRounds = 10;
+
+    config.adminPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+    config.adminKeyHash = await bcrypt.hash(newKey, saltRounds);
+    config.adminSecurityQuestion = newSecurityQuestion || 'What is your pet\'s name?';
+    config.adminSecurityAnswerHash = await bcrypt.hash(newSecurityAnswer, saltRounds);
+    config.adminFailedAttempts = 0;
+    config.adminLockedUntil = null;
+
+    await config.save();
+    otpStore.delete(`admin_reset_${email}`);
+
+    res.json({ success: true, message: 'Admin credentials reset successfully.' });
+  } catch (error) {
+    console.error('Admin reset error:', error);
+    res.status(500).json({ error: 'Failed to reset admin credentials' });
+  }
+});
+
 // ============ MARKETING CONSENT ROUTES ============
 
 // Get active consent banner (public)
