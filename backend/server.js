@@ -1144,7 +1144,7 @@ app.post('/api/admin/verify', async (req, res) => {
       });
     }
 
-    // Step 1: Verify password (always required)
+    // Step 1: Verify password
     const passwordValid = await bcrypt.compare(password, config.adminPasswordHash);
     if (!passwordValid) {
       await handleFailedAttempt(config);
