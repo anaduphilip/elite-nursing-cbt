@@ -1181,6 +1181,105 @@ app.post('/api/admin/reset-security', async (req, res) => {
   }
 });
 
+// =============================================
+// ============ ADMIN PASSWORD RESET ============
+// =============================================
+
+// Store reset codes temporarily
+const adminResetStore = new Map();
+
+// Send reset code to admin email
+app.post('/api/admin/send-reset-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (email !== 'elitenursingcbt@gmail.com') {
+      return res.status(403).json({ error: 'Unauthorized email' });
+    }
+
+    // Generate a 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = Date.now() + 10 * 60000; // 10 minutes
+
+    adminResetStore.set(email, { code, expires });
+
+    // Send email via Brevo
+    const subject = 'Admin Password Reset Code - ELITE Nursing CBT';
+    const textContent = `Your admin password reset code is: ${code}\nThis code expires in 10 minutes.`;
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f7f4; border-radius: 12px;">
+        <h2 style="color: #1e3c72;">Admin Password Reset</h2>
+        <p style="color: #333;">You requested to reset your admin panel credentials.</p>
+        <div style="background: #1e3c72; color: white; padding: 12px; border-radius: 8px; text-align: center; font-size: 32px; letter-spacing: 8px; margin: 20px 0;">
+          ${code}
+        </div>
+        <p style="color: #666; font-size: 14px;">This code will expire in 10 minutes. If you didn't request this, ignore this email.</p>
+        <p style="color: #999; font-size: 12px;">— ELITE Nursing CBT Team</p>
+      </div>
+    `;
+
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: email }];
+    sendSmtpEmail.sender = { email: 'elitenursingcbt@gmail.com', name: 'ELITE Nursing CBT Support' };
+    sendSmtpEmail.subject = subject;
+    sendSmtpEmail.textContent = textContent;
+    sendSmtpEmail.htmlContent = htmlContent;
+
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Admin reset code sent to ${email}`);
+
+    res.json({ success: true, message: 'Reset code sent to your email.' });
+  } catch (error) {
+    console.error('Admin reset code error:', error);
+    res.status(500).json({ error: 'Failed to send reset code' });
+  }
+});
+
+// Verify reset code and update credentials
+app.post('/api/admin/verify-reset-code', async (req, res) => {
+  try {
+    const { email, code, newPassword, newKey, newSecurityQuestion, newSecurityAnswer } = req.body;
+    if (email !== 'elitenursingcbt@gmail.com') {
+      return res.status(403).json({ error: 'Unauthorized email' });
+    }
+
+    const stored = adminResetStore.get(email);
+    if (!stored) {
+      return res.status(400).json({ error: 'No reset code found. Please request a new one.' });
+    }
+    if (Date.now() > stored.expires) {
+      adminResetStore.delete(email);
+      return res.status(400).json({ error: 'Reset code has expired. Please request a new one.' });
+    }
+    if (stored.code !== code) {
+      return res.status(400).json({ error: 'Invalid reset code.' });
+    }
+
+    // Code is valid – update admin security
+    const config = await Config.findOne();
+    if (!config) {
+      return res.status(404).json({ error: 'Config not found' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const saltRounds = 10;
+
+    config.adminPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+    config.adminKeyHash = await bcrypt.hash(newKey, saltRounds);
+    config.adminSecurityQuestion = newSecurityQuestion || 'What is your pet\'s name?';
+    config.adminSecurityAnswerHash = await bcrypt.hash(newSecurityAnswer, saltRounds);
+    config.adminFailedAttempts = 0;
+    config.adminLockedUntil = null;
+    await config.save();
+
+    adminResetStore.delete(email);
+
+    res.json({ success: true, message: 'Admin credentials updated successfully. You can now log in.' });
+  } catch (error) {
+    console.error('Admin reset verification error:', error);
+    res.status(500).json({ error: 'Failed to reset admin credentials' });
+  }
+});
+
 // ============ CONTACT ROUTE ============
 app.post('/api/contact', async (req, res) => {
   try {
