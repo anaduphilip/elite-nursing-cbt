@@ -1,5 +1,6 @@
 // frontend/src/components/admin/AdminLoginModal.jsx
 import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
@@ -10,8 +11,9 @@ export const AdminLoginModal = ({ onSuccess, onClose }) => {
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
+  const navigate = useNavigate();
 
-  const [step, setStep] = useState('password'); // 'password' | 'key' | 'security' | 'locked'
+  const [step, setStep] = useState('password'); // 'password' | 'key' | 'security' | 'locked' | 'reset-request' | 'reset-verify'
   const [password, setPassword] = useState('');
   const [key, setKey] = useState('');
   const [securityAnswer, setSecurityAnswer] = useState('');
@@ -21,6 +23,17 @@ export const AdminLoginModal = ({ onSuccess, onClose }) => {
   const [isConfigured, setIsConfigured] = useState(false);
   const [lockedUntil, setLockedUntil] = useState(null);
 
+  // Reset states
+  const [resetEmail, setResetEmail] = useState('elitenursingcbt@gmail.com');
+  const [resetCode, setResetCode] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetNewKey, setResetNewKey] = useState('');
+  const [resetNewSecurityQuestion, setResetNewSecurityQuestion] = useState('What is your pet\'s name?');
+  const [resetNewSecurityAnswer, setResetNewSecurityAnswer] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+
+  // Check security status
   useEffect(() => {
     const checkStatus = async () => {
       try {
@@ -36,6 +49,7 @@ export const AdminLoginModal = ({ onSuccess, onClose }) => {
     checkStatus();
   }, []);
 
+  // Handlers for main login flow
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -120,30 +134,112 @@ export const AdminLoginModal = ({ onSuccess, onClose }) => {
     }
   };
 
+  // Reset handlers
+  const handleSendResetCode = async (e) => {
+    e.preventDefault();
+    setError('');
+    setResetMessage('');
+    setResetLoading(true);
+    try {
+      const res = await axios.post('/api/admin/send-reset-code', { email: resetEmail });
+      setResetMessage('✅ Reset code sent to your admin email. Please check your inbox.');
+      setStep('reset-verify');
+    } catch (error) {
+      setError(error.response?.data?.error || 'Failed to send reset code.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleVerifyReset = async (e) => {
+    e.preventDefault();
+    setError('');
+    setResetMessage('');
+    setResetLoading(true);
+    if (resetNewPassword !== resetNewKey) {
+      setError('New password and key must match (you can use the same value).');
+      setResetLoading(false);
+      return;
+    }
+    if (!resetNewPassword || !resetNewKey || !resetNewSecurityAnswer) {
+      setError('All fields are required.');
+      setResetLoading(false);
+      return;
+    }
+    try {
+      const res = await axios.post('/api/admin/verify-reset-code', {
+        email: resetEmail,
+        code: resetCode,
+        newPassword: resetNewPassword,
+        newKey: resetNewKey,
+        newSecurityQuestion: resetNewSecurityQuestion,
+        newSecurityAnswer: resetNewSecurityAnswer
+      });
+      if (res.data.success) {
+        setResetMessage('✅ Credentials updated successfully! You can now log in with your new password.');
+        setTimeout(() => {
+          setStep('password');
+          setPassword('');
+          setKey('');
+          setSecurityAnswer('');
+          setResetCode('');
+          setResetNewPassword('');
+          setResetNewKey('');
+          setResetNewSecurityAnswer('');
+          setResetMessage('');
+        }, 3000);
+      }
+    } catch (error) {
+      setError(error.response?.data?.error || 'Failed to reset credentials.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // ===== RENDER STATES =====
+
   // If admin security not configured
   if (!isConfigured) {
     return (
-      <ModalContainer darkMode={darkMode} onClose={onClose}>
+      <ModalContainer darkMode={darkMode}>
         <div style={{ textAlign: 'center', padding: '10px 0' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔐</div>
           <h2 style={{ color: headingColor, marginBottom: 12 }}>Admin Security Not Configured</h2>
           <p style={{ color: secondaryText, marginBottom: 20 }}>
             Please set up admin security in the admin panel settings.
           </p>
-          <button
-            onClick={onClose}
-            style={{
-              background: '#1e3c72',
-              color: 'white',
-              padding: '10px 24px',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Close
-          </button>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button
+              onClick={() => {
+                // Proceed directly to admin panel
+                onSuccess();
+              }}
+              style={{
+                background: '#ff9800',
+                color: 'white',
+                padding: '10px 24px',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              Proceed to Admin Panel
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                background: '#6c757d',
+                color: 'white',
+                padding: '10px 24px',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </ModalContainer>
     );
@@ -152,7 +248,7 @@ export const AdminLoginModal = ({ onSuccess, onClose }) => {
   // Locked state
   if (step === 'locked') {
     return (
-      <ModalContainer darkMode={darkMode} onClose={onClose}>
+      <ModalContainer darkMode={darkMode}>
         <div style={{ textAlign: 'center', padding: '10px 0' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
           <h2 style={{ color: headingColor, marginBottom: 12 }}>Admin Access Locked</h2>
@@ -178,9 +274,282 @@ export const AdminLoginModal = ({ onSuccess, onClose }) => {
     );
   }
 
-  // Main modal with steps
+  // Reset request step
+  if (step === 'reset-request') {
+    return (
+      <ModalContainer darkMode={darkMode}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📧</div>
+          <h2 style={{ color: headingColor }}>Reset Admin Credentials</h2>
+          <p style={{ color: secondaryText, fontSize: 14 }}>A reset code will be sent to your admin email.</p>
+        </div>
+
+        {error && (
+          <div style={{
+            background: '#ffebee',
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 16,
+            textAlign: 'center'
+          }}>
+            <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
+          </div>
+        )}
+        {resetMessage && (
+          <div style={{
+            background: '#e8f5e9',
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 16,
+            textAlign: 'center'
+          }}>
+            <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>{resetMessage}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSendResetCode}>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>
+              Admin Email
+            </label>
+            <input
+              type="email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                border: '2px solid #e0e0e0',
+                borderRadius: 10,
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={resetLoading}
+            style={{
+              width: '100%',
+              background: '#1e3c72',
+              color: 'white',
+              padding: '12px',
+              border: 'none',
+              borderRadius: 10,
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: 14,
+              opacity: resetLoading ? 0.7 : 1
+            }}
+          >
+            {resetLoading ? 'Sending...' : 'Send Reset Code'}
+          </button>
+        </form>
+
+        <div style={{ marginTop: 16, textAlign: 'center' }}>
+          <button
+            onClick={() => setStep('password')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: headingColor,
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 'bold'
+            }}
+          >
+            ← Back to Login
+          </button>
+        </div>
+      </ModalContainer>
+    );
+  }
+
+  // Reset verify step
+  if (step === 'reset-verify') {
+    return (
+      <ModalContainer darkMode={darkMode}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔐</div>
+          <h2 style={{ color: headingColor }}>Enter Reset Code</h2>
+          <p style={{ color: secondaryText, fontSize: 14 }}>Enter the 6‑digit code sent to your email.</p>
+        </div>
+
+        {error && (
+          <div style={{
+            background: '#ffebee',
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 16,
+            textAlign: 'center'
+          }}>
+            <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
+          </div>
+        )}
+        {resetMessage && (
+          <div style={{
+            background: '#e8f5e9',
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 16,
+            textAlign: 'center'
+          }}>
+            <p style={{ color: '#2e7d32', margin: 0, fontSize: 13 }}>{resetMessage}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleVerifyReset}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>
+              Reset Code
+            </label>
+            <input
+              type="text"
+              placeholder="6-digit code"
+              value={resetCode}
+              onChange={(e) => setResetCode(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                border: '2px solid #e0e0e0',
+                borderRadius: 10,
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              required
+              maxLength="6"
+              pattern="\d{6}"
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>
+              New Password
+            </label>
+            <input
+              type="password"
+              placeholder="New admin password"
+              value={resetNewPassword}
+              onChange={(e) => setResetNewPassword(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                border: '2px solid #e0e0e0',
+                borderRadius: 10,
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              required
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>
+              New Admin Key
+            </label>
+            <input
+              type="password"
+              placeholder="New admin key"
+              value={resetNewKey}
+              onChange={(e) => setResetNewKey(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                border: '2px solid #e0e0e0',
+                borderRadius: 10,
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              required
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>
+              Security Question
+            </label>
+            <input
+              type="text"
+              placeholder="e.g., What is your pet's name?"
+              value={resetNewSecurityQuestion}
+              onChange={(e) => setResetNewSecurityQuestion(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                border: '2px solid #e0e0e0',
+                borderRadius: 10,
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              required
+            />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>
+              Security Answer
+            </label>
+            <input
+              type="password"
+              placeholder="Your answer"
+              value={resetNewSecurityAnswer}
+              onChange={(e) => setResetNewSecurityAnswer(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                border: '2px solid #e0e0e0',
+                borderRadius: 10,
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={resetLoading}
+            style={{
+              width: '100%',
+              background: '#28a745',
+              color: 'white',
+              padding: '12px',
+              border: 'none',
+              borderRadius: 10,
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: 14,
+              opacity: resetLoading ? 0.7 : 1
+            }}
+          >
+            {resetLoading ? 'Resetting...' : 'Reset Credentials'}
+          </button>
+        </form>
+
+        <div style={{ marginTop: 16, textAlign: 'center' }}>
+          <button
+            onClick={() => setStep('password')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: headingColor,
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 'bold'
+            }}
+          >
+            ← Back to Login
+          </button>
+        </div>
+      </ModalContainer>
+    );
+  }
+
+  // Main login steps (password, key, security)
   return (
-    <ModalContainer darkMode={darkMode} onClose={onClose}>
+    <ModalContainer darkMode={darkMode}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🔐</div>
         <h2 style={{ color: headingColor }}>Admin Verification</h2>
@@ -245,6 +614,23 @@ export const AdminLoginModal = ({ onSuccess, onClose }) => {
           >
             {loading ? 'Verifying...' : 'Next'}
           </button>
+
+          <div style={{ marginTop: 12, textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={() => setStep('reset-request')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#1e3c72',
+                cursor: 'pointer',
+                fontSize: 13,
+                textDecoration: 'underline'
+              }}
+            >
+              Forgot password?
+            </button>
+          </div>
         </form>
       )}
 
@@ -372,7 +758,7 @@ export const AdminLoginModal = ({ onSuccess, onClose }) => {
 };
 
 // Helper modal container
-const ModalContainer = ({ children, darkMode, onClose }) => (
+const ModalContainer = ({ children, darkMode }) => (
   <div style={{
     position: 'fixed',
     top: 0, left: 0, right: 0, bottom: 0,
