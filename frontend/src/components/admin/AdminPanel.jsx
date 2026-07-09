@@ -84,6 +84,18 @@ export const AdminPanel = () => {
   const [selectedPlan, setSelectedPlan] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ========== NEW: User filter ==========
+  const [userFilter, setUserFilter] = useState('all'); // 'all', 'premium', 'free'
+
+  // ========== NEW: Adjust Premium modal ==========
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [adjustUserId, setAdjustUserId] = useState(null);
+  const [adjustPlanType, setAdjustPlanType] = useState('daily');
+  const [adjustCustomDays, setAdjustCustomDays] = useState('');
+  const [adjustCustomHours, setAdjustCustomHours] = useState('');
+  const [adjustLoading, setAdjustLoading] = useState(false);
+  const [adjustResult, setAdjustResult] = useState('');
+
   // ========== Dashboard data ==========
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -320,7 +332,7 @@ export const AdminPanel = () => {
         code: couponCode,
         discountType: couponDiscountType,
         discountValue: parseFloat(couponDiscountValue),
-        planType: couponPlanType, // 👈 NEW
+        planType: couponPlanType,
         minPurchase: parseFloat(couponMinPurchase) || 0,
         maxDiscount: couponMaxDiscount ? parseFloat(couponMaxDiscount) : null,
         expiryDate: new Date(couponExpiryDate),
@@ -356,7 +368,7 @@ export const AdminPanel = () => {
     setCouponUsageLimit(1);
     setCouponActive(true);
     setCouponDescription('');
-    setCouponPlanType('all'); // 👈 NEW
+    setCouponPlanType('all');
     setEditingCouponId(null);
   };
 
@@ -370,7 +382,7 @@ export const AdminPanel = () => {
     setCouponUsageLimit(c.usageLimit);
     setCouponActive(c.active);
     setCouponDescription(c.description || '');
-    setCouponPlanType(c.planType || 'all'); // 👈 NEW
+    setCouponPlanType(c.planType || 'all');
     setEditingCouponId(c._id);
   };
 
@@ -1103,13 +1115,53 @@ export const AdminPanel = () => {
     }
   };
 
+  // ========== NEW: Adjust Premium ==========
+  const handleAdjustPremium = async (userId, planType, customDays, customHours) => {
+    setAdjustLoading(true);
+    setAdjustResult('');
+    try {
+      const payload = { userId };
+      if (planType) {
+        payload.planType = planType;
+      } else {
+        payload.customDays = customDays || 0;
+        payload.customHours = customHours || 0;
+      }
+      const res = await axios.post('/api/admin/add-premium-time', payload, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        setAdjustResult(`✅ ${res.data.message}`);
+        // Refresh user list
+        const usersRes = await axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } });
+        setUsers(usersRes.data);
+        // Close modal after short delay
+        setTimeout(() => {
+          setShowAdjustModal(false);
+          setAdjustUserId(null);
+          setAdjustResult('');
+        }, 2000);
+      } else {
+        setAdjustResult('❌ ' + (res.data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      setAdjustResult('❌ Failed: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setAdjustLoading(false);
+    }
+  };
+
   // ========== Render ==========
   if (!dataLoaded) return <LoadingWithBar message="Loading admin panel" />;
   if (user?.email !== 'elitenursingcbt@gmail.com') return <Navigate to="/" />;
 
-  const filteredUsers = users.filter(u =>
+  // Filter users by search and premium status
+  let filteredUsers = users.filter(u =>
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  if (userFilter === 'premium') {
+    filteredUsers = filteredUsers.filter(u => u.isPremium === true);
+  } else if (userFilter === 'free') {
+    filteredUsers = filteredUsers.filter(u => u.isPremium === false);
+  }
 
   const getQuizStatus = (quiz) => {
     if (!quiz.isActive) return { label: 'Draft', color: '#6c757d' };
@@ -1236,7 +1288,7 @@ export const AdminPanel = () => {
                   <input type="number" value={config.defaultTimeLimit || 20} onChange={(e) => setConfig({...config, defaultTimeLimit: parseInt(e.target.value)})} style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, transition: 'border 0.2s', boxSizing: 'border-box' }} />
                 </div>
 
-                {/* Feature Toggles – full width */}
+                {/* Feature Toggles */}
                 <div style={{ gridColumn: 'span 2', display: 'flex', gap: 32, padding: '16px 20px', background: darkMode ? '#2d2d3d' : 'white', borderRadius: 8, marginTop: 4 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, color: textColor, fontSize: 14, cursor: 'pointer' }}>
                     <input type="checkbox" checked={config.showWeeklyQuiz || false} onChange={(e) => setConfig({...config, showWeeklyQuiz: e.target.checked})} style={{ width: 18, height: 18, cursor: 'pointer' }} />
@@ -1248,7 +1300,7 @@ export const AdminPanel = () => {
                   </label>
                 </div>
 
-                {/* Contact Info – full width, two columns */}
+                {/* Contact Info */}
                 <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '24px 32px', paddingTop: 8 }}>
                   <div>
                     <label style={{ color: textColor, fontSize: 14, fontWeight: 500, display: 'block', marginBottom: 6 }}>Contact Email</label>
@@ -1260,13 +1312,13 @@ export const AdminPanel = () => {
                   </div>
                 </div>
 
-                {/* App Name – full width */}
+                {/* App Name */}
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ color: textColor, fontSize: 14, fontWeight: 500, display: 'block', marginBottom: 6 }}>App Name</label>
                   <input type="text" value={config.appName || ''} onChange={(e) => setConfig({...config, appName: e.target.value})} style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, transition: 'border 0.2s', boxSizing: 'border-box' }} />
                 </div>
 
-                {/* Maintenance Mode – full width */}
+                {/* Maintenance Mode */}
                 <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: 16, padding: '12px 16px', background: darkMode ? '#2d2d3d' : 'white', borderRadius: 8 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, color: textColor, fontSize: 14, cursor: 'pointer' }}>
                     <input type="checkbox" checked={config.maintenanceMode || false} onChange={(e) => setConfig({...config, maintenanceMode: e.target.checked})} style={{ width: 18, height: 18, cursor: 'pointer' }} />
@@ -1405,8 +1457,13 @@ export const AdminPanel = () => {
           {/* ========== USERS TAB ========== */}
           {activeTab === 'users' && (
             <>
-              <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
+              <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                 <input type="text" placeholder="🔍 Search by email..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '100%', maxWidth: 400, padding: '10px 16px', borderRadius: 30, border: `1px solid ${darkMode ? '#444' : '#ddd'}`, background: darkMode ? '#2d2d3d' : 'white', color: textColor, fontSize: 14, outline: 'none' }} />
+                <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: 30, border: `1px solid ${darkMode ? '#444' : '#ddd'}`, background: darkMode ? '#2d2d3d' : 'white', color: textColor, fontSize: 14, outline: 'none' }}>
+                  <option value="all">All Users</option>
+                  <option value="premium">Premium Users</option>
+                  <option value="free">Free Users</option>
+                </select>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 20 }}>
                 {filteredUsers.map(u => {
@@ -1430,14 +1487,15 @@ export const AdminPanel = () => {
                         </select>
                         <button onClick={() => applyPlan(u._id)} style={{ width: '100%', marginTop: 6, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>Apply Plan</button>
                       </div>
-                      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                      <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
                         <button onClick={() => deleteUser(u._id)} style={{ background: '#dc3545', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 'bold' }}>Delete User</button>
+                        <button onClick={() => { setAdjustUserId(u._id); setShowAdjustModal(true); setAdjustResult(''); }} style={{ background: '#ff9800', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 'bold' }}>Adjust Premium</button>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              {filteredUsers.length === 0 && <p style={{ textAlign: 'center', color: secondaryText, marginTop: 20 }}>No users found matching "{searchQuery}"</p>}
+              {filteredUsers.length === 0 && <p style={{ textAlign: 'center', color: secondaryText, marginTop: 20 }}>No users found matching your filters.</p>}
             </>
           )}
 
@@ -1739,9 +1797,111 @@ export const AdminPanel = () => {
               )}
             </div>
           )}
-
         </div>
       </div>
+
+      {/* ========== NEW: ADJUST PREMIUM MODAL ========== */}
+      {showAdjustModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: 20
+        }}>
+          <div style={{
+            background: cardBg,
+            borderRadius: 20,
+            padding: 28,
+            maxWidth: 500,
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+          }}>
+            <h3 style={{ color: headingColor, marginBottom: 20 }}>Adjust Premium Time</h3>
+            <p style={{ color: secondaryText, marginBottom: 16 }}>Add extra time to this user's premium subscription.</p>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Add by Plan Type</label>
+              <select
+                value={adjustPlanType}
+                onChange={(e) => setAdjustPlanType(e.target.value)}
+                style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333' }}
+              >
+                <option value="daily">Daily (1 day)</option>
+                <option value="monthly">Monthly (30 days)</option>
+                <option value="yearly">Yearly (365 days)</option>
+              </select>
+              <button
+                onClick={() => handleAdjustPremium(adjustUserId, adjustPlanType, null, null)}
+                disabled={adjustLoading}
+                style={{ marginTop: 10, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', width: '100%' }}
+              >
+                {adjustLoading ? 'Adding...' : `Add ${adjustPlanType} plan`}
+              </button>
+            </div>
+
+            <div style={{ marginBottom: 16, borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingTop: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Or add custom time</label>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="number"
+                    placeholder="Days"
+                    value={adjustCustomDays}
+                    onChange={(e) => setAdjustCustomDays(e.target.value)}
+                    style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="number"
+                    placeholder="Hours"
+                    value={adjustCustomHours}
+                    onChange={(e) => setAdjustCustomHours(e.target.value)}
+                    style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333' }}
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const days = parseInt(adjustCustomDays) || 0;
+                  const hours = parseInt(adjustCustomHours) || 0;
+                  if (!days && !hours) {
+                    alert('Please enter at least one value');
+                    return;
+                  }
+                  handleAdjustPremium(adjustUserId, null, days, hours);
+                }}
+                disabled={adjustLoading}
+                style={{ marginTop: 10, background: '#28a745', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', width: '100%' }}
+              >
+                {adjustLoading ? 'Adding...' : 'Add Custom Time'}
+              </button>
+            </div>
+
+            {adjustResult && <p style={{ marginTop: 16, color: adjustResult.includes('✅') ? '#2e7d32' : '#dc3545' }}>{adjustResult}</p>}
+
+            <button
+              onClick={() => {
+                setShowAdjustModal(false);
+                setAdjustUserId(null);
+                setAdjustResult('');
+                setAdjustCustomDays('');
+                setAdjustCustomHours('');
+              }}
+              style={{ marginTop: 16, background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', width: '100%' }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
           <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>Privacy Policy</Link>
