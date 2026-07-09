@@ -12,7 +12,8 @@ const crypto = require('crypto');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 require('dotenv').config();
 const admin = require('firebase-admin');
-const OpenAI = require('openai'); // ← NEW: For AI explanations
+const OpenAI = require('openai');
+const cron = require('node-cron'); // 👈 NEW for reminders
 
 if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   try {
@@ -147,7 +148,10 @@ const UserSchema = new mongoose.Schema({
   }],
   // ============ NEW: AI Explanations ============
   dailyExplanations: { type: Number, default: 0 },
-  lastExplanationReset: { type: Date, default: null }
+  lastExplanationReset: { type: Date, default: null },
+  // ============ NEW: Reminder tracking ============
+  lastReminderSent: { type: String, default: null },
+  notifiedExpired: { type: Boolean, default: false }
 });
 
 // Quiz Schema
@@ -279,7 +283,7 @@ const CouponSchema = new mongoose.Schema({
   code: { type: String, required: true, unique: true, uppercase: true },
   discountType: { type: String, enum: ['percentage', 'fixed'], default: 'percentage' },
   discountValue: { type: Number, required: true },
-  planType: { type: String, enum: ['daily', 'monthly', 'yearly', 'all'], default: 'all' }, // 👈 NEW
+  planType: { type: String, enum: ['daily', 'monthly', 'yearly', 'all'], default: 'all' },
   minPurchase: { type: Number, default: 0 },
   maxDiscount: { type: Number, default: null },
   expiryDate: { type: Date, required: true },
@@ -1633,6 +1637,39 @@ const sendMarketingEmail = async (to, name, templateType, customSubject = null, 
   }
 };
 
+// ============ REMINDER EMAIL FUNCTION ============
+const sendReminderEmail = async (to, name, plan, daysLeft, hoursLeft) => {
+  let message = '';
+  let subject = '⏰ Premium Plan Reminder';
+  if (hoursLeft !== undefined && hoursLeft <= 24) {
+    message = `Your ${plan} plan expires in ${Math.ceil(hoursLeft)} hours. Renew now to keep access!`;
+  } else if (daysLeft !== undefined) {
+    message = `Your ${plan} plan expires in ${Math.ceil(daysLeft)} days. Renew now to keep access!`;
+  } else {
+    subject = '⏰ Your Premium Plan Has Expired';
+    message = `Your ${plan} plan has expired. Renew now to regain access!`;
+  }
+  const html = `<p>Hi ${name},</p><p>${message}</p>
+    <div style="text-align:center;margin:20px 0;">
+      <a href="https://elite-nursing-cbt.vercel.app/get-premium" style="background:#ff9800;color:white;padding:12px 24px;text-decoration:none;border-radius:30px;">Renew Now →</a>
+    </div>
+    <p>Best regards,<br/>ELITE Nursing CBT Team</p>`;
+  try {
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: to }];
+    sendSmtpEmail.sender = { email: 'elitenursingcbt@gmail.com', name: 'ELITE Nursing CBT' };
+    sendSmtpEmail.subject = subject;
+    sendSmtpEmail.htmlContent = html;
+    sendSmtpEmail.textContent = `${message}`;
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Reminder email sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Reminder email failed:', error);
+    return false;
+  }
+};
+
 // ============ ADMIN: BROADCAST EMAIL ============
 app.post('/api/admin/broadcast-email', isAdmin, async (req, res) => {
   const { subject, message, templateType } = req.body;
@@ -1825,7 +1862,8 @@ app.post('/api/verify-payment', async (req, res) => {
 
     if (txData?.status === 'successful') {
       const plan = transaction.planType || 'monthly';
-      let expiryDate = new Date();
+      // 👇 EXTEND EXISTING EXPIRY (instead of resetting)
+      let expiryDate = user.premiumExpiry && user.premiumExpiry > new Date() ? user.premiumExpiry : new Date();
       switch(plan) {
         case 'daily': expiryDate.setDate(expiryDate.getDate() + 1); break;
         case 'monthly': expiryDate.setMonth(expiryDate.getMonth() + 1); break;
@@ -2451,6 +2489,57 @@ app.get('/api/admin/dashboard', isAdmin, async (req, res) => {
 // =============================================
 // ============ END NEW ROUTES =================
 // =============================================
+
+// ============ CRON JOB FOR PREMIUM REMINDERS ============
+cron.schedule('0 * * * *', async () => {
+  console.log('⏰ Checking premium reminders...');
+  const now = new Date();
+  const users = await User.find({ isPremium: true, premiumExpiry: { $gt: now } });
+
+  for (const user of users) {
+    const diffMs = user.premiumExpiry - now;
+    const diffHours = diffMs / (1000 * 60 * 60);
+    const diffDays = diffHours / 24;
+    const plan = user.premiumPlan || 'monthly';
+    let shouldNotify = false;
+    let daysLeft = null, hoursLeft = null;
+
+    if (plan === 'daily' && diffHours <= 2) {
+      shouldNotify = true;
+      hoursLeft = Math.ceil(diffHours);
+    } else if (plan === 'monthly') {
+      if (diffDays <= 3 && diffDays > 2.9) { shouldNotify = true; daysLeft = 3; }
+      else if (diffHours <= 24 && diffHours > 23) { shouldNotify = true; hoursLeft = 24; }
+    } else if (plan === 'yearly') {
+      if (diffDays <= 180 && diffDays > 179.9) { shouldNotify = true; daysLeft = 180; }
+      else if (diffDays <= 30 && diffDays > 29.9) { shouldNotify = true; daysLeft = 30; }
+      else if (diffDays <= 3 && diffDays > 2.9) { shouldNotify = true; daysLeft = 3; }
+      else if (diffHours <= 24 && diffHours > 23) { shouldNotify = true; hoursLeft = 24; }
+    }
+
+    if (shouldNotify) {
+      const lastReminder = user.lastReminderSent || null;
+      const thresholdKey = `${plan}-${daysLeft || hoursLeft}`;
+      if (lastReminder !== thresholdKey) {
+        await sendReminderEmail(user.email, user.name, plan, daysLeft, hoursLeft);
+        user.lastReminderSent = thresholdKey;
+        await user.save();
+      }
+    }
+  }
+
+  // Notify expired users (if not already notified)
+  const expiredUsers = await User.find({
+    isPremium: true,
+    premiumExpiry: { $lt: now },
+    notifiedExpired: { $ne: true }
+  });
+  for (const user of expiredUsers) {
+    await sendReminderEmail(user.email, user.name, user.premiumPlan || 'premium', null, null);
+    user.notifiedExpired = true;
+    await user.save();
+  }
+});
 
 // ============ HEALTH CHECK ============
 app.get('/', (req, res) => {
