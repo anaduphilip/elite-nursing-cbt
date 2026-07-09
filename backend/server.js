@@ -1879,6 +1879,19 @@ app.post('/api/verify-payment', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Transaction not found' });
     }
 
+    // 👇 CHECK: If transaction is already completed, return the current state without re-processing
+    if (transaction.status === 'completed') {
+      console.log(`⚠️ Transaction ${reference} already processed. Returning current state.`);
+      return res.json({
+        success: true,
+        isPremium: user.isPremium,
+        plan: user.premiumPlan,
+        expiry: user.premiumExpiry,
+        alreadyProcessed: true,
+        message: 'Payment already verified'
+      });
+    }
+
     const verifyId = transactionId || transaction.flutterwaveId;
     if (!verifyId) {
       return res.json({ success: false, pending: true, message: 'No transaction ID available' });
@@ -1925,9 +1938,13 @@ app.post('/api/verify-payment', async (req, res) => {
 
       console.log(`📆 Final expiry (after adding ${plan}): ${expiry.toISOString()}`);
 
-      // Update the user and transaction in one go
+      // 👇 Only update if transaction is NOT already completed (safety check)
       const updateResult = await User.updateOne(
-        { _id: userId, 'transactions.reference': reference },
+        { 
+          _id: userId, 
+          'transactions.reference': reference,
+          'transactions.status': { $ne: 'completed' } // 👈 PREVENT DUPLICATE PROCESSING
+        },
         {
           $set: {
             isPremium: true,
@@ -1943,12 +1960,25 @@ app.post('/api/verify-payment', async (req, res) => {
       console.log('📊 Payment update result:', updateResult);
 
       if (updateResult.matchedCount === 0) {
+        // Check if transaction was already completed by another request
+        const refreshedUser = await User.findById(userId);
+        const refreshedTransaction = refreshedUser?.transactions.find(t => t.reference === reference);
+        if (refreshedTransaction?.status === 'completed') {
+          console.log(`⚠️ Transaction already completed by another request. Returning current state.`);
+          return res.json({
+            success: true,
+            isPremium: refreshedUser.isPremium,
+            plan: refreshedUser.premiumPlan,
+            expiry: refreshedUser.premiumExpiry,
+            alreadyProcessed: true
+          });
+        }
         console.log('❌ No user/transaction matched for update.');
         return res.status(404).json({ success: false, error: 'User or transaction not found' });
       }
 
       if (updateResult.modifiedCount === 0) {
-        console.log('⚠️ Document matched but nothing changed (maybe expiry was already correct).');
+        console.log('⚠️ Document matched but nothing changed.');
       } else {
         console.log(`✅ User ${user.email} premium extended to ${expiry.toISOString()}`);
       }
