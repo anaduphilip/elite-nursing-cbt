@@ -847,15 +847,40 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
   try {
     const { userId, planType } = req.body;
     if (!userId || !planType) return res.status(400).json({ error: 'Missing userId or planType' });
+    
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     if (planType === 'none') {
-      user.isPremium = false;
-      user.premiumPlan = null;
-      user.premiumExpiry = null;
-      await user.save();
-      return res.json({ success: true, message: 'Premium removed' });
+      console.log(`🛠️ Removing premium for user: ${user.email} (${userId})`);
+      
+      // Use updateOne for consistency and to get modifiedCount
+      const result = await User.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            isPremium: false,
+            premiumPlan: null,
+            premiumExpiry: null
+          }
+        }
+      );
+      
+      console.log('📊 Removal result:', result);
+      
+      if (result.modifiedCount === 0) {
+        console.log('⚠️ No document modified – maybe already removed.');
+      } else {
+        console.log(`✅ Premium removed for ${user.email}`);
+      }
+      
+      // Fetch the updated user to return
+      const updatedUser = await User.findById(userId);
+      return res.json({
+        success: true,
+        message: 'Premium removed',
+        user: updatedUser
+      });
     }
 
     const validPlans = ['daily', 'monthly', 'yearly'];
@@ -863,6 +888,7 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Invalid plan type' });
     }
 
+    // For adding plans, use the same extension logic
     let expiryDate = user.premiumExpiry && user.premiumExpiry > new Date() ? user.premiumExpiry : new Date();
     switch(planType) {
       case 'daily': expiryDate.setDate(expiryDate.getDate() + 1); break;
@@ -870,14 +896,22 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
       case 'yearly': expiryDate.setFullYear(expiryDate.getFullYear() + 1); break;
     }
 
-    user.isPremium = true;
-    user.premiumPlan = planType;
-    user.premiumExpiry = expiryDate;
-    await user.save();
-
-    const updatedUser = user.toObject();
-    delete updatedUser.password;
-
+    // Use updateOne for adding as well
+    const result = await User.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          isPremium: true,
+          premiumPlan: planType,
+          premiumExpiry: expiryDate,
+          purchaseDate: new Date()
+        }
+      }
+    );
+    
+    console.log('📊 Add plan result:', result);
+    
+    const updatedUser = await User.findById(userId);
     res.json({
       success: true,
       message: `Premium ${planType} plan applied until ${expiryDate.toISOString()}`,
@@ -886,74 +920,6 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Set premium plan error:', error);
     res.status(500).json({ error: error.message });
-  }
-});
-
-// Admin: Manually add premium time to a user
-app.post('/api/admin/add-premium-time', isAdmin, async (req, res) => {
-  try {
-    const { userId, planType, customDays, customHours } = req.body;
-    if (!userId) return res.status(400).json({ error: 'User ID is required' });
-
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    console.log(`🛠️ Before adjustment: ${user.email} expiry = ${user.premiumExpiry}`);
-
-    const now = new Date();
-    let expiry = user.premiumExpiry && user.premiumExpiry > now ? user.premiumExpiry : now;
-
-    if (planType) {
-      switch (planType) {
-        case 'daily': expiry.setDate(expiry.getDate() + 1); break;
-        case 'monthly': expiry.setMonth(expiry.getMonth() + 1); break;
-        case 'yearly': expiry.setFullYear(expiry.getFullYear() + 1); break;
-        default: return res.status(400).json({ error: 'Invalid plan type' });
-      }
-    } else if (customDays || customHours) {
-      if (customDays) expiry.setDate(expiry.getDate() + parseInt(customDays));
-      if (customHours) expiry.setHours(expiry.getHours() + parseInt(customHours));
-    } else {
-      return res.status(400).json({ error: 'Must provide planType or custom days/hours' });
-    }
-
-    // 👇 Use updateOne to see how many documents were modified
-    const result = await User.updateOne(
-      { _id: userId },
-      {
-        $set: {
-          isPremium: true,
-          premiumExpiry: expiry,
-          premiumPlan: planType || user.premiumPlan
-        }
-      }
-    );
-
-    console.log('📊 Update result:', result);
-
-    if (result.matchedCount === 0) {
-      console.log('❌ No document found with that _id.');
-      return res.status(404).json({ error: 'User not found (update match failed)' });
-    }
-
-    if (result.modifiedCount === 0) {
-      console.log('⚠️ Document matched but nothing changed (maybe expiry was already the same).');
-    } else {
-      console.log(`✅ Document updated successfully. New expiry: ${expiry}`);
-    }
-
-    // Fetch the updated user to return
-    const updatedUser = await User.findById(userId);
-    res.json({
-      success: true,
-      message: `Premium extended until ${expiry.toISOString()}`,
-      newExpiry: expiry,
-      user: updatedUser,
-      result: result
-    });
-  } catch (error) {
-    console.error('Manual premium adjustment error:', error);
-    res.status(500).json({ error: 'Failed to adjust premium' });
   }
 });
 
