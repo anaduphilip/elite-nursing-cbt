@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
@@ -23,6 +24,12 @@ export const WeeklyQuiz = () => {
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
+
+  // ===== AI Explanation States =====
+  const [explanation, setExplanation] = useState({});
+  const [loadingExplanation, setLoadingExplanation] = useState({});
+  const [explanationRemaining, setExplanationRemaining] = useState(null);
+  const [isPremium, setIsPremium] = useState(false);
 
   let weeklyQuizCache = null;
   let weeklyQuizPromise = null;
@@ -96,6 +103,22 @@ export const WeeklyQuiz = () => {
     fetchQuiz();
   }, [token]);
 
+  // ===== Fetch remaining explanations =====
+  useEffect(() => {
+    const fetchRemaining = async () => {
+      try {
+        const res = await axios.get('/api/explanation-remaining', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setExplanationRemaining(res.data.remaining);
+        setIsPremium(res.data.isPremium);
+      } catch (error) {
+        console.error('Failed to fetch explanation limit:', error);
+      }
+    };
+    if (token) fetchRemaining();
+  }, [token]);
+
   useEffect(() => {
     if (!timeLeft || timeLeft <= 0 || submitted) return;
     const timer = setInterval(() => {
@@ -146,6 +169,47 @@ export const WeeklyQuiz = () => {
     }
   };
 
+  // ===== Get AI explanation for a question =====
+  const getExplanation = async (idx) => {
+    if (!isPremium && explanationRemaining <= 0) {
+      alert('You have used all your free explanations for today (10/day). Upgrade to Premium for unlimited!');
+      return;
+    }
+    
+    setLoadingExplanation({ ...loadingExplanation, [idx]: true });
+    try {
+      const question = quiz.questions[idx];
+      const res = await axios.post('/api/explain-question', {
+        questionText: question.questionText,
+        options: question.options,
+        correctAnswer: question.correctAnswer,
+        userAnswer: answers[idx]
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setExplanation({ ...explanation, [idx]: res.data.explanation });
+      setExplanationRemaining(res.data.remaining);
+    } catch (error) {
+      if (error.response?.status === 403 && error.response?.data?.limitReached) {
+        alert('Daily explanation limit reached (10/day). Upgrade to Premium for unlimited!');
+      } else {
+        alert(error.response?.data?.error || 'Failed to generate explanation. Please try again.');
+      }
+    } finally {
+      setLoadingExplanation({ ...loadingExplanation, [idx]: false });
+    }
+  };
+
+  // ===== Close/Dismiss explanation =====
+  const closeExplanation = (idx) => {
+    setExplanation((prev) => {
+      const updated = { ...prev };
+      delete updated[idx];
+      return updated;
+    });
+  };
+
   if (loading) return <LoadingWithBar message="Loading Weekly Quiz..." />;
 
   if (!quiz) {
@@ -177,6 +241,7 @@ export const WeeklyQuiz = () => {
     );
   }
 
+  // ===== REVIEW VIEW with AI =====
   if (submitted && showReview && quiz) {
     const allQuestions = quiz.questions;
     return (
@@ -187,6 +252,23 @@ export const WeeklyQuiz = () => {
             <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
             <button onClick={() => setShowReview(false)} style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Results</button>
           </div>
+
+          {/* ===== Remaining counter ===== */}
+          {!isPremium && explanationRemaining !== null && (
+            <div style={{
+              textAlign: 'center',
+              padding: 8,
+              background: darkMode ? '#2d2d3d' : '#fff3e0',
+              borderRadius: 8,
+              marginBottom: 16
+            }}>
+              <span style={{ color: '#ff9800' }}>
+                🎯 {explanationRemaining} AI explanation{explanationRemaining !== 1 ? 's' : ''} remaining today
+                {explanationRemaining === 0 && ' – Upgrade to Premium for unlimited!'}
+              </span>
+            </div>
+          )}
+
           {allQuestions.map((q, idx) => {
             const userAnswer = answers[idx];
             const isCorrect = userAnswer !== undefined && userAnswer === q.correctAnswer;
@@ -200,10 +282,114 @@ export const WeeklyQuiz = () => {
                     {optIdx === userAnswer && optIdx !== q.correctAnswer && <span style={{ color: '#f44336', marginLeft: 10, fontSize: 12 }}>✗ Your Answer</span>}
                   </div>
                 ))}
+
+                {/* ===== AI EXPLANATION BUTTON ===== */}
+                <button
+                  onClick={() => getExplanation(idx)}
+                  disabled={loadingExplanation[idx]}
+                  style={{
+                    marginTop: 12,
+                    background: loadingExplanation[idx] ? '#6c757d' : '#ff9800',
+                    color: 'white',
+                    padding: '6px 16px',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: loadingExplanation[idx] ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: 13,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  {loadingExplanation[idx] ? (
+                    <>
+                      <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #fff', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                      Generating...
+                    </>
+                  ) : (
+                    'Explain with AI'
+                  )}
+                </button>
+
+                {/* ===== AI EXPLANATION DISPLAY WITH CLOSE BUTTON ===== */}
+                {explanation[idx] && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: 16,
+                    paddingRight: 40,
+                    background: darkMode ? '#1a1a2e' : '#f0f7f4',
+                    borderRadius: 8,
+                    borderLeft: '4px solid #ff9800',
+                    textAlign: 'left',
+                    position: 'relative'
+                  }}>
+                    {/* Close button */}
+                    <button
+                      onClick={() => closeExplanation(idx)}
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 10,
+                        background: 'none',
+                        border: 'none',
+                        fontSize: 18,
+                        cursor: 'pointer',
+                        color: secondaryText,
+                        padding: '4px 8px',
+                        borderRadius: 4,
+                        lineHeight: 1,
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = darkMode ? '#333' : '#e0e0e0'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                      aria-label="Close explanation"
+                    >
+                      ✕
+                    </button>
+
+                    <div style={{ fontWeight: 'bold', color: '#ff9800', marginBottom: 8, textAlign: 'left' }}>AI Explanation</div>
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => (
+                          <p style={{ margin: '4px 0', fontSize: 14, color: textColor, lineHeight: 1.6, textAlign: 'left' }}>
+                            {children}
+                          </p>
+                        ),
+                        strong: ({ children }) => (
+                          <strong style={{ color: headingColor, fontWeight: 'bold' }}>{children}</strong>
+                        ),
+                        ul: ({ children }) => (
+                          <ul style={{ paddingLeft: 20, margin: '4px 0', listStyleType: 'disc', textAlign: 'left' }}>
+                            {children}
+                          </ul>
+                        ),
+                        li: ({ children }) => (
+                          <li style={{ margin: '2px 0', fontSize: 14, color: textColor, lineHeight: 1.6, textAlign: 'left' }}>
+                            {children}
+                          </li>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 style={{ margin: '8px 0 4px', fontSize: 15, color: headingColor, fontWeight: 'bold', textAlign: 'left' }}>
+                            {children}
+                          </h3>
+                        )
+                      }}
+                    >
+                      {explanation[idx]}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
             );
           })}
           <Link to="/"><button style={{ width: '100%', marginTop: 20, background: '#1e3c72', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Home</button></Link>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
         </div>
       </div>
     );
@@ -229,6 +415,7 @@ export const WeeklyQuiz = () => {
     );
   }
 
+  // Active exam view (unchanged)
   const currentQuestion = quiz.questions[currentIndex];
   const totalQuestions = quiz.questions.length;
   const answeredCount = Object.keys(answers).length;
