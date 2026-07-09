@@ -898,6 +898,8 @@ app.post('/api/admin/add-premium-time', isAdmin, async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    console.log(`🛠️ Before adjustment: ${user.email} expiry = ${user.premiumExpiry}`);
+
     const now = new Date();
     let expiry = user.premiumExpiry && user.premiumExpiry > now ? user.premiumExpiry : now;
 
@@ -918,6 +920,8 @@ app.post('/api/admin/add-premium-time', isAdmin, async (req, res) => {
     user.isPremium = true;
     user.premiumExpiry = expiry;
     await user.save();
+
+    console.log(`✅ After adjustment: ${user.email} expiry = ${user.premiumExpiry}`);
 
     res.json({
       success: true,
@@ -1876,9 +1880,11 @@ app.post('/api/verify-payment', async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+    // ✅ REMOVE the early return for isPremium – we want to extend even if already premium
+    // (but we can still log it)
     if (user.isPremium) {
-      console.log(`✅ User already premium`);
-      return res.json({ success: true, isPremium: true });
+      console.log(`ℹ️ User already premium, but we will still extend on successful payment`);
     }
 
     const transaction = user.transactions.find(t => t.reference === reference);
@@ -1903,7 +1909,7 @@ app.post('/api/verify-payment', async (req, res) => {
 
     if (txData?.status === 'successful') {
       const plan = transaction.planType || 'monthly';
-      // 👇 EXTEND EXISTING EXPIRY (instead of resetting)
+      // Extend existing expiry
       let expiryDate = user.premiumExpiry && user.premiumExpiry > new Date() ? user.premiumExpiry : new Date();
       switch(plan) {
         case 'daily': expiryDate.setDate(expiryDate.getDate() + 1); break;
@@ -1920,7 +1926,7 @@ app.post('/api/verify-payment', async (req, res) => {
       transaction.flutterwaveId = txData.id;
       await user.save();
 
-      console.log(`✅✅ PREMIUM ACTIVATED for: ${user.email} (${plan}) until ${expiryDate} ✅✅`);
+      console.log(`✅✅ PREMIUM ACTIVATED/EXTENDED for: ${user.email} (${plan}) until ${expiryDate} ✅✅`);
       return res.json({
         success: true,
         isPremium: true,
