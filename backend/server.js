@@ -917,22 +917,33 @@ app.post('/api/admin/add-premium-time', isAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Must provide planType or custom days/hours' });
     }
 
-    user.isPremium = true;
-    user.premiumExpiry = expiry;
-    await user.save();
+    // 👇 USE findByIdAndUpdate instead of save()
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          isPremium: true,
+          premiumExpiry: expiry,
+          premiumPlan: planType || user.premiumPlan
+        }
+      },
+      { new: true } // Return the updated document
+    );
 
-    console.log(`✅ After adjustment: ${user.email} expiry = ${user.premiumExpiry}`);
+    console.log(`✅ After adjustment: ${updatedUser.email} expiry = ${updatedUser.premiumExpiry}`);
 
     res.json({
       success: true,
       message: `Premium extended until ${expiry.toISOString()}`,
-      newExpiry: expiry
+      newExpiry: expiry,
+      user: updatedUser
     });
   } catch (error) {
     console.error('Manual premium adjustment error:', error);
     res.status(500).json({ error: 'Failed to adjust premium' });
   }
 });
+
 
 // ============ ANNOUNCEMENT ROUTES ============
 
