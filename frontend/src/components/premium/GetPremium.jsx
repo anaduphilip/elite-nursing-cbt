@@ -18,7 +18,7 @@ export const GetPremium = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [timeLeft, setTimeLeft] = useState(null);
 
-  // ========== Coupon states ==========
+  // Coupon states
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(null);
   const [couponError, setCouponError] = useState('');
@@ -99,7 +99,7 @@ export const GetPremium = () => {
     };
   }, [token, user?.id, user?.isPremium, user?.premiumExpiry]);
 
-  // ========== Re‑validate coupon when plan changes ==========
+  // Re‑validate coupon when plan changes
   useEffect(() => {
     // If a coupon is applied and the plan changed, re‑validate or clear
     if (couponApplied && couponAppliedPlan && couponAppliedPlan !== selectedPlan) {
@@ -108,7 +108,7 @@ export const GetPremium = () => {
           const res = await axios.post('/api/validate-coupon', {
             code: couponCode,
             amount: plans[selectedPlan].amount,
-            planType: selectedPlan   // 👈 ADDED: pass the plan type
+            planType: selectedPlan
           }, {
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -134,7 +134,7 @@ export const GetPremium = () => {
   }, [selectedPlan, couponApplied, couponAppliedPlan, couponCode, token]);
   // ============================================================
 
-  // ========== Apply coupon ==========
+  // Apply coupon
   const applyCoupon = async () => {
     if (!couponCode.trim()) {
       setCouponError('Please enter a coupon code');
@@ -148,7 +148,7 @@ export const GetPremium = () => {
       const res = await axios.post('/api/validate-coupon', {
         code: couponCode,
         amount: plans[selectedPlan].amount,
-        planType: selectedPlan   // 👈 ADDED: pass the plan type
+        planType: selectedPlan
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -167,7 +167,7 @@ export const GetPremium = () => {
   };
   // ==================================
 
-  // ========== Updated handlePayment ==========
+  // Payment handler
   const handlePayment = async () => {
     if (!user?.id) {
       alert('Please log in again to make payment.');
@@ -178,8 +178,7 @@ export const GetPremium = () => {
     try {
       console.log('User ID for payment:', user.id);
 
-      // Use discounted amount if coupon applied
-      const amountToPay = plans[selectedPlan].amount; // always send the original amount
+      const amountToPay = plans[selectedPlan].amount; // original amount
 
       const isNative = Capacitor.isNativePlatform();
       const redirectUrl = isNative
@@ -226,9 +225,9 @@ export const GetPremium = () => {
   const formatExpiry = (date) => {
     if (!date) return 'N/A';
     const d = new Date(date);
-    return d.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -253,9 +252,10 @@ export const GetPremium = () => {
         <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
         <h2 style={{ color: headingColor }}>Upgrade to Premium</h2>
         <p style={{ marginBottom: 20 }}>Get unlimited access to all examinations and features</p>
-        
-        {isPremiumActive ? (
-          <div style={{ background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 20, borderRadius: 16 }}>
+
+        {/* ---- Premium Status (always shown if active) ---- */}
+        {isPremiumActive && (
+          <div style={{ background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 20, borderRadius: 16, marginBottom: 20 }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
             <h3 style={{ color: headingColor }}>You are already a Premium Member!</h3>
             <div style={{ marginTop: 12, padding: 12, background: darkMode ? '#2d2d3d' : '#f5f5f5', borderRadius: 8 }}>
@@ -265,7 +265,7 @@ export const GetPremium = () => {
               <p style={{ margin: '4px 0' }}>
                 <strong>Expires:</strong> {formatExpiry(user.premiumExpiry)}
               </p>
-              
+
               {timeLeft && (
                 <div style={{ marginTop: 12, padding: 12, background: '#fff3e0', borderRadius: 8 }}>
                   <p style={{ margin: 0, fontSize: 14, fontWeight: 'bold', color: '#e65100' }}>
@@ -299,87 +299,95 @@ export const GetPremium = () => {
                 </p>
               )}
             </div>
+            <div style={{ marginTop: 16, padding: 12, background: '#e3f2fd', borderRadius: 8 }}>
+              <p style={{ margin: 0, color: '#0d47a1', fontSize: 14 }}>
+                🔄 Purchasing a new plan will <strong>extend</strong> your current premium access by the plan's duration.
+              </p>
+            </div>
           </div>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, margin: 20 }}>
-              {Object.entries(plans).map(([key, plan]) => (
-                <div 
-                  key={key} 
-                  onClick={() => {
-                    setSelectedPlan(key);
-                    // ✅ Reset loading state if it's stuck
-                    if (loading) setLoading(false);
-                  }}
-                  style={{
-                    padding: 16,
-                    borderRadius: 12,
-                    border: selectedPlan === key ? `3px solid ${headingColor}` : `2px solid ${borderColor}`,
-                    background: selectedPlan === key ? (darkMode ? '#333' : '#e8f5e9') : cardBg,
-                    cursor: 'pointer',
-                    transition: '0.2s',
-                    boxShadow: selectedPlan === key ? `0 4px 12px rgba(0,0,0,0.15)` : 'none'
-                  }}
-                >
-                  <div style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>₦{plan.amount}</div>
-                  <div style={{ fontSize: 16, fontWeight: 'bold', color: textColor }}>{plan.label}</div>
-                  <div style={{ fontSize: 12, color: secondaryText }}>{plan.duration}</div>
-                  {selectedPlan === key && (
-                    <div style={{ marginTop: 8, fontSize: 11, color: headingColor, fontWeight: 'bold' }}>✓ SELECTED</div>
-                  )}
-                </div>
-              ))}
-            </div>
+        )}
 
-
-            <div style={{ margin: '16px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <input
-                  type="text"
-                  placeholder="Enter coupon code"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  style={{ padding: '8px 14px', border: '1px solid #ccc', borderRadius: 8, background: cardBg, color: textColor, fontSize: 14, width: 200 }}
-                />
-                <button
-                  onClick={applyCoupon}
-                  disabled={couponLoading}
-                  style={{ background: '#6c757d', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  {couponLoading ? '...' : 'Apply'}
-                </button>
-              </div>
-              {couponError && <p style={{ color: '#dc3545', fontSize: 13, margin: 0 }}>{couponError}</p>}
-              {couponApplied && (
-                <div style={{ background: '#e8f5e9', padding: '8px 16px', borderRadius: 8, display: 'inline-block' }}>
-                  <p style={{ color: '#2e7d32', fontSize: 14, margin: 0 }}>
-                    ✅ Coupon applied! You save {couponApplied.discountType === 'percentage' ? `${couponApplied.discountValue}%` : `₦${couponApplied.discountValue}`}.
-                    {hasDiscount && <span> New total: ₦{displayAmount}</span>}
-                  </p>
-                </div>
-              )}
-            </div>
-            {/* ========================================= */}
-
-            <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: 16, borderRadius: 12, margin: '20px 0' }}>
-              <div style={{ fontSize: 18, fontWeight: 'bold', color: headingColor }}>
-                Selected: <span style={{ color: '#ff9800' }}>{plans[selectedPlan].label}</span> – 
-                {hasDiscount ? (
-                  <>
-                    <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{originalAmount}</span>
-                    <span style={{ color: '#2e7d32', marginLeft: 8 }}>₦{displayAmount}</span>
-                  </>
-                ) : (
-                  <span> ₦{displayAmount}</span>
+        {/* ---- Plan Selection (always visible) ---- */}
+        <div style={{ marginTop: isPremiumActive ? 0 : 20 }}>
+          <h3 style={{ color: headingColor, fontSize: 18, marginBottom: 16 }}>
+            {isPremiumActive ? 'Renew or Upgrade Your Plan' : 'Choose Your Plan'}
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, margin: '20px 0' }}>
+            {Object.entries(plans).map(([key, plan]) => (
+              <div
+                key={key}
+                onClick={() => {
+                  setSelectedPlan(key);
+                  if (loading) setLoading(false);
+                }}
+                style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  border: selectedPlan === key ? `3px solid ${headingColor}` : `2px solid ${borderColor}`,
+                  background: selectedPlan === key ? (darkMode ? '#333' : '#e8f5e9') : cardBg,
+                  cursor: 'pointer',
+                  transition: '0.2s',
+                  boxShadow: selectedPlan === key ? `0 4px 12px rgba(0,0,0,0.15)` : 'none'
+                }}
+              >
+                <div style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>₦{plan.amount}</div>
+                <div style={{ fontSize: 16, fontWeight: 'bold', color: textColor }}>{plan.label}</div>
+                <div style={{ fontSize: 12, color: secondaryText }}>{plan.duration}</div>
+                {selectedPlan === key && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: headingColor, fontWeight: 'bold' }}>✓ SELECTED</div>
                 )}
               </div>
-            </div>
+            ))}
+          </div>
+        </div>
 
-            <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>
-              {loading ? 'Processing...' : `Pay ₦${displayAmount} (${plans[selectedPlan].label})`}
+        {/* ---- Coupon Section ---- */}
+        <div style={{ margin: '16px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <input
+              type="text"
+              placeholder="Enter coupon code"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              style={{ padding: '8px 14px', border: '1px solid #ccc', borderRadius: 8, background: cardBg, color: textColor, fontSize: 14, width: 200 }}
+            />
+            <button
+              onClick={applyCoupon}
+              disabled={couponLoading}
+              style={{ background: '#6c757d', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              {couponLoading ? '...' : 'Apply'}
             </button>
-          </>
-        )}
+          </div>
+          {couponError && <p style={{ color: '#dc3545', fontSize: 13, margin: 0 }}>{couponError}</p>}
+          {couponApplied && (
+            <div style={{ background: '#e8f5e9', padding: '8px 16px', borderRadius: 8, display: 'inline-block' }}>
+              <p style={{ color: '#2e7d32', fontSize: 14, margin: 0 }}>
+                ✅ Coupon applied! You save {couponApplied.discountType === 'percentage' ? `${couponApplied.discountValue}%` : `₦${couponApplied.discountValue}`}.
+                {hasDiscount && <span> New total: ₦{displayAmount}</span>}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ---- Total and Pay Button ---- */}
+        <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: 16, borderRadius: 12, margin: '20px 0' }}>
+          <div style={{ fontSize: 18, fontWeight: 'bold', color: headingColor }}>
+            Selected: <span style={{ color: '#ff9800' }}>{plans[selectedPlan].label}</span> –
+            {hasDiscount ? (
+              <>
+                <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{originalAmount}</span>
+                <span style={{ color: '#2e7d32', marginLeft: 8 }}>₦{displayAmount}</span>
+              </>
+            ) : (
+              <span> ₦{displayAmount}</span>
+            )}
+          </div>
+        </div>
+
+        <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>
+          {loading ? 'Processing...' : `Pay ₦${displayAmount} (${plans[selectedPlan].label})`}
+        </button>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
