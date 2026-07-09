@@ -863,7 +863,7 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Invalid plan type' });
     }
 
-    let expiryDate = new Date();
+    let expiryDate = user.premiumExpiry && user.premiumExpiry > new Date() ? user.premiumExpiry : new Date();
     switch(planType) {
       case 'daily': expiryDate.setDate(expiryDate.getDate() + 1); break;
       case 'monthly': expiryDate.setMonth(expiryDate.getMonth() + 1); break;
