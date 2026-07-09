@@ -923,6 +923,66 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
   }
 });
 
+// Admin: Manually add premium time to a user
+app.post('/api/admin/add-premium-time', isAdmin, async (req, res) => {
+  try {
+    const { userId, planType, customDays, customHours } = req.body;
+    if (!userId) return res.status(400).json({ error: 'User ID is required' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    console.log(`🛠️ Before adjustment: ${user.email} expiry = ${user.premiumExpiry}`);
+
+    const now = new Date();
+    let expiry = user.premiumExpiry && user.premiumExpiry > now ? user.premiumExpiry : now;
+
+    if (planType) {
+      switch (planType) {
+        case 'daily': expiry.setDate(expiry.getDate() + 1); break;
+        case 'monthly': expiry.setMonth(expiry.getMonth() + 1); break;
+        case 'yearly': expiry.setFullYear(expiry.getFullYear() + 1); break;
+        default: return res.status(400).json({ error: 'Invalid plan type' });
+      }
+    } else if (customDays || customHours) {
+      if (customDays) expiry.setDate(expiry.getDate() + parseInt(customDays));
+      if (customHours) expiry.setHours(expiry.getHours() + parseInt(customHours));
+    } else {
+      return res.status(400).json({ error: 'Must provide planType or custom days/hours' });
+    }
+
+    // Update using updateOne
+    const result = await User.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          isPremium: true,
+          premiumExpiry: expiry,
+          premiumPlan: planType || user.premiumPlan
+        }
+      }
+    );
+
+    console.log('📊 Update result:', result);
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'User not found (update match failed)' });
+    }
+
+    const updatedUser = await User.findById(userId);
+    res.json({
+      success: true,
+      message: `Premium extended until ${expiry.toISOString()}`,
+      newExpiry: expiry,
+      user: updatedUser,
+      result: result
+    });
+  } catch (error) {
+    console.error('Manual premium adjustment error:', error);
+    res.status(500).json({ error: 'Failed to adjust premium' });
+  }
+});
+
 // ============ ANNOUNCEMENT ROUTES ============
 
 // Get active announcement (public)
