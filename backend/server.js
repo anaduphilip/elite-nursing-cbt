@@ -917,33 +917,45 @@ app.post('/api/admin/add-premium-time', isAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Must provide planType or custom days/hours' });
     }
 
-    // 👇 USE findByIdAndUpdate instead of save()
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
+    // 👇 Use updateOne to see how many documents were modified
+    const result = await User.updateOne(
+      { _id: userId },
       {
         $set: {
           isPremium: true,
           premiumExpiry: expiry,
           premiumPlan: planType || user.premiumPlan
         }
-      },
-      { new: true } // Return the updated document
+      }
     );
 
-    console.log(`✅ After adjustment: ${updatedUser.email} expiry = ${updatedUser.premiumExpiry}`);
+    console.log('📊 Update result:', result);
 
+    if (result.matchedCount === 0) {
+      console.log('❌ No document found with that _id.');
+      return res.status(404).json({ error: 'User not found (update match failed)' });
+    }
+
+    if (result.modifiedCount === 0) {
+      console.log('⚠️ Document matched but nothing changed (maybe expiry was already the same).');
+    } else {
+      console.log(`✅ Document updated successfully. New expiry: ${expiry}`);
+    }
+
+    // Fetch the updated user to return
+    const updatedUser = await User.findById(userId);
     res.json({
       success: true,
       message: `Premium extended until ${expiry.toISOString()}`,
       newExpiry: expiry,
-      user: updatedUser
+      user: updatedUser,
+      result: result
     });
   } catch (error) {
     console.error('Manual premium adjustment error:', error);
     res.status(500).json({ error: 'Failed to adjust premium' });
   }
 });
-
 
 // ============ ANNOUNCEMENT ROUTES ============
 
@@ -1892,12 +1904,7 @@ app.post('/api/verify-payment', async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
-    // ✅ REMOVE the early return for isPremium – we want to extend even if already premium
-    // (but we can still log it)
-    if (user.isPremium) {
-      console.log(`ℹ️ User already premium, but we will still extend on successful payment`);
-    }
-
+    // Find the transaction
     const transaction = user.transactions.find(t => t.reference === reference);
     if (!transaction) {
       console.log(`Transaction not found for reference: ${reference}`);
@@ -1920,36 +1927,58 @@ app.post('/api/verify-payment', async (req, res) => {
 
     if (txData?.status === 'successful') {
       const plan = transaction.planType || 'monthly';
-      // Extend existing expiry
-      let expiryDate = user.premiumExpiry && user.premiumExpiry > new Date() ? user.premiumExpiry : new Date();
+      // Calculate new expiry
+      const now = new Date();
+      let expiry = user.premiumExpiry && user.premiumExpiry > now ? user.premiumExpiry : now;
       switch(plan) {
-        case 'daily': expiryDate.setDate(expiryDate.getDate() + 1); break;
-        case 'monthly': expiryDate.setMonth(expiryDate.getMonth() + 1); break;
-        case 'yearly': expiryDate.setFullYear(expiryDate.getFullYear() + 1); break;
-        default: expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        case 'daily': expiry.setDate(expiry.getDate() + 1); break;
+        case 'monthly': expiry.setMonth(expiry.getMonth() + 1); break;
+        case 'yearly': expiry.setFullYear(expiry.getFullYear() + 1); break;
+        default: expiry.setFullYear(expiry.getFullYear() + 1);
       }
 
-      user.isPremium = true;
-      user.premiumPlan = plan;
-      user.premiumExpiry = expiryDate;
-      user.purchaseDate = new Date();
-      transaction.status = 'completed';
-      transaction.flutterwaveId = txData.id;
-      await user.save();
+      // Update the user and transaction in one go
+      const updateResult = await User.updateOne(
+        { _id: userId, 'transactions.reference': reference },
+        {
+          $set: {
+            isPremium: true,
+            premiumPlan: plan,
+            premiumExpiry: expiry,
+            purchaseDate: new Date(),
+            'transactions.$.status': 'completed',
+            'transactions.$.flutterwaveId': txData.id
+          }
+        }
+      );
 
-      console.log(`✅✅ PREMIUM ACTIVATED/EXTENDED for: ${user.email} (${plan}) until ${expiryDate} ✅✅`);
+      console.log('📊 Payment update result:', updateResult);
+
+      if (updateResult.matchedCount === 0) {
+        console.log('❌ No user/transaction matched for update.');
+        return res.status(404).json({ success: false, error: 'User or transaction not found' });
+      }
+
+      if (updateResult.modifiedCount === 0) {
+        console.log('⚠️ Document matched but nothing changed (maybe expiry was already correct).');
+      } else {
+        console.log(`✅ User ${user.email} premium extended to ${expiry}`);
+      }
+
+      // Fetch the updated user to return
+      const updatedUser = await User.findById(userId);
       return res.json({
         success: true,
         isPremium: true,
         plan: plan,
-        expiry: expiryDate
+        expiry: expiry,
+        user: updatedUser
       });
     } else if (txData?.status === 'pending') {
       return res.json({ success: false, pending: true, message: 'Payment still processing' });
     } else {
       return res.json({ success: false, error: `Payment status: ${txData?.status}` });
     }
-
   } catch (error) {
     console.error('Verification error:', error.response?.data || error.message);
     res.status(200).json({ success: false, error: 'Verification failed. Contact support.' });
