@@ -1931,14 +1931,21 @@ app.post('/api/verify-payment', async (req, res) => {
       const plan = transaction.planType || 'monthly';
       console.log(`📦 Plan from transaction: ${plan}`);
 
-      // Determine starting expiry
       const now = new Date();
       console.log(`🕐 Now: ${now.toISOString()}`);
 
-      // If the user is already premium and has a future expiry, start from that expiry; otherwise start from now
-      let expiry = (user.isPremium && user.premiumExpiry && user.premiumExpiry > now)
-        ? new Date(user.premiumExpiry)
-        : new Date(now);
+      // 👇 SAFETY: If the user is not premium, always start from now
+      let expiry;
+      if (!user.isPremium) {
+        console.log(`ℹ️ User is not premium – starting fresh from now.`);
+        expiry = new Date(now);
+      } else {
+        // User is premium – extend from existing expiry if it's in the future
+        expiry = (user.premiumExpiry && user.premiumExpiry > now)
+          ? new Date(user.premiumExpiry)
+          : new Date(now);
+        console.log(`ℹ️ User is premium – starting from existing expiry: ${expiry.toISOString()}`);
+      }
 
       console.log(`📆 Starting expiry (before adding plan): ${expiry.toISOString()}`);
 
