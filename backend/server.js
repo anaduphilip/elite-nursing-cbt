@@ -1872,14 +1872,15 @@ app.post('/api/verify-payment', async (req, res) => {
 
     console.log(`🧑‍💻 User: ${user.email}, isPremium: ${user.isPremium}, current premiumExpiry: ${user.premiumExpiry}`);
 
-    // Find the transaction
-    const transaction = user.transactions.find(t => t.reference === reference);
-    if (!transaction) {
+    // Find the transaction index
+    const transactionIndex = user.transactions.findIndex(t => t.reference === reference);
+    if (transactionIndex === -1) {
       console.log(`Transaction not found for reference: ${reference}`);
       return res.status(404).json({ success: false, error: 'Transaction not found' });
     }
+    const transaction = user.transactions[transactionIndex];
 
-    // 👇 CHECK: If transaction is already completed, return the current state without re-processing
+    // 👇 If transaction already completed, return current state without re-processing
     if (transaction.status === 'completed') {
       console.log(`⚠️ Transaction ${reference} already processed. Returning current state.`);
       return res.json({
@@ -1887,8 +1888,7 @@ app.post('/api/verify-payment', async (req, res) => {
         isPremium: user.isPremium,
         plan: user.premiumPlan,
         expiry: user.premiumExpiry,
-        alreadyProcessed: true,
-        message: 'Payment already verified'
+        alreadyProcessed: true
       });
     }
 
@@ -1913,7 +1913,7 @@ app.post('/api/verify-payment', async (req, res) => {
       const now = new Date();
       console.log(`🕐 Now: ${now.toISOString()}`);
 
-      // 👇 SAFETY: If the user is not premium, always start from now
+      // Determine starting expiry
       let expiry;
       if (!user.isPremium) {
         console.log(`ℹ️ User is not premium – starting fresh from now.`);
@@ -1938,59 +1938,24 @@ app.post('/api/verify-payment', async (req, res) => {
 
       console.log(`📆 Final expiry (after adding ${plan}): ${expiry.toISOString()}`);
 
-      // 👇 Only update if transaction is NOT already completed (safety check)
-      const updateResult = await User.updateOne(
-        { 
-          _id: userId, 
-          'transactions.reference': reference,
-          'transactions.status': { $ne: 'completed' } // 👈 PREVENT DUPLICATE PROCESSING
-        },
-        {
-          $set: {
-            isPremium: true,
-            premiumPlan: plan,
-            premiumExpiry: expiry,
-            purchaseDate: new Date(),
-            'transactions.$.status': 'completed',
-            'transactions.$.flutterwaveId': txData.id
-          }
-        }
-      );
+      // Update user fields and transaction status directly
+      user.isPremium = true;
+      user.premiumPlan = plan;
+      user.premiumExpiry = expiry;
+      user.purchaseDate = new Date();
+      user.transactions[transactionIndex].status = 'completed';
+      user.transactions[transactionIndex].flutterwaveId = txData.id;
 
-      console.log('📊 Payment update result:', updateResult);
+      await user.save();
 
-      if (updateResult.matchedCount === 0) {
-        // Check if transaction was already completed by another request
-        const refreshedUser = await User.findById(userId);
-        const refreshedTransaction = refreshedUser?.transactions.find(t => t.reference === reference);
-        if (refreshedTransaction?.status === 'completed') {
-          console.log(`⚠️ Transaction already completed by another request. Returning current state.`);
-          return res.json({
-            success: true,
-            isPremium: refreshedUser.isPremium,
-            plan: refreshedUser.premiumPlan,
-            expiry: refreshedUser.premiumExpiry,
-            alreadyProcessed: true
-          });
-        }
-        console.log('❌ No user/transaction matched for update.');
-        return res.status(404).json({ success: false, error: 'User or transaction not found' });
-      }
+      console.log(`✅ User ${user.email} premium extended to ${expiry.toISOString()}`);
 
-      if (updateResult.modifiedCount === 0) {
-        console.log('⚠️ Document matched but nothing changed.');
-      } else {
-        console.log(`✅ User ${user.email} premium extended to ${expiry.toISOString()}`);
-      }
-
-      // Fetch the updated user to return
-      const updatedUser = await User.findById(userId);
       return res.json({
         success: true,
         isPremium: true,
         plan: plan,
         expiry: expiry,
-        user: updatedUser
+        user: user
       });
     } else if (txData?.status === 'pending') {
       return res.json({ success: false, pending: true, message: 'Payment still processing' });
