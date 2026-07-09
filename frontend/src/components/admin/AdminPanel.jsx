@@ -1706,7 +1706,7 @@ export const AdminPanel = () => {
                           <input key={idx} type="text" placeholder={`Option ${String.fromCharCode(65 + idx)}`} value={opt} onChange={(e) => { const newOpts = [...qOptions]; newOpts[idx] = e.target.value; setQOptions(newOpts); }} style={{ padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13, background: cardBg, color: textColor, boxSizing: 'border-box' }} />
                         ))}
                       </div>
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'nowrap' }}>
                         <label style={{ fontSize: 13, fontWeight: 'bold', color: textColor }}>Correct Answer:</label>
                         <select value={qCorrect} onChange={(e) => setQCorrect(parseInt(e.target.value))} style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor, fontSize: 13 }}>
                           {qOptions.map((_, idx) => <option key={idx} value={idx}>Option {String.fromCharCode(65 + idx)}</option>)}
@@ -1854,7 +1854,7 @@ export const AdminPanel = () => {
                     placeholder="Days"
                     value={adjustCustomDays}
                     onChange={(e) => setAdjustCustomDays(e.target.value)}
-                    style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333' }}
+                    style={{ flex: 2, minWidth: 120, maxWidth: 200, padding: '10px 29px', border: '2px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#2d2d3d' : 'white', color: textColor }}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
@@ -1863,7 +1863,7 @@ export const AdminPanel = () => {
                     placeholder="Hours"
                     value={adjustCustomHours}
                     onChange={(e) => setAdjustCustomHours(e.target.value)}
-                    style={{ width: '100%', padding: 12, border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333' }}
+                    style={{ flex: 2, minWidth: 120, maxWidth: 200, padding: '10px 29px', border: '2px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#2d2d3d' : 'white', color: textColor }}
                   />
                 </div>
               </div>
