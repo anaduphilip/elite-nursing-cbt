@@ -1904,6 +1904,8 @@ app.post('/api/verify-payment', async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
+    console.log(`🧑‍💻 User: ${user.email}, isPremium: ${user.isPremium}, current premiumExpiry: ${user.premiumExpiry}`);
+
     // Find the transaction
     const transaction = user.transactions.find(t => t.reference === reference);
     if (!transaction) {
@@ -1927,15 +1929,28 @@ app.post('/api/verify-payment', async (req, res) => {
 
     if (txData?.status === 'successful') {
       const plan = transaction.planType || 'monthly';
-      // Calculate new expiry
+      console.log(`📦 Plan from transaction: ${plan}`);
+
+      // Determine starting expiry
       const now = new Date();
-      let expiry = user.premiumExpiry && user.premiumExpiry > now ? user.premiumExpiry : now;
-      switch(plan) {
+      console.log(`🕐 Now: ${now.toISOString()}`);
+
+      // If the user is already premium and has a future expiry, start from that expiry; otherwise start from now
+      let expiry = (user.isPremium && user.premiumExpiry && user.premiumExpiry > now)
+        ? new Date(user.premiumExpiry)
+        : new Date(now);
+
+      console.log(`📆 Starting expiry (before adding plan): ${expiry.toISOString()}`);
+
+      // Add the plan duration
+      switch (plan) {
         case 'daily': expiry.setDate(expiry.getDate() + 1); break;
         case 'monthly': expiry.setMonth(expiry.getMonth() + 1); break;
         case 'yearly': expiry.setFullYear(expiry.getFullYear() + 1); break;
         default: expiry.setFullYear(expiry.getFullYear() + 1);
       }
+
+      console.log(`📆 Final expiry (after adding ${plan}): ${expiry.toISOString()}`);
 
       // Update the user and transaction in one go
       const updateResult = await User.updateOne(
@@ -1962,7 +1977,7 @@ app.post('/api/verify-payment', async (req, res) => {
       if (updateResult.modifiedCount === 0) {
         console.log('⚠️ Document matched but nothing changed (maybe expiry was already correct).');
       } else {
-        console.log(`✅ User ${user.email} premium extended to ${expiry}`);
+        console.log(`✅ User ${user.email} premium extended to ${expiry.toISOString()}`);
       }
 
       // Fetch the updated user to return
