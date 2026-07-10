@@ -32,6 +32,9 @@ export const TakeExam = () => {
   const [explanationRemaining, setExplanationRemaining] = useState(null);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
 
+  // ===== NEW: Submission loading state (optional) =====
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
     const fetchExam = async () => {
       try {
@@ -130,7 +133,9 @@ export const TakeExam = () => {
     handleSubmit();
   };
 
-  const handleSubmit = () => {
+  // ===== UPDATED: handleSubmit now also sends results to backend =====
+  const handleSubmit = async () => {
+    // --- Local calculation (existing code) ---
     let score = 0;
     questions.forEach((question, idx) => {
       if (answers[idx] !== undefined && answers[idx] === question.correctAnswer) {
@@ -166,6 +171,22 @@ export const TakeExam = () => {
       localStorage.setItem(`exam_${id}_taken`, 'true');
     }
     localStorage.removeItem(`exam_${id}_answers`);
+
+    // --- NEW: Send answers to backend (non-blocking) ---
+    try {
+      setIsSubmitting(true);
+      await axios.post(
+        `/api/quizzes/${id}/submit`,
+        { answers },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log('✅ Exam results saved to backend');
+    } catch (error) {
+      console.error('❌ Failed to save exam results to backend:', error);
+      // Do not alert the user – the local result is already shown.
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ===== Get AI explanation for a question =====
@@ -479,6 +500,7 @@ export const TakeExam = () => {
           </div>
         </div>
 
+        {/* Submit button – unchanged */}
         <button onClick={handleSubmit} disabled={!allAnswered} style={{ width: '100%', background: allAnswered ? '#28a745' : '#ccc', color: 'white', padding: 14, border: 'none', borderRadius: 50, cursor: allAnswered ? 'pointer' : 'not-allowed', fontSize: 16, fontWeight: 'bold', marginBottom: 30, opacity: allAnswered ? 1 : 0.7 }}>
           {allAnswered ? 'Submit Examination' : `Please answer all questions (${answeredCount}/${totalQuestions})`}
         </button>

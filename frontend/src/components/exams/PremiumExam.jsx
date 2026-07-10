@@ -94,6 +94,36 @@ export const PremiumExam = () => {
     }
   }, [answers, examId, submitted]);
 
+  // ===== NEW: Send premium exam results to backend after submission =====
+  useEffect(() => {
+    if (submitted && result && Object.keys(answers).length > 0) {
+      const sendToBackend = async () => {
+        try {
+          // Construct a payload for the premium exam
+          // The backend will need a special handler for this endpoint
+          await axios.post(
+            '/api/premium-exam/submit',
+            {
+              category: categoryName,
+              topic,
+              examId,
+              answers,
+              score: result.score,
+              total: result.total,
+              percentage: parseFloat(result.percentage),
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          console.log('✅ Premium exam results saved to backend');
+        } catch (error) {
+          console.error('❌ Failed to save premium exam results:', error);
+        }
+      };
+      sendToBackend();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitted, result]);
+
   const handleAnswer = (answerIndex) => {
     setAnswers(prev => ({ ...prev, [currentIndex]: answerIndex }));
   };
