@@ -222,7 +222,7 @@ export const Profile = () => {
 
           {/* ===== NEW: Study Plan Link ===== */}
           <Link to="/study-plan" style={{ display: 'flex', alignItems: 'center', gap: 10, background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: headingColor, fontWeight: 'bold' }}>
-            <span style={{ fontSize: 20 }}>🧠</span> My Study Plan
+            <span style={{ fontSize: 20 }}>📝</span> Review Failed Quizzes
           </Link>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: darkMode ? '#2d2d3d' : '#f5f5f5', borderRadius: 8 }}>
