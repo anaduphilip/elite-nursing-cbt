@@ -41,6 +41,7 @@ import { WeeklyQuizLanding } from './components/weekly/WeeklyQuizLanding';
 import { LogoutModal } from './components/common/LogoutModal';
 import { FAQ } from './components/pages/FAQ';
 import { Maintenance } from './components/pages/Maintenance';
+import { StudyPlan } from './components/study/StudyPlan';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -125,6 +126,7 @@ const AppContent = () => {
         <Route path="/weekly-leaderboard" element={<WeeklyLeaderboard />} />
         <Route path="/premium-exam/:categoryName/:topic/:examId/:mode" element={<PremiumExam />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/study-plan" element={<StudyPlan />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <FloatingChatButton />

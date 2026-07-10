@@ -151,7 +151,22 @@ const UserSchema = new mongoose.Schema({
   lastExplanationReset: { type: Date, default: null },
   // ============ NEW: Reminder tracking ============
   lastReminderSent: { type: String, default: null },
-  notifiedExpired: { type: Boolean, default: false }
+  notifiedExpired: { type: Boolean, default: false },
+  // ============ NEW: Study Plan ============
+  lastStudyPlanGenerated: { type: Date, default: null },
+  studyPlan: {
+    generatedAt: { type: Date, default: null },
+    questions: [{
+      questionText: { type: String },
+      options: [{ type: String }],
+      correctAnswer: { type: Number },
+      quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' },
+      userAnswer: { type: Number, default: null }
+    }],
+    completed: { type: Boolean, default: false },
+    score: { type: Number, default: null },
+    total: { type: Number, default: 0 }
+  }
 });
 
 // Quiz Schema
@@ -2801,6 +2816,222 @@ cron.schedule('0 * * * *', async () => {
     await sendReminderEmail(user.email, user.name, user.premiumPlan || 'premium', null, null);
     user.notifiedExpired = true;
     await user.save();
+  }
+});
+
+// ============ STUDY PLAN ROUTES ============
+
+// Helper: Get user's average score per quiz
+const getUserQuizAverages = async (userId) => {
+  const user = await User.findById(userId).populate('quizResults.quizId');
+  if (!user) return {};
+
+  const quizScores = {};
+  for (const result of user.quizResults) {
+    const quizId = result.quizId?.toString();
+    if (!quizId) continue;
+    if (!quizScores[quizId]) {
+      quizScores[quizId] = { scores: [], total: 0, count: 0 };
+    }
+    quizScores[quizId].scores.push(result.percentage);
+    quizScores[quizId].total += result.percentage;
+    quizScores[quizId].count++;
+  }
+  // Compute averages
+  const averages = {};
+  for (const [quizId, data] of Object.entries(quizScores)) {
+    averages[quizId] = data.total / data.count;
+  }
+  return averages;
+};
+
+// GET /api/study-plan/status - Check if user can generate a new plan
+app.get('/api/study-plan/status', authenticate, async (req, res) => {
+  try {
+    const user = req.user;
+    const isPremium = user.isPremium;
+    const lastGenerated = user.lastStudyPlanGenerated;
+
+    let canGenerate = true;
+    let message = 'You can generate a new study plan.';
+
+    if (!isPremium && lastGenerated) {
+      const oneWeek = 7 * 24 * 60 * 60 * 1000;
+      const diff = Date.now() - lastGenerated.getTime();
+      if (diff < oneWeek) {
+        const remaining = oneWeek - diff;
+        const days = Math.floor(remaining / (24 * 60 * 60 * 1000));
+        const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+        canGenerate = false;
+        message = `Free users can generate one plan per week. You can generate again in ${days}d ${hours}h.`;
+      }
+    }
+
+    res.json({ canGenerate, message, isPremium, hasPlan: !!user.studyPlan?.questions?.length });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/study-plan/current - Get the current study plan
+app.get('/api/study-plan/current', authenticate, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user.studyPlan || !user.studyPlan.questions.length) {
+      return res.json({ success: true, plan: null });
+    }
+    // If the plan is completed, still return it for history view
+    res.json({ success: true, plan: user.studyPlan });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/study-plan/generate - Generate a new study plan
+app.post('/api/study-plan/generate', authenticate, async (req, res) => {
+  try {
+    const user = req.user;
+    const isPremium = user.isPremium;
+
+    // Check if allowed
+    const lastGenerated = user.lastStudyPlanGenerated;
+    if (!isPremium && lastGenerated) {
+      const oneWeek = 7 * 24 * 60 * 60 * 1000;
+      const diff = Date.now() - lastGenerated.getTime();
+      if (diff < oneWeek) {
+        return res.status(403).json({ error: 'Free users can generate one plan per week. Upgrade to Premium for unlimited.' });
+      }
+    }
+
+    // Get user's quiz averages
+    const averages = await getUserQuizAverages(user._id);
+    if (Object.keys(averages).length === 0) {
+      return res.status(400).json({ error: 'You haven\'t taken enough quizzes to generate a study plan. Take more exams first.' });
+    }
+
+    // Sort quizzes by average score (ascending)
+    const sortedQuizzes = Object.entries(averages).sort((a, b) => a[1] - b[1]);
+
+    // Select worst performing quizzes (bottom 3 or all if less)
+    const weakQuizIds = sortedQuizzes.slice(0, Math.min(3, sortedQuizzes.length)).map(([id]) => id);
+
+    // Fetch the quizzes and their questions
+    const quizzes = await Quiz.find({ _id: { $in: weakQuizIds } });
+    if (quizzes.length === 0) {
+      return res.status(400).json({ error: 'No quizzes found for your weak areas.' });
+    }
+
+    // Determine number of questions per plan
+    const totalQuestions = isPremium ? 25 : 10;
+    const questionsPerQuiz = Math.floor(totalQuestions / quizzes.length);
+    const extra = totalQuestions % quizzes.length;
+
+    let selectedQuestions = [];
+    for (let i = 0; i < quizzes.length; i++) {
+      const quiz = quizzes[i];
+      const qCount = questionsPerQuiz + (i < extra ? 1 : 0);
+      // Shuffle and pick qCount questions
+      const shuffled = quiz.questions.sort(() => 0.5 - Math.random());
+      const picked = shuffled.slice(0, Math.min(qCount, shuffled.length));
+      // Add quizId to each question
+      picked.forEach(q => {
+        selectedQuestions.push({
+          ...q.toObject(),
+          quizId: quiz._id,
+          userAnswer: null
+        });
+      });
+    }
+
+    // If we still need more questions, fill from strong quizzes (random)
+    if (selectedQuestions.length < totalQuestions) {
+      const strongQuizIds = sortedQuizzes.slice(Math.min(3, sortedQuizzes.length)).map(([id]) => id);
+      if (strongQuizIds.length) {
+        const strongQuizzes = await Quiz.find({ _id: { $in: strongQuizIds } });
+        const remaining = totalQuestions - selectedQuestions.length;
+        const allQuestions = [];
+        strongQuizzes.forEach(q => {
+          q.questions.forEach(qq => {
+            allQuestions.push({ ...qq.toObject(), quizId: q._id });
+          });
+        });
+        const shuffledStrong = allQuestions.sort(() => 0.5 - Math.random());
+        const pickedStrong = shuffledStrong.slice(0, remaining);
+        selectedQuestions = selectedQuestions.concat(pickedStrong);
+      }
+    }
+
+    // Store the plan in user document
+    user.studyPlan = {
+      generatedAt: new Date(),
+      questions: selectedQuestions,
+      completed: false,
+      score: null,
+      total: selectedQuestions.length
+    };
+    user.lastStudyPlanGenerated = new Date();
+    await user.save();
+
+    res.json({
+      success: true,
+      plan: user.studyPlan,
+      message: `Study plan generated with ${selectedQuestions.length} questions.`
+    });
+
+  } catch (error) {
+    console.error('Study plan generation error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/study-plan/submit - Submit answers and get score
+app.post('/api/study-plan/submit', authenticate, async (req, res) => {
+  try {
+    const user = req.user;
+    const { answers } = req.body; // array of userAnswer per question index
+
+    if (!user.studyPlan || !user.studyPlan.questions.length) {
+      return res.status(400).json({ error: 'No active study plan.' });
+    }
+    if (user.studyPlan.completed) {
+      return res.status(400).json({ error: 'This study plan has already been completed.' });
+    }
+
+    const plan = user.studyPlan;
+    const questions = plan.questions;
+    if (answers.length !== questions.length) {
+      return res.status(400).json({ error: 'Please answer all questions.' });
+    }
+
+    let score = 0;
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const userAns = answers[i];
+      if (userAns === undefined || userAns === null) {
+        return res.status(400).json({ error: 'Please answer all questions.' });
+      }
+      q.userAnswer = userAns;
+      if (userAns === q.correctAnswer) {
+        score++;
+      }
+    }
+
+    plan.completed = true;
+    plan.score = score;
+    // Save the plan history? We'll overwrite the plan, but we can keep the old plan for review? We'll keep it as is.
+    await user.save();
+
+    res.json({
+      success: true,
+      score,
+      total: questions.length,
+      percentage: ((score / questions.length) * 100).toFixed(1),
+      passed: score / questions.length >= 0.7
+    });
+
+  } catch (error) {
+    console.error('Submit study plan error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

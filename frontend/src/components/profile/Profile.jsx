@@ -219,6 +219,12 @@ export const Profile = () => {
           <Link to="/history" style={{ display: 'flex', alignItems: 'center', gap: 10, background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: headingColor, fontWeight: 'bold' }}>
             <span style={{ fontSize: 20 }}> </span> My History
           </Link>
+
+          {/* ===== NEW: Study Plan Link ===== */}
+          <Link to="/study-plan" style={{ display: 'flex', alignItems: 'center', gap: 10, background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: headingColor, fontWeight: 'bold' }}>
+            <span style={{ fontSize: 20 }}>🧠</span> My Study Plan
+          </Link>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: darkMode ? '#2d2d3d' : '#f5f5f5', borderRadius: 8 }}>
             <span style={{ fontWeight: 'bold', color: textColor }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</span>
             <button onClick={toggleDarkMode} style={{ background: '#1e3c72', color: 'white', padding: '6px 12px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
