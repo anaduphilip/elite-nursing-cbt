@@ -32,7 +32,7 @@ export const TakeExam = () => {
   const [explanationRemaining, setExplanationRemaining] = useState(null);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
 
-  // ===== NEW: Submission loading state (optional) =====
+  // ===== Submission loading state =====
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -133,7 +133,7 @@ export const TakeExam = () => {
     handleSubmit();
   };
 
-  // ===== UPDATED: handleSubmit now also sends results to backend =====
+  // ===== UPDATED: handleSubmit with better logging =====
   const handleSubmit = async () => {
     // --- Local calculation (existing code) ---
     let score = 0;
@@ -172,18 +172,34 @@ export const TakeExam = () => {
     }
     localStorage.removeItem(`exam_${id}_answers`);
 
-    // --- NEW: Send answers to backend (non-blocking) ---
+    // --- NEW: Send answers to backend with detailed logging ---
     try {
       setIsSubmitting(true);
-      await axios.post(
+      console.log('📤 Sending exam result to backend for quiz:', id);
+      console.log('🔗 Backend URL:', axios.defaults.baseURL || 'default');
+      console.log('📦 Payload:', { answers });
+
+      const response = await axios.post(
         `/api/quizzes/${id}/submit`,
         { answers },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { 
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 15000 // 15 second timeout
+        }
       );
-      console.log('✅ Exam results saved to backend');
+      
+      console.log('✅ Exam results saved to backend:', response.status, response.data);
     } catch (error) {
-      console.error('❌ Failed to save exam results to backend:', error);
-      // Do not alert the user – the local result is already shown.
+      console.error('❌ Failed to save exam results to backend:');
+      if (error.response) {
+        console.error('   Status:', error.response.status);
+        console.error('   Data:', error.response.data);
+        console.error('   Headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('   No response received:', error.request);
+      } else {
+        console.error('   Error message:', error.message);
+      }
     } finally {
       setIsSubmitting(false);
     }
