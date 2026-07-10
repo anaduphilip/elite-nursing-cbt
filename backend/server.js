@@ -1055,6 +1055,83 @@ app.get('/api/admin/announcement', isAdmin, async (req, res) => {
   }
 });
 
+// ============ ADMIN QUESTION MANAGEMENT ============
+
+// Get all quizzes (admin only, for listing)
+app.get('/api/admin/quizzes', isAdmin, async (req, res) => {
+  try {
+    const quizzes = await Quiz.find().select('title category _id');
+    res.json({ success: true, quizzes });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch quizzes' });
+  }
+});
+
+// Get questions for a specific quiz (admin only)
+app.get('/api/admin/quizzes/:quizId/questions', isAdmin, async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    res.json({ success: true, questions: quiz.questions });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch questions' });
+  }
+});
+
+// Add a new question to a quiz (admin only)
+app.post('/api/admin/quizzes/:quizId/questions', isAdmin, async (req, res) => {
+  try {
+    const { questionText, options, correctAnswer, points } = req.body;
+    if (!questionText || !options || options.length !== 4 || correctAnswer === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    quiz.questions.push({ questionText, options, correctAnswer, points: points || 1 });
+    await quiz.save();
+    res.json({ success: true, question: quiz.questions[quiz.questions.length - 1] });
+  } catch (error) {
+    console.error('Add question error:', error);
+    res.status(500).json({ error: 'Failed to add question' });
+  }
+});
+
+// Update a question (admin only) – use sub-document _id
+app.put('/api/admin/quizzes/:quizId/questions/:questionId', isAdmin, async (req, res) => {
+  try {
+    const { questionText, options, correctAnswer, points } = req.body;
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    const question = quiz.questions.id(req.params.questionId);
+    if (!question) return res.status(404).json({ error: 'Question not found' });
+    if (questionText !== undefined) question.questionText = questionText;
+    if (options !== undefined) question.options = options;
+    if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
+    if (points !== undefined) question.points = points;
+    await quiz.save();
+    res.json({ success: true, question });
+  } catch (error) {
+    console.error('Update question error:', error);
+    res.status(500).json({ error: 'Failed to update question' });
+  }
+});
+
+// Delete a question (admin only)
+app.delete('/api/admin/quizzes/:quizId/questions/:questionId', isAdmin, async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    const question = quiz.questions.id(req.params.questionId);
+    if (!question) return res.status(404).json({ error: 'Question not found' });
+    quiz.questions.pull(req.params.questionId);
+    await quiz.save();
+    res.json({ success: true, message: 'Question deleted' });
+  } catch (error) {
+    console.error('Delete question error:', error);
+    res.status(500).json({ error: 'Failed to delete question' });
+  }
+});
+
 // ============ CONTACT ROUTE ============
 app.post('/api/contact', async (req, res) => {
   try {
