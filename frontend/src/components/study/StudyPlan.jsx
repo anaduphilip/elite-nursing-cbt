@@ -41,9 +41,22 @@ export const StudyPlan = () => {
         const planRes = await axios.get('/api/study-plan/current', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setPlan(planRes.data.plan);
-        if (planRes.data.plan?.completed) {
-          setResult({ score: planRes.data.plan.score, total: planRes.data.plan.total });
+        const loadedPlan = planRes.data.plan;
+        setPlan(loadedPlan);
+
+        // ✅ FIX: Populate answers from stored userAnswer
+        if (loadedPlan && loadedPlan.questions) {
+          const savedAnswers = {};
+          loadedPlan.questions.forEach((q, idx) => {
+            if (q.userAnswer !== undefined && q.userAnswer !== null) {
+              savedAnswers[idx] = q.userAnswer;
+            }
+          });
+          setAnswers(savedAnswers);
+        }
+
+        if (loadedPlan?.completed) {
+          setResult({ score: loadedPlan.score, total: loadedPlan.total });
         }
       }
     } catch (error) {
@@ -115,8 +128,12 @@ export const StudyPlan = () => {
       });
       if (res.data.success) {
         setResult(res.data);
-        // Update plan status
-        setPlan(prev => ({ ...prev, completed: true, score: res.data.score }));
+        // ✅ Update plan with answers so they persist immediately
+        const updatedQuestions = plan.questions.map((q, idx) => ({
+          ...q,
+          userAnswer: answers[idx] !== undefined ? answers[idx] : null
+        }));
+        setPlan({ ...plan, questions: updatedQuestions, completed: true, score: res.data.score });
         alert(`You scored ${res.data.score}/${res.data.total} (${res.data.percentage}%)`);
       }
     } catch (error) {
@@ -136,7 +153,7 @@ export const StudyPlan = () => {
     setLoadingExplanation({ ...loadingExplanation, [idx]: true });
     try {
       const question = plan.questions[idx];
-      // ✅ FIX: Use stored userAnswer from the plan, fallback to answers state
+      // Use stored userAnswer from the plan, fallback to answers state
       const userAnswer = question.userAnswer !== undefined && question.userAnswer !== null
         ? question.userAnswer
         : answers[idx];
