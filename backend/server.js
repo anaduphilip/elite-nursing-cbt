@@ -1396,6 +1396,38 @@ app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
   }
 });
 
+// ============ PREMIUM EXAM SUBMISSION ============
+app.post('/api/premium-exam/submit', authenticate, async (req, res) => {
+  try {
+    const { category, topic, examId, answers, score, total, percentage } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Create a unique quizId for the premium exam
+    const quizId = `premium-${category}-${topic}-${examId}`;
+
+    user.quizResults.push({
+      quizId: quizId,
+      score: score,
+      total: total,
+      percentage: percentage,
+      date: new Date()
+    });
+
+    await user.save();
+
+    console.log(`✅ Premium exam result saved for ${user.email}: ${score}/${total}`);
+
+    res.json({ success: true, message: 'Premium exam result saved' });
+  } catch (error) {
+    console.error('❌ Premium exam submission error:', error);
+    res.status(500).json({ error: 'Failed to save premium exam result' });
+  }
+});
+
 // ============ WEEKLY QUIZ ROUTES ============
 app.get('/api/weekly-quiz/current', authenticate, async (req, res) => {
   try {
