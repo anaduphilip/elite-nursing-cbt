@@ -136,12 +136,17 @@ export const StudyPlan = () => {
     setLoadingExplanation({ ...loadingExplanation, [idx]: true });
     try {
       const question = plan.questions[idx];
-      const userAnswer = answers[idx];
-      if (userAnswer === undefined) {
+      // ✅ FIX: Use stored userAnswer from the plan, fallback to answers state
+      const userAnswer = question.userAnswer !== undefined && question.userAnswer !== null
+        ? question.userAnswer
+        : answers[idx];
+
+      if (userAnswer === undefined || userAnswer === null) {
         alert('You did not answer this question.');
         setLoadingExplanation({ ...loadingExplanation, [idx]: false });
         return;
       }
+
       const res = await axios.post('/api/explain-question', {
         questionText: question.questionText,
         options: question.options,
