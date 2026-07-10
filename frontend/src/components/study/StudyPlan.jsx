@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
@@ -21,6 +22,12 @@ export const StudyPlan = () => {
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
   const [showReview, setShowReview] = useState(false);
+
+  // ===== AI Explanation States =====
+  const [explanation, setExplanation] = useState({});
+  const [loadingExplanation, setLoadingExplanation] = useState({});
+  const [explanationRemaining, setExplanationRemaining] = useState(null);
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
 
   // Fetch status and plan
   const fetchStatus = async () => {
@@ -46,6 +53,22 @@ export const StudyPlan = () => {
       setLoading(false);
     }
   };
+
+  // ===== Fetch remaining explanations =====
+  useEffect(() => {
+    const fetchRemaining = async () => {
+      try {
+        const res = await axios.get('/api/explanation-remaining', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setExplanationRemaining(res.data.remaining);
+        setIsPremiumUser(res.data.isPremium);
+      } catch (error) {
+        console.error('Failed to fetch explanation limit:', error);
+      }
+    };
+    if (token) fetchRemaining();
+  }, [token]);
 
   useEffect(() => {
     fetchStatus();
@@ -103,6 +126,52 @@ export const StudyPlan = () => {
     }
   };
 
+  // ===== AI Explanation Handlers =====
+  const getExplanation = async (idx) => {
+    if (!isPremiumUser && explanationRemaining <= 0) {
+      alert('You have used all your free explanations for today (10/day). Upgrade to Premium for unlimited!');
+      return;
+    }
+
+    setLoadingExplanation({ ...loadingExplanation, [idx]: true });
+    try {
+      const question = plan.questions[idx];
+      const userAnswer = answers[idx];
+      if (userAnswer === undefined) {
+        alert('You did not answer this question.');
+        setLoadingExplanation({ ...loadingExplanation, [idx]: false });
+        return;
+      }
+      const res = await axios.post('/api/explain-question', {
+        questionText: question.questionText,
+        options: question.options,
+        correctAnswer: question.correctAnswer,
+        userAnswer: userAnswer
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setExplanation({ ...explanation, [idx]: res.data.explanation });
+      setExplanationRemaining(res.data.remaining);
+    } catch (error) {
+      if (error.response?.status === 403 && error.response?.data?.limitReached) {
+        alert('Daily explanation limit reached (10/day). Upgrade to Premium for unlimited!');
+      } else {
+        alert(error.response?.data?.error || 'Failed to generate explanation. Please try again.');
+      }
+    } finally {
+      setLoadingExplanation({ ...loadingExplanation, [idx]: false });
+    }
+  };
+
+  const closeExplanation = (idx) => {
+    setExplanation((prev) => {
+      const updated = { ...prev };
+      delete updated[idx];
+      return updated;
+    });
+  };
+
   if (loading) return <LoadingWithBar message="Loading study plan" />;
 
   // If no plan and cannot generate
@@ -131,14 +200,17 @@ export const StudyPlan = () => {
 
     // Completed plan with result
     if (plan.completed && result) {
+      const percentage = parseFloat(result.percentage);
+      const passed = result.passed !== undefined ? result.passed : percentage >= 70;
+
       return (
         <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
           <div style={{ maxWidth: 800, margin: '0 auto' }}>
             <div style={{ background: cardBg, borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
               <h2 style={{ color: headingColor }}>Study Plan Results</h2>
-              <p>Score: <strong>{result.score}</strong> / {result.total} ({result.percentage}%)</p>
-              <p style={{ color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
-                {result.passed ? '✓ PASSED' : '✗ Needs Improvement'}
+              <p>Score: <strong>{result.score}</strong> / {result.total} ({percentage.toFixed(1)}%)</p>
+              <p style={{ fontSize: 24, color: passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
+                {passed ? '✓ PASSED' : '✗ Needs Improvement'}
               </p>
               <button onClick={() => setShowReview(!showReview)} style={{ background: '#1e3c72', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', marginTop: 10 }}>
                 {showReview ? 'Hide Review' : 'Show Review'}
@@ -148,6 +220,22 @@ export const StudyPlan = () => {
               </button>
               <Link to="/profile"><button style={{ marginLeft: 10, background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Back to Profile</button></Link>
             </div>
+
+            {/* ===== Remaining counter ===== */}
+            {!isPremiumUser && explanationRemaining !== null && (
+              <div style={{
+                textAlign: 'center',
+                padding: 8,
+                background: darkMode ? '#2d2d3d' : '#fff3e0',
+                borderRadius: 8,
+                marginBottom: 16
+              }}>
+                <span style={{ color: '#ff9800' }}>
+                  🎯 {explanationRemaining} AI explanation{explanationRemaining !== 1 ? 's' : ''} remaining today
+                  {explanationRemaining === 0 && ' – Upgrade to Premium for unlimited!'}
+                </span>
+              </div>
+            )}
 
             {showReview && (
               <div>
@@ -164,17 +252,122 @@ export const StudyPlan = () => {
                           {optIdx === userAns && optIdx !== q.correctAnswer && <span style={{ color: '#f44336', marginLeft: 10, fontSize: 12 }}>✗ Your Answer</span>}
                         </div>
                       ))}
+
+                      {/* ===== AI Explanation Button ===== */}
+                      <button
+                        onClick={() => getExplanation(idx)}
+                        disabled={loadingExplanation[idx]}
+                        style={{
+                          marginTop: 12,
+                          background: loadingExplanation[idx] ? '#6c757d' : '#ff9800',
+                          color: 'white',
+                          padding: '6px 16px',
+                          border: 'none',
+                          borderRadius: 6,
+                          cursor: loadingExplanation[idx] ? 'not-allowed' : 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: 13,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6
+                        }}
+                      >
+                        {loadingExplanation[idx] ? (
+                          <>
+                            <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>⚡</span>
+                            Generating...
+                          </>
+                        ) : (
+                          'Explain with AI'
+                        )}
+                      </button>
+
+                      {/* ===== AI Explanation Display ===== */}
+                      {explanation[idx] && (
+                        <div style={{
+                          marginTop: 12,
+                          padding: 16,
+                          paddingRight: 40,
+                          background: darkMode ? '#1a1a2e' : '#f0f7f4',
+                          borderRadius: 8,
+                          borderLeft: '4px solid #ff9800',
+                          textAlign: 'left',
+                          position: 'relative'
+                        }}>
+                          <button
+                            onClick={() => closeExplanation(idx)}
+                            style={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 10,
+                              background: 'none',
+                              border: 'none',
+                              fontSize: 18,
+                              cursor: 'pointer',
+                              color: secondaryText,
+                              padding: '4px 8px',
+                              borderRadius: 4,
+                              lineHeight: 1,
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = darkMode ? '#333' : '#e0e0e0'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                            aria-label="Close explanation"
+                          >
+                            ✕
+                          </button>
+
+                          <div style={{ fontWeight: 'bold', color: '#ff9800', marginBottom: 8, textAlign: 'left' }}>
+                            AI Explanation
+                          </div>
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => (
+                                <p style={{ margin: '4px 0', fontSize: 14, color: textColor, lineHeight: 1.6, textAlign: 'left' }}>
+                                  {children}
+                                </p>
+                              ),
+                              strong: ({ children }) => (
+                                <strong style={{ color: headingColor, fontWeight: 'bold' }}>{children}</strong>
+                              ),
+                              ul: ({ children }) => (
+                                <ul style={{ paddingLeft: 20, margin: '4px 0', listStyleType: 'disc', textAlign: 'left' }}>
+                                  {children}
+                                </ul>
+                              ),
+                              li: ({ children }) => (
+                                <li style={{ margin: '2px 0', fontSize: 14, color: textColor, lineHeight: 1.6, textAlign: 'left' }}>
+                                  {children}
+                                </li>
+                              ),
+                              h3: ({ children }) => (
+                                <h3 style={{ margin: '8px 0 4px', fontSize: 15, color: headingColor, fontWeight: 'bold', textAlign: 'left' }}>
+                                  {children}
+                                </h3>
+                              )
+                            }}
+                          >
+                            {explanation[idx]}
+                          </ReactMarkdown>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
             )}
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
           </div>
         </div>
       );
     }
 
-    // Active plan - show questions
+    // Active plan - show questions (unchanged)
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
