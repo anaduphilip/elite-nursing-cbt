@@ -269,7 +269,7 @@ export const GetPremium = () => {
               {timeLeft && (
                 <div style={{ marginTop: 12, padding: 12, background: '#fff3e0', borderRadius: 8 }}>
                   <p style={{ margin: 0, fontSize: 14, fontWeight: 'bold', color: '#e65100' }}>
-                    ⏳ Time remaining:
+                    Time remaining:
                   </p>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 8 }}>
                     {timeLeft.days > 0 && (
@@ -301,7 +301,7 @@ export const GetPremium = () => {
             </div>
             <div style={{ marginTop: 16, padding: 12, background: '#e3f2fd', borderRadius: 8 }}>
               <p style={{ margin: 0, color: '#0d47a1', fontSize: 14 }}>
-                🔄 Purchasing a new plan will <strong>extend</strong> your current premium access by the plan's duration.
+                Purchasing a new plan will <strong>extend</strong> your current premium access by the plan's duration.
               </p>
             </div>
           </div>

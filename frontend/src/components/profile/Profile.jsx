@@ -197,7 +197,7 @@ export const Profile = () => {
               <p style={{ color: textColor }}><strong>Expires:</strong> {new Date(user.premiumExpiry).toLocaleString()}</p>
               {timeLeft && (
                 <div style={{ marginTop: 8, padding: 10, background: '#fff3e0', borderRadius: 8 }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 'bold', color: '#e65100' }}>⏳ Time remaining:</p>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 'bold', color: '#e65100' }}>Time remaining:</p>
                   <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
                     {timeLeft.days > 0 && <span><strong>{timeLeft.days}</strong>d</span>}
                     <span><strong>{String(timeLeft.hours).padStart(2, '0')}</strong>h</span>

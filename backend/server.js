@@ -1322,8 +1322,14 @@ app.get('/api/quizzes/:quizId', authenticate, async (req, res) => {
 
 app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
   try {
+    console.log('📝 Quiz submission started for user:', req.user?._id);
+
     const quiz = await Quiz.findById(req.params.quizId);
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    if (!quiz) {
+      console.log('❌ Quiz not found:', req.params.quizId);
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
     const { answers } = req.body;
     let score = 0, total = 0;
     quiz.questions.forEach((q, i) => {
@@ -1333,28 +1339,46 @@ app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
     const percentage = (score / total) * 100;
     const passed = percentage >= 70;
 
+    console.log(`📊 Score: ${score}/${total} (${percentage}%)`);
+
+    // ===== SAVE QUIZ RESULT =====
     const user = await User.findById(req.user._id);
+    console.log('🔍 User found:', user?.email);
+
     if (user) {
-      user.quizResults.push({
+      const resultEntry = {
         quizId: req.params.quizId,
         score: score,
         total: total,
         percentage: percentage,
         date: new Date()
-      });
+      };
+      console.log('📝 Pushing result:', resultEntry);
+      user.quizResults.push(resultEntry);
+
+      console.log(`📊 Before save: ${user.quizResults.length} results`);
       await user.save();
+      console.log(`✅ After save: ${user.quizResults.length} results`);
+
+      // Verify by fetching again
+      const refreshed = await User.findById(req.user._id);
+      console.log(`✅ Verified: ${refreshed.quizResults.length} results in DB`);
+    } else {
+      console.log('❌ User NOT found!');
     }
 
+    // ===== MARKETING EMAIL TRIGGER =====
     if (user && !user.isPremium && user.marketingConsent) {
       const freeExamsTaken = user.quizResults.length || 0;
       const lastEmailDate = user.lastMarketingEmailSent || new Date(0);
       const daysSinceLast = (Date.now() - lastEmailDate.getTime()) / (1000 * 60 * 60 * 24);
 
       if (freeExamsTaken >= 3 && daysSinceLast > 7) {
+        console.log(`📧 Sending marketing email to ${user.email} (${freeExamsTaken} exams)`);
         sendMarketingEmail(user.email, user.name, 'upgrade')
           .then(sent => {
             if (sent) {
-              console.log(`✅ Upgrade email sent to ${user.email} after ${freeExamsTaken} free exams`);
+              console.log(`✅ Upgrade email sent to ${user.email}`);
             }
           })
           .catch(err => console.error('Async email error:', err));
@@ -1367,7 +1391,7 @@ app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
     res.json({ score, total, percentage, passed });
 
   } catch (error) {
-    console.error('Submit error:', error);
+    console.error('❌ Submit error:', error);
     res.status(400).json({ error: error.message });
   }
 });
