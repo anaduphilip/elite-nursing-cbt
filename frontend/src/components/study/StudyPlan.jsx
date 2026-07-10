@@ -29,7 +29,7 @@ export const StudyPlan = () => {
   const [explanationRemaining, setExplanationRemaining] = useState(null);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
 
-  // Fetch status and plan
+  // ===== Fetch status and plan =====
   const fetchStatus = async () => {
     setLoading(true);
     try {
@@ -44,7 +44,7 @@ export const StudyPlan = () => {
         const loadedPlan = planRes.data.plan;
         setPlan(loadedPlan);
 
-        // ✅ FIX: Populate answers from stored userAnswer
+        // Populate answers from stored userAnswer
         if (loadedPlan && loadedPlan.questions) {
           const savedAnswers = {};
           loadedPlan.questions.forEach((q, idx) => {
@@ -55,8 +55,15 @@ export const StudyPlan = () => {
           setAnswers(savedAnswers);
         }
 
+        // ✅ Compute percentage if plan is completed
         if (loadedPlan?.completed) {
-          setResult({ score: loadedPlan.score, total: loadedPlan.total });
+          const perc = loadedPlan.total > 0 ? (loadedPlan.score / loadedPlan.total) * 100 : 0;
+          setResult({
+            score: loadedPlan.score,
+            total: loadedPlan.total,
+            percentage: perc.toFixed(1),
+            passed: perc >= 70
+          });
         }
       }
     } catch (error) {
@@ -133,7 +140,7 @@ export const StudyPlan = () => {
           ...q,
           userAnswer: answers[idx] !== undefined ? answers[idx] : null
         }));
-        setPlan({ ...plan, questions: updatedQuestions, completed: true, score: res.data.score });
+        setPlan({ ...plan, questions: updatedQuestions, completed: true, score: res.data.score, total: res.data.total });
         alert(`You scored ${res.data.score}/${res.data.total} (${res.data.percentage}%)`);
       }
     } catch (error) {
@@ -230,7 +237,7 @@ export const StudyPlan = () => {
           <div style={{ maxWidth: 800, margin: '0 auto' }}>
             <div style={{ background: cardBg, borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
               <h2 style={{ color: headingColor }}>Study Plan Results</h2>
-              <p>Score: <strong>{result.score}</strong> / {result.total} ({percentage.toFixed(1)}%)</p>
+              <p>Score: <strong>{result.score}</strong> / {result.total} ({result.percentage}%)</p>
               <p style={{ fontSize: 24, color: passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
                 {passed ? '✓ PASSED' : '✗ Needs Improvement'}
               </p>
