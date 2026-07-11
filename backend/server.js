@@ -13,7 +13,7 @@ const SibApiV3Sdk = require('sib-api-v3-sdk');
 require('dotenv').config();
 const admin = require('firebase-admin');
 const OpenAI = require('openai');
-const cron = require('node-cron'); // 👈 NEW for reminders
+const cron = require('node-cron');
 
 if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   try {
@@ -140,19 +140,15 @@ const UserSchema = new mongoose.Schema({
   deviceTokens: [{ type: String }],
   marketingConsent: { type: Boolean, default: false },
   lastMarketingEmailSent: { type: Date, default: null },
-  // ============ NEW: Applied coupons ============
   appliedCoupons: [{
     code: String,
     discountAmount: Number,
     appliedAt: { type: Date, default: Date.now }
   }],
-  // ============ NEW: AI Explanations ============
   dailyExplanations: { type: Number, default: 0 },
   lastExplanationReset: { type: Date, default: null },
-  // ============ NEW: Reminder tracking ============
   lastReminderSent: { type: String, default: null },
   notifiedExpired: { type: Boolean, default: false },
-  // ============ NEW: Study Plan ============
   lastStudyPlanGenerated: { type: Date, default: null },
   studyPlan: {
     generatedAt: { type: Date, default: null },
@@ -174,6 +170,7 @@ const QuizSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
   category: { type: String, default: 'general-nursing' },
+  topic: { type: String, default: '' }, // ← NEW: for category question manager
   questions: [{
     questionText: String,
     options: [String],
@@ -259,7 +256,6 @@ const WeeklyQuizAttempt = mongoose.model('WeeklyQuizAttempt', WeeklyQuizAttemptS
 
 // 1. System Settings / Config
 const ConfigSchema = new mongoose.Schema({
-  // ===== EXISTING FIELDS =====
   premiumDailyPrice: { type: Number, default: 500 },
   premiumMonthlyPrice: { type: Number, default: 2000 },
   premiumYearlyPrice: { type: Number, default: 10000 },
@@ -274,8 +270,7 @@ const ConfigSchema = new mongoose.Schema({
   defaultTimeLimit: { type: Number, default: 20 },
   showWeeklyQuiz: { type: Boolean, default: true },
   showLeaderboard: { type: Boolean, default: true },
-  updatedAt: { type: Date, default: Date.now },
-
+  updatedAt: { type: Date, default: Date.now }
 });
 
 const Config = mongoose.model('Config', ConfigSchema);
@@ -868,8 +863,6 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
 
     if (planType === 'none') {
       console.log(`🛠️ Removing premium for user: ${user.email} (${userId})`);
-      
-      // Use updateOne for consistency and to get modifiedCount
       const result = await User.updateOne(
         { _id: userId },
         {
@@ -880,16 +873,12 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
           }
         }
       );
-      
       console.log('📊 Removal result:', result);
-      
       if (result.modifiedCount === 0) {
         console.log('⚠️ No document modified – maybe already removed.');
       } else {
         console.log(`✅ Premium removed for ${user.email}`);
       }
-      
-      // Fetch the updated user to return
       const updatedUser = await User.findById(userId);
       return res.json({
         success: true,
@@ -903,7 +892,6 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Invalid plan type' });
     }
 
-    // For adding plans, use the same extension logic
     let expiryDate = user.premiumExpiry && user.premiumExpiry > new Date() ? user.premiumExpiry : new Date();
     switch(planType) {
       case 'daily': expiryDate.setDate(expiryDate.getDate() + 1); break;
@@ -911,7 +899,6 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
       case 'yearly': expiryDate.setFullYear(expiryDate.getFullYear() + 1); break;
     }
 
-    // Use updateOne for adding as well
     const result = await User.updateOne(
       { _id: userId },
       {
@@ -925,7 +912,6 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
     );
     
     console.log('📊 Add plan result:', result);
-    
     const updatedUser = await User.findById(userId);
     res.json({
       success: true,
@@ -966,7 +952,6 @@ app.post('/api/admin/add-premium-time', isAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Must provide planType or custom days/hours' });
     }
 
-    // Update using updateOne
     const result = await User.updateOne(
       { _id: userId },
       {
@@ -1067,83 +1052,6 @@ app.get('/api/admin/announcement', isAdmin, async (req, res) => {
     res.json({ success: true, announcement });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch announcement' });
-  }
-});
-
-// ============ ADMIN QUESTION MANAGEMENT ============
-
-// Get all quizzes (admin only, for listing)
-app.get('/api/admin/quizzes', isAdmin, async (req, res) => {
-  try {
-    const quizzes = await Quiz.find().select('title category _id');
-    res.json({ success: true, quizzes });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch quizzes' });
-  }
-});
-
-// Get questions for a specific quiz (admin only)
-app.get('/api/admin/quizzes/:quizId/questions', isAdmin, async (req, res) => {
-  try {
-    const quiz = await Quiz.findById(req.params.quizId);
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
-    res.json({ success: true, questions: quiz.questions });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch questions' });
-  }
-});
-
-// Add a new question to a quiz (admin only)
-app.post('/api/admin/quizzes/:quizId/questions', isAdmin, async (req, res) => {
-  try {
-    const { questionText, options, correctAnswer, points } = req.body;
-    if (!questionText || !options || options.length !== 4 || correctAnswer === undefined) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-    const quiz = await Quiz.findById(req.params.quizId);
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
-    quiz.questions.push({ questionText, options, correctAnswer, points: points || 1 });
-    await quiz.save();
-    res.json({ success: true, question: quiz.questions[quiz.questions.length - 1] });
-  } catch (error) {
-    console.error('Add question error:', error);
-    res.status(500).json({ error: 'Failed to add question' });
-  }
-});
-
-// Update a question (admin only) – use sub-document _id
-app.put('/api/admin/quizzes/:quizId/questions/:questionId', isAdmin, async (req, res) => {
-  try {
-    const { questionText, options, correctAnswer, points } = req.body;
-    const quiz = await Quiz.findById(req.params.quizId);
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
-    const question = quiz.questions.id(req.params.questionId);
-    if (!question) return res.status(404).json({ error: 'Question not found' });
-    if (questionText !== undefined) question.questionText = questionText;
-    if (options !== undefined) question.options = options;
-    if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
-    if (points !== undefined) question.points = points;
-    await quiz.save();
-    res.json({ success: true, question });
-  } catch (error) {
-    console.error('Update question error:', error);
-    res.status(500).json({ error: 'Failed to update question' });
-  }
-});
-
-// Delete a question (admin only)
-app.delete('/api/admin/quizzes/:quizId/questions/:questionId', isAdmin, async (req, res) => {
-  try {
-    const quiz = await Quiz.findById(req.params.quizId);
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
-    const question = quiz.questions.id(req.params.questionId);
-    if (!question) return res.status(404).json({ error: 'Question not found' });
-    quiz.questions.pull(req.params.questionId);
-    await quiz.save();
-    res.json({ success: true, message: 'Question deleted' });
-  } catch (error) {
-    console.error('Delete question error:', error);
-    res.status(500).json({ error: 'Failed to delete question' });
   }
 });
 
@@ -1433,7 +1341,6 @@ app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
 
     console.log(`📊 Score: ${score}/${total} (${percentage}%)`);
 
-    // ===== SAVE QUIZ RESULT =====
     const user = await User.findById(req.user._id);
     console.log('🔍 User found:', user?.email);
 
@@ -1452,14 +1359,12 @@ app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
       await user.save();
       console.log(`✅ After save: ${user.quizResults.length} results`);
 
-      // Verify by fetching again
       const refreshed = await User.findById(req.user._id);
       console.log(`✅ Verified: ${refreshed.quizResults.length} results in DB`);
     } else {
       console.log('❌ User NOT found!');
     }
 
-    // ===== MARKETING EMAIL TRIGGER =====
     if (user && !user.isPremium && user.marketingConsent) {
       const freeExamsTaken = user.quizResults.length || 0;
       const lastEmailDate = user.lastMarketingEmailSent || new Date(0);
@@ -1498,7 +1403,6 @@ app.post('/api/premium-exam/submit', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Create a unique quizId for the premium exam
     const quizId = `premium-${category}-${topic}-${examId}`;
 
     user.quizResults.push({
@@ -2080,7 +1984,6 @@ app.post('/api/verify-payment', async (req, res) => {
 
     console.log(`🧑‍💻 User: ${user.email}, isPremium: ${user.isPremium}, current premiumExpiry: ${user.premiumExpiry}`);
 
-    // Find the transaction index
     const transactionIndex = user.transactions.findIndex(t => t.reference === reference);
     if (transactionIndex === -1) {
       console.log(`Transaction not found for reference: ${reference}`);
@@ -2088,7 +1991,6 @@ app.post('/api/verify-payment', async (req, res) => {
     }
     const transaction = user.transactions[transactionIndex];
 
-    // 👇 If transaction already completed, return current state without re-processing
     if (transaction.status === 'completed') {
       console.log(`⚠️ Transaction ${reference} already processed. Returning current state.`);
       return res.json({
@@ -2121,13 +2023,11 @@ app.post('/api/verify-payment', async (req, res) => {
       const now = new Date();
       console.log(`🕐 Now: ${now.toISOString()}`);
 
-      // Determine starting expiry
       let expiry;
       if (!user.isPremium) {
         console.log(`ℹ️ User is not premium – starting fresh from now.`);
         expiry = new Date(now);
       } else {
-        // User is premium – extend from existing expiry if it's in the future
         expiry = (user.premiumExpiry && user.premiumExpiry > now)
           ? new Date(user.premiumExpiry)
           : new Date(now);
@@ -2136,7 +2036,6 @@ app.post('/api/verify-payment', async (req, res) => {
 
       console.log(`📆 Starting expiry (before adding plan): ${expiry.toISOString()}`);
 
-      // Add the plan duration
       switch (plan) {
         case 'daily': expiry.setDate(expiry.getDate() + 1); break;
         case 'monthly': expiry.setMonth(expiry.getMonth() + 1); break;
@@ -2146,7 +2045,6 @@ app.post('/api/verify-payment', async (req, res) => {
 
       console.log(`📆 Final expiry (after adding ${plan}): ${expiry.toISOString()}`);
 
-      // Update user fields and transaction status directly
       user.isPremium = true;
       user.premiumPlan = plan;
       user.premiumExpiry = expiry;
@@ -2269,6 +2167,143 @@ app.put('/api/user/profile', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to update profile' });
   }
 });
+
+// =============================================
+// ============ ADMIN QUIZ MANAGEMENT ROUTES ============
+// =============================================
+
+// Admin: Get all quizzes (admin only, for listing)
+app.get('/api/admin/quizzes', isAdmin, async (req, res) => {
+  try {
+    const quizzes = await Quiz.find().select('title category _id');
+    res.json({ success: true, quizzes });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch quizzes' });
+  }
+});
+
+// Admin: Get questions for a specific quiz
+app.get('/api/admin/quizzes/:quizId/questions', isAdmin, async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    res.json({ success: true, questions: quiz.questions });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch questions' });
+  }
+});
+
+// Admin: Create a new quiz with questions
+app.post('/api/admin/quizzes', isAdmin, async (req, res) => {
+  try {
+    const { title, description, category, topic, questions, passingScore, isPremium } = req.body;
+    
+    if (!title || !category || !questions || questions.length === 0) {
+      return res.status(400).json({ error: 'Title, category, and questions are required' });
+    }
+
+    const quiz = new Quiz({
+      title,
+      description: description || `${title} - ${questions.length} practice questions`,
+      category,
+      topic: topic || title,
+      questions,
+      passingScore: passingScore || 70,
+      isPremium: isPremium || false
+    });
+
+    await quiz.save();
+    res.json({ success: true, quiz });
+  } catch (error) {
+    console.error('Create quiz error:', error);
+    res.status(500).json({ error: 'Failed to create quiz' });
+  }
+});
+
+// Admin: Add a new question to a quiz
+app.post('/api/admin/quizzes/:quizId/questions', isAdmin, async (req, res) => {
+  try {
+    const { questionText, options, correctAnswer, points } = req.body;
+    if (!questionText || !options || options.length !== 4 || correctAnswer === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+
+    quiz.questions.push({
+      questionText,
+      options,
+      correctAnswer,
+      points: points || 1
+    });
+    
+    await quiz.save();
+    res.json({ success: true, question: quiz.questions[quiz.questions.length - 1] });
+  } catch (error) {
+    console.error('Add question error:', error);
+    res.status(500).json({ error: 'Failed to add question' });
+  }
+});
+
+// Admin: Update a question
+app.put('/api/admin/quizzes/:quizId/questions/:questionId', isAdmin, async (req, res) => {
+  try {
+    const { questionText, options, correctAnswer, points } = req.body;
+    
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+
+    const question = quiz.questions.id(req.params.questionId);
+    if (!question) return res.status(404).json({ error: 'Question not found' });
+
+    if (questionText !== undefined) question.questionText = questionText;
+    if (options !== undefined) question.options = options;
+    if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
+    if (points !== undefined) question.points = points;
+
+    await quiz.save();
+    res.json({ success: true, question });
+  } catch (error) {
+    console.error('Update question error:', error);
+    res.status(500).json({ error: 'Failed to update question' });
+  }
+});
+
+// Admin: Delete a question
+app.delete('/api/admin/quizzes/:quizId/questions/:questionId', isAdmin, async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+
+    const question = quiz.questions.id(req.params.questionId);
+    if (!question) return res.status(404).json({ error: 'Question not found' });
+
+    quiz.questions.pull(req.params.questionId);
+    await quiz.save();
+
+    res.json({ success: true, message: 'Question deleted' });
+  } catch (error) {
+    console.error('Delete question error:', error);
+    res.status(500).json({ error: 'Failed to delete question' });
+  }
+});
+
+// Admin: Delete a quiz (hard delete)
+app.delete('/api/admin/quizzes/:quizId', isAdmin, async (req, res) => {
+  try {
+    const quiz = await Quiz.findByIdAndDelete(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    res.json({ success: true, message: 'Quiz deleted' });
+  } catch (error) {
+    console.error('Delete quiz error:', error);
+    res.status(500).json({ error: 'Failed to delete quiz' });
+  }
+});
+
+// =============================================
+// ============ END ADMIN QUIZ MANAGEMENT ========
+// =============================================
 
 // =============================================
 // ============ NEW ROUTES =====================
@@ -2448,7 +2483,7 @@ app.delete('/api/admin/categories/:id/permanent', isAdmin, async (req, res) => {
 // Validate coupon (public, for checkout)
 app.post('/api/validate-coupon', authenticate, async (req, res) => {
   try {
-    const { code, amount, planType } = req.body; // 👈 added planType
+    const { code, amount, planType } = req.body;
     if (!code) return res.status(400).json({ error: 'Coupon code is required' });
     if (!planType) return res.status(400).json({ error: 'Plan type is required' });
 
@@ -2462,7 +2497,6 @@ app.post('/api/validate-coupon', authenticate, async (req, res) => {
       return res.json({ success: false, error: 'Invalid or expired coupon code' });
     }
 
-    // 👇 NEW: Check plan-specific validity
     if (coupon.planType !== 'all' && coupon.planType !== planType) {
       return res.json({
         success: false,
@@ -2502,7 +2536,7 @@ app.post('/api/validate-coupon', authenticate, async (req, res) => {
         discountValue: coupon.discountValue,
         discountAmount: Math.round(discountAmount * 100) / 100,
         finalAmount: Math.round(finalAmount * 100) / 100,
-        planType: coupon.planType // optional, for frontend
+        planType: coupon.planType
       }
     });
   } catch (error) {
@@ -2537,7 +2571,7 @@ app.post('/api/admin/coupons', isAdmin, async (req, res) => {
       code: code.toUpperCase(),
       discountType: discountType || 'percentage',
       discountValue,
-      planType: planType || 'all', // 👈 NEW
+      planType: planType || 'all',
       minPurchase: minPurchase || 0,
       maxDiscount: maxDiscount || null,
       expiryDate: new Date(expiryDate),
@@ -2569,7 +2603,7 @@ app.put('/api/admin/coupons/:id', isAdmin, async (req, res) => {
     }
     if (discountType) coupon.discountType = discountType;
     if (discountValue !== undefined) coupon.discountValue = discountValue;
-    if (planType) coupon.planType = planType; // 👈 NEW
+    if (planType) coupon.planType = planType;
     if (minPurchase !== undefined) coupon.minPurchase = minPurchase;
     if (maxDiscount !== undefined) coupon.maxDiscount = maxDiscount;
     if (expiryDate) coupon.expiryDate = new Date(expiryDate);
@@ -2681,13 +2715,11 @@ app.get('/api/admin/dashboard', isAdmin, async (req, res) => {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // User counts
     const totalUsers = await User.countDocuments({ isVerified: true });
     const premiumUsers = await User.countDocuments({ isPremium: true, premiumExpiry: { $gt: now } });
     const newToday = await User.countDocuments({ createdAt: { $gte: today } });
     const newThisMonth = await User.countDocuments({ createdAt: { $gte: startOfMonth } });
 
-    // Revenue (from transactions)
     const transactions = await User.aggregate([
       { $unwind: '$transactions' },
       { $match: { 'transactions.status': 'completed' } },
@@ -2698,29 +2730,24 @@ app.get('/api/admin/dashboard', isAdmin, async (req, res) => {
       }}
     ]);
 
-    // Quiz completions
     const quizCompletions = await User.aggregate([
       { $unwind: '$quizResults' },
       { $count: 'total' }
     ]);
 
-    // Weekly quiz attempts
     const weeklyAttempts = await WeeklyQuizAttempt.countDocuments();
 
-    // Popular categories (from quizzes)
     const popularCategories = await Quiz.aggregate([
       { $group: { _id: '$category', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 5 }
     ]);
 
-    // Recent users
     const recentUsers = await User.find()
       .select('name email createdAt isPremium')
       .sort({ createdAt: -1 })
       .limit(10);
 
-    // Recent transactions
     const recentTransactions = await User.aggregate([
       { $unwind: '$transactions' },
       { $match: { 'transactions.status': 'completed' } },
@@ -2806,7 +2833,6 @@ cron.schedule('0 * * * *', async () => {
     }
   }
 
-  // Notify expired users (if not already notified)
   const expiredUsers = await User.find({
     isPremium: true,
     premiumExpiry: { $lt: now },
@@ -2821,7 +2847,6 @@ cron.schedule('0 * * * *', async () => {
 
 // ============ STUDY PLAN ROUTES ============
 
-// Helper: Get user's average score per quiz
 const getUserQuizAverages = async (userId) => {
   const user = await User.findById(userId).populate('quizResults.quizId');
   if (!user) return {};
@@ -2837,7 +2862,6 @@ const getUserQuizAverages = async (userId) => {
     quizScores[quizId].total += result.percentage;
     quizScores[quizId].count++;
   }
-  // Compute averages
   const averages = {};
   for (const [quizId, data] of Object.entries(quizScores)) {
     averages[quizId] = data.total / data.count;
@@ -2845,7 +2869,6 @@ const getUserQuizAverages = async (userId) => {
   return averages;
 };
 
-// GET /api/study-plan/status - Check if user can generate a new plan
 app.get('/api/study-plan/status', authenticate, async (req, res) => {
   try {
     const user = req.user;
@@ -2873,27 +2896,23 @@ app.get('/api/study-plan/status', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/study-plan/current - Get the current study plan
 app.get('/api/study-plan/current', authenticate, async (req, res) => {
   try {
     const user = req.user;
     if (!user.studyPlan || !user.studyPlan.questions.length) {
       return res.json({ success: true, plan: null });
     }
-    // If the plan is completed, still return it for history view
     res.json({ success: true, plan: user.studyPlan });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST /api/study-plan/generate - Generate a new study plan
 app.post('/api/study-plan/generate', authenticate, async (req, res) => {
   try {
     const user = req.user;
     const isPremium = user.isPremium;
 
-    // Check if allowed
     const lastGenerated = user.lastStudyPlanGenerated;
     if (!isPremium && lastGenerated) {
       const oneWeek = 7 * 24 * 60 * 60 * 1000;
@@ -2903,25 +2922,19 @@ app.post('/api/study-plan/generate', authenticate, async (req, res) => {
       }
     }
 
-    // Get user's quiz averages
     const averages = await getUserQuizAverages(user._id);
     if (Object.keys(averages).length === 0) {
       return res.status(400).json({ error: 'You haven\'t taken enough quizzes to generate a study plan. Take more exams first.' });
     }
 
-    // Sort quizzes by average score (ascending)
     const sortedQuizzes = Object.entries(averages).sort((a, b) => a[1] - b[1]);
-
-    // Select worst performing quizzes (bottom 3 or all if less)
     const weakQuizIds = sortedQuizzes.slice(0, Math.min(3, sortedQuizzes.length)).map(([id]) => id);
 
-    // Fetch the quizzes and their questions
     const quizzes = await Quiz.find({ _id: { $in: weakQuizIds } });
     if (quizzes.length === 0) {
       return res.status(400).json({ error: 'No quizzes found for your weak areas.' });
     }
 
-    // Determine number of questions per plan
     const totalQuestions = isPremium ? 25 : 10;
     const questionsPerQuiz = Math.floor(totalQuestions / quizzes.length);
     const extra = totalQuestions % quizzes.length;
@@ -2930,10 +2943,8 @@ app.post('/api/study-plan/generate', authenticate, async (req, res) => {
     for (let i = 0; i < quizzes.length; i++) {
       const quiz = quizzes[i];
       const qCount = questionsPerQuiz + (i < extra ? 1 : 0);
-      // Shuffle and pick qCount questions
       const shuffled = quiz.questions.sort(() => 0.5 - Math.random());
       const picked = shuffled.slice(0, Math.min(qCount, shuffled.length));
-      // Add quizId to each question
       picked.forEach(q => {
         selectedQuestions.push({
           ...q.toObject(),
@@ -2943,7 +2954,6 @@ app.post('/api/study-plan/generate', authenticate, async (req, res) => {
       });
     }
 
-    // If we still need more questions, fill from strong quizzes (random)
     if (selectedQuestions.length < totalQuestions) {
       const strongQuizIds = sortedQuizzes.slice(Math.min(3, sortedQuizzes.length)).map(([id]) => id);
       if (strongQuizIds.length) {
@@ -2961,7 +2971,6 @@ app.post('/api/study-plan/generate', authenticate, async (req, res) => {
       }
     }
 
-    // Store the plan in user document
     user.studyPlan = {
       generatedAt: new Date(),
       questions: selectedQuestions,
@@ -2984,11 +2993,10 @@ app.post('/api/study-plan/generate', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/study-plan/submit - Submit answers and get score
 app.post('/api/study-plan/submit', authenticate, async (req, res) => {
   try {
     const user = req.user;
-    const { answers } = req.body; // array of userAnswer per question index
+    const { answers } = req.body;
 
     if (!user.studyPlan || !user.studyPlan.questions.length) {
       return res.status(400).json({ error: 'No active study plan.' });
@@ -3018,7 +3026,6 @@ app.post('/api/study-plan/submit', authenticate, async (req, res) => {
 
     plan.completed = true;
     plan.score = score;
-    // Save the plan history? We'll overwrite the plan, but we can keep the old plan for review? We'll keep it as is.
     await user.save();
 
     res.json({

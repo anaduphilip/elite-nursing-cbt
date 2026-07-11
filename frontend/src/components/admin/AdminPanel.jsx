@@ -128,7 +128,6 @@ export const AdminPanel = () => {
   const [couponUsageLimit, setCouponUsageLimit] = useState(1);
   const [couponActive, setCouponActive] = useState(true);
   const [couponDescription, setCouponDescription] = useState('');
-  // 👇 NEW: planType for coupon
   const [couponPlanType, setCouponPlanType] = useState('all');
   const [editingCouponId, setEditingCouponId] = useState(null);
   const [couponResult, setCouponResult] = useState('');
@@ -158,6 +157,20 @@ export const AdminPanel = () => {
   });
   const [questionSearch, setQuestionSearch] = useState('');
   const [loadingQuestions, setLoadingQuestions] = useState(false);
+
+  // ========== NEW: Category Question Manager states ==========
+  const [categoryManagerCategory, setCategoryManagerCategory] = useState('');
+  const [categoryManagerTopic, setCategoryManagerTopic] = useState('');
+  const [categoryManagerQuestions, setCategoryManagerQuestions] = useState([]);
+  const [categoryManagerBatch, setCategoryManagerBatch] = useState('');
+  const [categoryManagerSingleQ, setCategoryManagerSingleQ] = useState('');
+  const [categoryManagerSingleOpts, setCategoryManagerSingleOpts] = useState(['', '', '', '']);
+  const [categoryManagerSingleCorrect, setCategoryManagerSingleCorrect] = useState(0);
+  const [categoryManagerSearch, setCategoryManagerSearch] = useState('');
+  const [categoryManagerQuizzes, setCategoryManagerQuizzes] = useState([]);
+  const [categoryManagerLoading, setCategoryManagerLoading] = useState(false);
+  const [categoryManagerResult, setCategoryManagerResult] = useState('');
+  const [categoryManagerEditingIdx, setCategoryManagerEditingIdx] = useState(null);
 
   // ============================================================
   // ========== DIRECT ACCESS PROTECTION =======================
@@ -194,7 +207,8 @@ export const AdminPanel = () => {
           fetchCategories(),
           fetchCoupons(),
           fetchFaqs(),
-          fetchQuizzes() // NEW: fetch quizzes for Question Editor
+          fetchQuizzes(),
+          fetchCategoryManagerQuizzes()
         ]);
         setDataLoaded(true);
       } catch (error) {
@@ -1146,10 +1160,8 @@ export const AdminPanel = () => {
       const res = await axios.post('/api/admin/add-premium-time', payload, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         setAdjustResult(`✅ ${res.data.message}`);
-        // Refresh user list
         const usersRes = await axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } });
         setUsers(usersRes.data);
-        // Close modal after short delay
         setTimeout(() => {
           setShowAdjustModal(false);
           setAdjustUserId(null);
@@ -1272,6 +1284,244 @@ export const AdminPanel = () => {
       points: 1
     });
     setEditingQuestion(null);
+  };
+
+  // ========== NEW: Category Question Manager functions ==========
+  const fetchCategoryManagerQuizzes = async () => {
+    try {
+      const res = await axios.get('/api/admin/quizzes', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        setCategoryManagerQuizzes(res.data.quizzes || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch quizzes for manager:', error);
+    }
+  };
+
+  const handleCategoryManagerBatchImport = () => {
+    if (!categoryManagerBatch.trim()) {
+      alert('Please paste some questions first.');
+      return;
+    }
+    if (!categoryManagerCategory) {
+      alert('Please select a category.');
+      return;
+    }
+    if (!categoryManagerTopic.trim()) {
+      alert('Please enter a topic name.');
+      return;
+    }
+
+    const lines = categoryManagerBatch.split('\n').map(l => l.trim()).filter(l => l);
+    const parsedQuestions = [];
+    
+    let currentBlock = '';
+    const blocks = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.match(/^Q\d+\./i)) {
+        if (currentBlock.trim()) {
+          blocks.push(currentBlock.trim());
+        }
+        currentBlock = line;
+      } else {
+        currentBlock += '\n' + line;
+      }
+    }
+    if (currentBlock.trim()) {
+      blocks.push(currentBlock.trim());
+    }
+
+    for (const block of blocks) {
+      const qMatch = block.match(/^Q\d+\.\s*(.*)/i);
+      if (!qMatch) continue;
+      
+      const fullText = qMatch[1];
+      const options = [];
+      let answerLetter = null;
+
+      const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
+      let match;
+      while ((match = optionPattern.exec(fullText)) !== null) {
+        options.push(match[2].trim());
+      }
+
+      if (options.length !== 4) {
+        const linesInBlock = block.split('\n');
+        for (const line of linesInBlock) {
+          const optMatch = line.match(/^\(([a-d])\)\s*(.*)/i);
+          if (optMatch) {
+            options.push(optMatch[2].trim());
+          }
+        }
+      }
+
+      let questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
+      if (!questionText) {
+        const firstLine = block.split('\n')[0];
+        if (firstLine) {
+          questionText = firstLine.replace(/^Q\d+\.\s*/i, '').trim();
+        }
+      }
+
+      const answerMatch = block.match(/Answer:\s*([a-d])/i);
+      if (answerMatch) {
+        answerLetter = answerMatch[1].toUpperCase();
+      } else {
+        const lastLines = block.split('\n').slice(-3);
+        for (const line of lastLines) {
+          const ansMatch = line.match(/^([a-d])\.?\s*$/i);
+          if (ansMatch) {
+            answerLetter = ansMatch[1].toUpperCase();
+            break;
+          }
+        }
+      }
+
+      if (options.length === 4 && questionText) {
+        const correctIndex = answerLetter ? answerLetter.charCodeAt(0) - 65 : 0;
+        parsedQuestions.push({
+          questionText: questionText,
+          options: options,
+          correctAnswer: correctIndex,
+          points: 1
+        });
+      }
+    }
+
+    if (parsedQuestions.length === 0) {
+      alert('No valid questions found. Please check the format.\n\nSupported formats:\n1. Q1. Question text? (a) Option (b) Option (c) Option (d) Option\n2. Q1. Question text?\n(a) Option\n(b) Option\n(c) Option\n(d) Option\nAnswer: a');
+      return;
+    }
+
+    // Add to local state
+    const existingQuestions = categoryManagerQuestions || [];
+    setCategoryManagerQuestions([...existingQuestions, ...parsedQuestions]);
+    setCategoryManagerBatch('');
+    alert(`✅ ${parsedQuestions.length} questions added to the list.`);
+  };
+
+  const handleCategoryManagerAddSingle = () => {
+    if (!categoryManagerSingleQ.trim()) {
+      alert('Please enter a question.');
+      return;
+    }
+    if (categoryManagerSingleOpts.some(opt => !opt.trim())) {
+      alert('Please fill in all 4 options.');
+      return;
+    }
+    const newQ = {
+      questionText: categoryManagerSingleQ.trim(),
+      options: categoryManagerSingleOpts.map(o => o.trim()),
+      correctAnswer: categoryManagerSingleCorrect,
+      points: 1
+    };
+    if (categoryManagerEditingIdx !== null) {
+      const updated = [...categoryManagerQuestions];
+      updated[categoryManagerEditingIdx] = newQ;
+      setCategoryManagerQuestions(updated);
+      setCategoryManagerEditingIdx(null);
+    } else {
+      setCategoryManagerQuestions([...categoryManagerQuestions, newQ]);
+    }
+    setCategoryManagerSingleQ('');
+    setCategoryManagerSingleOpts(['', '', '', '']);
+    setCategoryManagerSingleCorrect(0);
+  };
+
+  const handleCategoryManagerEditQuestion = (idx) => {
+    const q = categoryManagerQuestions[idx];
+    setCategoryManagerSingleQ(q.questionText);
+    setCategoryManagerSingleOpts([...q.options]);
+    setCategoryManagerSingleCorrect(q.correctAnswer);
+    setCategoryManagerEditingIdx(idx);
+  };
+
+  const handleCategoryManagerDeleteQuestion = (idx) => {
+    const updated = [...categoryManagerQuestions];
+    updated.splice(idx, 1);
+    setCategoryManagerQuestions(updated);
+    if (categoryManagerEditingIdx === idx) {
+      setCategoryManagerEditingIdx(null);
+      setCategoryManagerSingleQ('');
+      setCategoryManagerSingleOpts(['', '', '', '']);
+      setCategoryManagerSingleCorrect(0);
+    }
+  };
+
+  const handleCategoryManagerSaveQuiz = async () => {
+    if (!categoryManagerCategory) {
+      alert('Please select a category.');
+      return;
+    }
+    if (!categoryManagerTopic.trim()) {
+      alert('Please enter a topic name.');
+      return;
+    }
+    if (categoryManagerQuestions.length === 0) {
+      alert('Please add at least one question.');
+      return;
+    }
+
+    setCategoryManagerLoading(true);
+    setCategoryManagerResult('');
+    try {
+      const payload = {
+        title: categoryManagerTopic,
+        description: `${categoryManagerTopic} - ${categoryManagerQuestions.length} practice questions`,
+        category: categoryManagerCategory,
+        topic: categoryManagerTopic,
+        questions: categoryManagerQuestions,
+        passingScore: 70,
+        isPremium: false
+      };
+
+      const res = await axios.post('/api/admin/quizzes', payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setCategoryManagerResult(`✅ Quiz created with ${categoryManagerQuestions.length} questions under "${categoryManagerCategory}"!`);
+        setCategoryManagerQuestions([]);
+        setCategoryManagerTopic('');
+        setCategoryManagerBatch('');
+        await fetchCategoryManagerQuizzes();
+        await fetchQuizzes();
+      }
+    } catch (error) {
+      setCategoryManagerResult('❌ Failed to create quiz: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setCategoryManagerLoading(false);
+    }
+  };
+
+  const handleCategoryManagerDeleteQuiz = async (quizId) => {
+    if (!window.confirm('Delete this quiz permanently? This will remove all questions.')) return;
+    try {
+      await axios.delete(`/api/admin/quizzes/${quizId}`, { headers: { Authorization: `Bearer ${token}` } });
+      await fetchCategoryManagerQuizzes();
+      setCategoryManagerResult('✅ Quiz deleted.');
+    } catch (error) {
+      setCategoryManagerResult('❌ Failed to delete quiz: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const handleCategoryManagerEditQuiz = async (quizId) => {
+    try {
+      const res = await axios.get(`/api/admin/quizzes/${quizId}/questions`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        // Load the questions into the manager
+        const quiz = categoryManagerQuizzes.find(q => q._id === quizId);
+        if (quiz) {
+          setCategoryManagerCategory(quiz.category);
+          setCategoryManagerTopic(quiz.title);
+          setCategoryManagerQuestions(res.data.questions || []);
+          setCategoryManagerResult(`✅ Loaded "${quiz.title}" for editing.`);
+        }
+      }
+    } catch (error) {
+      alert('Failed to load quiz: ' + (error.response?.data?.error || error.message));
+    }
   };
 
   // ========== Render ==========
@@ -1410,6 +1660,7 @@ export const AdminPanel = () => {
             <button onClick={() => setActiveTab('categories')} style={{ background: activeTab === 'categories' ? '#1e3c72' : 'transparent', color: activeTab === 'categories' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'categories' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Category Management</button>
             <button onClick={() => setActiveTab('coupons')} style={{ background: activeTab === 'coupons' ? '#1e3c72' : 'transparent', color: activeTab === 'coupons' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'coupons' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Coupon Code Generation</button>
             <button onClick={() => setActiveTab('questionEditor')} style={{ background: activeTab === 'questionEditor' ? '#1e3c72' : 'transparent', color: activeTab === 'questionEditor' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'questionEditor' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📝 Question Editor</button>
+            <button onClick={() => setActiveTab('categoryManager')} style={{ background: activeTab === 'categoryManager' ? '#2E7D64' : 'transparent', color: activeTab === 'categoryManager' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'categoryManager' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📂 Category Question Manager</button>
             <button onClick={() => setActiveTab('faq')} style={{ background: activeTab === 'faq' ? '#1e3c72' : 'transparent', color: activeTab === 'faq' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'faq' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> FAQ Tab</button>
             <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
           </div>
@@ -1604,7 +1855,6 @@ export const AdminPanel = () => {
                   <option value="fixed">Fixed</option>
                 </select>
                 <input type="number" placeholder="Discount Value" value={couponDiscountValue} onChange={(e) => setCouponDiscountValue(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }} />
-                {/* 👇 NEW: Plan Type dropdown */}
                 <select value={couponPlanType} onChange={(e) => setCouponPlanType(e.target.value)} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6, background: cardBg, color: textColor }}>
                   <option value="all">All Plans</option>
                   <option value="daily">Daily</option>
@@ -1641,85 +1891,190 @@ export const AdminPanel = () => {
             </div>
           )}
 
-          {/* ========== QUESTION EDITOR TAB ========== */}
-          {activeTab === 'questionEditor' && (
+          {/* ========== CATEGORY QUESTION MANAGER TAB (NEW) ========== */}
+          {activeTab === 'categoryManager' && (
             <div style={{ padding: 20 }}>
-              <h3 style={{ color: headingColor, marginBottom: 20 }}>📝 Question Editor</h3>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>📂 Category Question Manager</h3>
+              <p style={{ color: secondaryText, marginBottom: 16 }}>
+                Create a new quiz under any category with your own questions. The first 20 questions will be available in Free Mode; all questions will be available in Premium Mode.
+              </p>
+
+              {/* Search existing quizzes */}
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Select a Quiz:</label>
-                <select
-                  value={selectedQuiz || ''}
-                  onChange={(e) => { setSelectedQuiz(e.target.value); if (e.target.value) fetchQuestions(e.target.value); }}
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', fontSize: 14, background: cardBg, color: textColor }}
-                >
-                  <option value="">-- Choose a quiz --</option>
-                  {quizzes.map(q => (
-                    <option key={q._id} value={q._id}>{q.title} ({q.category})</option>
-                  ))}
-                </select>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Search Existing Quizzes</label>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <input
+                    type="text"
+                    placeholder="Search by title or category..."
+                    value={categoryManagerSearch}
+                    onChange={(e) => setCategoryManagerSearch(e.target.value)}
+                    style={{ flex: 1, padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: textColor }}
+                  />
+                </div>
+                <div style={{ marginTop: 10, maxHeight: 200, overflowY: 'auto', background: darkMode ? '#1a1a2e' : '#f8f9fa', borderRadius: 8, border: '1px solid ' + (darkMode ? '#444' : '#ddd') }}>
+                  {categoryManagerQuizzes
+                    .filter(q => {
+                      const search = categoryManagerSearch.toLowerCase();
+                      return q.title.toLowerCase().includes(search) || q.category.toLowerCase().includes(search);
+                    })
+                    .slice(0, 20)
+                    .map(q => (
+                      <div key={q._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>
+                        <span style={{ color: textColor }}>{q.title} <span style={{ color: secondaryText, fontSize: 12 }}>({q.category})</span></span>
+                        <div>
+                          <button onClick={() => handleCategoryManagerEditQuiz(q._id)} style={{ background: '#ffc107', color: '#333', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', marginRight: 6, fontSize: 12 }}>Load</button>
+                          <button onClick={() => handleCategoryManagerDeleteQuiz(q._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  {categoryManagerQuizzes.length === 0 && <p style={{ padding: 12, color: secondaryText }}>No quizzes found.</p>}
+                </div>
               </div>
 
-              {selectedQuiz && (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <span style={{ color: secondaryText }}>{questions.length} questions</span>
-                    <button
-                      onClick={() => { resetQuestionForm(); setShowQuestionModal(true); }}
-                      style={{ background: '#2E7D64', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+              <div style={{ borderTop: '1px solid ' + (darkMode ? '#444' : '#ddd'), paddingTop: 20, marginTop: 10 }}>
+                <h4 style={{ color: headingColor, marginBottom: 16 }}>Create New Quiz</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Category <span style={{ color: '#dc3545' }}>*</span></label>
+                    <select
+                      value={categoryManagerCategory}
+                      onChange={(e) => setCategoryManagerCategory(e.target.value)}
+                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
                     >
-                      + Add Question
-                    </button>
+                      <option value="">-- Select a category --</option>
+                      {categories.filter(c => c.active).map(c => (
+                        <option key={c._id} value={c.slug}>{c.icon} {c.name}</option>
+                      ))}
+                    </select>
                   </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Topic Name <span style={{ color: '#dc3545' }}>*</span></label>
+                    <input
+                      type="text"
+                      placeholder="e.g., COMPLICATED MIDWIFERY I"
+                      value={categoryManagerTopic}
+                      onChange={(e) => setCategoryManagerTopic(e.target.value)}
+                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                    />
+                  </div>
+                </div>
 
-                  {loadingQuestions ? (
-                    <p style={{ color: secondaryText }}>Loading questions...</p>
-                  ) : questions.length === 0 ? (
-                    <p style={{ color: secondaryText }}>No questions in this quiz.</p>
-                  ) : (
-                    <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                      {questions.map((q, idx) => (
-                        <div key={q._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 12, borderRadius: 8, marginBottom: 10, border: '1px solid ' + (darkMode ? '#444' : '#ddd') }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div style={{ flex: 1 }}>
-                              <p><strong>Q{idx+1}:</strong> {q.questionText}</p>
-                              <div style={{ fontSize: 13, color: secondaryText }}>
-                                {q.options.map((opt, i) => (
-                                  <div key={i}>
-                                    {String.fromCharCode(65 + i)}: {opt} {i === q.correctAnswer && '✅ Correct'}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                              <button
-                                onClick={() => {
-                                  setEditingQuestion(q);
-                                  setQuestionForm({
-                                    questionText: q.questionText,
-                                    options: [...q.options],
-                                    correctAnswer: q.correctAnswer,
-                                    points: q.points || 1
-                                  });
-                                  setShowQuestionModal(true);
-                                }}
-                                style={{ background: '#ffc107', color: '#333', border: 'none', padding: '4px 10px', borderRadius: 4, cursor: 'pointer' }}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteQuestionFromQuiz(q._id)}
-                                style={{ background: '#dc3545', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 4, cursor: 'pointer' }}
-                              >
-                                Delete
-                              </button>
-                            </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Batch Import Questions</label>
+                  <textarea
+                    placeholder="Paste multiple questions at once...&#10;Q1. Question text? (a) Option (b) Option (c) Option (d) Option&#10;Answer: a"
+                    value={categoryManagerBatch}
+                    onChange={(e) => setCategoryManagerBatch(e.target.value)}
+                    rows="5"
+                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor, resize: 'vertical', fontFamily: 'monospace' }}
+                  />
+                  <button
+                    onClick={handleCategoryManagerBatchImport}
+                    style={{ marginTop: 8, background: '#17a2b8', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
+                  >
+                    Import Batch
+                  </button>
+                </div>
+
+                <div style={{ borderTop: '1px solid ' + (darkMode ? '#444' : '#ddd'), paddingTop: 16, marginBottom: 16 }}>
+                  <h5 style={{ color: headingColor, marginBottom: 10, fontSize: 15 }}>Add Single Question</h5>
+                  <div style={{ marginBottom: 10 }}>
+                    <input
+                      type="text"
+                      placeholder="Question text"
+                      value={categoryManagerSingleQ}
+                      onChange={(e) => setCategoryManagerSingleQ(e.target.value)}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14, background: cardBg, color: textColor }}
+                    />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    {categoryManagerSingleOpts.map((opt, idx) => (
+                      <input
+                        key={idx}
+                        type="text"
+                        placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                        value={opt}
+                        onChange={(e) => {
+                          const newOpts = [...categoryManagerSingleOpts];
+                          newOpts[idx] = e.target.value;
+                          setCategoryManagerSingleOpts(newOpts);
+                        }}
+                        style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13, background: cardBg, color: textColor }}
+                      />
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: 13, fontWeight: 'bold', color: textColor }}>Correct Answer:</label>
+                    <select
+                      value={categoryManagerSingleCorrect}
+                      onChange={(e) => setCategoryManagerSingleCorrect(parseInt(e.target.value))}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor, fontSize: 13 }}
+                    >
+                      {categoryManagerSingleOpts.map((_, idx) => (
+                        <option key={idx} value={idx}>Option {String.fromCharCode(65 + idx)}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleCategoryManagerAddSingle}
+                      style={{ background: '#2E7D64', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
+                    >
+                      {categoryManagerEditingIdx !== null ? 'Update' : '➕ Add'}
+                    </button>
+                    {categoryManagerEditingIdx !== null && (
+                      <button
+                        onClick={() => { setCategoryManagerEditingIdx(null); setCategoryManagerSingleQ(''); setCategoryManagerSingleOpts(['', '', '', '']); setCategoryManagerSingleCorrect(0); }}
+                        style={{ background: '#6c757d', color: 'white', padding: '6px 12px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Question List */}
+                {categoryManagerQuestions.length > 0 && (
+                  <div style={{ marginBottom: 16, maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
+                    <h5 style={{ color: headingColor, marginBottom: 10, fontSize: 15 }}>Questions ({categoryManagerQuestions.length})</h5>
+                    {categoryManagerQuestions.map((q, idx) => (
+                      <div key={idx} style={{ background: darkMode ? '#2d2d3d' : 'white', padding: '10px 12px', borderRadius: 8, marginBottom: 8, border: '1px solid ' + (darkMode ? '#444' : '#eee'), display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                            <strong style={{ color: headingColor, fontSize: 14 }}>Q{idx+1}:</strong>
+                            <span style={{ color: textColor, fontSize: 14, wordBreak: 'break-word' }}>{q.questionText}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: secondaryText, marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {q.options.map((opt, i) => (
+                              <span key={i} style={{ background: darkMode ? '#333' : '#f0f0f0', padding: '2px 8px', borderRadius: 4 }}>{String.fromCharCode(65 + i)}: {opt}</span>
+                            ))}
+                            <span style={{ color: '#2E7D64', fontWeight: 'bold' }}>✓ Answer: {String.fromCharCode(65 + q.correctAnswer)}</span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
+                          <button onClick={() => handleCategoryManagerEditQuestion(idx)} style={{ background: '#ffc107', color: '#333', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                          <button onClick={() => handleCategoryManagerDeleteQuestion(idx)} style={{ background: '#dc3545', color: 'white', padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+                  <button
+                    onClick={handleCategoryManagerSaveQuiz}
+                    disabled={categoryManagerLoading || categoryManagerQuestions.length === 0}
+                    style={{ flex: 1, background: '#28a745', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 16, opacity: (categoryManagerLoading || categoryManagerQuestions.length === 0) ? 0.7 : 1 }}
+                  >
+                    {categoryManagerLoading ? 'Saving...' : '📤 Create Quiz'}
+                  </button>
+                  <button
+                    onClick={() => { setCategoryManagerQuestions([]); setCategoryManagerBatch(''); setCategoryManagerTopic(''); setCategoryManagerEditingIdx(null); setCategoryManagerSingleQ(''); setCategoryManagerSingleOpts(['', '', '', '']); setCategoryManagerSingleCorrect(0); }}
+                    style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    Clear
+                  </button>
+                </div>
+                {categoryManagerResult && <p style={{ marginTop: 16, color: categoryManagerResult.includes('✅') ? '#2e7d32' : '#dc3545' }}>{categoryManagerResult}</p>}
+              </div>
             </div>
           )}
 
@@ -1935,6 +2290,103 @@ export const AdminPanel = () => {
                 <button onClick={loadAnnouncement} style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Load Current</button>
               </div>
               {announcementResult && <p style={{ marginTop: 16, color: '#2e7d32' }}>{announcementResult}</p>}
+            </div>
+          )}
+
+          {/* ========== QUESTION EDITOR TAB (WITH SEARCH) ========== */}
+          {activeTab === 'questionEditor' && (
+            <div style={{ padding: 20 }}>
+              <h3 style={{ color: headingColor, marginBottom: 20 }}>📝 Question Editor</h3>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Select a Quiz:</label>
+                <select
+                  value={selectedQuiz || ''}
+                  onChange={(e) => { setSelectedQuiz(e.target.value); if (e.target.value) fetchQuestions(e.target.value); }}
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', fontSize: 14, background: cardBg, color: textColor }}
+                >
+                  <option value="">-- Choose a quiz --</option>
+                  {quizzes.map(q => (
+                    <option key={q._id} value={q._id}>{q.title} ({q.category})</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedQuiz && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                    <span style={{ color: secondaryText }}>{questions.length} questions</span>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        placeholder="🔍 Search questions..."
+                        value={questionSearch}
+                        onChange={(e) => setQuestionSearch(e.target.value)}
+                        style={{ padding: '8px 14px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: textColor, width: 200 }}
+                      />
+                      <button
+                        onClick={() => { resetQuestionForm(); setShowQuestionModal(true); }}
+                        style={{ background: '#2E7D64', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                      >
+                        + Add Question
+                      </button>
+                    </div>
+                  </div>
+
+                  {loadingQuestions ? (
+                    <p style={{ color: secondaryText }}>Loading questions...</p>
+                  ) : questions.length === 0 ? (
+                    <p style={{ color: secondaryText }}>No questions in this quiz.</p>
+                  ) : (
+                    <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                      {questions
+                        .filter(q => {
+                          const search = questionSearch.toLowerCase();
+                          return q.questionText.toLowerCase().includes(search) ||
+                                 q.options.some(o => o.toLowerCase().includes(search));
+                        })
+                        .map((q, idx) => (
+                          <div key={q._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 12, borderRadius: 8, marginBottom: 10, border: '1px solid ' + (darkMode ? '#444' : '#ddd') }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div style={{ flex: 1 }}>
+                                <p><strong>Q{idx+1}:</strong> {q.questionText}</p>
+                                <div style={{ fontSize: 13, color: secondaryText }}>
+                                  {q.options.map((opt, i) => (
+                                    <div key={i}>
+                                      {String.fromCharCode(65 + i)}: {opt} {i === q.correctAnswer && '✅ Correct'}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                                <button
+                                  onClick={() => {
+                                    setEditingQuestion(q);
+                                    setQuestionForm({
+                                      questionText: q.questionText,
+                                      options: [...q.options],
+                                      correctAnswer: q.correctAnswer,
+                                      points: q.points || 1
+                                    });
+                                    setShowQuestionModal(true);
+                                  }}
+                                  style={{ background: '#ffc107', color: '#333', border: 'none', padding: '4px 10px', borderRadius: 4, cursor: 'pointer' }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteQuestionFromQuiz(q._id)}
+                                  style={{ background: '#dc3545', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 4, cursor: 'pointer' }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
