@@ -160,6 +160,7 @@ export const AdminPanel = () => {
 
   // ========== NEW: Category Question Manager states ==========
   const [categoryManagerCategory, setCategoryManagerCategory] = useState('');
+  const [categoryManagerTitle, setCategoryManagerTitle] = useState(''); // NEW: Separate Title field
   const [categoryManagerTopic, setCategoryManagerTopic] = useState('');
   const [categoryManagerQuestions, setCategoryManagerQuestions] = useState([]);
   const [categoryManagerBatch, setCategoryManagerBatch] = useState('');
@@ -171,6 +172,7 @@ export const AdminPanel = () => {
   const [categoryManagerLoading, setCategoryManagerLoading] = useState(false);
   const [categoryManagerResult, setCategoryManagerResult] = useState('');
   const [categoryManagerEditingIdx, setCategoryManagerEditingIdx] = useState(null);
+  const [categoryManagerExistingQuizId, setCategoryManagerExistingQuizId] = useState(null); // NEW: For appending
 
   // ============================================================
   // ========== DIRECT ACCESS PROTECTION =======================
@@ -1307,8 +1309,8 @@ export const AdminPanel = () => {
       alert('Please select a category.');
       return;
     }
-    if (!categoryManagerTopic.trim()) {
-      alert('Please enter a topic name.');
+    if (!categoryManagerTitle.trim()) {
+      alert('Please enter a title.');
       return;
     }
 
@@ -1450,9 +1452,14 @@ export const AdminPanel = () => {
     }
   };
 
+  // UPDATED: Save quiz with separate Title and Topic fields
   const handleCategoryManagerSaveQuiz = async () => {
     if (!categoryManagerCategory) {
       alert('Please select a category.');
+      return;
+    }
+    if (!categoryManagerTitle.trim()) {
+      alert('Please enter a title.');
       return;
     }
     if (!categoryManagerTopic.trim()) {
@@ -1467,29 +1474,61 @@ export const AdminPanel = () => {
     setCategoryManagerLoading(true);
     setCategoryManagerResult('');
     try {
-      const payload = {
-        title: categoryManagerTopic,
-        description: `${categoryManagerTopic} - ${categoryManagerQuestions.length} practice questions`,
-        category: categoryManagerCategory,
-        topic: categoryManagerTopic,
-        questions: categoryManagerQuestions,
-        passingScore: 70,
-        isPremium: false
-      };
+      // Check if a quiz with this title already exists under this category
+      const existingQuiz = categoryManagerQuizzes.find(
+        q => q.title === categoryManagerTitle.trim() && q.category === categoryManagerCategory
+      );
 
-      const res = await axios.post('/api/admin/quizzes', payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setCategoryManagerResult(`✅ Quiz created with ${categoryManagerQuestions.length} questions under "${categoryManagerCategory}"!`);
+      let res;
+      if (existingQuiz) {
+        // APPEND questions to existing quiz
+        setCategoryManagerResult(`📝 Appending ${categoryManagerQuestions.length} questions to "${existingQuiz.title}"...`);
+        const updatedQuestions = [...existingQuiz.questions, ...categoryManagerQuestions];
+        res = await axios.put(`/api/admin/quizzes/${existingQuiz._id}`, {
+          title: existingQuiz.title,
+          description: existingQuiz.description,
+          category: existingQuiz.category,
+          topic: categoryManagerTopic.trim(),
+          questions: updatedQuestions,
+          passingScore: existingQuiz.passingScore || 70,
+          isPremium: existingQuiz.isPremium || false
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success) {
+          setCategoryManagerResult(`✅ Appended ${categoryManagerQuestions.length} questions to "${existingQuiz.title}"! Total: ${updatedQuestions.length} questions.`);
+        }
+      } else {
+        // CREATE new quiz
+        const payload = {
+          title: categoryManagerTitle.trim(),
+          description: `${categoryManagerTitle.trim()} - ${categoryManagerQuestions.length} practice questions`,
+          category: categoryManagerCategory,
+          topic: categoryManagerTopic.trim(),
+          questions: categoryManagerQuestions,
+          passingScore: 70,
+          isPremium: false
+        };
+        res = await axios.post('/api/admin/quizzes', payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success) {
+          setCategoryManagerResult(`✅ Quiz created with ${categoryManagerQuestions.length} questions under "${categoryManagerCategory}"!`);
+        }
+      }
+
+      // Reset form after successful save
+      if (res?.data?.success) {
         setCategoryManagerQuestions([]);
         setCategoryManagerTopic('');
+        setCategoryManagerTitle('');
         setCategoryManagerBatch('');
+        setCategoryManagerExistingQuizId(null);
         await fetchCategoryManagerQuizzes();
         await fetchQuizzes();
       }
     } catch (error) {
-      setCategoryManagerResult('❌ Failed to create quiz: ' + (error.response?.data?.error || error.message));
+      setCategoryManagerResult('❌ Failed to save quiz: ' + (error.response?.data?.error || error.message));
     } finally {
       setCategoryManagerLoading(false);
     }
@@ -1514,7 +1553,8 @@ export const AdminPanel = () => {
         const quiz = categoryManagerQuizzes.find(q => q._id === quizId);
         if (quiz) {
           setCategoryManagerCategory(quiz.category);
-          setCategoryManagerTopic(quiz.title);
+          setCategoryManagerTitle(quiz.title);
+          setCategoryManagerTopic(quiz.topic || quiz.title);
           setCategoryManagerQuestions(res.data.questions || []);
           setCategoryManagerResult(`✅ Loaded "${quiz.title}" for editing.`);
         }
@@ -1891,12 +1931,16 @@ export const AdminPanel = () => {
             </div>
           )}
 
-          {/* ========== CATEGORY QUESTION MANAGER TAB (NEW) ========== */}
+          {/* ========== CATEGORY QUESTION MANAGER TAB (UPDATED) ========== */}
           {activeTab === 'categoryManager' && (
             <div style={{ padding: 20 }}>
               <h3 style={{ color: headingColor, marginBottom: 20 }}>📂 Category Question Manager</h3>
               <p style={{ color: secondaryText, marginBottom: 16 }}>
                 Create a new quiz under any category with your own questions. The first 20 questions will be available in Free Mode; all questions will be available in Premium Mode.
+                <br/><br/>
+                <strong>Title:</strong> This becomes the quiz title (e.g., "CARDIOVASCULAR NURSING").<br/>
+                <strong>Topic:</strong> This becomes the topic name (e.g., "CARDIOVASCULAR NURSING - Questions 1 to 20").<br/>
+                <em>If a quiz with the same Title already exists under this Category, new questions will be appended to it.</em>
               </p>
 
               {/* Search existing quizzes */}
@@ -1932,7 +1976,7 @@ export const AdminPanel = () => {
               </div>
 
               <div style={{ borderTop: '1px solid ' + (darkMode ? '#444' : '#ddd'), paddingTop: 20, marginTop: 10 }}>
-                <h4 style={{ color: headingColor, marginBottom: 16 }}>Create New Quiz</h4>
+                <h4 style={{ color: headingColor, marginBottom: 16 }}>Create / Add Questions</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Category <span style={{ color: '#dc3545' }}>*</span></label>
@@ -1948,10 +1992,20 @@ export const AdminPanel = () => {
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Topic Name <span style={{ color: '#dc3545' }}>*</span></label>
+                    <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Title <span style={{ color: '#dc3545' }}>*</span></label>
                     <input
                       type="text"
-                      placeholder="e.g., COMPLICATED MIDWIFERY I"
+                      placeholder="e.g., CARDIOVASCULAR NURSING"
+                      value={categoryManagerTitle}
+                      onChange={(e) => setCategoryManagerTitle(e.target.value)}
+                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Topic <span style={{ color: '#dc3545' }}>*</span></label>
+                    <input
+                      type="text"
+                      placeholder="e.g., CARDIOVASCULAR NURSING"
                       value={categoryManagerTopic}
                       onChange={(e) => setCategoryManagerTopic(e.target.value)}
                       style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
@@ -2064,10 +2118,10 @@ export const AdminPanel = () => {
                     disabled={categoryManagerLoading || categoryManagerQuestions.length === 0}
                     style={{ flex: 1, background: '#28a745', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 16, opacity: (categoryManagerLoading || categoryManagerQuestions.length === 0) ? 0.7 : 1 }}
                   >
-                    {categoryManagerLoading ? 'Saving...' : '📤 Create Quiz'}
+                    {categoryManagerLoading ? 'Saving...' : '📤 Save / Append Questions'}
                   </button>
                   <button
-                    onClick={() => { setCategoryManagerQuestions([]); setCategoryManagerBatch(''); setCategoryManagerTopic(''); setCategoryManagerEditingIdx(null); setCategoryManagerSingleQ(''); setCategoryManagerSingleOpts(['', '', '', '']); setCategoryManagerSingleCorrect(0); }}
+                    onClick={() => { setCategoryManagerQuestions([]); setCategoryManagerBatch(''); setCategoryManagerTopic(''); setCategoryManagerTitle(''); setCategoryManagerEditingIdx(null); setCategoryManagerSingleQ(''); setCategoryManagerSingleOpts(['', '', '', '']); setCategoryManagerSingleCorrect(0); setCategoryManagerExistingQuizId(null); }}
                     style={{ background: '#6c757d', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
                   >
                     Clear
