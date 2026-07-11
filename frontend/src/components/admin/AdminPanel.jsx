@@ -273,14 +273,16 @@ export const AdminPanel = () => {
     setCatLoading(true);
     try {
       const res = await axios.get('/api/admin/categories', { headers: { Authorization: `Bearer ${token}` } });
-      setCategories(res.data.categories || []);
+      // Sort by order to ensure proper arrangement
+      const sorted = (res.data.categories || []).sort((a, b) => (a.order || 0) - (b.order || 0));
+      setCategories(sorted);
     } catch (error) {
       console.error('Category fetch error:', error);
     } finally {
-      setCatLoading(false);
+    setCatLoading(false);
     }
   };
-
+   
   const handleSaveCategory = async () => {
     if (!catName.trim()) {
       setCatResult('❌ Category name is required');
@@ -1947,8 +1949,8 @@ export const AdminPanel = () => {
               <p style={{ color: secondaryText, marginBottom: 16 }}>
                 Create a new quiz under any category with your own questions. The first 20 questions will be available in Free Mode; all questions will be available in Premium Mode.
                 <br/><br/>
-                <strong>Title:</strong> This becomes the quiz title (e.g., "CARDIOVASCULAR NURSING").<br/>
-                <strong>Topic:</strong> This becomes the topic name (e.g., "CARDIOVASCULAR NURSING - Questions 1 to 20").<br/>
+                <strong>Title:</strong> This becomes the quiz title (e.g., "CARDIOVASCULAR NURSING - Questions 1 to 20").<br/>
+                <strong>Topic:</strong> This becomes the topic name (e.g., "CARDIOVASCULAR NURSING").<br/>
                 <em>If a quiz with the same Title already exists under this Category, new questions will be appended to it.</em>
               </p>
 
