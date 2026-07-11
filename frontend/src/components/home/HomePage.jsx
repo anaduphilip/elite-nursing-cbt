@@ -90,11 +90,11 @@ export const HomePage = () => {
         console.error('Failed to fetch categories:', error);
         // Fallback to hardcoded categories if API fails
         setApiCategories([
-          { slug: 'general-nursing', name: 'General Nursing', icon: '🩺', active: true },
-          { slug: 'midwifery', name: 'Midwifery', icon: '🤰', active: true },
-          { slug: 'public-health', name: 'Public Health', icon: '🌍', active: true },
-          { slug: 'pediatric-nursing', name: 'Pediatric Nursing', icon: '👶', active: true },
-          { slug: 'dental-nursing', name: 'Dental Nursing', icon: '🦷', active: true }
+          { slug: 'general-nursing', name: 'General Nursing', icon: '🩺', active: true, order: 1 },
+          { slug: 'midwifery', name: 'Midwifery', icon: '🤰', active: true, order: 2 },
+          { slug: 'public-health', name: 'Public Health', icon: '🌍', active: true, order: 3 },
+          { slug: 'pediatric-nursing', name: 'Pediatric Nursing', icon: '👶', active: true, order: 4 },
+          { slug: 'dental-nursing', name: 'Dental Nursing', icon: '🦷', active: true, order: 5 }
         ]);
       } finally {
         setCategoriesLoading(false);
@@ -122,6 +122,7 @@ export const HomePage = () => {
   }, [token]);
 
   // ---- Get categories with topic count from quizzes ----
+  // Sorted by the 'order' field from the database
   const getCategoriesWithCount = () => {
     // Build category -> topics count from quizzes
     const categoryTopics = {};
@@ -147,7 +148,8 @@ export const HomePage = () => {
         name: cat.name,
         icon: cat.icon || '📚',
         topicCount: topics.size,
-        active: true
+        active: true,
+        order: cat.order || 999 // Use the order field from MongoDB
       });
     }
     
@@ -173,12 +175,15 @@ export const HomePage = () => {
           name: nameMap[slug] || slug,
           icon: iconMap[slug] || '📚',
           topicCount: topics.size,
-          active: true
+          active: true,
+          order: 999 // high order so they appear at the end
         });
       }
     }
     
-    result.sort((a, b) => b.topicCount - a.topicCount);
+    // Sort by order (ascending) – this makes the category order match the admin panel
+    result.sort((a, b) => (a.order || 999) - (b.order || 999));
+    
     return result;
   };
 
@@ -218,7 +223,7 @@ export const HomePage = () => {
           <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 16px)' }}>Computer Based Testing Platform</p>
         </div>
 
-        {/* ---- ANNOUNCEMENT BANNER (unchanged) ---- */}
+        {/* ---- ANNOUNCEMENT BANNER ---- */}
         {showBanner && announcement && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#fff3e0',
@@ -275,7 +280,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ---- MARKETING CONSENT BANNER (unchanged) ---- */}
+        {/* ---- MARKETING CONSENT BANNER ---- */}
         {showConsentBanner && consentBanner && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#e3f2fd',
@@ -344,7 +349,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ---- MODE BUTTONS (unchanged) ---- */}
+        {/* ---- MODE BUTTONS ---- */}
         <div style={{ display: 'flex', gap: 16, marginBottom: 32, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => setMode('free')}
@@ -378,7 +383,7 @@ export const HomePage = () => {
           </button>
         </div>
 
-        {/* ---- MODE INFO BANNERS (unchanged) ---- */}
+        {/* ---- MODE INFO BANNERS ---- */}
         {mode === 'free' && (
           <div style={{ background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 16, borderRadius: 12, textAlign: 'center', marginBottom: 24 }}>
             <p style={{ color: headingColor, margin: 0, fontSize: 'clamp(14px, 4vw, 16px)' }}>
@@ -394,7 +399,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ---- DYNAMIC CATEGORIES GRID ---- */}
+        {/* ---- DYNAMIC CATEGORIES GRID (sorted by MongoDB 'order' field) ---- */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
           {displayCategories.map((cat) => (
             <Link to={`/courses/${cat.slug}/${mode}`} key={cat.slug} style={{ textDecoration: 'none' }}>

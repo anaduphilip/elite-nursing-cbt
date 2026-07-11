@@ -31,7 +31,11 @@ export async function getCachedCategories() {
   
   globalCategoriesPromise = (async () => {
     const res = await axios.get('/api/categories');
-    globalCategoriesCache = res.data.categories || [];
+    // Sort categories by the 'order' field from MongoDB (ascending)
+    // This ensures categories appear in the order set in the Admin Panel
+    const categories = (res.data.categories || [])
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+    globalCategoriesCache = categories;
     globalCategoriesPromise = null;
     return globalCategoriesCache;
   })();
