@@ -2004,7 +2004,7 @@ export const AdminPanel = () => {
                     <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>Title <span style={{ color: '#dc3545' }}>*</span></label>
                     <input
                       type="text"
-                      placeholder="e.g., CARDIOVASCULAR NURSING"
+                      placeholder="e.g., CARDIOVASCULAR NURSING - Questions 1 to 20"
                       value={categoryManagerTitle}
                       onChange={(e) => setCategoryManagerTitle(e.target.value)}
                       style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: cardBg, color: textColor }}
