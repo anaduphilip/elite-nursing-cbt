@@ -1454,85 +1454,94 @@ export const AdminPanel = () => {
 
   // UPDATED: Save quiz with separate Title and Topic fields
   const handleCategoryManagerSaveQuiz = async () => {
-    if (!categoryManagerCategory) {
-      alert('Please select a category.');
-      return;
-    }
-    if (!categoryManagerTitle.trim()) {
-      alert('Please enter a title.');
-      return;
-    }
-    if (!categoryManagerTopic.trim()) {
-      alert('Please enter a topic name.');
-      return;
-    }
-    if (categoryManagerQuestions.length === 0) {
-      alert('Please add at least one question.');
-      return;
-    }
+  if (!categoryManagerCategory) {
+    alert('Please select a category.');
+    return;
+  }
+  if (!categoryManagerTitle.trim()) {
+    alert('Please enter a title.');
+    return;
+  }
+  if (!categoryManagerTopic.trim()) {
+    alert('Please enter a topic name.');
+    return;
+  }
+  if (categoryManagerQuestions.length === 0) {
+    alert('Please add at least one question.');
+    return;
+  }
 
-    setCategoryManagerLoading(true);
-    setCategoryManagerResult('');
-    try {
-      // Check if a quiz with this title already exists under this category
-      const existingQuiz = categoryManagerQuizzes.find(
-        q => q.title === categoryManagerTitle.trim() && q.category === categoryManagerCategory
-      );
+  setCategoryManagerLoading(true);
+  setCategoryManagerResult('');
+  try {
+    // 1. Check if a quiz with this title already exists under this category
+    const existingQuizMeta = categoryManagerQuizzes.find(
+      q => q.title === categoryManagerTitle.trim() && q.category === categoryManagerCategory
+    );
 
-      let res;
-      if (existingQuiz) {
-        // APPEND questions to existing quiz
-        setCategoryManagerResult(`📝 Appending ${categoryManagerQuestions.length} questions to "${existingQuiz.title}"...`);
-        const updatedQuestions = [...existingQuiz.questions, ...categoryManagerQuestions];
-        res = await axios.put(`/api/admin/quizzes/${existingQuiz._id}`, {
-          title: existingQuiz.title,
-          description: existingQuiz.description,
-          category: existingQuiz.category,
-          topic: categoryManagerTopic.trim(),
-          questions: updatedQuestions,
-          passingScore: existingQuiz.passingScore || 70,
-          isPremium: existingQuiz.isPremium || false
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data.success) {
-          setCategoryManagerResult(`✅ Appended ${categoryManagerQuestions.length} questions to "${existingQuiz.title}"! Total: ${updatedQuestions.length} questions.`);
-        }
-      } else {
-        // CREATE new quiz
-        const payload = {
-          title: categoryManagerTitle.trim(),
-          description: `${categoryManagerTitle.trim()} - ${categoryManagerQuestions.length} practice questions`,
-          category: categoryManagerCategory,
-          topic: categoryManagerTopic.trim(),
-          questions: categoryManagerQuestions,
-          passingScore: 70,
-          isPremium: false
-        };
-        res = await axios.post('/api/admin/quizzes', payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data.success) {
-          setCategoryManagerResult(`✅ Quiz created with ${categoryManagerQuestions.length} questions under "${categoryManagerCategory}"!`);
-        }
+    let res;
+    if (existingQuizMeta) {
+      // 2. Fetch the full quiz with its current questions
+      const fullQuizRes = await axios.get(`/api/admin/quizzes/${existingQuizMeta._id}/questions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const existingQuestions = fullQuizRes.data.questions || [];
+      const updatedQuestions = [...existingQuestions, ...categoryManagerQuestions];
+
+      setCategoryManagerResult(`📝 Appending ${categoryManagerQuestions.length} questions to "${existingQuizMeta.title}"...`);
+
+      // 3. Update the quiz with the combined questions
+      res = await axios.put(`/api/admin/quizzes/${existingQuizMeta._id}`, {
+        title: existingQuizMeta.title,
+        description: existingQuizMeta.description || `${existingQuizMeta.title} - ${updatedQuestions.length} practice questions`,
+        category: existingQuizMeta.category,
+        topic: categoryManagerTopic.trim(),
+        questions: updatedQuestions,
+        passingScore: existingQuizMeta.passingScore || 70,
+        isPremium: existingQuizMeta.isPremium || false
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.data.success) {
+        setCategoryManagerResult(`✅ Appended ${categoryManagerQuestions.length} questions to "${existingQuizMeta.title}"! Total: ${updatedQuestions.length} questions.`);
       }
-
-      // Reset form after successful save
-      if (res?.data?.success) {
-        setCategoryManagerQuestions([]);
-        setCategoryManagerTopic('');
-        setCategoryManagerTitle('');
-        setCategoryManagerBatch('');
-        setCategoryManagerExistingQuizId(null);
-        await fetchCategoryManagerQuizzes();
-        await fetchQuizzes();
+    } else {
+      // 4. Create a new quiz
+      const payload = {
+        title: categoryManagerTitle.trim(),
+        description: `${categoryManagerTitle.trim()} - ${categoryManagerQuestions.length} practice questions`,
+        category: categoryManagerCategory,
+        topic: categoryManagerTopic.trim(),
+        questions: categoryManagerQuestions,
+        passingScore: 70,
+        isPremium: false
+      };
+      res = await axios.post('/api/admin/quizzes', payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setCategoryManagerResult(`✅ Quiz created with ${categoryManagerQuestions.length} questions under "${categoryManagerCategory}"!`);
       }
-    } catch (error) {
-      setCategoryManagerResult('❌ Failed to save quiz: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setCategoryManagerLoading(false);
     }
-  };
+
+    // 5. Reset form after successful save
+    if (res?.data?.success) {
+      setCategoryManagerQuestions([]);
+      setCategoryManagerTopic('');
+      setCategoryManagerTitle('');
+      setCategoryManagerBatch('');
+      setCategoryManagerExistingQuizId(null);
+      await fetchCategoryManagerQuizzes();
+      await fetchQuizzes();
+    }
+  } catch (error) {
+    console.error('Save quiz error:', error);
+    setCategoryManagerResult('❌ Failed to save quiz: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setCategoryManagerLoading(false);
+  }
+};
 
   const handleCategoryManagerDeleteQuiz = async (quizId) => {
     if (!window.confirm('Delete this quiz permanently? This will remove all questions.')) return;

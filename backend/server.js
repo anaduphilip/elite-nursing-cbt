@@ -2270,6 +2270,30 @@ app.put('/api/admin/quizzes/:quizId/questions/:questionId', isAdmin, async (req,
   }
 });
 
+// Admin: Update a quiz (including questions, title, description, etc.)
+app.put('/api/admin/quizzes/:quizId', isAdmin, async (req, res) => {
+  try {
+    const { title, description, category, topic, questions, passingScore, isPremium } = req.body;
+    
+    const quiz = await Quiz.findById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+
+    if (title) quiz.title = title;
+    if (description) quiz.description = description;
+    if (category) quiz.category = category;
+    if (topic) quiz.topic = topic;
+    if (questions) quiz.questions = questions;
+    if (passingScore !== undefined) quiz.passingScore = passingScore;
+    if (isPremium !== undefined) quiz.isPremium = isPremium;
+
+    await quiz.save();
+    res.json({ success: true, quiz });
+  } catch (error) {
+    console.error('Update quiz error:', error);
+    res.status(500).json({ error: 'Failed to update quiz: ' + error.message });
+  }
+});
+
 // Admin: Delete a question
 app.delete('/api/admin/quizzes/:quizId/questions/:questionId', isAdmin, async (req, res) => {
   try {
