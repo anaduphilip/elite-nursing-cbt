@@ -170,7 +170,7 @@ const QuizSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
   category: { type: String, default: 'general-nursing' },
-  topic: { type: String, default: '' }, // ← NEW: for category question manager
+  topic: { type: String, default: '' },
   questions: [{
     questionText: String,
     options: [String],
@@ -270,7 +270,19 @@ const ConfigSchema = new mongoose.Schema({
   defaultTimeLimit: { type: Number, default: 20 },
   showWeeklyQuiz: { type: Boolean, default: true },
   showLeaderboard: { type: Boolean, default: true },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
+  
+  // ===== LIMITED TIME OFFER (NEW) =====
+  limitedOffer: {
+    enabled: { type: Boolean, default: false },
+    discountPercent: { type: Number, default: 0 },
+    startDate: { type: Date, default: null },
+    endDate: { type: Date, default: null },
+    message: { type: String, default: '🔥 Limited Time Offer!' },
+    buttonText: { type: String, default: 'Get Premium Now' },
+    buttonLink: { type: String, default: '/get-premium' },
+    targetAudience: { type: String, enum: ['all', 'free', 'premium'], default: 'free' }
+  }
 });
 
 const Config = mongoose.model('Config', ConfigSchema);
@@ -1876,8 +1888,41 @@ app.post('/api/initialize-payment', async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' });
     }
 
-    // ===== COUPON VALIDATION =====
+    // ===== CHECK FOR LIMITED TIME OFFER =====
     let finalAmount = amount;
+    let appliedDiscount = 0;
+    let offerApplied = false;
+
+    const config = await Config.findOne();
+    if (config && config.limitedOffer && config.limitedOffer.enabled) {
+      const now = new Date();
+      const start = config.limitedOffer.startDate ? new Date(config.limitedOffer.startDate) : null;
+      const end = config.limitedOffer.endDate ? new Date(config.limitedOffer.endDate) : null;
+      const discount = config.limitedOffer.discountPercent || 0;
+      const target = config.limitedOffer.targetAudience || 'free';
+
+      const isWithinDateRange = (!start || start <= now) && (!end || end >= now);
+      let userQualifies = false;
+
+      if (target === 'all') {
+        userQualifies = true;
+      } else if (target === 'free') {
+        const user = await User.findById(userId);
+        if (user && !user.isPremium) userQualifies = true;
+      } else if (target === 'premium') {
+        const user = await User.findById(userId);
+        if (user && user.isPremium) userQualifies = true;
+      }
+
+      if (isWithinDateRange && userQualifies && discount > 0) {
+        appliedDiscount = (amount * discount) / 100;
+        finalAmount = Math.max(0, amount - appliedDiscount);
+        offerApplied = true;
+        console.log(`🎉 Limited offer applied: ${discount}% off for user ${userId}. Original: ${amount}, Final: ${finalAmount}`);
+      }
+    }
+
+    // ===== COUPON VALIDATION (applied AFTER offer) =====
     let appliedCoupon = null;
     let discountAmount = 0;
 
@@ -1893,28 +1938,28 @@ app.post('/api/initialize-payment', async (req, res) => {
         const alreadyUsed = user.appliedCoupons.some(c => c.code === coupon.code);
         if (!alreadyUsed) {
           if (coupon.discountType === 'percentage') {
-            discountAmount = (amount * coupon.discountValue) / 100;
+            discountAmount = (finalAmount * coupon.discountValue) / 100;
             if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
               discountAmount = coupon.maxDiscount;
             }
           } else {
             discountAmount = coupon.discountValue;
           }
-          finalAmount = Math.max(0, amount - discountAmount);
+          finalAmount = Math.max(0, finalAmount - discountAmount);
           appliedCoupon = coupon;
         }
       }
     }
 
     const tx_ref = `ELITE-${Date.now()}-${userId}-${Math.random().toString(36).substring(2, 8)}`;
-    console.log(`💰 INITIALIZING PAYMENT: ${tx_ref} for user ${userId}, original: ${amount}, final: ${finalAmount}`);
+    console.log(`💰 INITIALIZING PAYMENT: ${tx_ref} for user ${userId}, original: ${amount}, final: ${finalAmount}, offer: ${offerApplied}, coupon: ${!!appliedCoupon}`);
 
     const user = await User.findById(userId);
     if (!user) {
       return res.status(401).json({ error: 'Your account has been deleted. Please log out and contact support.' });
     }
 
-    // Store coupon info if applied (NEW)
+    // Store coupon info if applied
     if (appliedCoupon) {
       appliedCoupon.usedCount += 1;
       await appliedCoupon.save();
@@ -1950,8 +1995,10 @@ app.post('/api/initialize-payment', async (req, res) => {
       flutterwaveId: flutterwaveId,
       amount: finalAmount,
       originalAmount: amount,
-      discountAmount: discountAmount,
+      discountAmount: discountAmount + (offerApplied ? appliedDiscount : 0),
       couponCode: appliedCoupon?.code || null,
+      offerApplied: offerApplied,
+      offerDiscount: appliedDiscount,
       status: 'pending',
       planType: planType || 'premium',
       examId: examId || null,
@@ -2343,6 +2390,15 @@ app.get('/api/config', async (req, res) => {
       config = new Config();
       await config.save();
     }
+    
+    // ===== INCLUDE LIMITED OFFER DATA =====
+    const now = new Date();
+    const offer = config.limitedOffer || {};
+    const isOfferActive = offer.enabled && 
+                          offer.discountPercent > 0 &&
+                          (!offer.startDate || new Date(offer.startDate) <= now) &&
+                          (!offer.endDate || new Date(offer.endDate) >= now);
+    
     res.json({
       success: true,
       config: {
@@ -2352,10 +2408,23 @@ app.get('/api/config', async (req, res) => {
         showWeeklyQuiz: config.showWeeklyQuiz,
         showLeaderboard: config.showLeaderboard,
         maintenanceMode: config.maintenanceMode,
-        maintenanceMessage: config.maintenanceMessage
+        maintenanceMessage: config.maintenanceMessage,
+        // ===== LIMITED OFFER =====
+        limitedOffer: {
+          enabled: offer.enabled || false,
+          discountPercent: offer.discountPercent || 0,
+          startDate: offer.startDate || null,
+          endDate: offer.endDate || null,
+          message: offer.message || '🔥 Limited Time Offer!',
+          buttonText: offer.buttonText || 'Get Premium Now',
+          buttonLink: offer.buttonLink || '/get-premium',
+          targetAudience: offer.targetAudience || 'free',
+          isActive: isOfferActive
+        }
       }
     });
   } catch (error) {
+    console.error('Config fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch config' });
   }
 });
@@ -2393,6 +2462,21 @@ app.put('/api/admin/config', isAdmin, async (req, res) => {
       if (req.body[field] !== undefined) {
         config[field] = req.body[field];
       }
+    }
+
+    // ===== UPDATE LIMITED OFFER FIELDS =====
+    if (req.body.limitedOffer) {
+      const offer = req.body.limitedOffer;
+      if (!config.limitedOffer) config.limitedOffer = {};
+      
+      if (offer.enabled !== undefined) config.limitedOffer.enabled = offer.enabled;
+      if (offer.discountPercent !== undefined) config.limitedOffer.discountPercent = offer.discountPercent;
+      if (offer.startDate !== undefined) config.limitedOffer.startDate = offer.startDate ? new Date(offer.startDate) : null;
+      if (offer.endDate !== undefined) config.limitedOffer.endDate = offer.endDate ? new Date(offer.endDate) : null;
+      if (offer.message !== undefined) config.limitedOffer.message = offer.message;
+      if (offer.buttonText !== undefined) config.limitedOffer.buttonText = offer.buttonText;
+      if (offer.buttonLink !== undefined) config.limitedOffer.buttonLink = offer.buttonLink;
+      if (offer.targetAudience !== undefined) config.limitedOffer.targetAudience = offer.targetAudience;
     }
 
     config.updatedAt = new Date();

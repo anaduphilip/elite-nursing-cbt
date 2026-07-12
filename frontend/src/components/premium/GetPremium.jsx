@@ -18,6 +18,11 @@ export const GetPremium = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [timeLeft, setTimeLeft] = useState(null);
 
+  // ===== LIMITED TIME OFFER STATE (NEW) =====
+  const [offer, setOffer] = useState(null);
+  const [showOffer, setShowOffer] = useState(false);
+  const [offerTimeLeft, setOfferTimeLeft] = useState(null);
+
   // Coupon states
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(null);
@@ -32,7 +37,73 @@ export const GetPremium = () => {
     yearly: { label: 'Yearly', amount: 10000, duration: '365 days' }
   };
 
-  // Live countdown timer
+  // ===== FETCH LIMITED TIME OFFER (NEW) =====
+  useEffect(() => {
+    const fetchOffer = async () => {
+      try {
+        const res = await axios.get('/api/config');
+        if (res.data.success && res.data.config?.limitedOffer) {
+          const offerData = res.data.config.limitedOffer;
+          setOffer(offerData);
+
+          // Check if the offer is active and should be shown
+          if (offerData.isActive && offerData.discountPercent > 0) {
+            // Check if the user qualifies for the offer based on target audience
+            let userQualifies = true;
+            const target = offerData.targetAudience || 'free';
+            if (target === 'free' && user?.isPremium) {
+              userQualifies = false;
+            } else if (target === 'premium' && !user?.isPremium) {
+              userQualifies = false;
+            }
+            if (userQualifies) {
+              setShowOffer(true);
+            } else {
+              setShowOffer(false);
+            }
+          } else {
+            setShowOffer(false);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch limited offer:', error);
+      }
+    };
+    fetchOffer();
+  }, [user?.isPremium]);
+
+  // ===== COUNTDOWN TIMER FOR OFFER (NEW) =====
+  useEffect(() => {
+    if (!showOffer || !offer?.endDate) {
+      setOfferTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date();
+      const end = new Date(offer.endDate);
+      const diff = end - now;
+
+      if (diff <= 0) {
+        setOfferTimeLeft(null);
+        setShowOffer(false);
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setOfferTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [showOffer, offer?.endDate]);
+
+  // Live countdown timer (existing)
   useEffect(() => {
     if (!user?.premiumExpiry) {
       setTimeLeft(null);
@@ -178,7 +249,7 @@ export const GetPremium = () => {
     try {
       console.log('User ID for payment:', user.id);
 
-      const amountToPay = plans[selectedPlan].amount; // original amount
+      const amountToPay = plans[selectedPlan].amount;
 
       const isNative = Capacitor.isNativePlatform();
       const redirectUrl = isNative
@@ -237,10 +308,31 @@ export const GetPremium = () => {
   // Check if premium is still active
   const isPremiumActive = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
 
-  // Determine the display amount
+  // Determine the display amount with coupon discount
   const displayAmount = couponApplied ? couponApplied.finalAmount : plans[selectedPlan].amount;
   const originalAmount = plans[selectedPlan].amount;
-  const hasDiscount = couponApplied && displayAmount < originalAmount;
+  const hasCouponDiscount = couponApplied && displayAmount < originalAmount;
+
+  // ===== CALCULATE OFFER DISCOUNTED PRICE (NEW) =====
+  const getOfferPrice = (amount) => {
+    if (!showOffer || !offer?.discountPercent) return amount;
+    const discount = (amount * offer.discountPercent) / 100;
+    return Math.round((amount - discount) * 100) / 100;
+  };
+
+  const getDisplayPrice = (planKey) => {
+    const original = plans[planKey].amount;
+    const offerPrice = getOfferPrice(original);
+    const finalWithCoupon = couponApplied ? couponApplied.finalAmount : offerPrice;
+    return {
+      original,
+      offerPrice,
+      finalWithCoupon,
+      hasOfferDiscount: showOffer && offerPrice < original,
+      hasCouponDiscount: couponApplied && finalWithCoupon < offerPrice
+    };
+  };
+  // ================================================
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -248,6 +340,38 @@ export const GetPremium = () => {
         <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: headingColor, textDecoration: 'none', fontWeight: 'bold', textAlign: 'left' }}>
           ← Back to Profile
         </Link>
+
+        {/* ===== LIMITED TIME OFFER BANNER (NEW) ===== */}
+        {showOffer && offer && offerTimeLeft && (
+          <div style={{
+            background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
+            borderRadius: 12,
+            padding: '16px 20px',
+            marginBottom: 20,
+            border: '2px solid #ff9800',
+            boxShadow: '0 2px 12px rgba(255, 152, 0, 0.25)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 28 }}>🔥</span>
+              <div>
+                <span style={{ color: '#e65100', fontSize: 16, fontWeight: 'bold' }}>
+                  {offer.message || `${offer.discountPercent}% OFF LIMITED TIME!`}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, justifyContent: 'center' }}>
+                  <span style={{ color: '#e65100', fontSize: 14, fontWeight: 'bold' }}>
+                    ⏰ {offerTimeLeft.days > 0 && `${offerTimeLeft.days}d `}
+                    {String(offerTimeLeft.hours).padStart(2, '0')}h 
+                    {String(offerTimeLeft.minutes).padStart(2, '0')}m 
+                    {String(offerTimeLeft.seconds).padStart(2, '0')}s
+                  </span>
+                  <span style={{ background: '#ff9800', color: 'white', padding: '2px 12px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>
+                    {offer.discountPercent}% OFF
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
         <h2 style={{ color: headingColor }}>Upgrade to Premium</h2>
@@ -313,31 +437,73 @@ export const GetPremium = () => {
             {isPremiumActive ? 'Renew or Upgrade Your Plan' : 'Choose Your Plan'}
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, margin: '20px 0' }}>
-            {Object.entries(plans).map(([key, plan]) => (
-              <div
-                key={key}
-                onClick={() => {
-                  setSelectedPlan(key);
-                  if (loading) setLoading(false);
-                }}
-                style={{
-                  padding: 16,
-                  borderRadius: 12,
-                  border: selectedPlan === key ? `3px solid ${headingColor}` : `2px solid ${borderColor}`,
-                  background: selectedPlan === key ? (darkMode ? '#333' : '#e8f5e9') : cardBg,
-                  cursor: 'pointer',
-                  transition: '0.2s',
-                  boxShadow: selectedPlan === key ? `0 4px 12px rgba(0,0,0,0.15)` : 'none'
-                }}
-              >
-                <div style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>₦{plan.amount}</div>
-                <div style={{ fontSize: 16, fontWeight: 'bold', color: textColor }}>{plan.label}</div>
-                <div style={{ fontSize: 12, color: secondaryText }}>{plan.duration}</div>
-                {selectedPlan === key && (
-                  <div style={{ marginTop: 8, fontSize: 11, color: headingColor, fontWeight: 'bold' }}>✓ SELECTED</div>
-                )}
-              </div>
-            ))}
+            {Object.entries(plans).map(([key, plan]) => {
+              const priceInfo = getDisplayPrice(key);
+              const showOfferPrice = showOffer && priceInfo.hasOfferDiscount;
+              const showCouponPrice = couponApplied && priceInfo.hasCouponDiscount;
+
+              return (
+                <div
+                  key={key}
+                  onClick={() => {
+                    setSelectedPlan(key);
+                    if (loading) setLoading(false);
+                  }}
+                  style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    border: selectedPlan === key ? `3px solid ${headingColor}` : `2px solid ${borderColor}`,
+                    background: selectedPlan === key ? (darkMode ? '#333' : '#e8f5e9') : cardBg,
+                    cursor: 'pointer',
+                    transition: '0.2s',
+                    boxShadow: selectedPlan === key ? `0 4px 12px rgba(0,0,0,0.15)` : 'none',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Show offer badge */}
+                  {showOfferPrice && selectedPlan === key && (
+                    <div style={{
+                      position: 'absolute',
+                      top: -10,
+                      right: -10,
+                      background: '#ff9800',
+                      color: 'white',
+                      padding: '2px 10px',
+                      borderRadius: 20,
+                      fontSize: 11,
+                      fontWeight: 'bold',
+                      boxShadow: '0 2px 8px rgba(255,152,0,0.3)'
+                    }}>
+                      {offer.discountPercent}% OFF
+                    </div>
+                  )}
+
+                  <div style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>
+                    {showOfferPrice ? (
+                      <>
+                        <span style={{ textDecoration: 'line-through', fontSize: 16, color: secondaryText }}>₦{priceInfo.original}</span>
+                        <span style={{ color: '#e65100', marginLeft: 6 }}>₦{priceInfo.offerPrice}</span>
+                      </>
+                    ) : showCouponPrice ? (
+                      <>
+                        <span style={{ textDecoration: 'line-through', fontSize: 16, color: secondaryText }}>₦{priceInfo.original}</span>
+                        <span style={{ color: '#2e7d32', marginLeft: 6 }}>₦{priceInfo.finalWithCoupon}</span>
+                      </>
+                    ) : (
+                      `₦${priceInfo.original}`
+                    )}
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold', color: textColor }}>{plan.label}</div>
+                  <div style={{ fontSize: 12, color: secondaryText }}>{plan.duration}</div>
+                  {selectedPlan === key && (
+                    <div style={{ marginTop: 8, fontSize: 11, color: headingColor, fontWeight: 'bold' }}>✓ SELECTED</div>
+                  )}
+                  {showOfferPrice && selectedPlan !== key && (
+                    <div style={{ marginTop: 4, fontSize: 11, color: '#e65100', fontWeight: 'bold' }}>🔥 {offer.discountPercent}% off!</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -364,7 +530,7 @@ export const GetPremium = () => {
             <div style={{ background: '#e8f5e9', padding: '8px 16px', borderRadius: 8, display: 'inline-block' }}>
               <p style={{ color: '#2e7d32', fontSize: 14, margin: 0 }}>
                 ✅ Coupon applied! You save {couponApplied.discountType === 'percentage' ? `${couponApplied.discountValue}%` : `₦${couponApplied.discountValue}`}.
-                {hasDiscount && <span> New total: ₦{displayAmount}</span>}
+                {couponApplied.finalAmount < plans[selectedPlan].amount && <span> New total: ₦{couponApplied.finalAmount}</span>}
               </p>
             </div>
           )}
@@ -374,15 +540,34 @@ export const GetPremium = () => {
         <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', padding: 16, borderRadius: 12, margin: '20px 0' }}>
           <div style={{ fontSize: 18, fontWeight: 'bold', color: headingColor }}>
             Selected: <span style={{ color: '#ff9800' }}>{plans[selectedPlan].label}</span> –
-            {hasDiscount ? (
-              <>
-                <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{originalAmount}</span>
-                <span style={{ color: '#2e7d32', marginLeft: 8 }}>₦{displayAmount}</span>
-              </>
-            ) : (
-              <span> ₦{displayAmount}</span>
-            )}
+            {(() => {
+              const priceInfo = getDisplayPrice(selectedPlan);
+              if (couponApplied && priceInfo.hasCouponDiscount) {
+                return (
+                  <>
+                    <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{priceInfo.original}</span>
+                    <span style={{ color: '#2e7d32', marginLeft: 8 }}>₦{priceInfo.finalWithCoupon}</span>
+                  </>
+                );
+              } else if (showOffer && priceInfo.hasOfferDiscount) {
+                return (
+                  <>
+                    <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{priceInfo.original}</span>
+                    <span style={{ color: '#e65100', marginLeft: 8 }}>₦{priceInfo.offerPrice}</span>
+                    <span style={{ marginLeft: 8, fontSize: 13, color: '#ff9800' }}>({offer.discountPercent}% off)</span>
+                  </>
+                );
+              } else {
+                return <span> ₦{priceInfo.original}</span>;
+              }
+            })()}
           </div>
+          {showOffer && offer && offerTimeLeft && (
+            <div style={{ marginTop: 6, fontSize: 13, color: '#e65100', fontWeight: 'bold' }}>
+              ⏰ Offer ends in {offerTimeLeft.days > 0 && `${offerTimeLeft.days}d `}
+              {String(offerTimeLeft.hours).padStart(2, '0')}h {String(offerTimeLeft.minutes).padStart(2, '0')}m {String(offerTimeLeft.seconds).padStart(2, '0')}s
+            </div>
+          )}
         </div>
 
         <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>

@@ -30,6 +30,12 @@ export const HomePage = () => {
     return localStorage.getItem('consentBannerDismissed') || '0';
   });
 
+  // ===== LIMITED TIME OFFER STATE (NEW) =====
+  const [offer, setOffer] = useState(null);
+  const [showOffer, setShowOffer] = useState(false);
+  const [offerDismissed, setOfferDismissed] = useState(false);
+  const [offerTimeLeft, setOfferTimeLeft] = useState(null);
+
   // ---- DYNAMIC CATEGORIES FROM API (with cache) ----
   const [apiCategories, setApiCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -75,6 +81,75 @@ export const HomePage = () => {
     };
     fetchConsentBanner();
   }, [user?.marketingConsent, consentDismissedVersion]);
+
+  // ===== FETCH LIMITED TIME OFFER (NEW) =====
+  useEffect(() => {
+    const fetchOffer = async () => {
+      try {
+        const res = await axios.get('/api/config');
+        if (res.data.success && res.data.config?.limitedOffer) {
+          const offerData = res.data.config.limitedOffer;
+          setOffer(offerData);
+          
+          // Check if the offer is active and should be shown
+          // Use isActive from backend (already calculated based on dates and discount)
+          if (offerData.isActive && offerData.discountPercent > 0) {
+            // Check if the user qualifies for the offer based on target audience
+            let userQualifies = true;
+            const target = offerData.targetAudience || 'free';
+            if (target === 'free' && user?.isPremium) {
+              userQualifies = false;
+            } else if (target === 'premium' && !user?.isPremium) {
+              userQualifies = false;
+            }
+            // Check if user has dismissed this offer (optional – can use version)
+            const dismissed = localStorage.getItem('offerDismissed');
+            if (userQualifies && dismissed !== String(offerData.version || '1')) {
+              setShowOffer(true);
+            } else {
+              setShowOffer(false);
+            }
+          } else {
+            setShowOffer(false);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch limited offer:', error);
+      }
+    };
+    fetchOffer();
+  }, [user?.isPremium]);
+
+  // ===== COUNTDOWN TIMER FOR OFFER (NEW) =====
+  useEffect(() => {
+    if (!showOffer || !offer?.endDate) {
+      setOfferTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date();
+      const end = new Date(offer.endDate);
+      const diff = end - now;
+
+      if (diff <= 0) {
+        setOfferTimeLeft(null);
+        setShowOffer(false);
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setOfferTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [showOffer, offer?.endDate]);
 
   // ---- FETCH CATEGORIES (CACHED) ----
   useEffect(() => {
@@ -344,6 +419,80 @@ export const HomePage = () => {
                 }}
               >
                 No thanks
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ===== LIMITED TIME OFFER BANNER (NEW) ===== */}
+        {showOffer && offer && offerTimeLeft && (
+          <div style={{
+            background: darkMode ? '#2d2d3d' : '#fff3e0',
+            borderRadius: 12,
+            padding: '16px 24px',
+            marginBottom: 24,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 16,
+            border: `2px solid #ff9800`,
+            boxShadow: '0 2px 12px rgba(255, 152, 0, 0.2)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 28 }}>🔥</span>
+              <div>
+                <span style={{ color: darkMode ? '#eee' : '#333', fontSize: 15, fontWeight: 'bold' }}>
+                  {offer.message || `🔥 ${offer.discountPercent}% OFF!`}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <span style={{ color: '#e65100', fontSize: 13, fontWeight: 'bold' }}>
+                    ⏰ {offerTimeLeft.days > 0 && `${offerTimeLeft.days}d `}
+                    {String(offerTimeLeft.hours).padStart(2, '0')}h 
+                    {String(offerTimeLeft.minutes).padStart(2, '0')}m 
+                    {String(offerTimeLeft.seconds).padStart(2, '0')}s
+                  </span>
+                  <span style={{ color: '#ff9800', fontSize: 12, fontWeight: 'bold', background: '#fff3e0', padding: '2px 10px', borderRadius: 20 }}>
+                    {offer.discountPercent}% OFF
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => {
+                  navigate(offer.buttonLink || '/get-premium');
+                  localStorage.setItem('offerDismissed', offer.version || '1');
+                  setShowOffer(false);
+                }}
+                style={{
+                  background: '#ff9800',
+                  color: 'white',
+                  padding: '8px 24px',
+                  border: 'none',
+                  borderRadius: 30,
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 8px rgba(255, 152, 0, 0.3)'
+                }}
+              >
+                {offer.buttonText || 'Claim Offer →'}
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem('offerDismissed', offer.version || '1');
+                  setShowOffer(false);
+                }}
+                style={{
+                  background: 'transparent',
+                  color: secondaryText,
+                  border: '1px solid ' + secondaryText,
+                  padding: '8px 20px',
+                  borderRadius: 30,
+                  cursor: 'pointer'
+                }}
+              >
+                Dismiss
               </button>
             </div>
           </div>

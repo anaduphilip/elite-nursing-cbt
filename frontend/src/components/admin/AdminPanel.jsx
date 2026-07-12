@@ -23,6 +23,7 @@ import { QuestionEditorTab } from './tabs/QuestionEditorTab';
 import { CategoryManagerTab } from './tabs/CategoryManagerTab';
 import { FaqTab } from './tabs/FaqTab';
 import { WeeklyQuizTab } from './tabs/WeeklyQuizTab';
+import { LimitedOfferTab } from './tabs/LimitedOfferTab';
 
 // Import modal components
 import { QuestionModal } from './components/QuestionModal';
@@ -71,6 +72,20 @@ export const AdminPanel = () => {
   const [announcementVersion, setAnnouncementVersion] = useState(0);
   const [announcementLoading, setAnnouncementLoading] = useState(false);
   const [announcementResult, setAnnouncementResult] = useState('');
+
+  // ---- Limited Offer states (NEW) ----
+  const [limitedOffer, setLimitedOffer] = useState({
+    enabled: false,
+    discountPercent: 0,
+    startDate: '',
+    endDate: '',
+    message: '🔥 Limited Time Offer!',
+    buttonText: 'Get Premium Now',
+    buttonLink: '/get-premium',
+    targetAudience: 'free'
+  });
+  const [limitedOfferLoading, setLimitedOfferLoading] = useState(false);
+  const [limitedOfferResult, setLimitedOfferResult] = useState('');
 
   // ---- Weekly Quiz states ----
   const [quizTitle, setQuizTitle] = useState('');
@@ -212,6 +227,20 @@ const fetchConfig = async () => {
     const res = await axios.get('/api/admin/config', { headers: { Authorization: `Bearer ${token}` } });
     if (res.data.success) {
       setConfig(res.data.config);
+      // Load limited offer from config
+      if (res.data.config.limitedOffer) {
+        const offer = res.data.config.limitedOffer;
+        setLimitedOffer({
+          enabled: offer.enabled || false,
+          discountPercent: offer.discountPercent || 0,
+          startDate: offer.startDate ? new Date(offer.startDate).toISOString().slice(0, 16) : '',
+          endDate: offer.endDate ? new Date(offer.endDate).toISOString().slice(0, 16) : '',
+          message: offer.message || '🔥 Limited Time Offer!',
+          buttonText: offer.buttonText || 'Get Premium Now',
+          buttonLink: offer.buttonLink || '/get-premium',
+          targetAudience: offer.targetAudience || 'free'
+        });
+      }
     }
   } catch (error) {
     console.error('Config fetch error:', error);
@@ -231,6 +260,50 @@ const handleSaveConfig = async () => {
     setConfigResult('❌ Failed to update config: ' + (error.response?.data?.error || error.message));
   } finally {
     setConfigLoading(false);
+  }
+};
+
+// ===== Limited Offer Functions (NEW) =====
+const handleSaveLimitedOffer = async () => {
+  setLimitedOfferLoading(true);
+  setLimitedOfferResult('');
+  try {
+    // Create a copy of config and update limitedOffer
+    const updatedConfig = { ...config };
+    updatedConfig.limitedOffer = {
+      enabled: limitedOffer.enabled,
+      discountPercent: parseFloat(limitedOffer.discountPercent) || 0,
+      startDate: limitedOffer.startDate ? new Date(limitedOffer.startDate) : null,
+      endDate: limitedOffer.endDate ? new Date(limitedOffer.endDate) : null,
+      message: limitedOffer.message || '🔥 Limited Time Offer!',
+      buttonText: limitedOffer.buttonText || 'Get Premium Now',
+      buttonLink: limitedOffer.buttonLink || '/get-premium',
+      targetAudience: limitedOffer.targetAudience || 'free'
+    };
+
+    const res = await axios.put('/api/admin/config', updatedConfig, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setConfig(res.data.config);
+      // Update local limited offer state with saved data
+      if (res.data.config.limitedOffer) {
+        const offer = res.data.config.limitedOffer;
+        setLimitedOffer({
+          enabled: offer.enabled || false,
+          discountPercent: offer.discountPercent || 0,
+          startDate: offer.startDate ? new Date(offer.startDate).toISOString().slice(0, 16) : '',
+          endDate: offer.endDate ? new Date(offer.endDate).toISOString().slice(0, 16) : '',
+          message: offer.message || '🔥 Limited Time Offer!',
+          buttonText: offer.buttonText || 'Get Premium Now',
+          buttonLink: offer.buttonLink || '/get-premium',
+          targetAudience: offer.targetAudience || 'free'
+        });
+      }
+      setLimitedOfferResult('✅ Limited offer updated successfully!');
+    }
+  } catch (error) {
+    setLimitedOfferResult('❌ Failed to update limited offer: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setLimitedOfferLoading(false);
   }
 };
 
@@ -1656,7 +1729,9 @@ useEffect(() => {
             <button onClick={() => setActiveTab('questionEditor')} style={{ background: activeTab === 'questionEditor' ? '#1e3c72' : 'transparent', color: activeTab === 'questionEditor' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'questionEditor' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📝 Question Editor</button>
             <button onClick={() => setActiveTab('categoryManager')} style={{ background: activeTab === 'categoryManager' ? '#2E7D64' : 'transparent', color: activeTab === 'categoryManager' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'categoryManager' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📂 Category Question Manager</button>
             <button onClick={() => setActiveTab('faq')} style={{ background: activeTab === 'faq' ? '#1e3c72' : 'transparent', color: activeTab === 'faq' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'faq' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> FAQ Tab</button>
-            <button onClick={() => { setActiveTab('weeklyQuiz'); if (weeklyQuizzes.length === 0) fetchWeeklyQuizzes(); }} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
+            <button onClick={() => setActiveTab('weeklyQuiz')} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
+            {/* ===== NEW TAB ===== */}
+            <button onClick={() => setActiveTab('limitedOffer')} style={{ background: activeTab === 'limitedOffer' ? '#ff9800' : 'transparent', color: activeTab === 'limitedOffer' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'limitedOffer' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🔥 Limited Offer</button>
           </div>
 
           {/* ===== Render the active tab ===== */}
@@ -1715,6 +1790,15 @@ useEffect(() => {
           }} />}
           {activeTab === 'faq' && <FaqTab {...{ faqs, faqLoading, faqQuestion, setFaqQuestion, faqAnswer, setFaqAnswer, faqCategory, setFaqCategory, faqOrder, setFaqOrder, faqActive, setFaqActive, editingFaqId, faqResult, handleSaveFaq, handleDeleteFaq, editFaq, ...commonProps }} />}
           {activeTab === 'weeklyQuiz' && <WeeklyQuizTab {...{ weeklyQuizzes, loadingQuizzes, quizTitle, setQuizTitle, quizDescription, setQuizDescription, quizInstructions, setQuizInstructions, quizWeekNumber, setQuizWeekNumber, quizQuestions, quizPassingScore, setQuizPassingScore, quizTimeLimit, setQuizTimeLimit, quizStartDate, setQuizStartDate, quizEndDate, setQuizEndDate, quizIsPremium, setQuizIsPremium, editingQuizId, showQuizForm, setShowQuizForm, qText, setQText, qOptions, setQOptions, qCorrect, setQCorrect, editingQuestionIndex, batchInput, setBatchInput, selectedQuizResults, showResults, setShowResults, handleAddQuestion, handleBatchImport, handleEditQuestion, handleDeleteQuestion, handleSaveQuiz, handlePublishQuiz, handleTogglePublish, handleTogglePremium, handleDeleteQuiz, handleViewResults, editQuiz, resetQuizForm, fetchWeeklyQuizzes, setActiveTab, ...commonProps }} />}
+          {/* ===== NEW TAB ===== */}
+          {activeTab === 'limitedOffer' && <LimitedOfferTab {...{ 
+            limitedOffer, 
+            setLimitedOffer, 
+            limitedOfferLoading, 
+            limitedOfferResult, 
+            handleSaveLimitedOffer,
+            ...commonProps 
+          }} />}
 
           {/* ===== Modals ===== */}
           <QuestionModal
