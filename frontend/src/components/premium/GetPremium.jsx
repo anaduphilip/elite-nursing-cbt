@@ -18,7 +18,7 @@ export const GetPremium = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [timeLeft, setTimeLeft] = useState(null);
 
-  // ===== LIMITED TIME OFFER STATE (NEW) =====
+  // ===== LIMITED TIME OFFER STATE =====
   const [offer, setOffer] = useState(null);
   const [showOffer, setShowOffer] = useState(false);
   const [offerTimeLeft, setOfferTimeLeft] = useState(null);
@@ -37,7 +37,7 @@ export const GetPremium = () => {
     yearly: { label: 'Yearly', amount: 10000, duration: '365 days' }
   };
 
-  // ===== FETCH LIMITED TIME OFFER (NEW) =====
+  // ===== FETCH LIMITED TIME OFFER =====
   useEffect(() => {
     const fetchOffer = async () => {
       try {
@@ -46,9 +46,7 @@ export const GetPremium = () => {
           const offerData = res.data.config.limitedOffer;
           setOffer(offerData);
 
-          // Check if the offer is active and should be shown
           if (offerData.isActive && offerData.discountPercent > 0) {
-            // Check if the user qualifies for the offer based on target audience
             let userQualifies = true;
             const target = offerData.targetAudience || 'free';
             if (target === 'free' && user?.isPremium) {
@@ -72,7 +70,7 @@ export const GetPremium = () => {
     fetchOffer();
   }, [user?.isPremium]);
 
-  // ===== COUNTDOWN TIMER FOR OFFER (NEW) =====
+  // ===== COUNTDOWN TIMER FOR OFFER =====
   useEffect(() => {
     if (!showOffer || !offer?.endDate) {
       setOfferTimeLeft(null);
@@ -172,7 +170,6 @@ export const GetPremium = () => {
 
   // Re‑validate coupon when plan changes
   useEffect(() => {
-    // If a coupon is applied and the plan changed, re‑validate or clear
     if (couponApplied && couponAppliedPlan && couponAppliedPlan !== selectedPlan) {
       const revalidateCoupon = async () => {
         try {
@@ -188,7 +185,6 @@ export const GetPremium = () => {
             setCouponAppliedPlan(selectedPlan);
             setCouponError('');
           } else {
-            // Coupon invalid for new plan – clear it
             setCouponApplied(null);
             setCouponAppliedPlan(null);
             setCouponError('Coupon not valid for this plan. Please re-apply.');
@@ -203,7 +199,6 @@ export const GetPremium = () => {
       revalidateCoupon();
     }
   }, [selectedPlan, couponApplied, couponAppliedPlan, couponCode, token]);
-  // ============================================================
 
   // Apply coupon
   const applyCoupon = async () => {
@@ -236,7 +231,29 @@ export const GetPremium = () => {
       setCouponLoading(false);
     }
   };
-  // ==================================
+
+  // ===== Helper to get final price after offer and coupon =====
+  const getFinalPrice = (planKey) => {
+    const original = plans[planKey].amount;
+    let price = original;
+
+    // Apply offer discount if active
+    if (showOffer && offer?.discountPercent) {
+      price = Math.round((price * (1 - offer.discountPercent / 100)) * 100) / 100;
+    }
+
+    // Apply coupon if applied and for this plan
+    if (couponApplied && couponAppliedPlan === planKey) {
+      // The coupon discount is based on the original amount in the validation response,
+      // but the backend will apply coupon on the offer-discounted amount.
+      // For display we'll use the coupon's finalAmount as provided.
+      if (couponApplied.finalAmount < price) {
+        price = couponApplied.finalAmount;
+      }
+    }
+
+    return price;
+  };
 
   // Payment handler
   const handlePayment = async () => {
@@ -273,25 +290,19 @@ export const GetPremium = () => {
       localStorage.setItem('payment_reference', response.data.reference);
 
       if (isNative) {
-        // Open the payment page in the browser
         await Browser.open({ url: response.data.authorization_url });
-        // When the browser closes (user returns), reset loading
         setLoading(false);
         localStorage.setItem('waiting_for_payment', 'true');
-        // Optionally, the PaymentReturn page will handle verification.
       } else {
-        // For web, redirect – the page will reload, so no need to reset loading
         window.location.href = response.data.authorization_url;
       }
     } catch (error) {
       console.error('Payment error:', error);
-      // Show a specific message if available, otherwise a generic one
       const errorMsg = error.response?.data?.error || error.message || 'Payment initialization failed.';
       alert('Payment initialization failed: ' + errorMsg + '. Please try again.');
       setLoading(false);
     }
   };
-  // ==========================================
 
   const formatExpiry = (date) => {
     if (!date) return 'N/A';
@@ -308,31 +319,24 @@ export const GetPremium = () => {
   // Check if premium is still active
   const isPremiumActive = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
 
-  // Determine the display amount with coupon discount
-  const displayAmount = couponApplied ? couponApplied.finalAmount : plans[selectedPlan].amount;
+  // ===== Compute final amount for the selected plan =====
+  const finalAmount = getFinalPrice(selectedPlan);
   const originalAmount = plans[selectedPlan].amount;
-  const hasCouponDiscount = couponApplied && displayAmount < originalAmount;
+  const hasDiscount = showOffer || (couponApplied && couponAppliedPlan === selectedPlan);
 
-  // ===== CALCULATE OFFER DISCOUNTED PRICE (NEW) =====
-  const getOfferPrice = (amount) => {
-    if (!showOffer || !offer?.discountPercent) return amount;
-    const discount = (amount * offer.discountPercent) / 100;
-    return Math.round((amount - discount) * 100) / 100;
-  };
-
+  // ===== Get display price info for each plan card =====
   const getDisplayPrice = (planKey) => {
     const original = plans[planKey].amount;
-    const offerPrice = getOfferPrice(original);
-    const finalWithCoupon = couponApplied ? couponApplied.finalAmount : offerPrice;
+    const offerPrice = getFinalPrice(planKey);
+    const finalWithCoupon = couponApplied && couponAppliedPlan === planKey ? couponApplied.finalAmount : offerPrice;
     return {
       original,
-      offerPrice,
+      offerPrice: showOffer ? offerPrice : original,
       finalWithCoupon,
       hasOfferDiscount: showOffer && offerPrice < original,
-      hasCouponDiscount: couponApplied && finalWithCoupon < offerPrice
+      hasCouponDiscount: couponApplied && couponAppliedPlan === planKey && finalWithCoupon < offerPrice
     };
   };
-  // ================================================
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -341,7 +345,7 @@ export const GetPremium = () => {
           ← Back to Profile
         </Link>
 
-        {/* ===== LIMITED TIME OFFER BANNER (NEW) ===== */}
+        {/* ===== LIMITED TIME OFFER BANNER ===== */}
         {showOffer && offer && offerTimeLeft && (
           <div style={{
             background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
@@ -439,7 +443,7 @@ export const GetPremium = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, margin: '20px 0' }}>
             {Object.entries(plans).map(([key, plan]) => {
               const priceInfo = getDisplayPrice(key);
-              const showOfferPrice = showOffer && priceInfo.hasOfferDiscount;
+              const showOfferPrice = priceInfo.hasOfferDiscount;
               const showCouponPrice = couponApplied && priceInfo.hasCouponDiscount;
 
               return (
@@ -526,7 +530,7 @@ export const GetPremium = () => {
             </button>
           </div>
           {couponError && <p style={{ color: '#dc3545', fontSize: 13, margin: 0 }}>{couponError}</p>}
-          {couponApplied && (
+          {couponApplied && couponAppliedPlan === selectedPlan && (
             <div style={{ background: '#e8f5e9', padding: '8px 16px', borderRadius: 8, display: 'inline-block' }}>
               <p style={{ color: '#2e7d32', fontSize: 14, margin: 0 }}>
                 ✅ Coupon applied! You save {couponApplied.discountType === 'percentage' ? `${couponApplied.discountValue}%` : `₦${couponApplied.discountValue}`}.
@@ -542,7 +546,7 @@ export const GetPremium = () => {
             Selected: <span style={{ color: '#ff9800' }}>{plans[selectedPlan].label}</span> –
             {(() => {
               const priceInfo = getDisplayPrice(selectedPlan);
-              if (couponApplied && priceInfo.hasCouponDiscount) {
+              if (couponApplied && couponAppliedPlan === selectedPlan && priceInfo.hasCouponDiscount) {
                 return (
                   <>
                     <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{priceInfo.original}</span>
@@ -570,8 +574,9 @@ export const GetPremium = () => {
           )}
         </div>
 
+        {/* ---- Pay Button with discounted price ---- */}
         <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>
-          {loading ? 'Processing...' : `Pay ₦${displayAmount} (${plans[selectedPlan].label})`}
+          {loading ? 'Processing...' : `Pay ₦${finalAmount} (${plans[selectedPlan].label})`}
         </button>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
