@@ -232,8 +232,8 @@ export const GetPremium = () => {
     }
   };
 
-  // ===== Helper to get final price after offer and coupon =====
-  const getFinalPrice = (planKey) => {
+  // ===== Helper: compute final price after offer + coupon (matches backend logic) =====
+  const computeFinalPrice = (planKey) => {
     const original = plans[planKey].amount;
     let price = original;
 
@@ -244,15 +244,39 @@ export const GetPremium = () => {
 
     // Apply coupon if applied and for this plan
     if (couponApplied && couponAppliedPlan === planKey) {
-      // The coupon discount is based on the original amount in the validation response,
-      // but the backend will apply coupon on the offer-discounted amount.
-      // For display we'll use the coupon's finalAmount as provided.
-      if (couponApplied.finalAmount < price) {
-        price = couponApplied.finalAmount;
+      let discount = 0;
+      if (couponApplied.discountType === 'percentage') {
+        discount = (price * couponApplied.discountValue) / 100;
+        if (couponApplied.maxDiscount && discount > couponApplied.maxDiscount) {
+          discount = couponApplied.maxDiscount;
+        }
+      } else {
+        discount = couponApplied.discountValue;
       }
+      price = Math.max(0, price - discount);
+      price = Math.round(price * 100) / 100;
     }
 
     return price;
+  };
+
+  // ===== Helper: get all price info for a plan =====
+  const getPriceInfo = (planKey) => {
+    const original = plans[planKey].amount;
+    const offerPrice = showOffer && offer?.discountPercent
+      ? Math.round((original * (1 - offer.discountPercent / 100)) * 100) / 100
+      : original;
+    const finalPrice = computeFinalPrice(planKey);
+    const hasOfferDiscount = showOffer && offerPrice < original;
+    const hasCouponDiscount = couponApplied && couponAppliedPlan === planKey && finalPrice < offerPrice;
+
+    return {
+      original,
+      offerPrice,
+      finalPrice,
+      hasOfferDiscount,
+      hasCouponDiscount
+    };
   };
 
   // Payment handler
@@ -320,23 +344,9 @@ export const GetPremium = () => {
   const isPremiumActive = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
 
   // ===== Compute final amount for the selected plan =====
-  const finalAmount = getFinalPrice(selectedPlan);
-  const originalAmount = plans[selectedPlan].amount;
-  const hasDiscount = showOffer || (couponApplied && couponAppliedPlan === selectedPlan);
-
-  // ===== Get display price info for each plan card =====
-  const getDisplayPrice = (planKey) => {
-    const original = plans[planKey].amount;
-    const offerPrice = getFinalPrice(planKey);
-    const finalWithCoupon = couponApplied && couponAppliedPlan === planKey ? couponApplied.finalAmount : offerPrice;
-    return {
-      original,
-      offerPrice: showOffer ? offerPrice : original,
-      finalWithCoupon,
-      hasOfferDiscount: showOffer && offerPrice < original,
-      hasCouponDiscount: couponApplied && couponAppliedPlan === planKey && finalWithCoupon < offerPrice
-    };
-  };
+  const priceInfo = getPriceInfo(selectedPlan);
+  const finalAmount = priceInfo.finalPrice;
+  const originalAmount = priceInfo.original;
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -442,9 +452,9 @@ export const GetPremium = () => {
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, margin: '20px 0' }}>
             {Object.entries(plans).map(([key, plan]) => {
-              const priceInfo = getDisplayPrice(key);
-              const showOfferPrice = priceInfo.hasOfferDiscount;
-              const showCouponPrice = couponApplied && priceInfo.hasCouponDiscount;
+              const info = getPriceInfo(key);
+              const showOfferPrice = info.hasOfferDiscount;
+              const showCouponPrice = info.hasCouponDiscount;
 
               return (
                 <div
@@ -483,18 +493,18 @@ export const GetPremium = () => {
                   )}
 
                   <div style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>
-                    {showOfferPrice ? (
+                    {showCouponPrice ? (
                       <>
-                        <span style={{ textDecoration: 'line-through', fontSize: 16, color: secondaryText }}>₦{priceInfo.original}</span>
-                        <span style={{ color: '#e65100', marginLeft: 6 }}>₦{priceInfo.offerPrice}</span>
+                        <span style={{ textDecoration: 'line-through', fontSize: 16, color: secondaryText }}>₦{info.original}</span>
+                        <span style={{ color: '#2e7d32', marginLeft: 6 }}>₦{info.finalPrice}</span>
                       </>
-                    ) : showCouponPrice ? (
+                    ) : showOfferPrice ? (
                       <>
-                        <span style={{ textDecoration: 'line-through', fontSize: 16, color: secondaryText }}>₦{priceInfo.original}</span>
-                        <span style={{ color: '#2e7d32', marginLeft: 6 }}>₦{priceInfo.finalWithCoupon}</span>
+                        <span style={{ textDecoration: 'line-through', fontSize: 16, color: secondaryText }}>₦{info.original}</span>
+                        <span style={{ color: '#e65100', marginLeft: 6 }}>₦{info.offerPrice}</span>
                       </>
                     ) : (
-                      `₦${priceInfo.original}`
+                      `₦${info.original}`
                     )}
                   </div>
                   <div style={{ fontSize: 16, fontWeight: 'bold', color: textColor }}>{plan.label}</div>
@@ -534,7 +544,9 @@ export const GetPremium = () => {
             <div style={{ background: '#e8f5e9', padding: '8px 16px', borderRadius: 8, display: 'inline-block' }}>
               <p style={{ color: '#2e7d32', fontSize: 14, margin: 0 }}>
                 ✅ Coupon applied! You save {couponApplied.discountType === 'percentage' ? `${couponApplied.discountValue}%` : `₦${couponApplied.discountValue}`}.
-                {couponApplied.finalAmount < plans[selectedPlan].amount && <span> New total: ₦{couponApplied.finalAmount}</span>}
+                {priceInfo.finalPrice < priceInfo.offerPrice && (
+                  <span> New total: ₦{priceInfo.finalPrice}</span>
+                )}
               </p>
             </div>
           )}
@@ -545,15 +557,14 @@ export const GetPremium = () => {
           <div style={{ fontSize: 18, fontWeight: 'bold', color: headingColor }}>
             Selected: <span style={{ color: '#ff9800' }}>{plans[selectedPlan].label}</span> –
             {(() => {
-              const priceInfo = getDisplayPrice(selectedPlan);
-              if (couponApplied && couponAppliedPlan === selectedPlan && priceInfo.hasCouponDiscount) {
+              if (priceInfo.hasCouponDiscount) {
                 return (
                   <>
                     <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{priceInfo.original}</span>
-                    <span style={{ color: '#2e7d32', marginLeft: 8 }}>₦{priceInfo.finalWithCoupon}</span>
+                    <span style={{ color: '#2e7d32', marginLeft: 8 }}>₦{priceInfo.finalPrice}</span>
                   </>
                 );
-              } else if (showOffer && priceInfo.hasOfferDiscount) {
+              } else if (priceInfo.hasOfferDiscount) {
                 return (
                   <>
                     <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{priceInfo.original}</span>
