@@ -390,7 +390,7 @@ export const HomePage = () => {
         </div>
 
         {/* Display each topic as a card, exactly like CourseList topic cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', rowGap: 64, columnGap: 24 }}>
           {groupedSearchResults.map((item) => {
             const { category, topic, totalQuestions, freeExamCount, freeQuestions, premiumExamCount } = item;
             let infoText = '';
@@ -799,7 +799,7 @@ export const HomePage = () => {
             )}
 
             {/* Category grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', rowGap: 24, columnGap: 24 }}>
               {displayCategories.map((cat) => (
                 <Link to={`/courses/${cat.slug}/${mode}`} key={cat.slug} style={{ textDecoration: 'none' }}>
                   <div style={{ 
