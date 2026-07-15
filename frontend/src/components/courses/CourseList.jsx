@@ -1,5 +1,5 @@
 // src/components/courses/CourseList.jsx
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { getCachedQuizzes, hasCachedQuizzes } from '../../utils/quizHelpers';
@@ -18,6 +18,9 @@ export const CourseList = () => {
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
 
+  // ---- CATEGORY-SPECIFIC SEARCH STATE ----
+  const [searchTerm, setSearchTerm] = useState('');
+
   const categoryMap = {
     'general-nursing': { name: 'General Nursing', icon: '🩺', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
     'midwifery': { name: 'Midwifery', icon: '🤰', color: mode === 'free' ? '#1e3c72' : '#ff9800' },
@@ -29,6 +32,36 @@ export const CourseList = () => {
 
   const urlParams = new URLSearchParams(window.location.search);
   const currentTopic = urlParams.get('topic');
+
+  // ---- Filtered data (category-specific search) ----
+  const filteredData = useMemo(() => {
+    if (!searchTerm.trim()) return displayData;
+    const term = searchTerm.toLowerCase().trim();
+    return displayData.filter(item => {
+      if (isTopicView) {
+        // Filter topics by topic name
+        const topicName = item.topic?.toLowerCase() || '';
+        return topicName.includes(term);
+      } else {
+        // Filter exam cards (premium mode) or quiz cards (free mode)
+        const title = item.title?.toLowerCase() || '';
+        const desc = item.description?.toLowerCase() || '';
+        // For quiz cards (free mode)
+        if (item._id) {
+          const quizTitle = item.title?.toLowerCase() || '';
+          const quizDesc = item.description?.toLowerCase() || '';
+          return quizTitle.includes(term) || quizDesc.includes(term);
+        }
+        // For premium exam cards
+        return title.includes(term) || desc.includes(term);
+      }
+    });
+  }, [searchTerm, displayData, isTopicView]);
+
+  // ---- Clear search ----
+  const clearSearch = () => {
+    setSearchTerm('');
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -127,6 +160,7 @@ export const CourseList = () => {
     return <LoadingWithBar message={loadingMsg} />;
   }
 
+  // If no data and no search results
   if (displayData.length === 0) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
@@ -138,6 +172,9 @@ export const CourseList = () => {
     );
   }
 
+  // Check if filtered results are empty
+  const hasResults = filteredData.length > 0;
+
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -147,118 +184,199 @@ export const CourseList = () => {
             {currentTopic ? currentTopic : category.name}
           </h1>
           <p style={{ marginTop: 8, fontSize: 14 }}>{mode === 'free' ? 'FREE MODE' : 'PREMIUM MODE'}</p>
-          <p style={{ fontSize: 14 }}>{displayData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
+          <p style={{ fontSize: 14 }}>{filteredData.length} {isTopicView ? 'courses' : 'exam sets'} available</p>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          rowGap: '60px',
-          columnGap: '40px',
-          marginBottom: '60px'
-        }}>
-          {displayData.map(item => {
-            if (isTopicView) {
-              const { topic, totalQuestions, freeQuestions, premiumExamCount } = item;
-              let infoText = '';
-              let premiumTag = null;
-              if (mode === 'free') {
-                const freeQ = freeQuestions > 0 ? freeQuestions : totalQuestions;
-                infoText = `🎯 1 Free Exam (${freeQ} questions)`;
-                if (premiumExamCount > 0) {
-                  premiumTag = <p style={{ color: '#ff9800', fontSize: 12, marginTop: 4 }}>⭐ Access more questions in Premium</p>;
+        {/* ---- CATEGORY-SPECIFIC SEARCH BAR ---- */}
+        <div style={{ marginBottom: 24, maxWidth: 500, marginLeft: 'auto', marginRight: 'auto' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: darkMode ? '#2d2d3d' : 'white', borderRadius: 50, padding: '4px 4px 4px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}>
+            <span style={{ fontSize: 16, color: '#888' }}>🔍</span>
+            <input
+              type="text"
+              placeholder={`Search within ${category.name}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '8px 0',
+                border: 'none',
+                outline: 'none',
+                fontSize: 14,
+                background: 'transparent',
+                color: darkMode ? '#eee' : '#333',
+                minWidth: '100px'
+              }}
+            />
+            {searchTerm && (
+              <button
+                onClick={clearSearch}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  color: '#888',
+                  padding: '4px 8px'
+                }}
+              >
+                ✕
+              </button>
+            )}
+            <button
+              onClick={() => searchTerm && setSearchTerm(searchTerm)}
+              style={{
+                background: category.color,
+                color: 'white',
+                border: 'none',
+                borderRadius: 50,
+                padding: '6px 16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                fontSize: 13
+              }}
+            >
+              Search
+            </button>
+          </div>
+          {searchTerm && searchTerm.trim() && (
+            <div style={{ marginTop: 6, textAlign: 'center', fontSize: 12, color: secondaryText }}>
+              {filteredData.length} {isTopicView ? 'courses' : 'exam sets'} found
+            </div>
+          )}
+        </div>
+
+        {/* ---- RESULTS (or "no results" message) ---- */}
+        {!hasResults && searchTerm.trim() ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: secondaryText }}>
+            <p style={{ fontSize: 18 }}>🔍 No results found for "<strong>{searchTerm}</strong>"</p>
+            <p style={{ fontSize: 14, marginTop: 8 }}>Try a different keyword or clear the search.</p>
+            <button
+              onClick={clearSearch}
+              style={{
+                marginTop: 16,
+                background: category.color,
+                color: 'white',
+                border: 'none',
+                padding: '8px 24px',
+                borderRadius: 30,
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              Clear Search
+            </button>
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            rowGap: '60px',
+            columnGap: '40px',
+            marginBottom: '60px'
+          }}>
+            {filteredData.map(item => {
+              if (isTopicView) {
+                const { topic, totalQuestions, freeQuestions, premiumExamCount } = item;
+                let infoText = '';
+                let premiumTag = null;
+                if (mode === 'free') {
+                  const freeQ = freeQuestions > 0 ? freeQuestions : totalQuestions;
+                  infoText = `🎯 1 Free Exam (${freeQ} questions)`;
+                  if (premiumExamCount > 0) {
+                    premiumTag = <p style={{ color: '#ff9800', fontSize: 12, marginTop: 4 }}>⭐ Access more questions in Premium</p>;
+                  }
+                } else {
+                  const totalExams = premiumExamCount > 0 ? premiumExamCount : 0;
+                  infoText = `⭐ ${totalExams} Premium Exam${totalExams > 1 ? 's' : ''} (${totalQuestions} total questions)`;
                 }
+                return (
+                  <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(topic)}`} key={topic} style={{ textDecoration: 'none' }}>
+                    <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word' }}>
+                      <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+                      <h3 style={{ color: darkMode ? headingColor : category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{topic}</h3>
+                      <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{infoText}</p>
+                      {premiumTag && premiumTag}
+                      <div style={{ marginTop: 'auto' }}>
+                        <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>View Exams →</button>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              } else if (mode === 'premium') {
+                const exam = item;
+                const link = `/premium-exam/${categoryName}/${encodeURIComponent(currentTopic)}/${exam.id}/${mode}`;
+                return (
+                  <Link to={link} key={exam.id} style={{ textDecoration: 'none' }}>
+                    <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word' }}>
+                      <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+                      <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{exam.title}</h3>
+                      <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{exam.description}</p>
+                      <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {exam.totalQuestions}</p>
+                      <div style={{ marginTop: 'auto' }}>
+                        <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Start Exam →</button>
+                      </div>
+                    </div>
+                  </Link>
+                );
               } else {
-                const totalExams = premiumExamCount > 0 ? premiumExamCount : 0;
-                infoText = `⭐ ${totalExams} Premium Exam${totalExams > 1 ? 's' : ''} (${totalQuestions} total questions)`;
-              }
-              return (
-                <Link to={`/courses/${categoryName}/${mode}?topic=${encodeURIComponent(topic)}`} key={topic} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word' }}>
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-                    <h3 style={{ color: darkMode ? headingColor : category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{topic}</h3>
-                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{infoText}</p>
-                    {premiumTag && premiumTag}
-                    <div style={{ marginTop: 'auto' }}>
-                      <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>View Exams →</button>
-                    </div>
-                  </div>
-                </Link>
-              );
-            } else if (mode === 'premium') {
-              const exam = item;
-              const link = `/premium-exam/${categoryName}/${encodeURIComponent(currentTopic)}/${exam.id}/${mode}`;
-              return (
-                <Link to={link} key={exam.id} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word' }}>
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-                    <h3 style={{ color: category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{exam.title}</h3>
-                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{exam.description}</p>
-                    <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {exam.totalQuestions}</p>
-                    <div style={{ marginTop: 'auto' }}>
-                      <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Start Exam →</button>
-                    </div>
-                  </div>
-                </Link>
-              );
-            } else {
-              const quiz = item;
-              const totalQuestions = quiz.questions?.length || 0;
-              const lastScore = getLastScore(quiz._id);
-              const hasTakenFree = localStorage.getItem(`exam_${quiz._id}_taken`) === 'true';
-              const isCompleted = !!lastScore;
+                const quiz = item;
+                const totalQuestions = quiz.questions?.length || 0;
+                const lastScore = getLastScore(quiz._id);
+                const hasTakenFree = localStorage.getItem(`exam_${quiz._id}_taken`) === 'true';
+                const isCompleted = !!lastScore;
 
-              let buttonText = 'Start Exam →';
-              let buttonLink = `/take/${quiz._id}/1/${mode}`;
-              let buttonColor = category.color;
+                let buttonText = 'Start Exam →';
+                let buttonLink = `/take/${quiz._id}/1/${mode}`;
+                let buttonColor = category.color;
 
-              if (mode === 'free') {
-                if (hasTakenFree) {
-                  if (user?.isPremium) {
-                    buttonText = '🔄 Retake Exam';
-                    buttonLink = `/take/${quiz._id}/1/${mode}`;
-                    buttonColor = category.color;
-                  } else {
-                    buttonText = '⭐ Upgrade to Retake';
-                    buttonLink = '/get-premium';
-                    buttonColor = '#ff9800';
+                if (mode === 'free') {
+                  if (hasTakenFree) {
+                    if (user?.isPremium) {
+                      buttonText = '🔄 Retake Exam';
+                      buttonLink = `/take/${quiz._id}/1/${mode}`;
+                      buttonColor = category.color;
+                    } else {
+                      buttonText = '⭐ Upgrade to Retake';
+                      buttonLink = '/get-premium';
+                      buttonColor = '#ff9800';
+                    }
                   }
                 }
-              }
 
-              return (
-                <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word', position: 'relative' }}>
-                    {isCompleted && (
-                      <div style={{
-                        position: 'absolute',
-                        top: 12,
-                        right: 12,
-                        background: '#4caf50',
-                        color: 'white',
-                        padding: '4px 10px',
-                        borderRadius: 20,
-                        fontSize: 12,
-                        fontWeight: 'bold',
-                        zIndex: 1
-                      }}>
-                        ✅ Completed
+                return (
+                  <Link to={buttonLink} key={quiz._id} style={{ textDecoration: 'none' }}>
+                    <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word', position: 'relative' }}>
+                      {isCompleted && (
+                        <div style={{
+                          position: 'absolute',
+                          top: 12,
+                          right: 12,
+                          background: '#4caf50',
+                          color: 'white',
+                          padding: '4px 10px',
+                          borderRadius: 20,
+                          fontSize: 12,
+                          fontWeight: 'bold',
+                          zIndex: 1
+                        }}>
+                          ✅ Completed
+                        </div>
+                      )}
+                      <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+                      <h3 style={{ color: darkMode ? headingColor : category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
+                      <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{quiz.description?.substring(0, 80)}...</p>
+                      <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
+                      {lastScore && <p style={{ fontSize: 13, color: '#ff9800', marginTop: 4 }}>📊 Last Score: {lastScore.score}/{lastScore.total} ({lastScore.percentage}%)</p>}
+                      <div style={{ marginTop: 'auto' }}>
+                        <button style={{ width: '100%', background: buttonColor, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>{buttonText}</button>
                       </div>
-                    )}
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-                    <h3 style={{ color: darkMode ? headingColor : category.color, fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{quiz.title}</h3>
-                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{quiz.description?.substring(0, 80)}...</p>
-                    <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {totalQuestions.toLocaleString()}</p>
-                    {lastScore && <p style={{ fontSize: 13, color: '#ff9800', marginTop: 4 }}>📊 Last Score: {lastScore.score}/{lastScore.total} ({lastScore.percentage}%)</p>}
-                    <div style={{ marginTop: 'auto' }}>
-                      <button style={{ width: '100%', background: buttonColor, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>{buttonText}</button>
                     </div>
-                  </div>
-                </Link>
-              );
-            }
-          })}
-        </div>
+                  </Link>
+                );
+              }
+            })}
+          </div>
+        )}
 
         {mode === 'free' && !currentTopic && (
           <div style={{ textAlign: 'center', marginTop: 20, marginBottom: 40 }}>

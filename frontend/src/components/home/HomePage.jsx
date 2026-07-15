@@ -1,5 +1,5 @@
 // src/components/home/HomePage.jsx
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';   
 import axios from 'axios';                                
 import { AuthContext } from '../../context/AuthContext';
@@ -16,6 +16,9 @@ export const HomePage = () => {
   const secondaryText = getSecondaryText(darkMode);
   const navigate = useNavigate(); 
 
+  // ---- SEARCH STATE ----
+  const [searchTerm, setSearchTerm] = useState('');
+
   // ---- ANNOUNCEMENT BANNER STATE ----
   const [announcement, setAnnouncement] = useState(null);
   const [showBanner, setShowBanner] = useState(false);
@@ -30,7 +33,7 @@ export const HomePage = () => {
     return localStorage.getItem('consentBannerDismissed') || '0';
   });
 
-  // ===== LIMITED TIME OFFER STATE (NEW) =====
+  // ===== LIMITED TIME OFFER STATE =====
   const [offer, setOffer] = useState(null);
   const [showOffer, setShowOffer] = useState(false);
   const [offerDismissed, setOfferDismissed] = useState(false);
@@ -39,6 +42,97 @@ export const HomePage = () => {
   // ---- DYNAMIC CATEGORIES FROM API (with cache) ----
   const [apiCategories, setApiCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  // ---- HELPER FUNCTIONS (MOVED UP to fix the error) ----
+  const getCategoryIcon = (category) => {
+    const icons = {
+      'general-nursing': '🩺',
+      'midwifery': '🤰',
+      'public-health': '🌍',
+      'pediatric-nursing': '👶',
+      'dental-nursing': '🦷'
+    };
+    return icons[category] || '📚';
+  };
+
+  const getCategoryName = (category) => {
+    const names = {
+      'general-nursing': 'General Nursing',
+      'midwifery': 'Midwifery',
+      'public-health': 'Public Health',
+      'pediatric-nursing': 'Pediatric Nursing',
+      'dental-nursing': 'Dental Nursing'
+    };
+    return names[category] || category;
+  };
+
+  // ---- SEARCH RESULTS (grouped by topic, matching CourseList grouping) ----
+  const groupedSearchResults = useMemo(() => {
+    if (!searchTerm.trim()) return null;
+    const term = searchTerm.toLowerCase().trim();
+
+    // First, filter all quizzes that match the search
+    const matchedQuizzes = quizzes.filter(q => {
+      const title = q.title?.toLowerCase() || '';
+      const desc = q.description?.toLowerCase() || '';
+      const topic = q.topic?.toLowerCase() || '';
+      const category = q.category?.toLowerCase() || '';
+      const categoryName = getCategoryName(q.category)?.toLowerCase() || '';
+      return title.includes(term) || desc.includes(term) || topic.includes(term) || 
+             category.includes(term) || categoryName.includes(term);
+    });
+
+    if (matchedQuizzes.length === 0) return [];
+
+    // Group by topic (like CourseList does)
+    const topicMap = new Map();
+    matchedQuizzes.forEach(quiz => {
+      const topic = quiz.topic || 'General';
+      const category = quiz.category || 'general-nursing';
+      const key = `${category}|||${topic}`; // unique key combining category and topic
+      if (!topicMap.has(key)) {
+        topicMap.set(key, {
+          category: category,
+          topic: topic,
+          totalQuestions: 0,
+          matchedCount: 0,
+          quizzes: []
+        });
+      }
+      const entry = topicMap.get(key);
+      entry.totalQuestions += quiz.questions?.length || 0;
+      entry.matchedCount += 1;
+    });
+
+    // Convert to array and compute free/premium exam counts
+    const result = Array.from(topicMap.values()).map(entry => {
+      const totalQuestions = entry.totalQuestions;
+      const freeQuestions = Math.min(20, totalQuestions);
+      const freeExamCount = freeQuestions > 0 ? 1 : 0;
+      const premiumQuestions = totalQuestions - freeQuestions;
+      const premiumExamCount = premiumQuestions > 0 ? Math.ceil(premiumQuestions / 250) : 0;
+      return {
+        ...entry,
+        freeExamCount,
+        freeQuestions,
+        premiumExamCount,
+        totalQuestions
+      };
+    });
+
+    // Sort by category order and then topic name
+    const categoryOrder = ['general-nursing', 'midwifery', 'public-health', 'pediatric-nursing', 'dental-nursing'];
+    result.sort((a, b) => {
+      const indexA = categoryOrder.indexOf(a.category);
+      const indexB = categoryOrder.indexOf(b.category);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a.topic.localeCompare(b.topic);
+    });
+
+    return result;
+  }, [searchTerm, quizzes]);
 
   // ---- FETCH ANNOUNCEMENT ----
   useEffect(() => {
@@ -82,7 +176,7 @@ export const HomePage = () => {
     fetchConsentBanner();
   }, [user?.marketingConsent, consentDismissedVersion]);
 
-  // ===== FETCH LIMITED TIME OFFER (NEW) =====
+  // ===== FETCH LIMITED TIME OFFER =====
   useEffect(() => {
     const fetchOffer = async () => {
       try {
@@ -120,7 +214,7 @@ export const HomePage = () => {
     fetchOffer();
   }, [user?.isPremium]);
 
-  // ===== COUNTDOWN TIMER FOR OFFER (NEW) =====
+  // ===== COUNTDOWN TIMER FOR OFFER =====
   useEffect(() => {
     if (!showOffer || !offer?.endDate) {
       setOfferTimeLeft(null);
@@ -224,7 +318,7 @@ export const HomePage = () => {
         icon: cat.icon || '📚',
         topicCount: topics.size,
         active: true,
-        order: cat.order || 999 // Use the order field from MongoDB
+        order: cat.order || 999
       });
     }
     
@@ -251,7 +345,7 @@ export const HomePage = () => {
           icon: iconMap[slug] || '📚',
           topicCount: topics.size,
           active: true,
-          order: 999 // high order so they appear at the end
+          order: 999
         });
       }
     }
@@ -262,26 +356,89 @@ export const HomePage = () => {
     return result;
   };
 
-  const getCategoryIcon = (category) => {
-    const icons = {
-      'general-nursing': '🩺',
-      'midwifery': '🤰',
-      'public-health': '🌍',
-      'pediatric-nursing': '👶',
-      'dental-nursing': '🦷'
-    };
-    return icons[category] || '📚';
+  // ---- Clear search ----
+  const clearSearch = () => {
+    setSearchTerm('');
   };
 
-  const getCategoryName = (category) => {
-    const names = {
-      'general-nursing': 'General Nursing',
-      'midwifery': 'Midwifery',
-      'public-health': 'Public Health',
-      'pediatric-nursing': 'Pediatric Nursing',
-      'dental-nursing': 'Dental Nursing'
-    };
-    return names[category] || category;
+  // ---- Render search results (grouped by topic) ----
+  const renderSearchResults = () => {
+    if (!groupedSearchResults || groupedSearchResults.length === 0) {
+      return null; // We'll handle the no-results case in the main render
+    }
+
+    return (
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ color: headingColor, fontSize: 20 }}>
+            🔍 Search Results ({groupedSearchResults.length} topics found)
+          </h3>
+          <button
+            onClick={clearSearch}
+            style={{
+              background: 'transparent',
+              color: secondaryText,
+              border: '1px solid ' + secondaryText,
+              padding: '6px 16px',
+              borderRadius: 20,
+              cursor: 'pointer',
+              fontSize: 13
+            }}
+          >
+            ✕ Clear
+          </button>
+        </div>
+
+        {/* Display each topic as a card, exactly like CourseList topic cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
+          {groupedSearchResults.map((item) => {
+            const { category, topic, totalQuestions, freeExamCount, freeQuestions, premiumExamCount } = item;
+            let infoText = '';
+            let premiumTag = null;
+            if (mode === 'free') {
+              const freeQ = freeQuestions > 0 ? freeQuestions : totalQuestions;
+              infoText = `🎯 1 Free Exam (${freeQ} questions)`;
+              if (premiumExamCount > 0) {
+                premiumTag = <p style={{ color: '#ff9800', fontSize: 12, marginTop: 4 }}>⭐ Access more questions in Premium</p>;
+              }
+            } else {
+              const totalExams = premiumExamCount > 0 ? premiumExamCount : 0;
+              infoText = `⭐ ${totalExams} Premium Exam${totalExams > 1 ? 's' : ''} (${totalQuestions} total questions)`;
+            }
+
+            // Build link to topic view
+            const link = `/courses/${category}/${mode}?topic=${encodeURIComponent(topic)}`;
+
+            // Get category icon and name
+            const categoryIcon = getCategoryIcon(category);
+            const categoryDisplayName = getCategoryName(category);
+
+            return (
+              <Link to={link} key={`${category}-${topic}`} style={{ textDecoration: 'none' }}>
+                <div style={{ background: darkMode ? '#16213e' : 'white', padding: 20, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', height: '100%', wordBreak: 'break-word' }}>
+                  {/* Category badge */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <span style={{ fontSize: 16 }}>{categoryIcon}</span>
+                    <span style={{ color: secondaryText, fontSize: 12, fontWeight: '500', background: darkMode ? '#2d2d3d' : '#f0f7f4', padding: '2px 10px', borderRadius: 12 }}>
+                      {categoryDisplayName}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+                  <h3 style={{ color: darkMode ? headingColor : (mode === 'free' ? '#1e3c72' : '#ff9800'), fontSize: 'clamp(16px, 4vw, 18px)', marginBottom: 8 }}>{topic}</h3>
+                  <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{infoText}</p>
+                  {premiumTag && premiumTag}
+                  <div style={{ marginTop: 'auto' }}>
+                    <button style={{ width: '100%', background: mode === 'free' ? '#1e3c72' : '#ff9800', color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                      View Exams →
+                    </button>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   if (loading || categoriesLoading) {
@@ -290,12 +447,76 @@ export const HomePage = () => {
 
   const displayCategories = getCategoriesWithCount();
 
+  // ---- Search button background color based on mode ----
+  const searchButtonBg = mode === 'free' ? '#1e3c72' : '#ff9800';
+
+  // ---- Determine if we have search results to show ----
+  const hasSearchResults = searchTerm && searchTerm.trim() && groupedSearchResults && groupedSearchResults.length > 0;
+
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <h1 style={{ color: headingColor, fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h1>
           <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 16px)' }}>Computer Based Testing Platform</p>
+        </div>
+
+        {/* ---- SEARCH BAR ---- */}
+        <div style={{ marginBottom: 24, maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: darkMode ? '#2d2d3d' : 'white', borderRadius: 50, padding: '4px 4px 4px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}>
+            <span style={{ fontSize: 18, color: '#888' }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Search exams, topics, or categories..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '10px 0',
+                border: 'none',
+                outline: 'none',
+                fontSize: 15,
+                background: 'transparent',
+                color: darkMode ? '#eee' : '#333',
+                minWidth: '100px'
+              }}
+            />
+            {searchTerm && (
+              <button
+                onClick={clearSearch}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 18,
+                  color: '#888',
+                  padding: '4px 8px'
+                }}
+              >
+                ✕
+              </button>
+            )}
+            <button
+              onClick={() => searchTerm && setSearchTerm(searchTerm)}
+              style={{
+                background: searchButtonBg,
+                color: 'white',
+                border: 'none',
+                borderRadius: 50,
+                padding: '8px 20px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                fontSize: 14
+              }}
+            >
+              Search
+            </button>
+          </div>
+          {searchTerm && searchTerm.trim() && (
+            <div style={{ marginTop: 8, textAlign: 'center', fontSize: 13, color: secondaryText }}>
+              {groupedSearchResults ? `${groupedSearchResults.length} topics found` : 'Searching...'}
+            </div>
+          )}
         </div>
 
         {/* ---- ANNOUNCEMENT BANNER ---- */}
@@ -424,7 +645,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ===== LIMITED TIME OFFER BANNER (NEW) ===== */}
+        {/* ===== LIMITED TIME OFFER BANNER ===== */}
         {showOffer && offer && offerTimeLeft && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#fff3e0',
@@ -548,36 +769,67 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ---- DYNAMIC CATEGORIES GRID (sorted by MongoDB 'order' field) ---- */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
-          {displayCategories.map((cat) => (
-            <Link to={`/courses/${cat.slug}/${mode}`} key={cat.slug} style={{ textDecoration: 'none' }}>
-              <div style={{ 
-                background: darkMode ? '#16213e' : 'white', 
-                padding: 24, 
-                borderRadius: 20, 
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)', 
-                textAlign: 'center',
-                transition: 'transform 0.2s',
-                cursor: 'pointer',
-                borderBottom: `4px solid ${mode === 'free' ? '#1e3c72' : '#ff9800'}`
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                <div style={{ fontSize: 56, marginBottom: 12 }}>{cat.icon}</div>
-                <h2 style={{ color: darkMode ? headingColor : (mode === 'free' ? '#1e3c72' : '#ff9800'), fontSize: 'clamp(18px, 4vw, 20px)', marginBottom: 8 }}>{cat.name}</h2>
-                <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 14, marginBottom: 12 }}>{cat.topicCount} courses</p>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <span style={{ background: darkMode ? '#333' : '#e8f5e9', color: headingColor, padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 Free Exam 1</span>
-                  <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ Premium</span>
-                </div>
-                <button style={{ marginTop: 16, background: mode === 'free' ? '#1e3c72' : '#ff9800', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%' }}>
-                  Explore Courses →
+        {/* ===== MAIN CONTENT: Search Results OR Categories Grid ===== */}
+        {hasSearchResults ? (
+          // Show search results (only if there are results)
+          renderSearchResults()
+        ) : (
+          // Always show categories grid, and if search term exists but no results, show a message above it
+          <>
+            {searchTerm && searchTerm.trim() && (!groupedSearchResults || groupedSearchResults.length === 0) && (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: secondaryText }}>
+                <p style={{ fontSize: 18 }}>🔍 No topics found for "<strong>{searchTerm}</strong>"</p>
+                <p style={{ fontSize: 14, marginTop: 8 }}>Try a different keyword or browse the categories below.</p>
+                <button 
+                  onClick={clearSearch} 
+                  style={{ 
+                    marginTop: 12, 
+                    padding: '8px 24px', 
+                    background: searchButtonBg,  // ← now respects mode
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: 30, 
+                    cursor: 'pointer', 
+                    fontWeight: 'bold' 
+                  }}
+                >
+                  Clear Search
                 </button>
               </div>
-            </Link>
-          ))}
-        </div>
+            )}
+
+            {/* Category grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
+              {displayCategories.map((cat) => (
+                <Link to={`/courses/${cat.slug}/${mode}`} key={cat.slug} style={{ textDecoration: 'none' }}>
+                  <div style={{ 
+                    background: darkMode ? '#16213e' : 'white', 
+                    padding: 24, 
+                    borderRadius: 20, 
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)', 
+                    textAlign: 'center',
+                    transition: 'transform 0.2s',
+                    cursor: 'pointer',
+                    borderBottom: `4px solid ${mode === 'free' ? '#1e3c72' : '#ff9800'}`
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                    <div style={{ fontSize: 56, marginBottom: 12 }}>{cat.icon}</div>
+                    <h2 style={{ color: darkMode ? headingColor : (mode === 'free' ? '#1e3c72' : '#ff9800'), fontSize: 'clamp(18px, 4vw, 20px)', marginBottom: 8 }}>{cat.name}</h2>
+                    <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 14, marginBottom: 12 }}>{cat.topicCount} courses</p>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <span style={{ background: darkMode ? '#333' : '#e8f5e9', color: headingColor, padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>🎯 Free Exam 1</span>
+                      <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ Premium</span>
+                    </div>
+                    <button style={{ marginTop: 16, background: mode === 'free' ? '#1e3c72' : '#ff9800', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%' }}>
+                      Explore Courses →
+                    </button>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </>
+        )}
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
