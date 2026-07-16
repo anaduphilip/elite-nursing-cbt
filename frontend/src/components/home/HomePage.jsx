@@ -6,6 +6,8 @@ import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { ProgressSnapshot } from './ProgressSnapshot';
+// ===== NEW IMPORT: for preloading categories =====
+import { getCachedCategories, getCachedQuizzes } from '../../utils/quizHelpers';
 
 export const HomePage = () => {
   const [loading, setLoading] = useState(false);
@@ -176,6 +178,25 @@ export const HomePage = () => {
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [showOffer, offer?.endDate]);
+
+  // ===== PRELOAD CATEGORIES & QUIZZES (NEW) =====
+  // This runs once when the user is authenticated, caching data
+  // so that FreeModeCategories and PremiumModeCategories load instantly.
+  useEffect(() => {
+    if (!token) return;
+    const preloadData = async () => {
+      try {
+        await Promise.all([
+          getCachedCategories(),
+          getCachedQuizzes(token)
+        ]);
+        console.log('📚 Preloaded categories and quizzes');
+      } catch (error) {
+        console.error('Failed to preload data:', error);
+      }
+    };
+    preloadData();
+  }, [token]);
 
   if (loading || configLoading) {
     return <LoadingWithBar message="Loading..." />;
