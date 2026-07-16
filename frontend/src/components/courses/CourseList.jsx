@@ -401,12 +401,17 @@ export const CourseList = () => {
         </div>
       </div>
 
+      {/* ===== FIXED: BACK TO CATEGORIES BUTTON ===== */}
       <button
         onClick={() => {
           if (currentTopic) {
+            // If viewing a topic, go back to the category list for this mode
             navigate(`/courses/${categoryName}/${mode}`, { replace: true });
           } else {
-            navigate(`/?mode=${mode}`, { replace: true });
+            // If viewing category list, go back to the mode page
+            // FIXED: Go to /free-mode or /premium-mode instead of home page
+            const modePage = mode === 'free' ? '/free-mode' : '/premium-mode';
+            navigate(modePage, { replace: true });
           }
         }}
         style={{
