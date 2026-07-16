@@ -25,7 +25,8 @@ export const HomePage = () => {
     showPremiumMode: true,
     showStudyMode: true,
     showProgressSnapshot: true,
-    showDownloadApp: true
+    showDownloadApp: true,
+    showWeeklyQuiz: true      // ← NEW: Weekly Quiz toggle
   });
   const [configLoading, setConfigLoading] = useState(true);
 
@@ -60,7 +61,8 @@ export const HomePage = () => {
             showPremiumMode: res.data.config.showPremiumMode !== undefined ? res.data.config.showPremiumMode : true,
             showStudyMode: res.data.config.showStudyMode !== undefined ? res.data.config.showStudyMode : true,
             showProgressSnapshot: res.data.config.showProgressSnapshot !== undefined ? res.data.config.showProgressSnapshot : true,
-            showDownloadApp: res.data.config.showDownloadApp !== undefined ? res.data.config.showDownloadApp : true
+            showDownloadApp: res.data.config.showDownloadApp !== undefined ? res.data.config.showDownloadApp : true,
+            showWeeklyQuiz: res.data.config.showWeeklyQuiz !== undefined ? res.data.config.showWeeklyQuiz : true   // ← NEW
           });
         }
       } catch (error) {
@@ -251,6 +253,19 @@ export const HomePage = () => {
           style={buttonStyle}
         >
           📖 STUDY MODE
+        </button>
+      );
+    }
+
+    // ===== NEW: Weekly Quiz Button =====
+    if (config.showWeeklyQuiz) {
+      buttons.push(
+        <button
+          key="weekly"
+          onClick={() => navigate('/weekly-quiz')}
+          style={buttonStyle}
+        >
+          📅 WEEKLY QUIZ
         </button>
       );
     }
