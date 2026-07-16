@@ -1,6 +1,6 @@
 // src/components/premium/GetPremium.jsx
 import React, { useState, useEffect, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; 
 import axios from 'axios';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
@@ -14,6 +14,8 @@ export const GetPremium = () => {
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
+  const navigate = useNavigate();
+
   const [loading, setLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [timeLeft, setTimeLeft] = useState(null);
@@ -351,9 +353,25 @@ export const GetPremium = () => {
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: headingColor, textDecoration: 'none', fontWeight: 'bold', textAlign: 'left' }}>
-          ← Back to Profile
-        </Link>
+        {/* ===== DYNAMIC BACK BUTTON ===== */}
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            display: 'inline-block',
+            marginBottom: 16,
+            color: headingColor,
+            textDecoration: 'none',
+            fontWeight: 'bold',
+            textAlign: 'left',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: 'inherit',
+            padding: 0
+          }}
+        >
+          ← Back
+        </button>
 
         {/* ===== LIMITED TIME OFFER BANNER ===== */}
         {showOffer && offer && offerTimeLeft && (

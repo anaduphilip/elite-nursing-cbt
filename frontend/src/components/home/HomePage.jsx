@@ -6,7 +6,6 @@ import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { ProgressSnapshot } from './ProgressSnapshot';
-// ===== NEW IMPORT: for preloading categories =====
 import { getCachedCategories, getCachedQuizzes } from '../../utils/quizHelpers';
 
 export const HomePage = () => {
@@ -26,7 +25,8 @@ export const HomePage = () => {
     showStudyMode: true,
     showProgressSnapshot: true,
     showDownloadApp: true,
-    showWeeklyQuiz: true      // ← NEW: Weekly Quiz toggle
+    showWeeklyQuiz: true,
+    showGetPremium: true      // ← NEW: Get Premium toggle
   });
   const [configLoading, setConfigLoading] = useState(true);
 
@@ -62,7 +62,8 @@ export const HomePage = () => {
             showStudyMode: res.data.config.showStudyMode !== undefined ? res.data.config.showStudyMode : true,
             showProgressSnapshot: res.data.config.showProgressSnapshot !== undefined ? res.data.config.showProgressSnapshot : true,
             showDownloadApp: res.data.config.showDownloadApp !== undefined ? res.data.config.showDownloadApp : true,
-            showWeeklyQuiz: res.data.config.showWeeklyQuiz !== undefined ? res.data.config.showWeeklyQuiz : true   // ← NEW
+            showWeeklyQuiz: res.data.config.showWeeklyQuiz !== undefined ? res.data.config.showWeeklyQuiz : true,
+            showGetPremium: res.data.config.showGetPremium !== undefined ? res.data.config.showGetPremium : true   // ← NEW
           });
         }
       } catch (error) {
@@ -181,9 +182,7 @@ export const HomePage = () => {
     return () => clearInterval(interval);
   }, [showOffer, offer?.endDate]);
 
-  // ===== PRELOAD CATEGORIES & QUIZZES (NEW) =====
-  // This runs once when the user is authenticated, caching data
-  // so that FreeModeCategories and PremiumModeCategories load instantly.
+  // ===== PRELOAD CATEGORIES & QUIZZES =====
   useEffect(() => {
     if (!token) return;
     const preloadData = async () => {
@@ -204,12 +203,27 @@ export const HomePage = () => {
     return <LoadingWithBar message="Loading..." />;
   }
 
+  const isUserPremium = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
+
   // ---- UNIFORM BUTTON STYLE ----
   const buttonStyle = {
     padding: '12px 32px',
     fontSize: 'clamp(16px, 4vw, 18px)',
     fontWeight: 'bold',
     background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '50px',
+    cursor: 'pointer',
+    minWidth: '200px'
+  };
+
+  // ---- GET PREMIUM BUTTON STYLE (gold/orange) ----
+  const premiumButtonStyle = {
+    padding: '12px 32px',
+    fontSize: 'clamp(16px, 4vw, 18px)',
+    fontWeight: 'bold',
+    background: 'linear-gradient(135deg, #ff9800 0%, #e65100 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '50px',
@@ -257,7 +271,6 @@ export const HomePage = () => {
       );
     }
 
-    // ===== NEW: Weekly Quiz Button =====
     if (config.showWeeklyQuiz) {
       buttons.push(
         <button
@@ -266,6 +279,19 @@ export const HomePage = () => {
           style={buttonStyle}
         >
           📅 WEEKLY QUIZ
+        </button>
+      );
+    }
+
+    // ===== NEW: Get Premium Button =====
+    if (config.showGetPremium) {
+      buttons.push(
+        <button
+          key="get-premium"
+          onClick={() => navigate('/get-premium')}
+          style={premiumButtonStyle}
+        >
+          {isUserPremium ? '⭐ PREMIUM ACTIVE' : '⭐ GET PREMIUM'}
         </button>
       );
     }

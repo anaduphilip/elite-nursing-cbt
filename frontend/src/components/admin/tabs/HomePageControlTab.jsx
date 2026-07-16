@@ -11,7 +11,8 @@ export const HomePageControlTab = ({ token, config, setConfig, darkMode, heading
     showStudyMode: true,
     showProgressSnapshot: true,
     showDownloadApp: true,
-    showWeeklyQuiz: true      // ← NEW: Weekly Quiz toggle
+    showWeeklyQuiz: true,
+    showGetPremium: true      // ← NEW: Get Premium toggle
   });
 
   useEffect(() => {
@@ -22,7 +23,8 @@ export const HomePageControlTab = ({ token, config, setConfig, darkMode, heading
         showStudyMode: config.showStudyMode !== undefined ? config.showStudyMode : true,
         showProgressSnapshot: config.showProgressSnapshot !== undefined ? config.showProgressSnapshot : true,
         showDownloadApp: config.showDownloadApp !== undefined ? config.showDownloadApp : true,
-        showWeeklyQuiz: config.showWeeklyQuiz !== undefined ? config.showWeeklyQuiz : true   // ← NEW
+        showWeeklyQuiz: config.showWeeklyQuiz !== undefined ? config.showWeeklyQuiz : true,
+        showGetPremium: config.showGetPremium !== undefined ? config.showGetPremium : true   // ← NEW
       });
     }
   }, [config]);
@@ -126,11 +128,16 @@ export const HomePageControlTab = ({ token, config, setConfig, darkMode, heading
           field="showStudyMode"
           description="Show the Study Mode button on the home page"
         />
-        {/* ===== NEW Toggle Row ===== */}
         <ToggleRow
           label="📅 Weekly Quiz"
           field="showWeeklyQuiz"
           description="Show the Weekly Quiz button on the home page"
+        />
+        {/* ===== NEW Toggle Row ===== */}
+        <ToggleRow
+          label="⭐ Get Premium"
+          field="showGetPremium"
+          description="Show the Get Premium button on the home page"
         />
         <ToggleRow
           label="📊 Progress Snapshot"
