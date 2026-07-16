@@ -1,13 +1,14 @@
 // src/components/admin/tabs/StudyNotesTab.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, textColor, cardBg }) => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
 
-  // Form states
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
@@ -17,6 +18,23 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
   const [isPremium, setIsPremium] = useState(false);
   const [active, setActive] = useState(true);
   const [editingId, setEditingId] = useState(null);
+
+  const quillModules = {
+    toolbar: [
+      [{ header: [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      [{ align: [] }],
+      ['blockquote', 'code-block'],
+      ['link'],
+      ['clean']
+    ]
+  };
+
+  const quillFormats = [
+    'header', 'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet', 'align', 'blockquote', 'code-block', 'link'
+  ];
 
   const fetchNotes = async () => {
     setLoading(true);
@@ -61,7 +79,7 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
       const payload = {
         title: title.trim(),
         description: description.trim(),
-        content: content.trim(),
+        content: content,
         category: category.trim() || 'General',
         estimatedReadTime: estimatedReadTime ? parseInt(estimatedReadTime) : 5,
         order: order || 0,
@@ -140,9 +158,64 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
 
   return (
     <div>
+      <style>{`
+        .quill {
+          background: ${darkMode ? '#2d2d3d' : 'white'};
+          border-radius: 8px;
+        }
+        .ql-editor {
+          background: ${darkMode ? '#2d2d3d' : 'white'};
+          color: ${darkMode ? '#eee' : '#333'};
+          min-height: 200px;
+          font-size: 14px;
+          line-height: 1.8;
+        }
+        .ql-editor p,
+        .ql-editor h1,
+        .ql-editor h2,
+        .ql-editor h3,
+        .ql-editor ul,
+        .ql-editor ol,
+        .ql-editor li,
+        .ql-editor blockquote {
+          color: ${darkMode ? '#eee' : '#333'} !important;
+        }
+        .ql-toolbar {
+          background: ${darkMode ? '#1a1a2e' : '#f8f9fa'};
+          border-color: ${darkMode ? '#444' : '#ccc'} !important;
+          border-top-left-radius: 8px;
+          border-top-right-radius: 8px;
+        }
+        .ql-container {
+          border-bottom-left-radius: 8px;
+          border-bottom-right-radius: 8px;
+          border-color: ${darkMode ? '#444' : '#ccc'} !important;
+        }
+        .ql-toolbar button {
+          color: ${darkMode ? '#eee' : '#333'} !important;
+        }
+        .ql-toolbar .ql-fill {
+          fill: ${darkMode ? '#eee' : '#333'} !important;
+        }
+        .ql-toolbar .ql-stroke {
+          stroke: ${darkMode ? '#eee' : '#333'} !important;
+        }
+        .ql-toolbar .ql-picker-label {
+          color: ${darkMode ? '#eee' : '#333'} !important;
+        }
+        .ql-toolbar .ql-picker-options {
+          background: ${darkMode ? '#2d2d3d' : 'white'} !important;
+          color: ${darkMode ? '#eee' : '#333'} !important;
+        }
+        .ql-snow .ql-picker.ql-header .ql-picker-label::before,
+        .ql-snow .ql-picker.ql-header .ql-picker-item::before {
+          color: ${darkMode ? '#eee' : '#333'} !important;
+        }
+      `}</style>
+
       <h3 style={{ color: headingColor, marginBottom: 20 }}>📖 Study Notes</h3>
       <p style={{ color: secondaryText, marginBottom: 16 }}>
-        Manage study notes that users can read in Study Mode. Notes with Premium flag are only visible to premium users.
+        Manage study notes. Use the rich text editor to format content with headings, lists, and alignment.
       </p>
 
       {result && (
@@ -183,7 +256,7 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
             <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Category</label>
             <input
               type="text"
-              placeholder="e.g., Fundamentals, Pharmacology"
+              placeholder="e.g., Pharmacology, Fundamentals"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#2d2d3d' : 'white', color: darkMode ? '#eee' : '#333', boxSizing: 'border-box' }}
@@ -195,7 +268,7 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
           <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Description</label>
           <input
             type="text"
-            placeholder="Brief description of the note"
+            placeholder="Brief description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#2d2d3d' : 'white', color: darkMode ? '#eee' : '#333', boxSizing: 'border-box' }}
@@ -204,13 +277,17 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Content *</label>
-          <textarea
-            placeholder="Full note content. Users will read this in Study Mode."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows="6"
-            style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#2d2d3d' : 'white', color: darkMode ? '#eee' : '#333', resize: 'vertical', boxSizing: 'border-box' }}
-          />
+          <div style={{ background: darkMode ? '#2d2d3d' : 'white', borderRadius: 8, border: `1px solid ${darkMode ? '#444' : '#ccc'}` }}>
+            <ReactQuill
+              theme="snow"
+              value={content}
+              onChange={setContent}
+              modules={quillModules}
+              formats={quillFormats}
+              style={{ minHeight: 200 }}
+              placeholder="Write your note content here..."
+            />
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -237,19 +314,11 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingTop: 20 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 'bold', color: textColor, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={isPremium}
-                onChange={(e) => setIsPremium(e.target.checked)}
-              />
+              <input type="checkbox" checked={isPremium} onChange={(e) => setIsPremium(e.target.checked)} />
               ⭐ Premium
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 'bold', color: textColor, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={active}
-                onChange={(e) => setActive(e.target.checked)}
-              />
+              <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
               Active
             </label>
           </div>
@@ -310,9 +379,7 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <h4 style={{ color: headingColor, margin: 0, fontSize: 16 }}>{note.title}</h4>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  {note.isPremium && (
-                    <span style={{ background: '#ff9800', color: 'white', padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 'bold' }}>⭐</span>
-                  )}
+                  {note.isPremium && <span style={{ background: '#ff9800', color: 'white', padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 'bold' }}>⭐</span>}
                   <span style={{
                     background: note.active ? '#4caf50' : '#dc3545',
                     color: 'white',
@@ -330,32 +397,19 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
                 📂 {note.category || 'General'} • ⏱️ {note.estimatedReadTime || 5} min • 📊 {note.order || 0}
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => handleEdit(note)}
-                  style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleToggleActive(note._id, note.active)}
-                  style={{
-                    background: note.active ? '#dc3545' : '#28a745',
-                    color: 'white',
-                    padding: '4px 12px',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                    fontSize: 12
-                  }}
-                >
+                <button onClick={() => handleEdit(note)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                <button onClick={() => handleToggleActive(note._id, note.active)} style={{
+                  background: note.active ? '#dc3545' : '#28a745',
+                  color: 'white',
+                  padding: '4px 12px',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontSize: 12
+                }}>
                   {note.active ? 'Deactivate' : 'Activate'}
                 </button>
-                <button
-                  onClick={() => handleDelete(note._id)}
-                  style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}
-                >
-                  Delete
-                </button>
+                <button onClick={() => handleDelete(note._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
               </div>
             </div>
           ))}
