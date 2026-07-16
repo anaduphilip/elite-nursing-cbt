@@ -162,7 +162,9 @@ const UserSchema = new mongoose.Schema({
     completed: { type: Boolean, default: false },
     score: { type: Number, default: null },
     total: { type: Number, default: 0 }
-  }
+  },
+  // ============ STUDY NOTES TRACKING ============
+  readStudyNotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'StudyNote' }]
 });
 
 // Quiz Schema
@@ -272,7 +274,7 @@ const ConfigSchema = new mongoose.Schema({
   showLeaderboard: { type: Boolean, default: true },
   updatedAt: { type: Date, default: Date.now },
   
-  // ===== LIMITED TIME OFFER (NEW) =====
+  // ===== LIMITED TIME OFFER =====
   limitedOffer: {
     enabled: { type: Boolean, default: false },
     discountPercent: { type: Number, default: 0 },
@@ -282,7 +284,14 @@ const ConfigSchema = new mongoose.Schema({
     buttonText: { type: String, default: 'Get Premium Now' },
     buttonLink: { type: String, default: '/get-premium' },
     targetAudience: { type: String, enum: ['all', 'free', 'premium'], default: 'free' }
-  }
+  },
+
+  // ===== HOME PAGE VISIBILITY TOGGLES (NEW) =====
+  showFreeMode: { type: Boolean, default: true },
+  showPremiumMode: { type: Boolean, default: true },
+  showStudyMode: { type: Boolean, default: true },
+  showProgressSnapshot: { type: Boolean, default: true },
+  showDownloadApp: { type: Boolean, default: true }
 });
 
 const Config = mongoose.model('Config', ConfigSchema);
@@ -329,6 +338,22 @@ const FAQSchema = new mongoose.Schema({
 });
 
 const FAQ = mongoose.model('FAQ', FAQSchema);
+
+// ============ STUDY NOTES SCHEMA (NEW) ============
+const StudyNoteSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, default: '' },
+  content: { type: String, required: true },
+  category: { type: String, default: 'General' },
+  order: { type: Number, default: 0 },
+  active: { type: Boolean, default: true },
+  isPremium: { type: Boolean, default: false },
+  estimatedReadTime: { type: Number, default: 5 }, // minutes
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const StudyNote = mongoose.model('StudyNote', StudyNoteSchema);
 
 // ============ END NEW SCHEMAS ============
 
@@ -2420,7 +2445,13 @@ app.get('/api/config', async (req, res) => {
           buttonLink: offer.buttonLink || '/get-premium',
           targetAudience: offer.targetAudience || 'free',
           isActive: isOfferActive
-        }
+        },
+        // ===== HOME PAGE VISIBILITY TOGGLES =====
+        showFreeMode: config.showFreeMode !== undefined ? config.showFreeMode : true,
+        showPremiumMode: config.showPremiumMode !== undefined ? config.showPremiumMode : true,
+        showStudyMode: config.showStudyMode !== undefined ? config.showStudyMode : true,
+        showProgressSnapshot: config.showProgressSnapshot !== undefined ? config.showProgressSnapshot : true,
+        showDownloadApp: config.showDownloadApp !== undefined ? config.showDownloadApp : true
       }
     });
   } catch (error) {
@@ -2455,7 +2486,10 @@ app.put('/api/admin/config', isAdmin, async (req, res) => {
       'premiumDailyPrice', 'premiumMonthlyPrice', 'premiumYearlyPrice',
       'freeExamLimit', 'defaultPassingScore', 'maintenanceMode',
       'maintenanceMessage', 'appName', 'appLogo', 'contactEmail',
-      'contactPhone', 'defaultTimeLimit', 'showWeeklyQuiz', 'showLeaderboard'
+      'contactPhone', 'defaultTimeLimit', 'showWeeklyQuiz', 'showLeaderboard',
+      // ===== HOME PAGE VISIBILITY TOGGLES =====
+      'showFreeMode', 'showPremiumMode', 'showStudyMode',
+      'showProgressSnapshot', 'showDownloadApp'
     ];
 
     for (const field of allowedFields) {
@@ -2900,7 +2934,200 @@ app.get('/api/admin/dashboard', isAdmin, async (req, res) => {
 });
 
 // =============================================
-// ============ END NEW ROUTES =================
+// ============ STUDY NOTES ROUTES (NEW) =======
+// =============================================
+
+// Get active study notes (public – for users)
+app.get('/api/study-notes', authenticate, async (req, res) => {
+  try {
+    const query = { active: true };
+    const user = req.user;
+    
+    let notes = await StudyNote.find(query).sort({ order: 1, createdAt: -1 });
+    
+    // Filter premium notes based on user's premium status
+    if (!user.isPremium) {
+      notes = notes.filter(note => !note.isPremium);
+    }
+    
+    // Add isRead status for each note
+    const readIds = user.readStudyNotes.map(id => id.toString());
+    const notesWithReadStatus = notes.map(note => ({
+      ...note.toObject(),
+      isRead: readIds.includes(note._id.toString())
+    }));
+    
+    res.json({ success: true, notes: notesWithReadStatus });
+  } catch (error) {
+    console.error('Fetch study notes error:', error);
+    res.status(500).json({ error: 'Failed to fetch study notes' });
+  }
+});
+
+// Mark a study note as read
+app.post('/api/study-notes/:noteId/read', authenticate, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const user = req.user;
+    
+    const note = await StudyNote.findById(noteId);
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    if (!user.readStudyNotes) {
+      user.readStudyNotes = [];
+    }
+    
+    if (!user.readStudyNotes.includes(noteId)) {
+      user.readStudyNotes.push(noteId);
+      await user.save();
+    }
+    
+    res.json({ success: true, message: 'Note marked as read' });
+  } catch (error) {
+    console.error('Mark note as read error:', error);
+    res.status(500).json({ error: 'Failed to mark note as read' });
+  }
+});
+
+// Ask AI about a study note
+app.post('/api/study-notes/:noteId/ask', authenticate, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const { question } = req.body;
+    
+    if (!question || question.trim().length === 0) {
+      return res.status(400).json({ error: 'Question is required' });
+    }
+    
+    const note = await StudyNote.findById(noteId);
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    // Check if user has access (premium check for premium notes)
+    if (note.isPremium && !req.user.isPremium) {
+      return res.status(403).json({ error: 'This note is premium content. Upgrade to access.' });
+    }
+    
+    // Build prompt with note content and question
+    const prompt = `You are a helpful nursing educator. A user has read the following study note and has a question about it.
+
+STUDY NOTE:
+Title: ${note.title}
+Category: ${note.category}
+Content:
+${note.content}
+
+USER'S QUESTION:
+${question}
+
+Please provide a clear, educational answer that helps the user understand the topic better. If the question is not directly covered in the note, use your nursing knowledge to provide the best possible answer.`;
+
+    const response = await aiClient.chat.completions.create({
+      model: 'gemini-2.0-flash',
+      messages: [
+        { role: 'system', content: 'You are a helpful nursing educator. Provide clear, accurate, and educational answers.' },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 500,
+      temperature: 0.7
+    });
+    
+    const answer = response.choices[0].message.content;
+    
+    res.json({ success: true, answer });
+  } catch (error) {
+    console.error('Study note AI error:', error);
+    res.status(500).json({ error: 'Failed to get AI response. Please try again.' });
+  }
+});
+
+// ============ ADMIN STUDY NOTES ROUTES ============
+
+// Admin: Get all study notes
+app.get('/api/admin/study-notes', isAdmin, async (req, res) => {
+  try {
+    const notes = await StudyNote.find().sort({ order: 1, createdAt: -1 });
+    res.json({ success: true, notes });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch study notes' });
+  }
+});
+
+// Admin: Create study note
+app.post('/api/admin/study-notes', isAdmin, async (req, res) => {
+  try {
+    const { title, description, content, category, order, active, isPremium, estimatedReadTime } = req.body;
+    
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Title and content are required' });
+    }
+    
+    const note = new StudyNote({
+      title,
+      description: description || '',
+      content,
+      category: category || 'General',
+      order: order || 0,
+      active: active !== undefined ? active : true,
+      isPremium: isPremium || false,
+      estimatedReadTime: estimatedReadTime || 5
+    });
+    
+    await note.save();
+    res.json({ success: true, note });
+  } catch (error) {
+    console.error('Create study note error:', error);
+    res.status(500).json({ error: 'Failed to create study note' });
+  }
+});
+
+// Admin: Update study note
+app.put('/api/admin/study-notes/:id', isAdmin, async (req, res) => {
+  try {
+    const { title, description, content, category, order, active, isPremium, estimatedReadTime } = req.body;
+    
+    const note = await StudyNote.findById(req.params.id);
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    if (title) note.title = title;
+    if (description !== undefined) note.description = description;
+    if (content) note.content = content;
+    if (category) note.category = category;
+    if (order !== undefined) note.order = order;
+    if (active !== undefined) note.active = active;
+    if (isPremium !== undefined) note.isPremium = isPremium;
+    if (estimatedReadTime !== undefined) note.estimatedReadTime = estimatedReadTime;
+    note.updatedAt = new Date();
+    
+    await note.save();
+    res.json({ success: true, note });
+  } catch (error) {
+    console.error('Update study note error:', error);
+    res.status(500).json({ error: 'Failed to update study note' });
+  }
+});
+
+// Admin: Delete study note
+app.delete('/api/admin/study-notes/:id', isAdmin, async (req, res) => {
+  try {
+    const note = await StudyNote.findByIdAndDelete(req.params.id);
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    res.json({ success: true, message: 'Note deleted' });
+  } catch (error) {
+    console.error('Delete study note error:', error);
+    res.status(500).json({ error: 'Failed to delete study note' });
+  }
+});
+
+// =============================================
+// ============ END STUDY NOTES ROUTES =========
 // =============================================
 
 // ============ CRON JOB FOR PREMIUM REMINDERS ============

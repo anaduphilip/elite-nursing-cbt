@@ -24,6 +24,9 @@ import { CategoryManagerTab } from './tabs/CategoryManagerTab';
 import { FaqTab } from './tabs/FaqTab';
 import { WeeklyQuizTab } from './tabs/WeeklyQuizTab';
 import { LimitedOfferTab } from './tabs/LimitedOfferTab';
+// ===== NEW TABS =====
+import { StudyNotesTab } from './tabs/StudyNotesTab';
+import { HomePageControlTab } from './tabs/HomePageControlTab';
 
 // Import modal components
 import { QuestionModal } from './components/QuestionModal';
@@ -1730,7 +1733,9 @@ useEffect(() => {
             <button onClick={() => setActiveTab('categoryManager')} style={{ background: activeTab === 'categoryManager' ? '#2E7D64' : 'transparent', color: activeTab === 'categoryManager' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'categoryManager' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📂 Category Question Manager</button>
             <button onClick={() => setActiveTab('faq')} style={{ background: activeTab === 'faq' ? '#1e3c72' : 'transparent', color: activeTab === 'faq' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'faq' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> FAQ Tab</button>
             <button onClick={() => setActiveTab('weeklyQuiz')} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
-            {/* ===== NEW TAB ===== */}
+            {/* ===== NEW TABS ===== */}
+            <button onClick={() => setActiveTab('studyNotes')} style={{ background: activeTab === 'studyNotes' ? '#2E7D64' : 'transparent', color: activeTab === 'studyNotes' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'studyNotes' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📖 Study Notes</button>
+            <button onClick={() => setActiveTab('homePageControl')} style={{ background: activeTab === 'homePageControl' ? '#1e3c72' : 'transparent', color: activeTab === 'homePageControl' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'homePageControl' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏠 Home Page Control</button>
             <button onClick={() => setActiveTab('limitedOffer')} style={{ background: activeTab === 'limitedOffer' ? '#ff9800' : 'transparent', color: activeTab === 'limitedOffer' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'limitedOffer' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🔥 Limited Offer</button>
           </div>
 
@@ -1790,7 +1795,9 @@ useEffect(() => {
           }} />}
           {activeTab === 'faq' && <FaqTab {...{ faqs, faqLoading, faqQuestion, setFaqQuestion, faqAnswer, setFaqAnswer, faqCategory, setFaqCategory, faqOrder, setFaqOrder, faqActive, setFaqActive, editingFaqId, faqResult, handleSaveFaq, handleDeleteFaq, editFaq, ...commonProps }} />}
           {activeTab === 'weeklyQuiz' && <WeeklyQuizTab {...{ weeklyQuizzes, loadingQuizzes, quizTitle, setQuizTitle, quizDescription, setQuizDescription, quizInstructions, setQuizInstructions, quizWeekNumber, setQuizWeekNumber, quizQuestions, quizPassingScore, setQuizPassingScore, quizTimeLimit, setQuizTimeLimit, quizStartDate, setQuizStartDate, quizEndDate, setQuizEndDate, quizIsPremium, setQuizIsPremium, editingQuizId, showQuizForm, setShowQuizForm, qText, setQText, qOptions, setQOptions, qCorrect, setQCorrect, editingQuestionIndex, batchInput, setBatchInput, selectedQuizResults, showResults, setShowResults, handleAddQuestion, handleBatchImport, handleEditQuestion, handleDeleteQuestion, handleSaveQuiz, handlePublishQuiz, handleTogglePublish, handleTogglePremium, handleDeleteQuiz, handleViewResults, editQuiz, resetQuizForm, fetchWeeklyQuizzes, setActiveTab, ...commonProps }} />}
-          {/* ===== NEW TAB ===== */}
+          {/* ===== NEW TABS ===== */}
+          {activeTab === 'studyNotes' && <StudyNotesTab {...commonProps} />}
+          {activeTab === 'homePageControl' && <HomePageControlTab {...{ config, setConfig, ...commonProps }} />}
           {activeTab === 'limitedOffer' && <LimitedOfferTab {...{ 
             limitedOffer, 
             setLimitedOffer, 

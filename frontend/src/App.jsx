@@ -17,6 +17,9 @@ import { Login } from './components/auth/Login';
 import { Register } from './components/auth/Register';
 import { ForgotPassword } from './components/auth/ForgotPassword';
 import { HomePage } from './components/home/HomePage';
+import { FreeModeCategories } from './components/home/FreeModeCategories';
+import { PremiumModeCategories } from './components/home/PremiumModeCategories';
+import { StudyMode } from './components/home/StudyMode'; // ← NEW
 import { CourseList } from './components/courses/CourseList';
 import { ExamList } from './components/exams/ExamList';
 import { TakeExam } from './components/exams/TakeExam';
@@ -52,7 +55,6 @@ const getSecondaryTextHelper = (darkMode) => darkMode ? '#aaa' : '#666';
 const getHeadingColorHelper = (darkMode) => darkMode ? '#e0e0e0' : '#1e3c72';
 const getBorderColorHelper = (darkMode) => darkMode ? '#444' : '#e0e0e0';
 const getCardBgHelper = (darkMode) => darkMode ? '#2d2d3d' : 'white';
-
 
 // Main App Content
 const AppContent = () => {
@@ -105,6 +107,9 @@ const AppContent = () => {
       </nav>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/free-mode" element={<FreeModeCategories />} />
+        <Route path="/premium-mode" element={<PremiumModeCategories />} />
+        <Route path="/study-mode" element={<StudyMode />} /> {/* ← NEW */}
         <Route path="/courses/:categoryName/:mode" element={<CourseList />} />
         <Route path="/exams/:id/:mode" element={<ExamList />} />
         <Route path="/take/:id/:sectionNumber/:mode" element={<TakeExam />} />
