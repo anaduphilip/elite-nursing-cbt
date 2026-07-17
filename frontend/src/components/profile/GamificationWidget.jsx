@@ -1,4 +1,4 @@
-// src/components/home/GamificationWidget.jsx
+// src/components/profile/GamificationWidget.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
@@ -11,7 +11,7 @@ export const GamificationWidget = () => {
   const [loading, setLoading] = useState(true);
   const [streak, setStreak] = useState(0);
   const [latestBadge, setLatestBadge] = useState(null);
-  const [totalBadges, setTotalBadges] = useState(0);
+  const [earnedBadgeCount, setEarnedBadgeCount] = useState(0);
 
   useEffect(() => {
     const fetchGamification = async () => {
@@ -21,8 +21,21 @@ export const GamificationWidget = () => {
         });
         if (res.data.success) {
           setStreak(res.data.streak || 0);
-          setLatestBadge(res.data.latestBadge || null);
-          setTotalBadges(res.data.totalBadges || 0);
+          
+          // ✅ CORRECT: Count earned badges from the badges array
+          const earned = res.data.badges?.filter(b => b.isEarned) || [];
+          setEarnedBadgeCount(earned.length);
+          
+          // ✅ CORRECT: Latest badge is the most recently earned one
+          if (earned.length > 0) {
+            // Sort by earnedAt (if available) and get the latest
+            const sorted = [...earned].sort((a, b) => {
+              return new Date(b.earnedAt || 0) - new Date(a.earnedAt || 0);
+            });
+            setLatestBadge(sorted[0]);
+          } else {
+            setLatestBadge(null);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch gamification data:', error);
@@ -67,13 +80,13 @@ export const GamificationWidget = () => {
           </div>
         </div>
 
-        {/* Total Badges Count */}
+        {/* Earned Badges Count */}
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 32, fontWeight: 'bold', color: headingColor }}>
-            {totalBadges}
+            {earnedBadgeCount}
           </div>
           <div style={{ fontSize: 12, color: secondaryText }}>
-            badge{totalBadges !== 1 ? 's' : ''} earned
+            badge{earnedBadgeCount !== 1 ? 's' : ''} earned
           </div>
         </div>
       </div>
