@@ -8,7 +8,7 @@ import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/the
 import { LoadingWithBar } from '../common/LoadingWithBar';
 
 export const WeeklyQuiz = () => {
-  const navigate = useNavigate();                                 // ← NEW for Back button
+  const navigate = useNavigate();                                 // ← for Back button
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState({});
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -32,7 +32,7 @@ export const WeeklyQuiz = () => {
   const [explanationRemaining, setExplanationRemaining] = useState(null);
   const [isPremium, setIsPremium] = useState(false);
 
-  // ===== NEW: Premium block state =====
+  // ===== Premium block state =====
   const [showPremiumBlock, setShowPremiumBlock] = useState(false);
 
   let weeklyQuizCache = null;
@@ -115,7 +115,7 @@ export const WeeklyQuiz = () => {
       }
     };
     fetchQuiz();
-  }, [token, user?.isPremium]);                          // ← added user?.isPremium dependency
+  }, [token, user?.isPremium]);
 
   // ===== Fetch remaining explanations =====
   useEffect(() => {
@@ -226,7 +226,7 @@ export const WeeklyQuiz = () => {
 
   if (loading) return <LoadingWithBar message="Loading Weekly Quiz..." />;
 
-  // ===== NEW: Premium Block =====
+  // ===== PREMIUM BLOCK – includes "Back" button =====
   if (showPremiumBlock) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
@@ -237,7 +237,7 @@ export const WeeklyQuiz = () => {
             This week's quiz is a premium feature. Upgrade to access it and all other premium content.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/get-premium" style={{ flex: 1, minWidth: '120px' }}>
+            <Link to="/get-premium" style={{ flex: 1, minWidth: '120px', textDecoration: 'none' }}>
               <button style={{ width: '100%', background: '#ff9800', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
                 ⭐ Upgrade Now
               </button>
