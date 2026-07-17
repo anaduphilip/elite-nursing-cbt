@@ -583,7 +583,34 @@ const awardBadges = async (user) => {
   const awarded = [];
   
   for (const badge of activeBadges) {
-    // Check if user already has this badge
+    // ✅ Streak badges: allow duplicates, but prevent same‑day duplicates
+    if (badge.requirementType === 'streak_days') {
+      const eligible = await checkBadgeEligibility(user, badge);
+      if (eligible) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const alreadyAwardedToday = user.badges.some(b => {
+          const bDate = new Date(b.earnedAt);
+          bDate.setHours(0, 0, 0, 0);
+          return bDate.getTime() === today.getTime() && 
+                 b.badgeId.toString() === badge._id.toString();
+        });
+        
+        if (!alreadyAwardedToday) {
+          user.badges.push({
+            badgeId: badge._id,
+            earnedAt: new Date()
+          });
+          awarded.push(badge);
+          console.log(`🏆 Streak badge awarded: ${badge.name} (once per day)`);
+        } else {
+          console.log(`⏭️ Streak badge already awarded today: ${badge.name}`);
+        }
+      }
+      continue;
+    }
+    
     const alreadyHas = user.awardedBadgeIds && user.awardedBadgeIds.some(
       id => id.toString() === badge._id.toString()
     );
