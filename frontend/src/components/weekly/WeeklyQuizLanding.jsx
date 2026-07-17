@@ -97,7 +97,7 @@ export const WeeklyQuizLanding = () => {
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/get-premium" style={{ flex: 1, minWidth: '120px', textDecoration: 'none' }}>
               <button style={{ width: '100%', background: '#ff9800', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-                ⭐ Upgrade Now
+                Upgrade Now
               </button>
             </Link>
             <Link to="/" style={{ flex: 1, minWidth: '120px', textDecoration: 'none' }}>
