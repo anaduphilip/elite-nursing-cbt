@@ -164,8 +164,52 @@ const UserSchema = new mongoose.Schema({
     total: { type: Number, default: 0 }
   },
   // ============ STUDY NOTES TRACKING ============
-  readStudyNotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'StudyNote' }]
+  readStudyNotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'StudyNote' }],
+  // ============ GAMIFICATION ============
+  badges: [{
+    badgeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Badge' },
+    earnedAt: { type: Date, default: Date.now }
+  }],
+  streak: { type: Number, default: 0 },
+  lastActivityDate: { type: Date, default: null },
+  // Track which badges have been awarded to avoid duplicates
+  awardedBadgeIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }]
 });
+
+// ============ GAMIFICATION: BADGE SCHEMA ============
+const BadgeSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  icon: { type: String, default: '🏅' },
+  description: { type: String, default: '' },
+  requirementType: {
+    type: String,
+    enum: [
+      'total_exams',
+      'category_exams',
+      'streak_days',
+      'perfect_score',
+      'category_perfect',
+      'pass_rate',
+      'retake_improve',
+      'premium',
+      'first_exam',
+      'total_passed',
+      'total_failed',
+      'specific_exam'
+    ],
+    required: true
+  },
+  targetCategory: { type: String, default: null },
+  targetQuizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', default: null },
+  requirementValue: { type: Number, default: 1 },
+  active: { type: Boolean, default: true },
+  order: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Badge = mongoose.model('Badge', BadgeSchema);
+
+// ============ END GAMIFICATION SCHEMAS ============
 
 // Quiz Schema
 const QuizSchema = new mongoose.Schema({
@@ -286,12 +330,22 @@ const ConfigSchema = new mongoose.Schema({
     targetAudience: { type: String, enum: ['all', 'free', 'premium'], default: 'free' }
   },
 
-  // ===== HOME PAGE VISIBILITY TOGGLES (NEW) =====
+  // ===== HOME PAGE VISIBILITY TOGGLES =====
   showFreeMode: { type: Boolean, default: true },
   showPremiumMode: { type: Boolean, default: true },
   showStudyMode: { type: Boolean, default: true },
   showProgressSnapshot: { type: Boolean, default: true },
-  showDownloadApp: { type: Boolean, default: true }
+  showDownloadApp: { type: Boolean, default: true },
+
+  // ===== GAMIFICATION TOGGLES =====
+  gamification: {
+    enabled: { type: Boolean, default: true },
+    showStreak: { type: Boolean, default: true },
+    showBadges: { type: Boolean, default: true },
+    streakResetHours: { type: Number, default: 24 },
+    showBadgesOnHome: { type: Boolean, default: true },
+    showStreakOnHome: { type: Boolean, default: true }
+  }
 });
 
 const Config = mongoose.model('Config', ConfigSchema);
@@ -339,7 +393,7 @@ const FAQSchema = new mongoose.Schema({
 
 const FAQ = mongoose.model('FAQ', FAQSchema);
 
-// ============ STUDY NOTES SCHEMA (NEW) ============
+// ============ STUDY NOTES SCHEMA ============
 const StudyNoteSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, default: '' },
@@ -348,7 +402,7 @@ const StudyNoteSchema = new mongoose.Schema({
   order: { type: Number, default: 0 },
   active: { type: Boolean, default: true },
   isPremium: { type: Boolean, default: false },
-  estimatedReadTime: { type: Number, default: 5 }, // minutes
+  estimatedReadTime: { type: Number, default: 5 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -360,6 +414,218 @@ const StudyNote = mongoose.model('StudyNote', StudyNoteSchema);
 const User = mongoose.model('User', UserSchema);
 const Quiz = mongoose.model('Quiz', QuizSchema);
 const Contact = mongoose.model('Contact', ContactSchema);
+
+// ============ GAMIFICATION HELPER FUNCTIONS ============
+
+// Helper: Check and update user streak
+const updateUserStreak = async (user) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const config = await Config.findOne();
+  const resetHours = config?.gamification?.streakResetHours || 24;
+  
+  if (!user.lastActivityDate) {
+    user.streak = 1;
+    user.lastActivityDate = today;
+    await user.save();
+    return { streak: 1, isNew: true };
+  }
+  
+  const lastActivity = new Date(user.lastActivityDate);
+  lastActivity.setHours(0, 0, 0, 0);
+  
+  const diffDays = Math.floor((today - lastActivity) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    // Already active today
+    return { streak: user.streak, isNew: false };
+  } else if (diffDays === 1) {
+    // Consecutive day
+    user.streak = (user.streak || 0) + 1;
+    user.lastActivityDate = today;
+    await user.save();
+    return { streak: user.streak, isNew: true };
+  } else if (diffDays < resetHours / 24) {
+    // Same day, already counted
+    return { streak: user.streak, isNew: false };
+  } else {
+    // Streak broken (more than 1 day gap)
+    user.streak = 1;
+    user.lastActivityDate = today;
+    await user.save();
+    return { streak: 1, isNew: true };
+  }
+};
+
+// Helper: Check if user qualifies for a badge
+const checkBadgeEligibility = async (user, badge) => {
+  const { requirementType, targetCategory, targetQuizId, requirementValue } = badge;
+  
+  switch (requirementType) {
+    case 'total_exams': {
+      const count = user.quizResults.length;
+      return count >= requirementValue;
+    }
+    
+    case 'category_exams': {
+      if (!targetCategory) return false;
+      let count = 0;
+      for (const result of user.quizResults) {
+        const quiz = await Quiz.findById(result.quizId);
+        if (quiz && quiz.category === targetCategory) {
+          count++;
+        }
+      }
+      return count >= requirementValue;
+    }
+    
+    case 'streak_days': {
+      return (user.streak || 0) >= requirementValue;
+    }
+    
+    case 'perfect_score': {
+      for (const result of user.quizResults) {
+        if (result.percentage === 100) {
+          return true;
+        }
+      }
+      return false;
+    }
+    
+    case 'category_perfect': {
+      if (!targetCategory) return false;
+      const categoryResults = [];
+      for (const result of user.quizResults) {
+        const quiz = await Quiz.findById(result.quizId);
+        if (quiz && quiz.category === targetCategory && result.percentage === 100) {
+          categoryResults.push(result);
+        }
+      }
+      return categoryResults.length >= requirementValue;
+    }
+    
+    case 'pass_rate': {
+      if (user.quizResults.length === 0) return false;
+      let passed = 0;
+      for (const result of user.quizResults) {
+        if (result.percentage >= 70) passed++;
+      }
+      const rate = (passed / user.quizResults.length) * 100;
+      return rate >= requirementValue;
+    }
+    
+    case 'retake_improve': {
+      // Check if any quiz was retaken and improved
+      const quizMap = {};
+      for (const result of user.quizResults) {
+        const id = result.quizId.toString();
+        if (!quizMap[id]) quizMap[id] = [];
+        quizMap[id].push(result.percentage);
+      }
+      for (const [id, scores] of Object.entries(quizMap)) {
+        if (scores.length >= 2) {
+          const first = scores[0];
+          const last = scores[scores.length - 1];
+          if (last > first) return true;
+        }
+      }
+      return false;
+    }
+    
+    case 'premium': {
+      return user.isPremium === true;
+    }
+    
+    case 'first_exam': {
+      return user.quizResults.length >= 1;
+    }
+    
+    case 'total_passed': {
+      let passed = 0;
+      for (const result of user.quizResults) {
+        if (result.percentage >= 70) passed++;
+      }
+      return passed >= requirementValue;
+    }
+    
+    case 'total_failed': {
+      let failed = 0;
+      for (const result of user.quizResults) {
+        if (result.percentage < 70) failed++;
+      }
+      return failed >= requirementValue;
+    }
+    
+    case 'specific_exam': {
+      if (!targetQuizId) return false;
+      for (const result of user.quizResults) {
+        if (result.quizId.toString() === targetQuizId.toString()) {
+          return true;
+        }
+      }
+      return false;
+    }
+    
+    default:
+      return false;
+  }
+};
+
+// Helper: Award badges to user
+const awardBadges = async (user) => {
+  const config = await Config.findOne();
+  if (!config?.gamification?.enabled) {
+    return { awarded: [] };
+  }
+  
+  const activeBadges = await Badge.find({ active: true }).sort({ order: 1 });
+  const awarded = [];
+  
+  for (const badge of activeBadges) {
+    // Check if user already has this badge
+    const alreadyHas = user.awardedBadgeIds && user.awardedBadgeIds.some(
+      id => id.toString() === badge._id.toString()
+    );
+    if (alreadyHas) continue;
+    
+    const eligible = await checkBadgeEligibility(user, badge);
+    if (eligible) {
+      user.badges.push({
+        badgeId: badge._id,
+        earnedAt: new Date()
+      });
+      user.awardedBadgeIds.push(badge._id);
+      awarded.push(badge);
+    }
+  }
+  
+  if (awarded.length > 0) {
+    await user.save();
+  }
+  
+  return { awarded };
+};
+
+// Helper: Check and award badges after any exam activity
+const checkAndAwardBadges = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) return { awarded: [] };
+    
+    // Update streak first
+    await updateUserStreak(user);
+    
+    // Then check badges
+    const result = await awardBadges(user);
+    return result;
+  } catch (error) {
+    console.error('Badge check error:', error);
+    return { awarded: [], error: error.message };
+  }
+};
+
+// ============ END GAMIFICATION HELPERS ============
 
 // Helper to check and update premium status
 const checkAndUpdatePremium = async (user) => {
@@ -1398,6 +1664,14 @@ app.post('/api/quizzes/:quizId/submit', authenticate, async (req, res) => {
 
       const refreshed = await User.findById(req.user._id);
       console.log(`✅ Verified: ${refreshed.quizResults.length} results in DB`);
+
+      // ============ GAMIFICATION: Check & award badges ============
+      try {
+        const gamificationResult = await checkAndAwardBadges(user._id);
+        console.log(`🏆 GAMIFICATION: ${gamificationResult.awarded?.length || 0} badges awarded`);
+      } catch (gamificationError) {
+        console.error('Gamification check error:', gamificationError);
+      }
     } else {
       console.log('❌ User NOT found!');
     }
@@ -1453,6 +1727,14 @@ app.post('/api/premium-exam/submit', authenticate, async (req, res) => {
     await user.save();
 
     console.log(`✅ Premium exam result saved for ${user.email}: ${score}/${total}`);
+
+    // ============ GAMIFICATION: Check & award badges ============
+    try {
+      const gamificationResult = await checkAndAwardBadges(user._id);
+      console.log(`🏆 GAMIFICATION (premium exam): ${gamificationResult.awarded?.length || 0} badges awarded`);
+    } catch (gamificationError) {
+      console.error('Gamification check error:', gamificationError);
+    }
 
     res.json({ success: true, message: 'Premium exam result saved' });
   } catch (error) {
@@ -1569,6 +1851,14 @@ app.post('/api/weekly-quiz/submit', authenticate, async (req, res) => {
       timeSpent: timeSpent || 0
     });
     await attempt.save();
+
+    // ============ GAMIFICATION: Check & award badges ============
+    try {
+      const gamificationResult = await checkAndAwardBadges(req.user._id);
+      console.log(`🏆 GAMIFICATION (weekly quiz): ${gamificationResult.awarded?.length || 0} badges awarded`);
+    } catch (gamificationError) {
+      console.error('Gamification check error:', gamificationError);
+    }
 
     res.json({
       success: true,
@@ -2451,7 +2741,16 @@ app.get('/api/config', async (req, res) => {
         showPremiumMode: config.showPremiumMode !== undefined ? config.showPremiumMode : true,
         showStudyMode: config.showStudyMode !== undefined ? config.showStudyMode : true,
         showProgressSnapshot: config.showProgressSnapshot !== undefined ? config.showProgressSnapshot : true,
-        showDownloadApp: config.showDownloadApp !== undefined ? config.showDownloadApp : true
+        showDownloadApp: config.showDownloadApp !== undefined ? config.showDownloadApp : true,
+        // ===== GAMIFICATION SETTINGS =====
+        gamification: {
+          enabled: config.gamification?.enabled !== undefined ? config.gamification.enabled : true,
+          showStreak: config.gamification?.showStreak !== undefined ? config.gamification.showStreak : true,
+          showBadges: config.gamification?.showBadges !== undefined ? config.gamification.showBadges : true,
+          streakResetHours: config.gamification?.streakResetHours || 24,
+          showBadgesOnHome: config.gamification?.showBadgesOnHome !== undefined ? config.gamification.showBadgesOnHome : true,
+          showStreakOnHome: config.gamification?.showStreakOnHome !== undefined ? config.gamification.showStreakOnHome : true
+        }
       }
     });
   } catch (error) {
@@ -2511,6 +2810,19 @@ app.put('/api/admin/config', isAdmin, async (req, res) => {
       if (offer.buttonText !== undefined) config.limitedOffer.buttonText = offer.buttonText;
       if (offer.buttonLink !== undefined) config.limitedOffer.buttonLink = offer.buttonLink;
       if (offer.targetAudience !== undefined) config.limitedOffer.targetAudience = offer.targetAudience;
+    }
+
+    // ===== UPDATE GAMIFICATION SETTINGS =====
+    if (req.body.gamification) {
+      const gam = req.body.gamification;
+      if (!config.gamification) config.gamification = {};
+      
+      if (gam.enabled !== undefined) config.gamification.enabled = gam.enabled;
+      if (gam.showStreak !== undefined) config.gamification.showStreak = gam.showStreak;
+      if (gam.showBadges !== undefined) config.gamification.showBadges = gam.showBadges;
+      if (gam.streakResetHours !== undefined) config.gamification.streakResetHours = gam.streakResetHours;
+      if (gam.showBadgesOnHome !== undefined) config.gamification.showBadgesOnHome = gam.showBadgesOnHome;
+      if (gam.showStreakOnHome !== undefined) config.gamification.showStreakOnHome = gam.showStreakOnHome;
     }
 
     config.updatedAt = new Date();
@@ -2933,9 +3245,7 @@ app.get('/api/admin/dashboard', isAdmin, async (req, res) => {
   }
 });
 
-// =============================================
-// ============ STUDY NOTES ROUTES (NEW) =======
-// =============================================
+// ============ STUDY NOTES ROUTES ============
 
 // Get active study notes (public – for users)
 app.get('/api/study-notes', authenticate, async (req, res) => {
@@ -3127,7 +3437,199 @@ app.delete('/api/admin/study-notes/:id', isAdmin, async (req, res) => {
 });
 
 // =============================================
-// ============ END STUDY NOTES ROUTES =========
+// ============ GAMIFICATION ROUTES (NEW) ======
+// =============================================
+
+// ---- PUBLIC ROUTES ----
+
+// Get user's badges and streak
+app.get('/api/gamification/user', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate('badges.badgeId');
+    
+    const config = await Config.findOne();
+    const gamification = config?.gamification || {};
+    
+    // Get all badges (including locked ones)
+    const allBadges = await Badge.find({ active: true }).sort({ order: 1 });
+    
+    const earnedBadgeIds = user.badges.map(b => b.badgeId?._id?.toString() || b.badgeId?.toString()).filter(Boolean);
+    
+    const badgesWithStatus = allBadges.map(badge => {
+      const isEarned = earnedBadgeIds.includes(badge._id.toString());
+      const earnedDate = user.badges.find(
+        b => (b.badgeId?._id?.toString() || b.badgeId?.toString()) === badge._id.toString()
+      )?.earnedAt || null;
+      
+      return {
+        ...badge.toObject(),
+        isEarned,
+        earnedAt: earnedDate
+      };
+    });
+    
+    res.json({
+      success: true,
+      streak: user.streak || 0,
+      lastActivityDate: user.lastActivityDate,
+      badges: badgesWithStatus,
+      earnedBadgeIds: earnedBadgeIds,
+      totalEarned: earnedBadgeIds.length,
+      totalBadges: allBadges.length,
+      gamificationEnabled: gamification.enabled !== false
+    });
+  } catch (error) {
+    console.error('Gamification fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch gamification data' });
+  }
+});
+
+// ---- ADMIN ROUTES ----
+
+// Admin: Get all badges
+app.get('/api/admin/badges', isAdmin, async (req, res) => {
+  try {
+    const badges = await Badge.find().sort({ order: 1 });
+    res.json({ success: true, badges });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch badges' });
+  }
+});
+
+// Admin: Create badge
+app.post('/api/admin/badges', isAdmin, async (req, res) => {
+  try {
+    const { name, icon, description, requirementType, targetCategory, targetQuizId, requirementValue, active, order } = req.body;
+    
+    if (!name || !requirementType || !requirementValue) {
+      return res.status(400).json({ error: 'Name, requirement type, and requirement value are required' });
+    }
+    
+    const badge = new Badge({
+      name,
+      icon: icon || '🏅',
+      description: description || '',
+      requirementType,
+      targetCategory: targetCategory || null,
+      targetQuizId: targetQuizId || null,
+      requirementValue,
+      active: active !== undefined ? active : true,
+      order: order || 0
+    });
+    
+    await badge.save();
+    res.json({ success: true, badge });
+  } catch (error) {
+    console.error('Badge create error:', error);
+    res.status(500).json({ error: 'Failed to create badge' });
+  }
+});
+
+// Admin: Update badge
+app.put('/api/admin/badges/:id', isAdmin, async (req, res) => {
+  try {
+    const { name, icon, description, requirementType, targetCategory, targetQuizId, requirementValue, active, order } = req.body;
+    
+    const badge = await Badge.findById(req.params.id);
+    if (!badge) {
+      return res.status(404).json({ error: 'Badge not found' });
+    }
+    
+    if (name) badge.name = name;
+    if (icon !== undefined) badge.icon = icon;
+    if (description !== undefined) badge.description = description;
+    if (requirementType) badge.requirementType = requirementType;
+    if (targetCategory !== undefined) badge.targetCategory = targetCategory;
+    if (targetQuizId !== undefined) badge.targetQuizId = targetQuizId;
+    if (requirementValue !== undefined) badge.requirementValue = requirementValue;
+    if (active !== undefined) badge.active = active;
+    if (order !== undefined) badge.order = order;
+    
+    await badge.save();
+    res.json({ success: true, badge });
+  } catch (error) {
+    console.error('Badge update error:', error);
+    res.status(500).json({ error: 'Failed to update badge' });
+  }
+});
+
+// Admin: Delete badge (hard delete)
+app.delete('/api/admin/badges/:id', isAdmin, async (req, res) => {
+  try {
+    const badge = await Badge.findByIdAndDelete(req.params.id);
+    if (!badge) {
+      return res.status(404).json({ error: 'Badge not found' });
+    }
+    res.json({ success: true, message: 'Badge deleted' });
+  } catch (error) {
+    console.error('Badge delete error:', error);
+    res.status(500).json({ error: 'Failed to delete badge' });
+  }
+});
+
+// Admin: Manually award a badge to a user
+app.post('/api/admin/users/:userId/award-badge/:badgeId', isAdmin, async (req, res) => {
+  try {
+    const { userId, badgeId } = req.params;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const badge = await Badge.findById(badgeId);
+    if (!badge) {
+      return res.status(404).json({ error: 'Badge not found' });
+    }
+    
+    const alreadyHas = user.awardedBadgeIds && user.awardedBadgeIds.some(
+      id => id.toString() === badgeId
+    );
+    
+    if (alreadyHas) {
+      return res.json({ success: false, message: 'User already has this badge' });
+    }
+    
+    user.badges.push({
+      badgeId: badge._id,
+      earnedAt: new Date()
+    });
+    user.awardedBadgeIds.push(badge._id);
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: `Badge "${badge.name}" awarded to ${user.email}`,
+      badge: badge
+    });
+  } catch (error) {
+    console.error('Manual badge award error:', error);
+    res.status(500).json({ error: 'Failed to award badge' });
+  }
+});
+
+// Admin: Get gamification settings (included in config, but separate endpoint)
+app.get('/api/admin/gamification-settings', isAdmin, async (req, res) => {
+  try {
+    const config = await Config.findOne();
+    res.json({
+      success: true,
+      settings: config?.gamification || {
+        enabled: true,
+        showStreak: true,
+        showBadges: true,
+        streakResetHours: 24,
+        showBadgesOnHome: true,
+        showStreakOnHome: true
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch gamification settings' });
+  }
+});
+
+// =============================================
+// ============ END GAMIFICATION ROUTES ========
 // =============================================
 
 // ============ CRON JOB FOR PREMIUM REMINDERS ============

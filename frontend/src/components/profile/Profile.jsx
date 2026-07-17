@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
+import { GamificationWidget } from './GamificationWidget';   // ← UPDATED: now in profile folder
 
 export const Profile = () => {
   const { token, user, login, logout, darkMode, toggleDarkMode, openLogoutModal } = useContext(AuthContext);
@@ -18,8 +19,12 @@ export const Profile = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // ===== GAMIFICATION MODAL STATE =====
+  const [showGamificationModal, setShowGamificationModal] = useState(false);
+
   const [timeLeft, setTimeLeft] = useState(null);
 
+  // ===== AI Explanations Remaining =====
   const [aiRemaining, setAiRemaining] = useState(null);
   const [aiLoading, setAiLoading] = useState(true);
 
@@ -114,6 +119,7 @@ export const Profile = () => {
     openLogoutModal();
   };
 
+  // ===== FETCH AI REMAINING =====
   useEffect(() => {
     const fetchAiRemaining = async () => {
       try {
@@ -201,13 +207,14 @@ export const Profile = () => {
           )}
         </div>
 
+        {/* ===== AI Explanations Remaining Section ===== */}
         <div style={{ marginBottom: 20, background: darkMode ? '#2d2d3d' : '#f5f5f5', padding: 16, borderRadius: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <strong style={{ color: textColor }}> AI Explanations</strong>
+            <strong style={{ color: textColor }}>AI Explanations</strong>
             {aiLoading ? (
               <span style={{ color: secondaryText }}>Loading...</span>
             ) : aiRemaining?.isPremium ? (
-              <span style={{ color: '#2e7d32', fontWeight: 'bold' }}> Unlimited</span>
+              <span style={{ color: '#2e7d32', fontWeight: 'bold' }}>Unlimited</span>
             ) : (
               <span style={{ color: textColor, fontWeight: 'bold' }}>
                 {aiRemaining?.remaining ?? 0} / 10 remaining
@@ -278,12 +285,35 @@ export const Profile = () => {
             <span style={{ fontSize: 20 }}>📝</span> Review Failed Quizzes
           </Link>
 
+          {/* ===== Gamification Button ===== */}
+          <button
+            onClick={() => setShowGamificationModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              background: darkMode ? '#2d2d3d' : '#e8f5e9',
+              padding: 12,
+              borderRadius: 8,
+              border: 'none',
+              color: headingColor,
+              fontWeight: 'bold',
+              fontSize: 18,
+              cursor: 'pointer',
+              width: '100%',
+              textAlign: 'left'
+            }}
+          >
+            <span style={{ fontSize: 20 }}>🏆</span> View Achievements
+          </button>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: darkMode ? '#2d2d3d' : '#f5f5f5', borderRadius: 8 }}>
             <span style={{ fontWeight: 'bold', color: textColor }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</span>
             <button onClick={toggleDarkMode} style={{ background: '#1e3c72', color: 'white', padding: '6px 12px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
               Toggle
             </button>
           </div>
+
           {user?.email === 'elitenursingcbt@gmail.com' && (
             <Link 
               to="/admin"
@@ -311,6 +341,87 @@ export const Profile = () => {
           Logout
         </button>
       </div>
+
+      {/* ===== GAMIFICATION MODAL (POP-UP) ===== */}
+      {showGamificationModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px',
+          backdropFilter: 'blur(4px)'
+        }} onClick={() => setShowGamificationModal(false)}>
+          <div style={{
+            background: darkMode ? '#16213e' : 'white',
+            borderRadius: 20,
+            padding: 32,
+            maxWidth: 500,
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            position: 'relative'
+          }} onClick={(e) => e.stopPropagation()}>
+            {/* Close button */}
+            <button
+              onClick={() => setShowGamificationModal(false)}
+              style={{
+                position: 'absolute',
+                top: 12,
+                right: 16,
+                background: 'none',
+                border: 'none',
+                fontSize: 28,
+                cursor: 'pointer',
+                color: darkMode ? '#eee' : '#333',
+                lineHeight: 1
+              }}
+            >
+              ×
+            </button>
+
+            {/* Content */}
+            <div style={{ marginBottom: 16 }}>
+              <h2 style={{ color: headingColor, fontSize: 24, textAlign: 'center', marginBottom: 4 }}>
+                🏆 Achievements
+              </h2>
+              <p style={{ color: secondaryText, textAlign: 'center', fontSize: 13 }}>
+                Track your progress and earn badges
+              </p>
+            </div>
+
+            <GamificationWidget />
+
+            {/* Close button inside */}
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <button
+                onClick={() => setShowGamificationModal(false)}
+                style={{
+                  color: headingColor,
+                  fontWeight: 'bold',
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  borderBottom: '2px solid #1e3c72',
+                  paddingBottom: 2
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
