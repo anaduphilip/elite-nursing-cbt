@@ -20,6 +20,9 @@ export const Profile = () => {
 
   const [timeLeft, setTimeLeft] = useState(null);
 
+  const [aiRemaining, setAiRemaining] = useState(null);
+  const [aiLoading, setAiLoading] = useState(true);
+
   useEffect(() => {
     if (!user?.premiumExpiry) {
       setTimeLeft(null);
@@ -111,6 +114,22 @@ export const Profile = () => {
     openLogoutModal();
   };
 
+  useEffect(() => {
+    const fetchAiRemaining = async () => {
+      try {
+        const res = await axios.get('/api/explanation-remaining', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setAiRemaining(res.data);
+      } catch (err) {
+        console.error('Failed to fetch AI remaining:', err);
+      } finally {
+        setAiLoading(false);
+      }
+    };
+    if (token) fetchAiRemaining();
+  }, [token]);
+
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
@@ -179,6 +198,40 @@ export const Profile = () => {
               {verifyMessage && <p style={{ color: '#2e7d32', fontSize: 13, marginTop: 4 }}>{verifyMessage}</p>}
               {verifyError && <p style={{ color: '#c62828', fontSize: 13, marginTop: 4 }}>{verifyError}</p>}
             </div>
+          )}
+        </div>
+
+        <div style={{ marginBottom: 20, background: darkMode ? '#2d2d3d' : '#f5f5f5', padding: 16, borderRadius: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <strong style={{ color: textColor }}> AI Explanations</strong>
+            {aiLoading ? (
+              <span style={{ color: secondaryText }}>Loading...</span>
+            ) : aiRemaining?.isPremium ? (
+              <span style={{ color: '#2e7d32', fontWeight: 'bold' }}> Unlimited</span>
+            ) : (
+              <span style={{ color: textColor, fontWeight: 'bold' }}>
+                {aiRemaining?.remaining ?? 0} / 10 remaining
+              </span>
+            )}
+          </div>
+          {!aiRemaining?.isPremium && (
+            <>
+              <div style={{ marginTop: 8, height: 8, background: '#e0e0e0', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{
+                  width: `${((10 - (aiRemaining?.remaining ?? 0)) / 10) * 100}%`,
+                  height: '100%',
+                  background: aiRemaining?.remaining > 0 ? '#1e3c72' : '#f44336',
+                  borderRadius: 4,
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+              {aiRemaining?.remaining === 0 && (
+                <p style={{ color: '#f44336', fontSize: 13, marginTop: 6 }}>
+                  ⚠️ You've used all your free explanations today.
+                  <Link to="/get-premium" style={{ marginLeft: 6, color: '#ff9800', fontWeight: 'bold' }}>Upgrade to continue</Link>
+                </p>
+              )}
+            </>
           )}
         </div>
 
