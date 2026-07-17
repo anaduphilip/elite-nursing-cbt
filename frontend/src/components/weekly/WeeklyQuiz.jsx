@@ -103,7 +103,7 @@ export const WeeklyQuiz = () => {
     fetchQuiz();
   }, [token]);
 
-  // ===== Fetch remaining explanations =====
+  // ==== Fetch remaining explanations ====
   useEffect(() => {
     const fetchRemaining = async () => {
       try {
