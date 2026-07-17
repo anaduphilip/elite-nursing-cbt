@@ -1,6 +1,6 @@
 // src/components/weekly/WeeklyQuiz.jsx
 import React, { useState, useEffect, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { AuthContext } from '../../context/AuthContext';
@@ -8,6 +8,7 @@ import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/the
 import { LoadingWithBar } from '../common/LoadingWithBar';
 
 export const WeeklyQuiz = () => {
+  const navigate = useNavigate();                                 // ← NEW for Back button
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState({});
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -20,7 +21,7 @@ export const WeeklyQuiz = () => {
   const [timeLeft, setTimeLeft] = useState(null);
   const [showReview, setShowReview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const { token, darkMode } = useContext(AuthContext);
+  const { token, darkMode, user } = useContext(AuthContext);    // ← added 'user'
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
@@ -30,6 +31,9 @@ export const WeeklyQuiz = () => {
   const [loadingExplanation, setLoadingExplanation] = useState({});
   const [explanationRemaining, setExplanationRemaining] = useState(null);
   const [isPremium, setIsPremium] = useState(false);
+
+  // ===== NEW: Premium block state =====
+  const [showPremiumBlock, setShowPremiumBlock] = useState(false);
 
   let weeklyQuizCache = null;
   let weeklyQuizPromise = null;
@@ -47,6 +51,10 @@ export const WeeklyQuiz = () => {
           } else if (weeklyQuizCache.quiz.timeLimit) {
             setTimeLeft(weeklyQuizCache.quiz.timeLimit * 60);
           }
+          // ---- Check premium block ----
+          if (weeklyQuizCache.quiz.isPremium && !user?.isPremium) {
+            setShowPremiumBlock(true);
+          }
           setLoading(false);
           return;
         }
@@ -60,6 +68,9 @@ export const WeeklyQuiz = () => {
             setAttemptPercentage(data.attemptPercentage);
           } else if (data.quiz.timeLimit) {
             setTimeLeft(data.quiz.timeLimit * 60);
+          }
+          if (data.quiz.isPremium && !user?.isPremium) {
+            setShowPremiumBlock(true);
           }
           setLoading(false);
           return;
@@ -91,6 +102,9 @@ export const WeeklyQuiz = () => {
           } else if (data.quiz.timeLimit) {
             setTimeLeft(data.quiz.timeLimit * 60);
           }
+          if (data.quiz.isPremium && !user?.isPremium) {
+            setShowPremiumBlock(true);
+          }
         }
       } catch (error) {
         console.error('Error fetching weekly quiz:', error);
@@ -101,7 +115,7 @@ export const WeeklyQuiz = () => {
       }
     };
     fetchQuiz();
-  }, [token]);
+  }, [token, user?.isPremium]);                          // ← added user?.isPremium dependency
 
   // ===== Fetch remaining explanations =====
   useEffect(() => {
@@ -211,6 +225,37 @@ export const WeeklyQuiz = () => {
   };
 
   if (loading) return <LoadingWithBar message="Loading Weekly Quiz..." />;
+
+  // ===== NEW: Premium Block =====
+  if (showPremiumBlock) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ maxWidth: 400, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
+          <h2 style={{ color: headingColor, marginBottom: 8 }}>Premium Quiz</h2>
+          <p style={{ color: secondaryText, marginBottom: 20 }}>
+            This week's quiz is a premium feature. Upgrade to access it and all other premium content.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link to="/get-premium" style={{ flex: 1, minWidth: '120px' }}>
+              <button style={{ width: '100%', background: '#ff9800', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                ⭐ Upgrade Now
+              </button>
+            </Link>
+            <button
+              onClick={() => navigate('/')}
+              style={{ flex: 1, minWidth: '120px', background: '#6c757d', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}
+            >
+              ← Back
+            </button>
+          </div>
+          <p style={{ marginTop: 16, fontSize: 13, color: secondaryText }}>
+            Already a premium user? <Link to="/login" style={{ color: '#2196f3', textDecoration: 'none' }}>Sign in</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!quiz) {
     return (

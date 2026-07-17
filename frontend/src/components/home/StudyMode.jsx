@@ -248,7 +248,7 @@ export const StudyMode = () => {
                           transition: 'background 0.2s'
                         }}
                       >
-                        {selectedNote?._id === note._id ? 'Close Q&A' : '🤖 Ask AI'}
+                        {selectedNote?._id === note._id ? 'Close Q&A' : ' Ask AI'}
                       </button>
                     )}
                   </div>
@@ -269,7 +269,7 @@ export const StudyMode = () => {
                         disabled={!question.trim() || aiLoading}
                         style={{ width: '100%', marginTop: 8, background: aiLoading ? '#6c757d' : '#1e3c72', color: 'white', border: 'none', padding: '8px 0', borderRadius: 8, cursor: aiLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: 14 }}
                       >
-                        {aiLoading ? '⏳ Thinking...' : '🤖 Ask AI'}
+                        {aiLoading ? ' Thinking...' : ' Ask AI'}
                       </button>
                       {aiAnswer && (
                         <div style={{ marginTop: 12, padding: 16, paddingRight: 40, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 8, borderLeft: '4px solid #ff9800', position: 'relative', textAlign: 'left' }}>
