@@ -84,7 +84,7 @@ export const WeeklyQuizLanding = () => {
     );
   }
 
-  // ===== UPDATED PREMIUM BLOCK – link to home via Link =====
+  // ==== UPDATED PREMIUM BLOCK – link to home via Link ====
   if (quiz.isPremium && !user?.isPremium) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
