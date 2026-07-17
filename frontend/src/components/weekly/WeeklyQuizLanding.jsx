@@ -1,13 +1,12 @@
 // src/components/weekly/WeeklyQuizLanding.jsx
 import React, { useState, useEffect, useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 
 export const WeeklyQuizLanding = () => {
-  const navigate = useNavigate();
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showStartDialog, setShowStartDialog] = useState(false);
@@ -101,19 +100,18 @@ export const WeeklyQuizLanding = () => {
                 ⭐ Upgrade Now
               </button>
             </Link>
-            <button
-              onClick={() => navigate('/')}
-              style={{ flex: 1, minWidth: '120px', background: '#6c757d', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}
-            >
-              ← Back
-            </button>
+            <Link to="/" style={{ flex: 1, minWidth: '120px', textDecoration: 'none' }}>
+              <button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                Back
+              </button>
+            </Link>
           </div>
         </div>
       </div>
     );
   }
 
-  // Main landing content (unchanged)
+  // Main landing content (unchanged – no emojis added)
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       {showStartDialog && (
@@ -254,7 +252,7 @@ export const WeeklyQuizLanding = () => {
             e.currentTarget.style.boxShadow = '0 4px 15px rgba(40, 167, 69, 0.3)';
           }}
         >
-         Start Quiz
+          Start Quiz
         </button>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
