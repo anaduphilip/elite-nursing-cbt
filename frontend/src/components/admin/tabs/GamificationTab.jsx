@@ -33,13 +33,13 @@ export const GamificationTab = ({ darkMode, headingColor, secondaryText, textCol
 
   // ===== Badge Requirement Types =====
   const requirementTypes = [
-    { value: 'total_exams', label: 'Total Exams Completed' },
-    { value: 'category_exams', label: 'Exams in a Category' },
+    { value: 'total_exams', label: 'Total Exams' },
+    { value: 'category_exams', label: 'Exams in Category' },
     { value: 'streak_days', label: 'Streak Days' },
-    { value: 'perfect_score', label: 'Perfect Score (100%)' },
-    { value: 'category_perfect', label: 'Perfect Score in X Categories' },
-    { value: 'pass_rate', label: 'Pass Rate (%)' },
-    { value: 'retake_improve', label: 'Retake Improvement' },
+    { value: 'perfect_score', label: 'Perfect Score' },
+    { value: 'category_perfect', label: 'Perfect in X Categories' },
+    { value: 'pass_rate', label: 'Pass Rate %' },
+    { value: 'retake_improve', label: 'Retake Improve' },
     { value: 'premium', label: 'Premium Member' },
     { value: 'first_exam', label: 'First Exam' }
   ];
@@ -222,6 +222,12 @@ export const GamificationTab = ({ darkMode, headingColor, secondaryText, textCol
     return cat ? cat.name : catId;
   };
 
+  // Sort badges: active first, then by order
+  const sortedBadges = [...badges].sort((a, b) => {
+    if (a.active !== b.active) return a.active ? -1 : 1;
+    return (a.order || 0) - (b.order || 0);
+  });
+
   return (
     <div style={{ padding: '10px 0' }}>
       {/* ===== Feature Toggles ===== */}
@@ -334,7 +340,7 @@ export const GamificationTab = ({ darkMode, headingColor, secondaryText, textCol
         {result && <p style={{ marginTop: 12, color: '#2e7d32' }}>{result}</p>}
       </div>
 
-      {/* ===== Badge Management ===== */}
+      {/* ===== Badge Management Form ===== */}
       <div style={{
         background: darkMode ? '#1a1a2e' : '#f8f9fa',
         padding: '20px 24px',
@@ -343,7 +349,7 @@ export const GamificationTab = ({ darkMode, headingColor, secondaryText, textCol
         border: `1px solid ${darkMode ? '#444' : '#ddd'}`
       }}>
         <h4 style={{ color: headingColor, marginBottom: 16, fontSize: 18 }}>
-          {editingBadgeId ? '✏️ Edit Badge' : '🏅 Create New Badge'}
+          {editingBadgeId ? ' Edit Badge' : '🏅 Create New Badge'}
         </h4>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px', marginBottom: 16 }}>
@@ -520,7 +526,7 @@ export const GamificationTab = ({ darkMode, headingColor, secondaryText, textCol
         {result && <p style={{ marginTop: 12, color: '#2e7d32' }}>{result}</p>}
       </div>
 
-      {/* ===== Badge List ===== */}
+      {/* ===== Badge List – Professional Table ===== */}
       <div style={{
         background: darkMode ? '#1a1a2e' : '#f8f9fa',
         padding: '20px 24px',
@@ -528,7 +534,7 @@ export const GamificationTab = ({ darkMode, headingColor, secondaryText, textCol
         border: `1px solid ${darkMode ? '#444' : '#ddd'}`
       }}>
         <h4 style={{ color: headingColor, marginBottom: 16, fontSize: 18 }}>
-          📋 All Badges ({badges.length})
+           All Badges ({badges.length})
         </h4>
 
         {badgeLoading && <p style={{ color: secondaryText }}>Loading badges...</p>}
@@ -537,82 +543,119 @@ export const GamificationTab = ({ darkMode, headingColor, secondaryText, textCol
           <p style={{ color: secondaryText }}>No badges created yet. Create your first badge above!</p>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-          {badges.map(badge => (
-            <div key={badge._id} style={{
-              background: darkMode ? '#2d2d3d' : 'white',
-              padding: '16px 18px',
+        {!badgeLoading && badges.length > 0 && (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: 14,
+              color: textColor,
+              background: darkMode ? '#16213e' : 'white',
               borderRadius: 12,
-              border: `1px solid ${badge.active ? '#4caf50' : '#dc3545'}`,
-              opacity: badge.active ? 1 : 0.6
+              overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 32 }}>{badge.icon || '🏅'}</span>
-                  <div>
-                    <div style={{ fontWeight: 'bold', color: headingColor }}>{badge.name}</div>
-                    <div style={{ fontSize: 12, color: secondaryText }}>{badge.description || getRequirementLabel(badge.requirementType)}</div>
-                    <div style={{ fontSize: 11, color: secondaryText, marginTop: 2 }}>
-                      {getRequirementLabel(badge.requirementType)}
-                      {badge.targetCategory && ` • ${getCategoryName(badge.targetCategory)}`}
-                      {badge.requirementValue && ` • ${badge.requirementValue}`}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => editBadge(badge)}
-                    style={{
-                      padding: '4px 12px',
-                      background: '#ffc107',
-                      color: '#333',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      fontSize: 11,
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleToggleBadgeActive(badge._id, badge.active)}
-                    style={{
-                      padding: '4px 12px',
-                      background: badge.active ? '#dc3545' : '#28a745',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      fontSize: 11,
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    {badge.active ? 'Deactivate' : 'Activate'}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteBadge(badge._id)}
-                    style={{
-                      padding: '4px 12px',
-                      background: '#dc3545',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      fontSize: 11,
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-              <div style={{ marginTop: 8, fontSize: 11, color: badge.active ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
-                {badge.active ? '✅ Active' : '❌ Inactive'}
-              </div>
-            </div>
-          ))}
-        </div>
+              <thead>
+                <tr style={{
+                  background: darkMode ? '#1a1a2e' : '#f0f2f5',
+                  borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`
+                }}>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: headingColor }}>Icon</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: headingColor }}>Name</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: headingColor, minWidth: '160px' }}>Requirement</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: headingColor }}>Status</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: headingColor }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedBadges.map(badge => (
+                  <tr key={badge._id} style={{
+                    borderBottom: `1px solid ${darkMode ? '#333' : '#eee'}`,
+                    background: badge.active ? 'transparent' : (darkMode ? '#2d2d3d' : '#f9f9f9'),
+                    opacity: badge.active ? 1 : 0.6
+                  }}>
+                    <td style={{ padding: '10px 12px', fontSize: 24, textAlign: 'center' }}>
+                      {badge.icon || '🏅'}
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <div style={{ fontWeight: 600, color: headingColor }}>{badge.name}</div>
+                      <div style={{ fontSize: 12, color: secondaryText }}>{badge.description || ''}</div>
+                    </td>
+                    <td style={{ padding: '10px 12px', fontSize: 13 }}>
+                      <div><span style={{ color: secondaryText }}>Type:</span> {getRequirementLabel(badge.requirementType)}</div>
+                      <div><span style={{ color: secondaryText }}>Value:</span> {badge.requirementValue}</div>
+                      {badge.targetCategory && (
+                        <div><span style={{ color: secondaryText }}>Category:</span> {getCategoryName(badge.targetCategory)}</div>
+                      )}
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                      <span style={{
+                        background: badge.active ? '#e8f5e9' : '#ffebee',
+                        color: badge.active ? '#2e7d32' : '#c62828',
+                        padding: '4px 12px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        display: 'inline-block'
+                      }}>
+                        {badge.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => editBadge(badge)}
+                          style={{
+                            padding: '4px 12px',
+                            background: '#ffc107',
+                            color: '#333',
+                            border: 'none',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            fontSize: 12,
+                            fontWeight: 600
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleToggleBadgeActive(badge._id, badge.active)}
+                          style={{
+                            padding: '4px 12px',
+                            background: badge.active ? '#dc3545' : '#28a745',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            fontSize: 12,
+                            fontWeight: 600
+                          }}
+                        >
+                          {badge.active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBadge(badge._id)}
+                          style={{
+                            padding: '4px 12px',
+                            background: '#dc3545',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            fontSize: 12,
+                            fontWeight: 600
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
