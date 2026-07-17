@@ -96,12 +96,12 @@ export const WeeklyQuizLanding = () => {
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/get-premium" style={{ flex: 1, minWidth: '120px', textDecoration: 'none' }}>
-              <button style={{ width: '100%', background: '#ff9800', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+              <button style={{ width: '100%', background: '#ff9800', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
                 Upgrade Now
               </button>
             </Link>
             <Link to="/" style={{ flex: 1, minWidth: '120px', textDecoration: 'none' }}>
-              <button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+              <button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
                 Back
               </button>
             </Link>
