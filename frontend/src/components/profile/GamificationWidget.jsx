@@ -16,7 +16,7 @@ export const GamificationWidget = () => {
   useEffect(() => {
     const fetchGamification = async () => {
       try {
-        const res = await axios.get('/api/user/gamification', {
+        const res = await axios.get('/api/gamification/user', {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.success) {

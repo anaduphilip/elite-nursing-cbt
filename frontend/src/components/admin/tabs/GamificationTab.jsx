@@ -537,7 +537,7 @@ export const GamificationTab = ({ darkMode, headingColor, secondaryText, textCol
           <p style={{ color: secondaryText }}>No badges created yet. Create your first badge above!</p>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
           {badges.map(badge => (
             <div key={badge._id} style={{
               background: darkMode ? '#2d2d3d' : 'white',
