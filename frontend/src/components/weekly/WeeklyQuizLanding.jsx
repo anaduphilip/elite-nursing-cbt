@@ -1,12 +1,13 @@
 // src/components/weekly/WeeklyQuizLanding.jsx
 import React, { useState, useEffect, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 
 export const WeeklyQuizLanding = () => {
+  const navigate = useNavigate();
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showStartDialog, setShowStartDialog] = useState(false);
@@ -84,21 +85,35 @@ export const WeeklyQuizLanding = () => {
     );
   }
 
+  // ===== UPDATED PREMIUM BLOCK with new text and Back button =====
   if (quiz.isPremium && !user?.isPremium) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div style={{ background: cardBg, borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center' }}>
+        <div style={{ background: cardBg, borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
-          <h2 style={{ color: headingColor }}>Premium Quiz</h2>
-          <p style={{ color: secondaryText }}>This week's quiz is premium content. Upgrade to access it.</p>
-          <Link to="/get-premium">
-            <button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '12px 24px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Upgrade Now</button>
-          </Link>
+          <h2 style={{ color: headingColor, marginBottom: 8 }}>Premium Quiz</h2>
+          <p style={{ color: secondaryText, marginBottom: 20 }}>
+            This week's quiz is a premium feature. Upgrade to access it and all other premium content.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link to="/get-premium" style={{ flex: 1, minWidth: '120px', textDecoration: 'none' }}>
+              <button style={{ width: '100%', background: '#ff9800', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+                ⭐ Upgrade Now
+              </button>
+            </Link>
+            <button
+              onClick={() => navigate('/')}
+              style={{ flex: 1, minWidth: '120px', background: '#6c757d', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}
+            >
+              ← Back
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
+  // Main landing content (unchanged)
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       {showStartDialog && (
@@ -239,7 +254,7 @@ export const WeeklyQuizLanding = () => {
             e.currentTarget.style.boxShadow = '0 4px 15px rgba(40, 167, 69, 0.3)';
           }}
         >
-          Start Quiz
+         Start Quiz
         </button>
       </div>
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
