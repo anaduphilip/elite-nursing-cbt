@@ -84,7 +84,7 @@ export const WeeklyQuizLanding = () => {
     );
   }
 
-  // ===== UPDATED PREMIUM BLOCK with new text and Back button =====
+  // ===== UPDATED PREMIUM BLOCK – link to home via Link =====
   if (quiz.isPremium && !user?.isPremium) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
@@ -111,7 +111,7 @@ export const WeeklyQuizLanding = () => {
     );
   }
 
-  // Main landing content (unchanged – no emojis added)
+  // ===== MAIN LANDING CONTENT (unchanged) =====
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       {showStartDialog && (
@@ -222,7 +222,7 @@ export const WeeklyQuizLanding = () => {
         </div>
 
         <div style={{ background: cardBg, borderRadius: 16, padding: 24, marginBottom: 20 }}>
-          <h3 style={{ color: headingColor, marginBottom: 12 }}> Instructions</h3>
+          <h3 style={{ color: headingColor, marginBottom: 12 }}>Instructions</h3>
           <p style={{ color: textColor, fontSize: 14, lineHeight: 1.6 }}>
             {quiz.instructions || 'Answer all questions carefully. You cannot go back to previous questions after submitting. Make sure you complete all questions before the timer runs out.'}
           </p>
