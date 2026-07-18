@@ -114,7 +114,7 @@ export const UsersTab = ({
                       fontWeight: 'bold' 
                     }}
                   >
-                    👤 View Profile
+                    View Profile
                   </button>
 
                   {/* DELETE USER (UNCHANGED) */}

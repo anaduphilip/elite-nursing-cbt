@@ -124,7 +124,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           ✕
         </button>
 
-        <h2 style={{ color: headingColor, fontSize: 22, marginBottom: 20 }}>👤 User Profile</h2>
+        <h2 style={{ color: headingColor, fontSize: 22, marginBottom: 20 }}>User Profile</h2>
 
         {/* ===== USER INFO ===== */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
@@ -163,7 +163,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
 
         {/* ===== SEND PRIVATE MESSAGE ===== */}
         <div style={{ marginBottom: 16, paddingTop: 16, borderTop: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}>
-          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>📩 Send Private Message</h3>
+          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Send Private Message</h3>
           <p style={{ color: secondaryText, fontSize: 13, marginBottom: 12 }}>
             This message will appear as a one‑time banner on the user's Home page.
           </p>
@@ -210,7 +210,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
               opacity: sending || !message.trim() ? 0.7 : 1
             }}
           >
-            {sending ? 'Sending...' : '📤 Send Message'}
+            {sending ? 'Sending...' : 'Send Message'}
           </button>
         </div>
       </div>
