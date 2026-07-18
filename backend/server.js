@@ -108,6 +108,8 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   isPremium: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false },
+  isBanned: { type: Boolean, default: false },
+  isDeleted: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   currentSessionToken: { type: String, default: null },
   lastLoginAt: { type: Date, default: null },
@@ -1171,6 +1173,95 @@ app.delete('/api/admin/users/:userId', isAdmin, async (req, res) => {
   }
 });
 
+// ============ ADMIN: GET USER PROFILE WITH FULL DETAILS ============
+app.get('/api/admin/users/:userId', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Calculate stats
+    const totalExams = user.quizResults.length;
+    let passed = 0, failed = 0;
+    for (const r of user.quizResults) {
+      if (r.percentage >= 70) passed++;
+      else failed++;
+    }
+    const passRate = totalExams > 0 ? Math.round((passed / totalExams) * 100) : 0;
+
+    const badgesCount = user.badges?.length || 0;
+    const streak = user.streak || 0;
+
+    // Get transaction history (recent 20)
+    const transactions = user.transactions
+      .filter(t => t.status === 'completed')
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 20)
+      .map(t => ({
+        date: t.date,
+        planType: t.planType || 'premium',
+        amount: t.amount,
+        status: t.status,
+        couponCode: t.couponCode || null,
+        discountAmount: t.discountAmount || 0
+      }));
+
+    // Get quiz history (recent 30)
+    const quizHistory = await Promise.all(
+      user.quizResults
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 30)
+        .map(async (result) => {
+          let quizTitle = 'Unknown Quiz';
+          try {
+            const quiz = await Quiz.findById(result.quizId);
+            if (quiz) quizTitle = quiz.title;
+          } catch (e) {}
+          return {
+            date: result.date,
+            quizId: result.quizId,
+            quizTitle: quizTitle,
+            score: result.score,
+            total: result.total,
+            percentage: result.percentage
+          };
+        })
+    );
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isPremium: user.isPremium,
+        premiumPlan: user.premiumPlan,
+        premiumExpiry: user.premiumExpiry,
+        isVerified: user.isVerified,
+        isBanned: user.isBanned || false,
+        isDeleted: user.isDeleted || false,
+        createdAt: user.createdAt,
+        marketingConsent: user.marketingConsent
+      },
+      stats: {
+        totalExams,
+        passed,
+        failed,
+        passRate,
+        streak,
+        badgesCount,
+        badges: user.badges?.map(b => b.badgeId) || []
+      },
+      transactions: transactions,
+      quizHistory: quizHistory
+    });
+  } catch (error) {
+    console.error('Admin user profile error:', error);
+    res.status(500).json({ error: 'Failed to fetch user profile' });
+  }
+});
+
 // Admin reply to contact message
 app.post('/api/admin/reply-message', isAdmin, async (req, res) => {
   try {
@@ -1552,6 +1643,12 @@ app.post('/api/login', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'User not found' });
     if (!user.isVerified) return res.status(400).json({ error: 'Email not verified' });
+    if (user.isBanned) {
+      return res.status(403).json({ error: 'Your account has been banned. Please contact support.' });
+    }
+    if (user.isDeleted) {
+      return res.status(403).json({ error: 'Your account has been deactivated.' });
+    }
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid password' });
 
@@ -3805,6 +3902,127 @@ app.get('/api/admin/gamification-settings', isAdmin, async (req, res) => {
 // =============================================
 // ============ END GAMIFICATION ROUTES ========
 // =============================================
+
+// ============ ADMIN USER ACTION ROUTES ============
+
+// Force logout user
+app.post('/api/admin/users/:userId/force-logout', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    user.currentSessionToken = null;
+    await user.save();
+    
+    console.log(`🔒 Admin force logged out: ${user.email}`);
+    res.json({ success: true, message: 'User logged out from all devices' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset streak
+app.post('/api/admin/users/:userId/reset-streak', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    user.streak = 0;
+    await user.save();
+    
+    console.log(`🔄 Admin reset streak for: ${user.email}`);
+    res.json({ success: true, message: 'Streak reset to 0' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle ban status
+app.post('/api/admin/users/:userId/toggle-ban', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    user.isBanned = !user.isBanned;
+    await user.save();
+    
+    console.log(`🚫 Admin ${user.isBanned ? 'banned' : 'unbanned'}: ${user.email}`);
+    res.json({ success: true, isBanned: user.isBanned, message: user.isBanned ? 'User banned' : 'User unbanned' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle soft delete
+app.post('/api/admin/users/:userId/toggle-delete', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    user.isDeleted = !user.isDeleted;
+    await user.save();
+    
+    console.log(`🗑️ Admin ${user.isDeleted ? 'soft deleted' : 'restored'}: ${user.email}`);
+    res.json({ success: true, isDeleted: user.isDeleted, message: user.isDeleted ? 'User soft deleted' : 'User restored' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Resend verification email
+app.post('/api/admin/users/:userId/resend-verification', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    if (user.isVerified) {
+      return res.json({ success: false, message: 'User is already verified' });
+    }
+    
+    const otp = generateOTP();
+    otpStore.set(`verify_${user.email}`, { otp, expires: Date.now() + 10 * 60000, name: user.name });
+    await sendEmail(user.email, user.name || 'User', otp, 'verification');
+    
+    console.log(`📧 Admin resent verification to: ${user.email}`);
+    res.json({ success: true, message: 'Verification email sent' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send direct email to user
+app.post('/api/admin/users/:userId/send-email', isAdmin, async (req, res) => {
+  try {
+    const { subject, body } = req.body;
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    if (!subject || !body) {
+      return res.status(400).json({ error: 'Subject and body are required' });
+    }
+    
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: user.email }];
+    sendSmtpEmail.sender = { email: 'elitenursingcbt@gmail.com', name: 'ELITE Nursing CBT Support' };
+    sendSmtpEmail.subject = subject;
+    sendSmtpEmail.htmlContent = `
+      <h2>${subject}</h2>
+      <p>Dear ${user.name || 'User'},</p>
+      <p>${body.replace(/\n/g, '<br/>')}</p>
+      <br/>
+      <p>Best regards,<br/>ELITE Nursing CBT Support Team</p>
+    `;
+    sendSmtpEmail.textContent = `Dear ${user.name || 'User'},\n\n${body}\n\nBest regards,\nELITE Nursing CBT Support Team`;
+    
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    
+    console.log(`📧 Admin sent email to: ${user.email} - "${subject}"`);
+    res.json({ success: true, message: 'Email sent successfully' });
+  } catch (error) {
+    console.error('Send email error:', error);
+    res.status(500).json({ error: 'Failed to send email' });
+  }
+});
 
 // ============ CRON JOB FOR PREMIUM REMINDERS ============
 cron.schedule('0 * * * *', async () => {
