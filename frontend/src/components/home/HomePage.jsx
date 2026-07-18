@@ -26,7 +26,7 @@ export const HomePage = () => {
     showProgressSnapshot: true,
     showDownloadApp: true,
     showWeeklyQuiz: true,
-    showGetPremium: true      // ← NEW: Get Premium toggle
+    showGetPremium: true
   });
   const [configLoading, setConfigLoading] = useState(true);
 
@@ -50,6 +50,12 @@ export const HomePage = () => {
   const [offerDismissed, setOfferDismissed] = useState(false);
   const [offerTimeLeft, setOfferTimeLeft] = useState(null);
 
+  // ===== PRIVATE MESSAGE STATE (NEW) =====
+  const [privateMessages, setPrivateMessages] = useState([]);
+  const [showPrivateMessage, setShowPrivateMessage] = useState(false);
+  const [currentPrivateMessage, setCurrentPrivateMessage] = useState(null);
+  const [privateMessageDismissed, setPrivateMessageDismissed] = useState({});
+
   // ---- FETCH CONFIG (includes home page visibility toggles) ----
   useEffect(() => {
     const fetchConfig = async () => {
@@ -63,7 +69,7 @@ export const HomePage = () => {
             showProgressSnapshot: res.data.config.showProgressSnapshot !== undefined ? res.data.config.showProgressSnapshot : true,
             showDownloadApp: res.data.config.showDownloadApp !== undefined ? res.data.config.showDownloadApp : true,
             showWeeklyQuiz: res.data.config.showWeeklyQuiz !== undefined ? res.data.config.showWeeklyQuiz : true,
-            showGetPremium: res.data.config.showGetPremium !== undefined ? res.data.config.showGetPremium : true   // ← NEW
+            showGetPremium: res.data.config.showGetPremium !== undefined ? res.data.config.showGetPremium : true
           });
         }
       } catch (error) {
@@ -182,6 +188,36 @@ export const HomePage = () => {
     return () => clearInterval(interval);
   }, [showOffer, offer?.endDate]);
 
+  // ===== FETCH PRIVATE MESSAGES (NEW) =====
+  useEffect(() => {
+    const fetchPrivateMessages = async () => {
+      if (!token) return;
+      try {
+        const res = await axios.get('/api/private-messages', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success && res.data.messages.length > 0) {
+          // Get only unread messages
+          const unread = res.data.messages.filter(m => !m.isRead);
+          setPrivateMessages(unread);
+          
+          // Show the first unread message if any
+          if (unread.length > 0) {
+            // Check if this message was already dismissed in this session
+            const dismissed = localStorage.getItem(`privateMsg_${unread[0]._id}`);
+            if (!dismissed) {
+              setCurrentPrivateMessage(unread[0]);
+              setShowPrivateMessage(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch private messages:', error);
+      }
+    };
+    fetchPrivateMessages();
+  }, [token]);
+
   // ===== PRELOAD CATEGORIES & QUIZZES =====
   useEffect(() => {
     if (!token) return;
@@ -198,6 +234,36 @@ export const HomePage = () => {
     };
     preloadData();
   }, [token]);
+
+  // ===== MARK PRIVATE MESSAGE AS READ =====
+  const dismissPrivateMessage = async (messageId) => {
+    try {
+      await axios.put(
+        `/api/private-messages/${messageId}/read`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      localStorage.setItem(`privateMsg_${messageId}`, 'dismissed');
+      setShowPrivateMessage(false);
+      setCurrentPrivateMessage(null);
+      
+      // Remove from list
+      setPrivateMessages(prev => prev.filter(m => m._id !== messageId));
+    } catch (error) {
+      console.error('Failed to dismiss message:', error);
+      // Still hide it locally
+      localStorage.setItem(`privateMsg_${messageId}`, 'dismissed');
+      setShowPrivateMessage(false);
+      setCurrentPrivateMessage(null);
+    }
+  };
+
+  const handlePrivateMessageAction = (message) => {
+    if (message.buttonLink) {
+      navigate(message.buttonLink);
+    }
+    dismissPrivateMessage(message._id);
+  };
 
   if (loading || configLoading) {
     return <LoadingWithBar message="Loading..." />;
@@ -283,7 +349,6 @@ export const HomePage = () => {
       );
     }
 
-    // ===== NEW: Get Premium Button =====
     if (config.showGetPremium) {
       buttons.push(
         <button
@@ -306,6 +371,63 @@ export const HomePage = () => {
           <h1 style={{ color: headingColor, fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h1>
           <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 16px)' }}>Computer Based Testing Platform</p>
         </div>
+
+        {/* ===== PRIVATE MESSAGE BANNER (NEW) ===== */}
+        {showPrivateMessage && currentPrivateMessage && (
+          <div style={{
+            background: darkMode ? '#2d2d3d' : '#e8f5e9',
+            borderRadius: 12,
+            padding: '16px 24px',
+            marginBottom: 24,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 16,
+            border: `2px solid ${darkMode ? '#4caf50' : '#2e7d32'}`,
+            boxShadow: '0 2px 12px rgba(46, 125, 50, 0.15)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 24 }}>📩</span>
+              <div>
+                <span style={{ color: darkMode ? '#eee' : '#333', fontSize: 15 }}>
+                  <strong>Admin Note:</strong> {currentPrivateMessage.message}
+                </span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {currentPrivateMessage.buttonLink && (
+                <button
+                  onClick={() => handlePrivateMessageAction(currentPrivateMessage)}
+                  style={{
+                    background: '#2e7d32',
+                    color: 'white',
+                    padding: '8px 24px',
+                    border: 'none',
+                    borderRadius: 30,
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {currentPrivateMessage.buttonText || 'Learn More'}
+                </button>
+              )}
+              <button
+                onClick={() => dismissPrivateMessage(currentPrivateMessage._id)}
+                style={{
+                  background: 'transparent',
+                  color: secondaryText,
+                  border: '1px solid ' + secondaryText,
+                  padding: '8px 20px',
+                  borderRadius: 30,
+                  cursor: 'pointer'
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ---- ANNOUNCEMENT BANNER ---- */}
         {showBanner && announcement && (

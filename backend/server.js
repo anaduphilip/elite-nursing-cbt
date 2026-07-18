@@ -409,6 +409,19 @@ const StudyNoteSchema = new mongoose.Schema({
 
 const StudyNote = mongoose.model('StudyNote', StudyNoteSchema);
 
+// ============ PRIVATE MESSAGE SCHEMA (NEW) ============
+const PrivateMessageSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  message: { type: String, required: true },
+  buttonText: { type: String, default: 'Learn More' },
+  buttonLink: { type: String, default: null },
+  isRead: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+  expiresAt: { type: Date, default: null }
+});
+
+const PrivateMessage = mongoose.model('PrivateMessage', PrivateMessageSchema);
+
 // ============ END NEW SCHEMAS ============
 
 const User = mongoose.model('User', UserSchema);
@@ -3464,7 +3477,141 @@ app.delete('/api/admin/study-notes/:id', isAdmin, async (req, res) => {
 });
 
 // =============================================
-// ============ GAMIFICATION ROUTES (NEW) ======
+// ============ PRIVATE MESSAGE ROUTES (NEW) ====
+// =============================================
+
+// ---- ADMIN: Get user profile with stats for admin panel ----
+app.get('/api/admin/users/:userId', isAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Calculate stats
+    const totalExams = user.quizResults.length;
+    let passed = 0, failed = 0;
+    for (const r of user.quizResults) {
+      if (r.percentage >= 70) passed++;
+      else failed++;
+    }
+    const passRate = totalExams > 0 ? Math.round((passed / totalExams) * 100) : 0;
+
+    const badgesCount = user.badges?.length || 0;
+    const streak = user.streak || 0;
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isPremium: user.isPremium,
+        premiumPlan: user.premiumPlan,
+        premiumExpiry: user.premiumExpiry,
+        isVerified: user.isVerified,
+        createdAt: user.createdAt,
+        marketingConsent: user.marketingConsent
+      },
+      stats: {
+        totalExams,
+        passed,
+        failed,
+        passRate,
+        streak,
+        badgesCount,
+        badges: user.badges?.map(b => b.badgeId) || [] // populated in frontend
+      }
+    });
+  } catch (error) {
+    console.error('Fetch user profile error:', error);
+    res.status(500).json({ error: 'Failed to fetch user profile' });
+  }
+});
+
+// ---- ADMIN: Send private message to a single user ----
+app.post('/api/admin/users/:userId/message', isAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { message, buttonText, buttonLink } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const newMessage = new PrivateMessage({
+      userId: userId,
+      message: message,
+      buttonText: buttonText || 'Learn More',
+      buttonLink: buttonLink || null,
+      isRead: false
+    });
+
+    await newMessage.save();
+
+    console.log(`📩 Private message sent to ${user.email} (${userId})`);
+    res.json({
+      success: true,
+      message: 'Private message sent successfully',
+      data: newMessage
+    });
+  } catch (error) {
+    console.error('Send private message error:', error);
+    res.status(500).json({ error: 'Failed to send private message' });
+  }
+});
+
+// ---- USER: Get own private messages (unread first) ----
+app.get('/api/private-messages', authenticate, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const messages = await PrivateMessage.find({ userId })
+      .sort({ isRead: 1, createdAt: -1 }); // unread first
+
+    // Optional: filter out expired messages
+    const now = new Date();
+    const activeMessages = messages.filter(m => !m.expiresAt || m.expiresAt > now);
+
+    res.json({ success: true, messages: activeMessages });
+  } catch (error) {
+    console.error('Fetch private messages error:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+// ---- USER: Mark a private message as read ----
+app.put('/api/private-messages/:messageId/read', authenticate, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user._id;
+
+    const message = await PrivateMessage.findOne({ _id: messageId, userId });
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    message.isRead = true;
+    await message.save();
+
+    res.json({ success: true, message: 'Message marked as read' });
+  } catch (error) {
+    console.error('Mark message read error:', error);
+    res.status(500).json({ error: 'Failed to mark message as read' });
+  }
+});
+
+// =============================================
+// ============ END PRIVATE MESSAGE ROUTES =====
+// =============================================
+
+// =============================================
+// ============ GAMIFICATION ROUTES ============
 // =============================================
 
 // ---- PUBLIC ROUTES ----
