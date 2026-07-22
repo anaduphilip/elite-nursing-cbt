@@ -411,7 +411,7 @@ const StudyNoteSchema = new mongoose.Schema({
 
 const StudyNote = mongoose.model('StudyNote', StudyNoteSchema);
 
-// ============ PRIVATE MESSAGE SCHEMA (NEW) ============
+// ============ PRIVATE MESSAGE SCHEMA ============
 const PrivateMessageSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   message: { type: String, required: true },
@@ -931,15 +931,152 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-// ============ NEW: AI EXPLANATIONS WITH RELAYFREELLM ============
+// ============================================================
+// ============ NEW: AI PROVIDER CONFIG (DIRECT INTEGRATION) ====
+// ============================================================
 
-// Initialize the client pointing to your own RelayFreeLLM gateway
-const aiClient = new OpenAI({
-  apiKey: 'dummy', // The gateway doesn't require a real key
-  baseURL: 'https://relay-free-llm.onrender.com/v1',
-  timeout: 60000,
-  maxRetries: 2
-});
+// ===== AI Provider configurations (same as your app.py) =====
+const aiProviders = [];
+
+// 1. Mistral (primary – confirmed working)
+if (process.env.MISTRAL_API_KEY) {
+  aiProviders.push({
+    name: 'mistral',
+    url: 'https://api.mistral.ai/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}` },
+    model: 'mistral-small-latest',
+    format: 'openai'
+  });
+}
+
+// 2. NVIDIA (secondary – confirmed working)
+if (process.env.NVIDIA_API_KEY) {
+  aiProviders.push({
+    name: 'nvidia',
+    url: 'https://integrate.api.nvidia.com/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}` },
+    model: 'meta/llama-3.1-70b-instruct',
+    format: 'openai'
+  });
+}
+
+// 3. Groq (third – confirmed working)
+if (process.env.GROQ_API_KEY) {
+  aiProviders.push({
+    name: 'groq',
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
+    model: 'llama-3.3-70b-versatile',
+    format: 'openai'
+  });
+}
+
+// 4. Gemini (quota issues – may work later)
+if (process.env.GEMINI_API_KEY) {
+  aiProviders.push({
+    name: 'gemini',
+    url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    format: 'gemini'
+  });
+}
+
+// 5. DeepSeek (insufficient balance – last resort)
+if (process.env.DEEPSEEK_API_KEY) {
+  aiProviders.push({
+    name: 'deepseek',
+    url: 'https://api.deepseek.com/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` },
+    model: 'deepseek-chat',
+    format: 'openai'
+  });
+}
+
+// Helper: Normalize Gemini response to OpenAI format
+function normalizeResponse(provider, raw) {
+  if (provider.format === 'gemini') {
+    const candidates = raw.candidates || [];
+    if (candidates.length > 0) {
+      const text = candidates[0].content?.parts?.[0]?.text || '';
+      return { choices: [{ message: { content: text }, index: 0, finish_reason: 'stop' }] };
+    }
+    return { choices: [] };
+  }
+  return raw; // already OpenAI‑compatible
+}
+
+// Main function to call providers in order
+async function callAIModels(prompt, maxTokens = 400, temperature = 0.7) {
+  const messages = [
+    { role: 'system', content: 'You are a helpful nursing educator.' },
+    { role: 'user', content: prompt }
+  ];
+
+  for (const provider of aiProviders) {
+    try {
+      console.log(`🔄 Attempting AI provider: ${provider.name}`);
+      const headers = { 'Content-Type': 'application/json' };
+      if (provider.headers) Object.assign(headers, provider.headers);
+
+      let payload;
+      if (provider.format === 'gemini') {
+        // Gemini uses a different payload structure
+        const userContent = messages.find(m => m.role === 'user')?.content || '';
+        payload = {
+          contents: [{ parts: [{ text: userContent }] }],
+          generationConfig: {
+            maxOutputTokens: maxTokens,
+            temperature: temperature
+          }
+        };
+      } else {
+        payload = {
+          model: provider.model,
+          messages: messages,
+          max_tokens: maxTokens,
+          temperature: temperature
+        };
+      }
+
+      const response = await axios.post(provider.url, payload, {
+        headers: headers,
+        timeout: 60000 // 60 seconds
+      });
+
+      if (response.status === 200) {
+        const raw = response.data;
+        if (raw.error) {
+          console.log(`Provider ${provider.name} returned error in body: ${raw.error.message || JSON.stringify(raw.error)}`);
+          continue;
+        }
+        const normalized = normalizeResponse(provider, raw);
+        if (normalized.choices && normalized.choices.length > 0) {
+          const content = normalized.choices[0].message?.content;
+          if (content) {
+            console.log(`✅ Provider ${provider.name} succeeded`);
+            return content;
+          } else {
+            console.log(`Provider ${provider.name} returned empty content`);
+            continue;
+          }
+        } else {
+          console.log(`Provider ${provider.name} invalid response:`, raw);
+          continue;
+        }
+      } else {
+        console.log(`Provider ${provider.name} failed with status ${response.status}: ${response.data?.error?.message || response.statusText}`);
+      }
+    } catch (err) {
+      console.log(`Provider ${provider.name} error:`, err.message);
+      continue;
+    }
+  }
+
+  throw new Error('All AI providers failed. Please try again later.');
+}
+
+// ============ END AI PROVIDER CONFIG ============
+
+// ============ NEW: AI EXPLANATIONS WITH DIRECT PROVIDERS ============
 
 // Helper: Check user's daily limit (free users get 10/day)
 const checkUserExplanationLimit = async (user) => {
@@ -960,7 +1097,7 @@ const checkUserExplanationLimit = async (user) => {
   return { allowed: remaining > 0, remaining };
 };
 
-// Generate AI explanation
+// Generate AI explanation – UPDATED to use callAIModels
 app.post('/api/explain-question', authenticate, async (req, res) => {
   try {
     const { questionText, options, correctAnswer, userAnswer } = req.body;
@@ -1000,17 +1137,8 @@ Please provide:
 
 Keep explanations concise and educational. Use bullet points.`;
 
-    const response = await aiClient.chat.completions.create({
-      model: 'gemini-2.0-flash',
-      messages: [
-        { role: 'system', content: 'You are a helpful nursing educator.' },
-        { role: 'user', content: prompt }
-      ],
-      max_tokens: 400,
-      temperature: 0.7
-    });
-    
-    const explanation = response.choices[0].message.content;
+    // Use our new internal AI provider function
+    const explanation = await callAIModels(prompt, 400, 0.7);
     
     // Increment user's daily count (if not premium)
     if (!req.user.isPremium) {
@@ -3472,17 +3600,8 @@ ${question}
 
 Please provide a clear, educational answer that helps the user understand the topic better. If the question is not directly covered in the note, use your nursing knowledge to provide the best possible answer.`;
 
-    const response = await aiClient.chat.completions.create({
-      model: 'gemini-2.0-flash',
-      messages: [
-        { role: 'system', content: 'You are a helpful nursing educator. Provide clear, accurate, and educational answers.' },
-        { role: 'user', content: prompt }
-      ],
-      max_tokens: 500,
-      temperature: 0.7
-    });
-    
-    const answer = response.choices[0].message.content;
+    // Use our internal AI provider function
+    const answer = await callAIModels(prompt, 500, 0.7);
     
     res.json({ success: true, answer });
   } catch (error) {
@@ -3574,7 +3693,7 @@ app.delete('/api/admin/study-notes/:id', isAdmin, async (req, res) => {
 });
 
 // =============================================
-// ============ PRIVATE MESSAGE ROUTES (NEW) ====
+// ============ PRIVATE MESSAGE ROUTES ============
 // =============================================
 
 // ---- ADMIN: Get user profile with stats for admin panel ----
