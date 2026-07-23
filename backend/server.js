@@ -321,7 +321,7 @@ const ConfigSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
   refreshRequired: { type: Boolean, default: false },
   refreshVersion: { type: Number, default: 0 },
-  refreshMessage: { type: String, default: 'A new version is available. Please refresh your page to continue.' }
+  refreshMessage: { type: String, default: 'A new version is available. Please refresh your page to continue.' },
   
   // ===== LIMITED TIME OFFER =====
   limitedOffer: {
@@ -1486,6 +1486,65 @@ app.post('/api/admin/set-premium-plan', isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Set premium plan error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ FORCE REFRESH ROUTES ============
+
+// Get current force refresh state (public – for frontend polling)
+app.get('/api/force-refresh', async (req, res) => {
+  try {
+    const config = await Config.findOne();
+    if (!config) {
+      return res.json({ success: true, version: 0, message: '' });
+    }
+    res.json({
+      success: true,
+      version: config.refreshVersion || 0,
+      message: config.refreshMessage || 'A new version is available. Please refresh your page to continue.'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch refresh status' });
+  }
+});
+
+// Admin: Trigger force refresh
+app.post('/api/admin/force-refresh', isAdmin, async (req, res) => {
+  try {
+    const { message, version } = req.body;
+    let config = await Config.findOne();
+    if (!config) {
+      config = new Config();
+    }
+    
+    const newVersion = version || (config.refreshVersion || 0) + 1;
+    config.refreshRequired = true;
+    config.refreshVersion = newVersion;
+    if (message) config.refreshMessage = message;
+    await config.save();
+    
+    res.json({
+      success: true,
+      version: newVersion,
+      message: config.refreshMessage
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to trigger refresh' });
+  }
+});
+
+// Admin: Deactivate force refresh
+app.delete('/api/admin/force-refresh', isAdmin, async (req, res) => {
+  try {
+    let config = await Config.findOne();
+    if (config) {
+      config.refreshRequired = false;
+      config.refreshVersion = 0;
+      await config.save();
+    }
+    res.json({ success: true, message: 'Force refresh deactivated' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to deactivate refresh' });
   }
 });
 
