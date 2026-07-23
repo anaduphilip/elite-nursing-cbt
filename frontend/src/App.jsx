@@ -46,7 +46,7 @@ import { FAQ } from './components/pages/FAQ';
 import { Maintenance } from './components/pages/Maintenance';
 import { StudyPlan } from './components/study/StudyPlan';
 
-const API_URL = 'https://elite-nursing-cbt.onrender.com';
+const API_URL = 'https://elite-nursing-cbt-production.up.railway.app';
 axios.defaults.baseURL = API_URL;
 
 // Helper functions
