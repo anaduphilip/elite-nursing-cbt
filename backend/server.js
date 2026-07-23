@@ -319,6 +319,9 @@ const ConfigSchema = new mongoose.Schema({
   showWeeklyQuiz: { type: Boolean, default: true },
   showLeaderboard: { type: Boolean, default: true },
   updatedAt: { type: Date, default: Date.now },
+  refreshRequired: { type: Boolean, default: false },
+  refreshVersion: { type: Number, default: 0 },
+  refreshMessage: { type: String, default: 'A new version is available. Please refresh your page to continue.' }
   
   // ===== LIMITED TIME OFFER =====
   limitedOffer: {

@@ -27,6 +27,7 @@ import { LimitedOfferTab } from './tabs/LimitedOfferTab';
 import { StudyNotesTab } from './tabs/StudyNotesTab';
 import { HomePageControlTab } from './tabs/HomePageControlTab';
 import { GamificationTab } from './tabs/GamificationTab';
+import { ForceRefreshTab } from './tabs/ForceRefreshTab';
 
 // Import modal components
 import { QuestionModal } from './components/QuestionModal';
@@ -76,7 +77,7 @@ export const AdminPanel = () => {
   const [announcementLoading, setAnnouncementLoading] = useState(false);
   const [announcementResult, setAnnouncementResult] = useState('');
 
-  // ---- Limited Offer states (NEW) ----
+  // ---- Limited Offer states ----
   const [limitedOffer, setLimitedOffer] = useState({
     enabled: false,
     discountPercent: 0,
@@ -127,7 +128,7 @@ export const AdminPanel = () => {
 
   const [userFilter, setUserFilter] = useState('all');
 
-  // ========== NEW: Adjust Premium modal ==========
+  // ========== Adjust Premium modal ==========
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [adjustUserId, setAdjustUserId] = useState(null);
   const [adjustPlanType, setAdjustPlanType] = useState('daily');
@@ -207,6 +208,14 @@ export const AdminPanel = () => {
   const [categoryManagerEditingIdx, setCategoryManagerEditingIdx] = useState(null);
   const [categoryManagerExistingQuizId, setCategoryManagerExistingQuizId] = useState(null);
 
+  // ===== FORCE REFRESH STATES (NEW) =====
+  const [forceRefreshMessage, setForceRefreshMessage] = useState(
+    'A new version is available. Please refresh your page to continue.'
+  );
+  const [forceRefreshLoading, setForceRefreshLoading] = useState(false);
+  const [forceRefreshResult, setForceRefreshResult] = useState('');
+  const [forceRefreshVersion, setForceRefreshVersion] = useState(0);
+
 // ============================================================
 // ========== ALL ORIGINAL FUNCTIONS ==========================
 // ============================================================
@@ -250,6 +259,64 @@ const fetchConfig = async () => {
   }
 };
 
+// ===== Force Refresh Functions (NEW) =====
+const handleForceRefresh = async () => {
+  setForceRefreshLoading(true);
+  setForceRefreshResult('');
+  try {
+    const res = await axios.post(
+      '/api/admin/force-refresh',
+      {
+        message: forceRefreshMessage,
+        version: forceRefreshVersion + 1
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data.success) {
+      setForceRefreshVersion(res.data.version);
+      setForceRefreshResult(`✅ Force refresh triggered! Version: ${res.data.version}. Users will see the refresh message.`);
+    }
+  } catch (error) {
+    setForceRefreshResult('❌ Failed to trigger refresh: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setForceRefreshLoading(false);
+  }
+};
+
+const loadForceRefresh = async () => {
+  setForceRefreshLoading(true);
+  try {
+    const res = await axios.get('/api/admin/force-refresh', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setForceRefreshMessage(res.data.message || 'A new version is available. Please refresh your page to continue.');
+      setForceRefreshVersion(res.data.version || 0);
+      setForceRefreshResult('✅ Loaded current refresh settings.');
+    } else {
+      setForceRefreshResult('No active refresh. Users are up to date.');
+    }
+  } catch (error) {
+    setForceRefreshResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setForceRefreshLoading(false);
+  }
+};
+
+const handleDeactivateRefresh = async () => {
+  if (!window.confirm('Deactivate the force refresh? Users will not see the refresh prompt.')) return;
+  setForceRefreshLoading(true);
+  try {
+    const res = await axios.delete('/api/admin/force-refresh', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setForceRefreshResult('✅ Force refresh deactivated. Users will no longer be prompted to refresh.');
+      setForceRefreshVersion(0);
+    }
+  } catch (error) {
+    setForceRefreshResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setForceRefreshLoading(false);
+  }
+};
+
 const handleSaveConfig = async () => {
   setConfigLoading(true);
   setConfigResult('');
@@ -266,12 +333,11 @@ const handleSaveConfig = async () => {
   }
 };
 
-// ===== Limited Offer Functions (NEW) =====
+// ===== Limited Offer Functions =====
 const handleSaveLimitedOffer = async () => {
   setLimitedOfferLoading(true);
   setLimitedOfferResult('');
   try {
-    // Create a copy of config and update limitedOffer
     const updatedConfig = { ...config };
     updatedConfig.limitedOffer = {
       enabled: limitedOffer.enabled,
@@ -287,7 +353,6 @@ const handleSaveLimitedOffer = async () => {
     const res = await axios.put('/api/admin/config', updatedConfig, { headers: { Authorization: `Bearer ${token}` } });
     if (res.data.success) {
       setConfig(res.data.config);
-      // Update local limited offer state with saved data
       if (res.data.config.limitedOffer) {
         const offer = res.data.config.limitedOffer;
         setLimitedOffer({
@@ -1477,7 +1542,6 @@ const handleCategoryManagerDeleteQuestion = (idx) => {
   }
 };
 
-// ===== Category Manager Clear =====
 const handleClearCategoryManager = () => {
   setCategoryManagerQuestions([]);
   setCategoryManagerBatch('');
@@ -1669,7 +1733,8 @@ useEffect(() => {
         fetchCoupons(),
         fetchFaqs(),
         fetchQuizzes(),
-        fetchCategoryManagerQuizzes()
+        fetchCategoryManagerQuizzes(),
+        loadForceRefresh() // ← NEW: Load force refresh state on mount
       ]);
       setDataLoaded(true);
     } catch (error) {
@@ -1739,6 +1804,8 @@ useEffect(() => {
             <button onClick={() => setActiveTab('limitedOffer')} style={{ background: activeTab === 'limitedOffer' ? '#ff9800' : 'transparent', color: activeTab === 'limitedOffer' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'limitedOffer' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🔥 Limited Offer</button>
             {/* ===== NEW GAMIFICATION TAB ===== */}
             <button onClick={() => setActiveTab('gamification')} style={{ background: activeTab === 'gamification' ? '#1e3c72' : 'transparent', color: activeTab === 'gamification' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'gamification' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏆 Gamification</button>
+            {/* ===== NEW FORCE REFRESH TAB ===== */}
+            <button onClick={() => setActiveTab('forceRefresh')} style={{ background: activeTab === 'forceRefresh' ? '#dc3545' : 'transparent', color: activeTab === 'forceRefresh' ? 'white' : '#dc3545', padding: '10px 24px', border: activeTab === 'forceRefresh' ? 'none' : '2px solid #dc3545', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🔄 Force Refresh</button>
           </div>
 
           {/* ===== Render the active tab ===== */}
@@ -1810,6 +1877,18 @@ useEffect(() => {
           }} />}
           {/* ===== NEW GAMIFICATION TAB ===== */}
           {activeTab === 'gamification' && <GamificationTab {...commonProps} />}
+          {/* ===== NEW FORCE REFRESH TAB ===== */}
+          {activeTab === 'forceRefresh' && <ForceRefreshTab {...{ 
+            forceRefreshMessage, 
+            setForceRefreshMessage,
+            forceRefreshLoading,
+            forceRefreshResult,
+            forceRefreshVersion,
+            handleForceRefresh,
+            handleDeactivateRefresh,
+            loadForceRefresh,
+            ...commonProps 
+          }} />}
 
           {/* ===== Modals ===== */}
           <QuestionModal

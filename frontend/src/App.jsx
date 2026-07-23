@@ -19,7 +19,7 @@ import { ForgotPassword } from './components/auth/ForgotPassword';
 import { HomePage } from './components/home/HomePage';
 import { FreeModeCategories } from './components/home/FreeModeCategories';
 import { PremiumModeCategories } from './components/home/PremiumModeCategories';
-import { StudyMode } from './components/home/StudyMode'; // ← NEW
+import { StudyMode } from './components/home/StudyMode';
 import { CourseList } from './components/courses/CourseList';
 import { ExamList } from './components/exams/ExamList';
 import { TakeExam } from './components/exams/TakeExam';
@@ -109,7 +109,7 @@ const AppContent = () => {
         <Route path="/" element={<HomePage />} />
         <Route path="/free-mode" element={<FreeModeCategories />} />
         <Route path="/premium-mode" element={<PremiumModeCategories />} />
-        <Route path="/study-mode" element={<StudyMode />} /> {/* ← NEW */}
+        <Route path="/study-mode" element={<StudyMode />} />
         <Route path="/courses/:categoryName/:mode" element={<CourseList />} />
         <Route path="/exams/:id/:mode" element={<ExamList />} />
         <Route path="/take/:id/:sectionNumber/:mode" element={<TakeExam />} />
@@ -118,7 +118,6 @@ const AppContent = () => {
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/whatsapp" element={<JoinWhatsApp />} />
-        {/* ===== PROTECTED ADMIN ROUTE ===== */}
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/payment-return" element={<PaymentReturn />} />
         <Route path="/history" element={<MyHistory />} />
@@ -153,6 +152,12 @@ function App() {
   // ========== Maintenance mode states ==========
   const [maintenance, setMaintenance] = useState(null);
   const [maintenanceLoading, setMaintenanceLoading] = useState(true);
+
+  // ========== Force Refresh states (NEW) ==========
+  const [refreshModal, setRefreshModal] = useState(null);
+  const [refreshVersion, setRefreshVersion] = useState(() => {
+    return parseInt(localStorage.getItem('refreshVersion') || '0');
+  });
 
   const headingColor = getHeadingColorHelper(darkMode);
   const secondaryText = getSecondaryTextHelper(darkMode);
@@ -221,6 +226,36 @@ function App() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // ========== Force Refresh polling (NEW) ==========
+  useEffect(() => {
+    const checkForRefresh = async () => {
+      try {
+        const res = await axios.get('/api/force-refresh');
+        if (res.data.success) {
+          const newVersion = res.data.version || 0;
+          if (newVersion > refreshVersion) {
+            // New refresh version detected – store and show modal
+            localStorage.setItem('refreshVersion', String(newVersion));
+            setRefreshVersion(newVersion);
+            setRefreshModal({
+              show: true,
+              message: res.data.message || 'A new version is available. Please refresh your page to continue.'
+            });
+          }
+        }
+      } catch (error) {
+        // Silent fail – network errors shouldn't break the app
+      }
+    };
+
+    // Initial check
+    checkForRefresh();
+
+    // Poll every 30 seconds
+    const interval = setInterval(checkForRefresh, 30000);
+    return () => clearInterval(interval);
+  }, [refreshVersion]);
 
   const [notificationModal, setNotificationModal] = useState(null);
 
@@ -443,6 +478,11 @@ function App() {
     return <Maintenance message={maintenance.maintenanceMessage} />;
   }
 
+  // ========== FORCE REFRESH MODAL (shown on top of everything) ==========
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode, openLogoutModal }}>
       <AlertProvider>
@@ -487,6 +527,55 @@ function App() {
             </div>
           </div>
         )}
+
+        {/* ===== FORCE REFRESH MODAL (NEW) ===== */}
+        {refreshModal?.show && (
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            backdropFilter: 'blur(4px)'
+          }}>
+            <div style={{
+              background: cardBg,
+              borderRadius: 24,
+              padding: 32,
+              maxWidth: 420,
+              width: '90%',
+              textAlign: 'center',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+            }}>
+              <div style={{ fontSize: 52, marginBottom: 16 }}>🔄</div>
+              <h2 style={{ color: headingColor, marginBottom: 12 }}>Update Available</h2>
+              <p style={{ color: secondaryText, fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
+                {refreshModal.message || 'A new version is available. Please refresh your page to continue.'}
+              </p>
+              <button
+                onClick={handleRefresh}
+                style={{
+                  background: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 36px',
+                  borderRadius: 50,
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(220, 53, 69, 0.3)'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 6px 20px rgba(220, 53, 69, 0.4)'}
+                onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 4px 15px rgba(220, 53, 69, 0.3)'}
+              >
+                🔄 Refresh Now
+              </button>
+            </div>
+          </div>
+        )}
+
         <LogoutModal isOpen={showLogoutModal} onClose={closeLogoutModal} />
       </AlertProvider>
     </AuthContext.Provider>
