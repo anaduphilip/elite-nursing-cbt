@@ -1510,6 +1510,7 @@ app.get('/api/force-refresh', async (req, res) => {
 
 // Admin: Trigger force refresh
 app.post('/api/admin/force-refresh', isAdmin, async (req, res) => {
+  console.log('🔥 Force refresh route hit!');
   try {
     const { message, version } = req.body;
     let config = await Config.findOne();
