@@ -31,9 +31,19 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
   const [examForm, setExamForm] = useState({ paperId: '', title: '', description: '', questions: [], timeLimit: 180, passingScore: 70, order: 0, isActive: true });
   const [editExamId, setEditExamId] = useState(null);
   const [examModalOpen, setExamModalOpen] = useState(false);
-  // ---- NEW: Batch import state ----
+  // ---- Batch import state ----
   const [batchInput, setBatchInput] = useState('');
   const [batchResult, setBatchResult] = useState('');
+
+  // ---- NEW: Single question form ----
+  const [questionForm, setQuestionForm] = useState({
+    questionText: '',
+    options: ['', '', '', ''],
+    correctAnswer: 0,
+    points: 1
+  });
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
+  const [showQuestionForm, setShowQuestionForm] = useState(false);
 
   // ---- FETCH DATA ----
   const fetchAll = async () => {
@@ -135,6 +145,9 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         setEditExamId(null);
         setBatchInput('');
         setBatchResult('');
+        setQuestionForm({ questionText: '', options: ['', '', '', ''], correctAnswer: 0, points: 1 });
+        setEditingQuestionIndex(null);
+        setShowQuestionForm(false);
       }
     } catch (error) {
       alert('Failed to save exam: ' + (error.response?.data?.error || error.message));
@@ -151,7 +164,7 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
     }
   };
 
-  // ---- BATCH IMPORT FUNCTION (NEW) ----
+  // ---- BATCH IMPORT FUNCTION ----
   const handleBatchImport = () => {
     if (!batchInput.trim()) {
       alert('Please paste some questions first.');
@@ -187,14 +200,12 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
       const options = [];
       let answerLetter = null;
 
-      // Try to extract options from the block (in case they are on separate lines)
       const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
       let match;
       while ((match = optionPattern.exec(fullText)) !== null) {
         options.push(match[2].trim());
       }
 
-      // If options not found, try other formats
       if (options.length !== 4) {
         const linesInBlock = block.split('\n');
         for (const line of linesInBlock) {
@@ -205,7 +216,6 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         }
       }
 
-      // Clean question text
       let questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
       if (!questionText) {
         const firstLine = block.split('\n')[0];
@@ -214,7 +224,6 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         }
       }
 
-      // Try to find answer
       const answerMatch = block.match(/Answer:\s*([a-d])/i);
       if (answerMatch) {
         answerLetter = answerMatch[1].toUpperCase();
@@ -245,7 +254,6 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
       return;
     }
 
-    // Append to existing questions
     setExamForm(prev => ({
       ...prev,
       questions: [...prev.questions, ...parsedQuestions]
@@ -346,13 +354,70 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
           <div style={{ background: cardBg, borderRadius: 20, padding: 28, maxWidth: 500, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ color: headingColor, marginBottom: 16 }}>{editCatId ? 'Edit' : 'Add'} Category</h3>
             <label style={{ color: textColor, fontWeight: 'bold' }}>Name *</label>
-            <input type="text" value={catForm.name} onChange={e => setCatForm({ ...catForm, name: e.target.value })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
+            <input
+              type="text"
+              value={catForm.name}
+              onChange={e => setCatForm({ ...catForm, name: e.target.value })}
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box'
+              }}
+            />
             <label style={{ color: textColor, fontWeight: 'bold' }}>Description</label>
-            <textarea value={catForm.description} onChange={e => setCatForm({ ...catForm, description: e.target.value })} rows="2" style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
+            <textarea
+              value={catForm.description}
+              onChange={e => setCatForm({ ...catForm, description: e.target.value })}
+              rows="2"
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box',
+                resize: 'vertical'
+              }}
+            />
             <label style={{ color: textColor, fontWeight: 'bold' }}>Icon (emoji)</label>
-            <input type="text" value={catForm.icon} onChange={e => setCatForm({ ...catForm, icon: e.target.value })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
+            <input
+              type="text"
+              value={catForm.icon}
+              onChange={e => setCatForm({ ...catForm, icon: e.target.value })}
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box'
+              }}
+            />
             <label style={{ color: textColor, fontWeight: 'bold' }}>Order</label>
-            <input type="number" value={catForm.order} onChange={e => setCatForm({ ...catForm, order: parseInt(e.target.value) || 0 })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
+            <input
+              type="number"
+              value={catForm.order}
+              onChange={e => setCatForm({ ...catForm, order: parseInt(e.target.value) || 0 })}
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box'
+              }}
+            />
             <label style={{ color: textColor, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={catForm.active} onChange={e => setCatForm({ ...catForm, active: e.target.checked })} />
               Active
@@ -371,14 +436,56 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
           <div style={{ background: cardBg, borderRadius: 20, padding: 28, maxWidth: 500, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ color: headingColor, marginBottom: 16 }}>{editPaperId ? 'Edit' : 'Add'} Paper</h3>
             <label style={{ color: textColor, fontWeight: 'bold' }}>Category *</label>
-            <select value={paperForm.categoryId} onChange={e => setPaperForm({ ...paperForm, categoryId: e.target.value })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }}>
+            <select
+              value={paperForm.categoryId}
+              onChange={e => setPaperForm({ ...paperForm, categoryId: e.target.value })}
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box'
+              }}
+            >
               <option value="">Select Category</option>
               {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
             </select>
             <label style={{ color: textColor, fontWeight: 'bold' }}>Name *</label>
-            <input type="text" value={paperForm.name} onChange={e => setPaperForm({ ...paperForm, name: e.target.value })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
+            <input
+              type="text"
+              value={paperForm.name}
+              onChange={e => setPaperForm({ ...paperForm, name: e.target.value })}
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box'
+              }}
+            />
             <label style={{ color: textColor, fontWeight: 'bold' }}>Description</label>
-            <textarea value={paperForm.description} onChange={e => setPaperForm({ ...paperForm, description: e.target.value })} rows="2" style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
+            <textarea
+              value={paperForm.description}
+              onChange={e => setPaperForm({ ...paperForm, description: e.target.value })}
+              rows="2"
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box',
+                resize: 'vertical'
+              }}
+            />
             <label style={{ color: textColor, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={paperForm.hasCourses} onChange={e => setPaperForm({ ...paperForm, hasCourses: e.target.checked })} />
               Has Courses
@@ -386,11 +493,40 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
             {paperForm.hasCourses && (
               <>
                 <label style={{ color: textColor, fontWeight: 'bold' }}>Courses (comma separated)</label>
-                <input type="text" value={paperForm.courses.join(', ')} onChange={e => setPaperForm({ ...paperForm, courses: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} placeholder="Anatomy, Physiology, Pharmacology" />
+                <input
+                  type="text"
+                  value={paperForm.courses.join(', ')}
+                  onChange={e => setPaperForm({ ...paperForm, courses: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                  style={{
+                    width: '100%',
+                    padding: 10,
+                    margin: '8px 0 16px',
+                    borderRadius: 6,
+                    border: '1px solid #ccc',
+                    background: darkMode ? '#1a1a2e' : 'white',
+                    color: textColor,
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="Anatomy, Physiology, Pharmacology"
+                />
               </>
             )}
             <label style={{ color: textColor, fontWeight: 'bold' }}>Order</label>
-            <input type="number" value={paperForm.order} onChange={e => setPaperForm({ ...paperForm, order: parseInt(e.target.value) || 0 })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
+            <input
+              type="number"
+              value={paperForm.order}
+              onChange={e => setPaperForm({ ...paperForm, order: parseInt(e.target.value) || 0 })}
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box'
+              }}
+            />
             <label style={{ color: textColor, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={paperForm.active} onChange={e => setPaperForm({ ...paperForm, active: e.target.checked })} />
               Active
@@ -403,46 +539,155 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         </div>
       )}
 
-      {/* ===== EXAM MODAL (UPDATED WITH BATCH IMPORT) ===== */}
+      {/* ===== EXAM MODAL ===== */}
       {examModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
           <div style={{ background: cardBg, borderRadius: 20, padding: 28, maxWidth: 700, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ color: headingColor, marginBottom: 16 }}>{editExamId ? 'Edit' : 'Add'} Exam</h3>
+
+            {/* ----- Exam fields ----- */}
             <label style={{ color: textColor, fontWeight: 'bold' }}>Paper *</label>
-            <select value={examForm.paperId} onChange={e => setExamForm({ ...examForm, paperId: e.target.value })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }}>
+            <select
+              value={examForm.paperId}
+              onChange={e => setExamForm({ ...examForm, paperId: e.target.value })}
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box'
+              }}
+            >
               <option value="">Select Paper</option>
               {papers.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
             </select>
+
             <label style={{ color: textColor, fontWeight: 'bold' }}>Title *</label>
-            <input type="text" value={examForm.title} onChange={e => setExamForm({ ...examForm, title: e.target.value })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
+            <input
+              type="text"
+              value={examForm.title}
+              onChange={e => setExamForm({ ...examForm, title: e.target.value })}
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box'
+              }}
+            />
+
             <label style={{ color: textColor, fontWeight: 'bold' }}>Description</label>
-            <textarea value={examForm.description} onChange={e => setExamForm({ ...examForm, description: e.target.value })} rows="2" style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
-            <label style={{ color: textColor, fontWeight: 'bold' }}>Time Limit (minutes)</label>
-            <input type="number" value={examForm.timeLimit} onChange={e => setExamForm({ ...examForm, timeLimit: parseInt(e.target.value) || 180 })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
-            <label style={{ color: textColor, fontWeight: 'bold' }}>Passing Score (%)</label>
-            <input type="number" value={examForm.passingScore} onChange={e => setExamForm({ ...examForm, passingScore: parseInt(e.target.value) || 70 })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
-            <label style={{ color: textColor, fontWeight: 'bold' }}>Order</label>
-            <input type="number" value={examForm.order} onChange={e => setExamForm({ ...examForm, order: parseInt(e.target.value) || 0 })} style={{ width: '100%', padding: 10, margin: '8px 0 16px', borderRadius: 6, border: '1px solid #ccc', background: darkMode ? '#1a1a2e' : 'white', color: textColor }} />
-            <label style={{ color: textColor, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <textarea
+              value={examForm.description}
+              onChange={e => setExamForm({ ...examForm, description: e.target.value })}
+              rows="2"
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box',
+                resize: 'vertical'
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 12 }}>
+              <div style={{ flex: 1, minWidth: '120px' }}>
+                <label style={{ color: textColor, fontWeight: 'bold' }}>Time (min)</label>
+                <input
+                  type="number"
+                  value={examForm.timeLimit}
+                  onChange={e => setExamForm({ ...examForm, timeLimit: parseInt(e.target.value) || 180 })}
+                  style={{
+                    width: '100%',
+                    padding: 10,
+                    margin: '8px 0',
+                    borderRadius: 6,
+                    border: '1px solid #1e3c72',
+                    background: darkMode ? '#1a1a2e' : 'white',
+                    color: textColor,
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: '120px' }}>
+                <label style={{ color: textColor, fontWeight: 'bold' }}>Passing %</label>
+                <input
+                  type="number"
+                  value={examForm.passingScore}
+                  onChange={e => setExamForm({ ...examForm, passingScore: parseInt(e.target.value) || 70 })}
+                  style={{
+                    width: '100%',
+                    padding: 10,
+                    margin: '8px 0',
+                    borderRadius: 6,
+                    border: '1px solid #1e3c72',
+                    background: darkMode ? '#1a1a2e' : 'white',
+                    color: textColor,
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              <div style={{ flex: '0 0 100px' }}>
+                <label style={{ color: textColor, fontWeight: 'bold' }}>Order</label>
+                <input
+                  type="number"
+                  value={examForm.order}
+                  onChange={e => setExamForm({ ...examForm, order: parseInt(e.target.value) || 0 })}
+                  style={{
+                    width: '100%',
+                    padding: 10,
+                    margin: '8px 0',
+                    borderRadius: 6,
+                    border: '1px solid #1e3c72',
+                    background: darkMode ? '#1a1a2e' : 'white',
+                    color: textColor,
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            <label style={{ color: textColor, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
               <input type="checkbox" checked={examForm.isActive} onChange={e => setExamForm({ ...examForm, isActive: e.target.checked })} />
               Active
             </label>
 
-            {/* ===== NEW: BATCH IMPORT SECTION ===== */}
+            {/* ----- Batch Import ----- */}
             <div style={{ margin: '16px 0', padding: '12px', background: darkMode ? '#1a1a2e' : '#f8f9fa', borderRadius: 8, border: '1px dashed ' + (darkMode ? '#555' : '#aaa') }}>
               <p style={{ fontWeight: 'bold', color: headingColor }}>📥 Batch Import Questions</p>
               <p style={{ fontSize: 13, color: secondaryText, marginBottom: 8 }}>
                 Paste questions in the format below. Each question must start with Q1., Q2., etc.
               </p>
               <textarea
-                rows="6"
+                rows="4"
                 placeholder='Q1. What is the normal heart rate? (a) 60-100 (b) 40-60 (c) 100-140 (d) 80-120
 Q2. Which organ produces insulin? (a) Liver (b) Pancreas (c) Kidney (d) Stomach
 
 Answer: b'
                 value={batchInput}
                 onChange={e => setBatchInput(e.target.value)}
-                style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14, background: darkMode ? '#1a1a2e' : 'white', color: textColor, fontFamily: 'monospace', boxSizing: 'border-box', resize: 'vertical' }}
+                style={{
+                  width: '100%',
+                  padding: 10,
+                  border: '1px solid #ccc',
+                  borderRadius: 6,
+                  fontSize: 14,
+                  background: darkMode ? '#1a1a2e' : 'white',
+                  color: textColor,
+                  fontFamily: 'monospace',
+                  boxSizing: 'border-box',
+                  resize: 'vertical'
+                }}
               />
               <button
                 onClick={handleBatchImport}
@@ -453,14 +698,182 @@ Answer: b'
               {batchResult && <p style={{ marginTop: 6, color: '#28a745', fontSize: 13 }}>{batchResult}</p>}
             </div>
 
+            {/* ----- Add Single Question ----- */}
+            <div style={{ margin: '16px 0', padding: '12px', background: darkMode ? '#1a1a2e' : '#f8f9fa', borderRadius: 8, border: '1px solid ' + (darkMode ? '#555' : '#ddd') }}>
+              <button
+                onClick={() => {
+                  setShowQuestionForm(!showQuestionForm);
+                  if (!showQuestionForm) {
+                    setEditingQuestionIndex(null);
+                    setQuestionForm({ questionText: '', options: ['', '', '', ''], correctAnswer: 0, points: 1 });
+                  }
+                }}
+                style={{ background: '#007bff', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
+              >
+                {showQuestionForm ? 'Hide Question Form' : '➕ Add Single Question'}
+              </button>
+
+              {showQuestionForm && (
+                <div style={{ marginTop: 12 }}>
+                  <input
+                    type="text"
+                    placeholder="Question text"
+                    value={questionForm.questionText}
+                    onChange={e => setQuestionForm({ ...questionForm, questionText: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: 8,
+                      marginBottom: 8,
+                      borderRadius: 4,
+                      border: '1px solid #ccc',
+                      background: darkMode ? '#1a1a2e' : 'white',
+                      color: textColor,
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {questionForm.options.map((opt, idx) => (
+                      <input
+                        key={idx}
+                        type="text"
+                        placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                        value={opt}
+                        onChange={e => {
+                          const newOpts = [...questionForm.options];
+                          newOpts[idx] = e.target.value;
+                          setQuestionForm({ ...questionForm, options: newOpts });
+                        }}
+                        style={{
+                          padding: 6,
+                          borderRadius: 4,
+                          border: '1px solid #ccc',
+                          background: darkMode ? '#1a1a2e' : 'white',
+                          color: textColor,
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <label style={{ color: textColor, fontSize: 13 }}>Correct Answer:</label>
+                    <select
+                      value={questionForm.correctAnswer}
+                      onChange={e => setQuestionForm({ ...questionForm, correctAnswer: parseInt(e.target.value) })}
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: 4,
+                        border: '1px solid #ccc',
+                        background: darkMode ? '#1a1a2e' : 'white',
+                        color: textColor,
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      {questionForm.options.map((_, idx) => (
+                        <option key={idx} value={idx}>Option {String.fromCharCode(65 + idx)}</option>
+                      ))}
+                    </select>
+                    <label style={{ color: textColor, fontSize: 13 }}>Points:</label>
+                    <input
+                      type="number"
+                      value={questionForm.points}
+                      onChange={e => setQuestionForm({ ...questionForm, points: parseInt(e.target.value) || 1 })}
+                      style={{
+                        width: 60,
+                        padding: 4,
+                        borderRadius: 4,
+                        border: '1px solid #ccc',
+                        background: darkMode ? '#1a1a2e' : 'white',
+                        color: textColor,
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!questionForm.questionText.trim()) return alert('Question text is required');
+                      if (questionForm.options.some(o => !o.trim())) return alert('All options must be filled');
+                      const newQ = {
+                        questionText: questionForm.questionText.trim(),
+                        options: questionForm.options.map(o => o.trim()),
+                        correctAnswer: questionForm.correctAnswer,
+                        points: questionForm.points || 1
+                      };
+                      if (editingQuestionIndex !== null) {
+                        const updated = [...examForm.questions];
+                        updated[editingQuestionIndex] = newQ;
+                        setExamForm({ ...examForm, questions: updated });
+                        setEditingQuestionIndex(null);
+                      } else {
+                        setExamForm({ ...examForm, questions: [...examForm.questions, newQ] });
+                      }
+                      setQuestionForm({ questionText: '', options: ['', '', '', ''], correctAnswer: 0, points: 1 });
+                      setShowQuestionForm(false);
+                    }}
+                    style={{ marginTop: 8, background: '#28a745', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}
+                  >
+                    {editingQuestionIndex !== null ? 'Update Question' : 'Add Question'}
+                  </button>
+                  {editingQuestionIndex !== null && (
+                    <button
+                      onClick={() => { setEditingQuestionIndex(null); setQuestionForm({ questionText: '', options: ['', '', '', ''], correctAnswer: 0, points: 1 }); }}
+                      style={{ marginLeft: 8, background: '#6c757d', color: 'white', padding: '6px 16px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ----- Question List ----- */}
             <label style={{ color: textColor, fontWeight: 'bold' }}>Current Questions ({examForm.questions.length})</label>
-            <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 12, padding: '8px', background: darkMode ? '#1a1a2e' : '#f8f9fa', borderRadius: 6, border: '1px solid #ddd' }}>
+            <div style={{ maxHeight: 250, overflowY: 'auto', marginBottom: 12, padding: '8px', background: darkMode ? '#1a1a2e' : '#f8f9fa', borderRadius: 6, border: '1px solid #ddd' }}>
               {examForm.questions.length === 0 ? (
                 <p style={{ color: secondaryText, fontSize: 13, textAlign: 'center' }}>No questions added yet.</p>
               ) : (
                 examForm.questions.map((q, idx) => (
-                  <div key={idx} style={{ padding: '4px 0', borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontSize: 13, color: textColor }}>
-                    <strong>{idx+1}.</strong> {q.questionText}
+                  <div key={idx} style={{ padding: '8px', borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontSize: 13, color: textColor }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <strong>{idx+1}.</strong> {q.questionText}
+                        <div style={{ fontSize: 12, color: secondaryText, marginTop: 2 }}>
+                          {q.options.map((opt, i) => (
+                            <span key={i} style={{ marginRight: 8, background: darkMode ? '#333' : '#f0f0f0', padding: '2px 6px', borderRadius: 4 }}>
+                              {String.fromCharCode(65 + i)}: {opt}
+                              {i === q.correctAnswer && <span style={{ color: '#28a745', marginLeft: 4 }}>✓</span>}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 8 }}>
+                        <button
+                          onClick={() => {
+                            setEditingQuestionIndex(idx);
+                            setQuestionForm({
+                              questionText: q.questionText,
+                              options: [...q.options],
+                              correctAnswer: q.correctAnswer,
+                              points: q.points || 1
+                            });
+                            setShowQuestionForm(true);
+                          }}
+                          style={{ background: '#ffc107', color: '#333', padding: '2px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!window.confirm('Delete this question?')) return;
+                            const updated = [...examForm.questions];
+                            updated.splice(idx, 1);
+                            setExamForm({ ...examForm, questions: updated });
+                          }}
+                          style={{ background: '#dc3545', color: 'white', padding: '2px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))
               )}
