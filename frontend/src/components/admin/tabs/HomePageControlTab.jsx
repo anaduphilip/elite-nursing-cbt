@@ -11,8 +11,8 @@ export const HomePageControlTab = ({ token, config, setConfig, darkMode, heading
     showStudyMode: true,
     showProgressSnapshot: true,
     showDownloadApp: true,
-    showWeeklyQuiz: true,
-    showGetPremium: true      // ← NEW: Get Premium toggle
+    showPreCouncil: true,        // ← NEW: Pre Council toggle
+    showGetPremium: true
   });
 
   useEffect(() => {
@@ -23,8 +23,8 @@ export const HomePageControlTab = ({ token, config, setConfig, darkMode, heading
         showStudyMode: config.showStudyMode !== undefined ? config.showStudyMode : true,
         showProgressSnapshot: config.showProgressSnapshot !== undefined ? config.showProgressSnapshot : true,
         showDownloadApp: config.showDownloadApp !== undefined ? config.showDownloadApp : true,
-        showWeeklyQuiz: config.showWeeklyQuiz !== undefined ? config.showWeeklyQuiz : true,
-        showGetPremium: config.showGetPremium !== undefined ? config.showGetPremium : true   // ← NEW
+        showPreCouncil: config.showPreCouncil !== undefined ? config.showPreCouncil : true,   // ← NEW
+        showGetPremium: config.showGetPremium !== undefined ? config.showGetPremium : true
       });
     }
   }, [config]);
@@ -128,12 +128,12 @@ export const HomePageControlTab = ({ token, config, setConfig, darkMode, heading
           field="showStudyMode"
           description="Show the Study Mode button on the home page"
         />
+        {/* ===== REPLACED Weekly Quiz with Pre Council ===== */}
         <ToggleRow
-          label="📅 Weekly Quiz"
-          field="showWeeklyQuiz"
-          description="Show the Weekly Quiz button on the home page"
+          label="📋 Pre Council Exam"
+          field="showPreCouncil"
+          description="Show the Pre Council Exam button on the home page"
         />
-        {/* ===== NEW Toggle Row ===== */}
         <ToggleRow
           label="⭐ Get Premium"
           field="showGetPremium"
