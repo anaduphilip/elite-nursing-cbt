@@ -1049,7 +1049,6 @@ app.post('/api/pre-council/exams/:examId/submit', authenticate, async (req, res)
     const percentage = (score / total) * 100;
     const passed = percentage >= 70;
 
-    // Save result to user (maybe store in a separate array or embed)
     const user = await User.findById(req.user._id);
     if (user) {
       user.quizResults.push({
@@ -1062,7 +1061,6 @@ app.post('/api/pre-council/exams/:examId/submit', authenticate, async (req, res)
       await user.save();
     }
 
-    // Gamification: check and award badges (if any)
     try {
       await checkAndAwardBadges(req.user._id);
     } catch (e) { console.error('Gamification error:', e); }
@@ -1074,10 +1072,9 @@ app.post('/api/pre-council/exams/:examId/submit', authenticate, async (req, res)
   }
 });
 
-// ---- ADMIN ROUTES (all use isAdmin) ----
-// ---- ADMIN ROUTES (all use isAdmin) ----
+// ---- ADMIN ROUTES ----
 
-// CATEGORIES - ADMIN CRUD
+// ===== CATEGORIES =====
 app.get('/api/admin/pre-council/categories', isAdmin, async (req, res) => {
   try {
     const categories = await PreCouncilCategory.find().sort({ order: 1 });
@@ -1117,6 +1114,7 @@ app.put('/api/admin/pre-council/categories/:id', isAdmin, async (req, res) => {
     const category = await PreCouncilCategory.findById(req.params.id);
     if (!category) return res.status(404).json({ error: 'Category not found' });
     
+    // Update fields
     if (name) {
       category.name = name;
       category.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -1144,59 +1142,10 @@ app.delete('/api/admin/pre-council/categories/:id', isAdmin, async (req, res) =>
   }
 });
 
-// Categories
-app.get('/api/admin/pre-council/categories', isAdmin, async (req, res) => {
-  try {
-    const categories = await PreCouncilCategory.find().sort({ order: 1 });
-    res.json({ success: true, categories });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch categories' });
-  }
-});
-
-app.post('/api/admin/pre-council/categories', isAdmin, async (req, res) => {
-  try {
-    const { name, description, icon, order, active } = req.body;
-    if (!name) return res.status(400).json({ error: 'Name is required' });
-    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    const category = new PreCouncilCategory({ name, slug, description, icon, order, active });
-    await category.save();
-    res.json({ success: true, category });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create category' });
-  }
-});
-
-app.put('/api/admin/pre-council/categories/:id', isAdmin, async (req, res) => {
-  try {
-    const { name, description, icon, order, active } = req.body;
-    const category = await PreCouncilCategory.findById(req.params.id);
-    if (!category) return res.status(404).json({ error: 'Category not found' });
-    if (name) { category.name = name; category.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''); }
-    if (description !== undefined) category.description = description;
-    if (icon !== undefined) category.icon = icon;
-    if (order !== undefined) category.order = order;
-    if (active !== undefined) category.active = active;
-    await category.save();
-    res.json({ success: true, category });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update category' });
-  }
-});
-
-app.delete('/api/admin/pre-council/categories/:id', isAdmin, async (req, res) => {
-  try {
-    await PreCouncilCategory.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Category deleted' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete category' });
-  }
-});
-
-// Papers
+// ===== PAPERS =====
 app.get('/api/admin/pre-council/papers', isAdmin, async (req, res) => {
   try {
-    const papers = await PreCouncilPaper.find().populate('categoryId', 'name').sort({ order: 1 });
+    const papers = await PreCouncilPaper.find().sort({ order: 1 });
     res.json({ success: true, papers });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch papers' });
@@ -1207,11 +1156,22 @@ app.post('/api/admin/pre-council/papers', isAdmin, async (req, res) => {
   try {
     const { categoryId, name, description, hasCourses, courses, order, active } = req.body;
     if (!categoryId || !name) return res.status(400).json({ error: 'Category and name are required' });
+    
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    const paper = new PreCouncilPaper({ categoryId, name, slug, description, hasCourses, courses, order, active });
+    const paper = new PreCouncilPaper({
+      categoryId,
+      name,
+      slug,
+      description: description || '',
+      hasCourses: hasCourses || false,
+      courses: courses || [],
+      order: order || 0,
+      active: active !== undefined ? active : true
+    });
     await paper.save();
     res.json({ success: true, paper });
   } catch (error) {
+    console.error('Create paper error:', error);
     res.status(500).json({ error: 'Failed to create paper' });
   }
 });
@@ -1221,6 +1181,8 @@ app.put('/api/admin/pre-council/papers/:id', isAdmin, async (req, res) => {
     const { categoryId, name, description, hasCourses, courses, order, active } = req.body;
     const paper = await PreCouncilPaper.findById(req.params.id);
     if (!paper) return res.status(404).json({ error: 'Paper not found' });
+    
+    // Update fields
     if (categoryId) paper.categoryId = categoryId;
     if (name) { paper.name = name; paper.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''); }
     if (description !== undefined) paper.description = description;
@@ -1228,9 +1190,11 @@ app.put('/api/admin/pre-council/papers/:id', isAdmin, async (req, res) => {
     if (courses !== undefined) paper.courses = courses;
     if (order !== undefined) paper.order = order;
     if (active !== undefined) paper.active = active;
+    
     await paper.save();
     res.json({ success: true, paper });
   } catch (error) {
+    console.error('Update paper error:', error);
     res.status(500).json({ error: 'Failed to update paper' });
   }
 });
@@ -1244,10 +1208,10 @@ app.delete('/api/admin/pre-council/papers/:id', isAdmin, async (req, res) => {
   }
 });
 
-// Exams
+// ===== EXAMS =====
 app.get('/api/admin/pre-council/exams', isAdmin, async (req, res) => {
   try {
-    const exams = await PreCouncilExam.find().populate('paperId', 'name').sort({ order: 1 });
+    const exams = await PreCouncilExam.find().sort({ order: 1 });
     res.json({ success: true, exams });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch exams' });
@@ -1260,6 +1224,7 @@ app.post('/api/admin/pre-council/exams', isAdmin, async (req, res) => {
     if (!paperId || !title || !questions || questions.length === 0) {
       return res.status(400).json({ error: 'Paper, title, and questions are required' });
     }
+    
     const exam = new PreCouncilExam({
       paperId,
       title,
@@ -1274,6 +1239,7 @@ app.post('/api/admin/pre-council/exams', isAdmin, async (req, res) => {
     await exam.save();
     res.json({ success: true, exam });
   } catch (error) {
+    console.error('Create exam error:', error);
     res.status(500).json({ error: 'Failed to create exam' });
   }
 });
@@ -1283,6 +1249,8 @@ app.put('/api/admin/pre-council/exams/:id', isAdmin, async (req, res) => {
     const { paperId, title, description, questions, timeLimit, passingScore, order, isActive } = req.body;
     const exam = await PreCouncilExam.findById(req.params.id);
     if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    
+    // Update fields
     if (paperId) exam.paperId = paperId;
     if (title) exam.title = title;
     if (description !== undefined) exam.description = description;
@@ -1291,9 +1259,11 @@ app.put('/api/admin/pre-council/exams/:id', isAdmin, async (req, res) => {
     if (passingScore !== undefined) exam.passingScore = passingScore;
     if (order !== undefined) exam.order = order;
     if (isActive !== undefined) exam.isActive = isActive;
+    
     await exam.save();
     res.json({ success: true, exam });
   } catch (error) {
+    console.error('Update exam error:', error);
     res.status(500).json({ error: 'Failed to update exam' });
   }
 });
