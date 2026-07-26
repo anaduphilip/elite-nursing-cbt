@@ -25,19 +25,16 @@ export const PreCouncilExamList = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Get category from cache
         const allCategories = await getCachedCategories();
         const cat = allCategories.find(c => c.slug === categorySlug);
         if (!cat) { navigate('/pre-council'); return; }
         setCategory(cat);
 
-        // Get papers from cache
         const papersData = await getCachedPapers(cat._id);
         const paperData = papersData.find(p => p.slug === paperSlug);
         if (!paperData) { navigate(`/pre-council/${categorySlug}`); return; }
         setPaper(paperData);
 
-        // Get exams from cache (pass token)
         const examsData = await getCachedExams(paperData._id, token);
         setExams(examsData);
       } catch (error) {
@@ -49,8 +46,9 @@ export const PreCouncilExamList = () => {
     fetchData();
   }, [categorySlug, paperSlug, navigate, token]);
 
-  const handleStartExam = (exam) => {
-    if (exam.order > 1 && !user?.isPremium) {
+  // ===== UPDATED: Accept isLocked flag =====
+  const handleStartExam = (exam, isLocked) => {
+    if (isLocked && !user?.isPremium) {
       setSelectedExam(exam);
       setShowPremiumModal(true);
       return;
@@ -172,7 +170,7 @@ export const PreCouncilExamList = () => {
         </div>
       )}
 
-      {/* ===== FLOATING BACK BUTTON – BOTTOM CENTER ===== */}
+      {/* Floating Back Button */}
       <button
         onClick={goBack}
         style={{
@@ -211,7 +209,7 @@ export const PreCouncilExamList = () => {
       </button>
 
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-        {/* ===== HEADER – Compact ===== */}
+        {/* Header */}
         <div style={{
           background: darkMode ? '#1a1a2e' : '#ffffff',
           borderRadius: 12,
@@ -285,7 +283,7 @@ export const PreCouncilExamList = () => {
           </div>
         </div>
 
-        {/* ===== EXAMS – STACKED FULL‑WIDTH ROWS ===== */}
+        {/* Exams list */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
@@ -394,10 +392,10 @@ export const PreCouncilExamList = () => {
                   </div>
                 </div>
 
-                {/* Right: Button – only clickable element */}
+                {/* Right: Button */}
                 <div style={{ flex: '0 0 auto' }}>
                   <button
-                    onClick={() => handleStartExam(exam)}
+                    onClick={() => handleStartExam(exam, isLocked)}   // ← PASS isLocked
                     style={{
                       background: isLocked 
                         ? 'linear-gradient(135deg, #ff9800, #e65100)' 
@@ -435,7 +433,7 @@ export const PreCouncilExamList = () => {
           })}
         </div>
 
-        {/* ===== FOOTER – Compact ===== */}
+        {/* Footer */}
         <div style={{ textAlign: 'center', padding: '12px', marginTop: 12 }}>
           <p style={{ color: secondaryText, fontSize: 'clamp(9px, 0.8vw, 11px)' }}>
             © 2026 ELITE Nursing & Midwifery CBT.
