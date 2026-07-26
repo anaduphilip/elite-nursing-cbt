@@ -92,7 +92,7 @@ export const CourseList = () => {
             allTopicQuizzes.forEach(quiz => {
               allQuestions.push(...quiz.questions);
             });
-            const chunkSize = 250;
+            const chunkSize = 100;
             const chunks = [];
             for (let i = 0; i < allQuestions.length; i += chunkSize) {
               chunks.push(allQuestions.slice(i, i + chunkSize));
@@ -126,7 +126,7 @@ export const CourseList = () => {
             const freeQuestions = Math.min(20, entry.totalQuestions);
             const freeExamCount = freeQuestions > 0 ? 1 : 0;
             const premiumQuestions = entry.totalQuestions - freeQuestions;
-            const premiumExamCount = premiumQuestions > 0 ? Math.ceil(premiumQuestions / 250) : 0;
+            const premiumExamCount = premiumQuestions > 0 ? Math.ceil(premiumQuestions / 100) : 0;
             return {
               ...entry,
               freeExamCount,

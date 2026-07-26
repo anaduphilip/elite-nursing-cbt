@@ -56,7 +56,7 @@ export const PremiumExam = () => {
         allQuizzes.forEach(quiz => {
           allQuestions.push(...quiz.questions);
         });
-        const chunkSize = 250;
+        const chunkSize = 100;
         const examIndex = parseInt(examId) - 1;
         const start = examIndex * chunkSize;
         const end = Math.min(start + chunkSize, allQuestions.length);

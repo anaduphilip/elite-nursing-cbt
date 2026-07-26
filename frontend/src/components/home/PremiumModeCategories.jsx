@@ -86,7 +86,7 @@ export const PremiumModeCategories = () => {
       const freeQuestions = Math.min(20, totalQuestions);
       const freeExamCount = freeQuestions > 0 ? 1 : 0;
       const premiumQuestions = totalQuestions - freeQuestions;
-      const premiumExamCount = premiumQuestions > 0 ? Math.ceil(premiumQuestions / 250) : 0;
+      const premiumExamCount = premiumQuestions > 0 ? Math.ceil(premiumQuestions / 100) : 0;
       return {
         ...entry,
         freeExamCount,
