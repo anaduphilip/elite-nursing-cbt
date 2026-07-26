@@ -1075,6 +1075,74 @@ app.post('/api/pre-council/exams/:examId/submit', authenticate, async (req, res)
 });
 
 // ---- ADMIN ROUTES (all use isAdmin) ----
+// ---- ADMIN ROUTES (all use isAdmin) ----
+
+// CATEGORIES - ADMIN CRUD
+app.get('/api/admin/pre-council/categories', isAdmin, async (req, res) => {
+  try {
+    const categories = await PreCouncilCategory.find().sort({ order: 1 });
+    res.json({ success: true, categories });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
+app.post('/api/admin/pre-council/categories', isAdmin, async (req, res) => {
+  try {
+    const { name, description, icon, order, active } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    
+    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    
+    const category = new PreCouncilCategory({
+      name,
+      slug,
+      description: description || '',
+      icon: icon || '📚',
+      order: order || 0,
+      active: active !== undefined ? active : true
+    });
+    
+    await category.save();
+    res.json({ success: true, category });
+  } catch (error) {
+    console.error('Create category error:', error);
+    res.status(500).json({ error: 'Failed to create category' });
+  }
+});
+
+app.put('/api/admin/pre-council/categories/:id', isAdmin, async (req, res) => {
+  try {
+    const { name, description, icon, order, active } = req.body;
+    const category = await PreCouncilCategory.findById(req.params.id);
+    if (!category) return res.status(404).json({ error: 'Category not found' });
+    
+    if (name) {
+      category.name = name;
+      category.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    }
+    if (description !== undefined) category.description = description;
+    if (icon !== undefined) category.icon = icon;
+    if (order !== undefined) category.order = order;
+    if (active !== undefined) category.active = active;
+    
+    await category.save();
+    res.json({ success: true, category });
+  } catch (error) {
+    console.error('Update category error:', error);
+    res.status(500).json({ error: 'Failed to update category' });
+  }
+});
+
+app.delete('/api/admin/pre-council/categories/:id', isAdmin, async (req, res) => {
+  try {
+    const category = await PreCouncilCategory.findByIdAndDelete(req.params.id);
+    if (!category) return res.status(404).json({ error: 'Category not found' });
+    res.json({ success: true, message: 'Category deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete category' });
+  }
+});
 
 // Categories
 app.get('/api/admin/pre-council/categories', isAdmin, async (req, res) => {
