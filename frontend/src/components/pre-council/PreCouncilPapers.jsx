@@ -1,11 +1,11 @@
 // src/components/pre-council/PreCouncilPapers.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { PreCouncilCourseModal } from './PreCouncilCourseModal';
+import { getCachedCategories, getCachedPapers } from '../../utils/preCouncilCache';
 
 export const PreCouncilPapers = () => {
   const { categorySlug } = useParams();
@@ -22,16 +22,18 @@ export const PreCouncilPapers = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const catRes = await axios.get('/api/pre-council/categories');
-        const cat = catRes.data.categories.find(c => c.slug === categorySlug);
+        // Get categories from cache
+        const allCategories = await getCachedCategories();
+        const cat = allCategories.find(c => c.slug === categorySlug);
         if (!cat) {
           navigate('/pre-council');
           return;
         }
         setCategory(cat);
 
-        const papersRes = await axios.get(`/api/pre-council/categories/${cat._id}/papers`);
-        setPapers(papersRes.data.papers);
+        // Get papers for this category from cache
+        const papersData = await getCachedPapers(cat._id);
+        setPapers(papersData);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -41,7 +43,7 @@ export const PreCouncilPapers = () => {
     fetchData();
   }, [categorySlug, navigate]);
 
-  const handlePaperClick = (paper) => {
+  const handlePaperSelect = (paper) => {
     if (paper.hasCourses && paper.courses && paper.courses.length > 0) {
       setSelectedPaper(paper);
       setShowCourseModal(true);
@@ -161,7 +163,7 @@ export const PreCouncilPapers = () => {
               fontSize: 'clamp(9px, 1vw, 11px)', 
               color: secondaryText 
             }}>
-              🎯 NMCN Standard
+               NMCN Standard
             </span>
           </div>
         </div>
@@ -175,21 +177,21 @@ export const PreCouncilPapers = () => {
           {papers.map(paper => (
             <div
               key={paper._id}
-              onClick={() => handlePaperClick(paper)}
               style={{
                 background: darkMode ? '#16213e' : '#ffffff',
                 padding: '12px 16px',
-                borderRadius: 12,
+                borderRadius: 8,
                 boxShadow: darkMode ? '0 2px 10px rgba(0,0,0,0.3)' : '0 2px 10px rgba(0,0,0,0.06)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: '12px',
                 border: `1px solid ${darkMode ? '#2d2d3d' : '#eef0f2'}`,
+                borderBottom: `3px solid #1e3c72`,
                 transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                cursor: 'pointer',
                 minHeight: '56px',
-                position: 'relative'
+                position: 'relative',
+                cursor: 'default'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateX(4px)';
@@ -211,7 +213,7 @@ export const PreCouncilPapers = () => {
                 <span style={{ fontSize: 'clamp(22px, 3.5vw, 30px)' }}>
                   
                 </span>
-                <div style={{ minWidth: 0 }}>
+                <div style={{ minWidth: 0, textAlign: 'left' }}>
                   <h3 style={{
                     color: headingColor,
                     fontSize: 'clamp(14px, 1.8vw, 17px)',
@@ -257,21 +259,33 @@ export const PreCouncilPapers = () => {
                 </div>
               </div>
 
-              {/* Right: Arrow */}
+              {/* Right: Button – only clickable element */}
               <div style={{ flex: '0 0 auto' }}>
-                <span style={{
-                  display: 'inline-block',
-                  background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
-                  color: 'white',
-                  padding: '6px 16px',
-                  borderRadius: 30,
-                  fontSize: 'clamp(11px, 1.2vw, 13px)',
-                  fontWeight: 600,
-                  transition: 'transform 0.2s ease',
-                  boxShadow: '0 2px 8px rgba(30, 60, 114, 0.2)'
-                }}>
-                  Select →
-                </span>
+                <button
+                  onClick={() => handlePaperSelect(paper)}
+                  style={{
+                    background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '6px 18px',
+                    borderRadius: 30,
+                    fontSize: 'clamp(12px, 1.2vw, 14px)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(30, 60, 114, 0.2)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(30, 60, 114, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(30, 60, 114, 0.2)';
+                  }}
+                >
+                  Select 
+                </button>
               </div>
             </div>
           ))}

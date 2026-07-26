@@ -54,9 +54,9 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         axios.get('/api/admin/pre-council/papers', { headers: { Authorization: `Bearer ${token}` } }),
         axios.get('/api/admin/pre-council/exams', { headers: { Authorization: `Bearer ${token}` } })
       ]);
-      setCategories(catRes.data.categories);
-      setPapers(paperRes.data.papers);
-      setExams(examRes.data.exams);
+      setCategories(catRes.data.categories || []);
+      setPapers(paperRes.data.papers || []);
+      setExams(examRes.data.exams || []);
     } catch (error) {
       console.error('Failed to fetch pre-council data:', error);
       alert('Failed to load data. Check console.');
@@ -262,15 +262,19 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
     setBatchResult(`✅ ${parsedQuestions.length} questions added to the exam.`);
   };
 
-  // ---- HELPER ----
+  // ===== ROBUST HELPER FUNCTIONS =====
+  // Uses String() conversion and null/undefined checks.
+  // If the category/paper is not found, returns a clear fallback so you can see the data exists.
   const getCategoryName = (id) => {
-    const cat = categories.find(c => c._id === id);
-    return cat ? cat.name : 'Unknown';
+    if (!id) return '⚠️ Category not set';
+    const cat = categories.find(c => String(c._id) === String(id));
+    return cat ? cat.name : `⚠️ Category not found (ID: ${String(id)})`;
   };
 
   const getPaperName = (id) => {
-    const paper = papers.find(p => p._id === id);
-    return paper ? paper.name : 'Unknown';
+    if (!id) return '⚠️ Paper not set';
+    const paper = papers.find(p => String(p._id) === String(id));
+    return paper ? paper.name : `⚠️ Paper not found (ID: ${String(id)})`;
   };
 
   // ---- RENDER ----
@@ -285,7 +289,7 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         <button onClick={() => setActiveSubTab('exams')} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: activeSubTab === 'exams' ? '#1e3c72' : 'transparent', color: activeSubTab === 'exams' ? 'white' : '#1e3c72', fontWeight: 'bold', cursor: 'pointer' }}>Exams</button>
       </div>
 
-      {/* ===== CATEGORIES ===== */}
+      {/* ===== CATEGORIES (unchanged) ===== */}
       {activeSubTab === 'categories' && (
         <div>
           <button onClick={() => { setCatForm({ name: '', description: '', icon: '📚', order: 0, active: true }); setEditCatId(null); setCatModalOpen(true); }} style={{ background: '#28a745', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', marginBottom: 16 }}>+ Add Category</button>
@@ -306,49 +310,105 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         </div>
       )}
 
-      {/* ===== PAPERS ===== */}
+      {/* ===== PAPERS – GROUPED BY CATEGORY ===== */}
       {activeSubTab === 'papers' && (
         <div>
           <button onClick={() => { setPaperForm({ categoryId: '', name: '', description: '', hasCourses: false, courses: [], order: 0, active: true }); setEditPaperId(null); setPaperModalOpen(true); }} style={{ background: '#28a745', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', marginBottom: 16 }}>+ Add Paper</button>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-            {papers.map(p => (
-              <div key={p._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 16, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
-                <h4 style={{ color: headingColor }}>{p.name}</h4>
-                <p style={{ fontSize: 13, color: secondaryText }}>Category: {getCategoryName(p.categoryId)}</p>
-                <p style={{ fontSize: 13, color: secondaryText }}>Courses: {p.hasCourses ? p.courses?.join(', ') || 'None' : 'N/A'}</p>
-                <p style={{ fontSize: 12, color: secondaryText }}>Order: {p.order} | {p.active ? '✅ Active' : '❌ Inactive'}</p>
-                <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                  <button onClick={() => { setPaperForm({ categoryId: p.categoryId, name: p.name, description: p.description || '', hasCourses: p.hasCourses, courses: p.courses || [], order: p.order, active: p.active }); setEditPaperId(p._id); setPaperModalOpen(true); }} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
-                  <button onClick={() => deletePaper(p._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
+          
+          {papers.length === 0 ? (
+            <p style={{ color: secondaryText }}>No papers found.</p>
+          ) : (
+            // Group papers by category
+            (() => {
+              const grouped = {};
+              papers.forEach(p => {
+                const key = String(p.categoryId) || 'unknown';
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(p);
+              });
+              
+              return Object.keys(grouped).map(catId => {
+                const catName = getCategoryName(catId);
+                const catPapers = grouped[catId];
+                return (
+                  <div key={catId} style={{ marginBottom: 24 }}>
+                    <h4 style={{ color: headingColor, borderBottom: '2px solid #1e3c72', paddingBottom: 6, marginBottom: 12 }}>
+                      {catName} ({catPapers.length})
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                      {catPapers.map(p => (
+                        <div key={p._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 16, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
+                          <h4 style={{ color: headingColor }}>{p.name}</h4>
+                          <p style={{ fontSize: 13, color: secondaryText }}>Category: {getCategoryName(p.categoryId)}</p>
+                          <p style={{ fontSize: 13, color: secondaryText }}>Courses: {p.hasCourses ? (p.courses?.join(', ') || 'None') : 'N/A'}</p>
+                          <p style={{ fontSize: 12, color: secondaryText }}>Order: {p.order} | {p.active ? '✅ Active' : '❌ Inactive'}</p>
+                          <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                            <button onClick={() => { setPaperForm({ categoryId: p.categoryId, name: p.name, description: p.description || '', hasCourses: p.hasCourses, courses: p.courses || [], order: p.order, active: p.active }); setEditPaperId(p._id); setPaperModalOpen(true); }} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                            <button onClick={() => deletePaper(p._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              });
+            })()
+          )}
         </div>
       )}
 
-      {/* ===== EXAMS ===== */}
+      {/* ===== EXAMS – GROUPED BY PAPER, WITH CATEGORY HEADINGS ===== */}
       {activeSubTab === 'exams' && (
         <div>
           <button onClick={() => { setExamForm({ paperId: '', title: '', description: '', questions: [], timeLimit: 180, passingScore: 70, order: 0, isActive: true }); setEditExamId(null); setExamModalOpen(true); }} style={{ background: '#28a745', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', marginBottom: 16 }}>+ Add Exam</button>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-            {exams.map(e => (
-              <div key={e._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 16, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
-                <h4 style={{ color: headingColor }}>{e.title}</h4>
-                <p style={{ fontSize: 13, color: secondaryText }}>Paper: {getPaperName(e.paperId)}</p>
-                <p style={{ fontSize: 13, color: secondaryText }}>Questions: {e.questionCount || 0} | Time: {e.timeLimit || 180} min</p>
-                <p style={{ fontSize: 12, color: secondaryText }}>Passing: {e.passingScore || 70}% | Order: {e.order} | {e.isActive ? '✅ Active' : '❌ Inactive'}</p>
-                <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                  <button onClick={() => { setExamForm({ paperId: e.paperId, title: e.title, description: e.description || '', questions: e.questions || [], timeLimit: e.timeLimit || 180, passingScore: e.passingScore || 70, order: e.order, isActive: e.isActive }); setEditExamId(e._id); setExamModalOpen(true); }} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
-                  <button onClick={() => deleteExam(e._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
+          
+          {exams.length === 0 ? (
+            <p style={{ color: secondaryText }}>No exams found.</p>
+          ) : (
+            // Group exams by paper
+            (() => {
+              const grouped = {};
+              exams.forEach(e => {
+                const key = String(e.paperId) || 'unknown';
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(e);
+              });
+              
+              return Object.keys(grouped).map(paperId => {
+                const paperName = getPaperName(paperId);
+                const paperExams = grouped[paperId];
+                // Find the category for this paper
+                const paperObj = papers.find(p => String(p._id) === String(paperId));
+                const categoryName = paperObj ? getCategoryName(paperObj.categoryId) : '⚠️ Category not found';
+                
+                return (
+                  <div key={paperId} style={{ marginBottom: 24 }}>
+                    <h4 style={{ color: headingColor, borderBottom: '2px solid #1e3c72', paddingBottom: 6, marginBottom: 12 }}>
+                      {paperName} <span style={{ fontWeight: 'normal', fontSize: 14, color: secondaryText }}>({categoryName})</span>
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                      {paperExams.map(e => (
+                        <div key={e._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 16, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
+                          <h4 style={{ color: headingColor }}>{e.title}</h4>
+                          <p style={{ fontSize: 13, color: secondaryText }}>Paper: {getPaperName(e.paperId)}</p>
+                          <p style={{ fontSize: 13, color: secondaryText }}>Questions: {e.questionCount || 0} | Time: {e.timeLimit || 180} min</p>
+                          <p style={{ fontSize: 12, color: secondaryText }}>Passing: {e.passingScore || 70}% | Order: {e.order} | {e.isActive ? '✅ Active' : '❌ Inactive'}</p>
+                          <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                            <button onClick={() => { setExamForm({ paperId: e.paperId, title: e.title, description: e.description || '', questions: e.questions || [], timeLimit: e.timeLimit || 180, passingScore: e.passingScore || 70, order: e.order, isActive: e.isActive }); setEditExamId(e._id); setExamModalOpen(true); }} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                            <button onClick={() => deleteExam(e._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              });
+            })()
+          )}
         </div>
       )}
 
-      {/* ===== CATEGORY MODAL ===== */}
+      {/* ===== CATEGORY MODAL (unchanged) ===== */}
       {catModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
           <div style={{ background: cardBg, borderRadius: 20, padding: 28, maxWidth: 500, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -430,7 +490,7 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         </div>
       )}
 
-      {/* ===== PAPER MODAL ===== */}
+      {/* ===== PAPER MODAL (unchanged) ===== */}
       {paperModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
           <div style={{ background: cardBg, borderRadius: 20, padding: 28, maxWidth: 500, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -539,7 +599,7 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         </div>
       )}
 
-      {/* ===== EXAM MODAL ===== */}
+      {/* ===== EXAM MODAL (unchanged) ===== */}
       {examModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
           <div style={{ background: cardBg, borderRadius: 20, padding: 28, maxWidth: 700, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>

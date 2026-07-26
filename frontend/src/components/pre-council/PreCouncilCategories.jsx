@@ -1,10 +1,10 @@
 // src/components/pre-council/PreCouncilCategories.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
+import { getCachedCategories } from '../../utils/preCouncilCache';
 
 export const PreCouncilCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -17,10 +17,9 @@ export const PreCouncilCategories = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await axios.get('/api/pre-council/categories');
-        if (res.data.success) {
-          setCategories(res.data.categories);
-        }
+        // ✅ Use cached version – only fetches once
+        const data = await getCachedCategories();
+        setCategories(data);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
       } finally {
@@ -32,8 +31,10 @@ export const PreCouncilCategories = () => {
 
   if (loading) return <LoadingWithBar message="Loading Pre Council categories..." />;
 
-  const goBack = () => {
-    navigate('/');
+  const goBack = () => navigate('/');
+
+  const handleOpen = (slug) => {
+    navigate(`/pre-council/${slug}`);
   };
 
   return (
@@ -120,30 +121,29 @@ export const PreCouncilCategories = () => {
           </p>
         </div>
 
-        {/* ===== CATEGORY CARDS – HORIZONTAL, FULL WIDTH, WITH BORDER BOTTOM ACCENT ===== */}
+        {/* ===== CATEGORY CARDS – HORIZONTAL, FULL WIDTH, BOTTOM ACCENT ===== */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           gap: '10px'
         }}>
           {categories.map(cat => (
-            <Link 
-              to={`/pre-council/${cat.slug}`} 
-              key={cat._id} 
-              style={{ textDecoration: 'none' }}
-            >
-              <div style={{
+            <div
+              key={cat._id}
+              style={{
                 background: darkMode ? '#16213e' : '#ffffff',
                 padding: '12px 16px',
                 borderRadius: 8,
                 boxShadow: darkMode ? '0 2px 10px rgba(0,0,0,0.3)' : '0 2px 10px rgba(0,0,0,0.06)',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
                 border: `1px solid ${darkMode ? '#2d2d3d' : '#eef0f2'}`,
-                borderBottom: `3px solid #1e3c72`,   // ← subtle blue border at bottom
+                borderBottom: `3px solid #1e3c72`,
                 transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                cursor: 'pointer',
-                minHeight: '56px'
+                minHeight: '56px',
+                cursor: 'default'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateX(4px)';
@@ -152,49 +152,78 @@ export const PreCouncilCategories = () => {
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateX(0)';
                 e.currentTarget.style.boxShadow = darkMode ? '0 2px 10px rgba(0,0,0,0.3)' : '0 2px 10px rgba(0,0,0,0.06)';
+              }}
+            >
+              {/* Left: Icon + Name */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                flex: '1 1 auto',
+                minWidth: 0
               }}>
-                {/* Icon + Name */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  flex: '1 1 auto',
-                  minWidth: 0
+                <span style={{ fontSize: 'clamp(24px, 4vw, 32px)' }}>
+                  {cat.icon || '📚'}
+                </span>
+                <div style={{ 
+                  minWidth: 0,
+                  textAlign: 'left'
                 }}>
-                  <span style={{ fontSize: 'clamp(24px, 4vw, 32px)' }}>
-                    {cat.icon || '📚'}
-                  </span>
-                  <div style={{ 
-                    minWidth: 0,
-                    textAlign: 'left'
+                  <h2 style={{
+                    color: headingColor,
+                    fontSize: 'clamp(14px, 1.8vw, 18px)',
+                    fontWeight: 600,
+                    margin: 0,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
                   }}>
-                    <h2 style={{
-                      color: headingColor,
-                      fontSize: 'clamp(14px, 1.8vw, 18px)',
-                      fontWeight: 600,
+                    {cat.name}
+                  </h2>
+                  {cat.description && (
+                    <p style={{
+                      color: secondaryText,
+                      fontSize: 'clamp(10px, 1vw, 12px)',
                       margin: 0,
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis'
                     }}>
-                      {cat.name}
-                    </h2>
-                    {cat.description && (
-                      <p style={{
-                        color: secondaryText,
-                        fontSize: 'clamp(10px, 1vw, 12px)',
-                        margin: 0,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        {cat.description}
-                      </p>
-                    )}
-                  </div>
+                      {cat.description}
+                    </p>
+                  )}
                 </div>
               </div>
-            </Link>
+
+              {/* Right: Open Button */}
+              <div style={{ flex: '0 0 auto' }}>
+                <button
+                  onClick={() => handleOpen(cat.slug)}
+                  style={{
+                    background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '6px 18px',
+                    borderRadius: 30,
+                    fontSize: 'clamp(12px, 1.2vw, 14px)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(30, 60, 114, 0.2)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(30, 60, 114, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(30, 60, 114, 0.2)';
+                  }}
+                >
+                  Open
+                </button>
+              </div>
+            </div>
           ))}
         </div>
 

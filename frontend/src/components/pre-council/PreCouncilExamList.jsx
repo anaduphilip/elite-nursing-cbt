@@ -1,11 +1,11 @@
 // src/components/pre-council/PreCouncilExamList.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { PremiumModal } from '../premium/PremiumModal';
+import { getCachedCategories, getCachedPapers, getCachedExams } from '../../utils/preCouncilCache';
 
 export const PreCouncilExamList = () => {
   const { categorySlug, paperSlug } = useParams();
@@ -25,20 +25,21 @@ export const PreCouncilExamList = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const catRes = await axios.get('/api/pre-council/categories');
-        const cat = catRes.data.categories.find(c => c.slug === categorySlug);
+        // Get category from cache
+        const allCategories = await getCachedCategories();
+        const cat = allCategories.find(c => c.slug === categorySlug);
         if (!cat) { navigate('/pre-council'); return; }
         setCategory(cat);
 
-        const papersRes = await axios.get(`/api/pre-council/categories/${cat._id}/papers`);
-        const paperData = papersRes.data.papers.find(p => p.slug === paperSlug);
+        // Get papers from cache
+        const papersData = await getCachedPapers(cat._id);
+        const paperData = papersData.find(p => p.slug === paperSlug);
         if (!paperData) { navigate(`/pre-council/${categorySlug}`); return; }
         setPaper(paperData);
 
-        const examsRes = await axios.get(`/api/pre-council/papers/${paperData._id}/exams`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setExams(examsRes.data.exams);
+        // Get exams from cache (pass token)
+        const examsData = await getCachedExams(paperData._id, token);
+        setExams(examsData);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -164,7 +165,7 @@ export const PreCouncilExamList = () => {
                   boxShadow: '0 4px 12px rgba(30, 60, 114, 0.3)'
                 }}
               >
-                Start Exam →
+                Start Exam
               </button>
             </div>
           </div>
@@ -261,7 +262,7 @@ export const PreCouncilExamList = () => {
               fontSize: 'clamp(9px, 1vw, 11px)', 
               color: secondaryText 
             }}>
-              📝 {exams.length} Exams
+               {exams.length} Exams
             </span>
             <span style={{ 
               background: darkMode ? '#2d2d3d' : '#f0f2f5', 
@@ -270,7 +271,7 @@ export const PreCouncilExamList = () => {
               fontSize: 'clamp(9px, 1vw, 11px)', 
               color: secondaryText 
             }}>
-              ⏰ 180 min each
+               180 min each
             </span>
             <span style={{ 
               background: darkMode ? '#2d2d3d' : '#f0f2f5', 
@@ -279,7 +280,7 @@ export const PreCouncilExamList = () => {
               fontSize: 'clamp(9px, 1vw, 11px)', 
               color: secondaryText 
             }}>
-              🎯 70% Pass
+               70% Pass
             </span>
           </div>
         </div>
@@ -298,18 +299,19 @@ export const PreCouncilExamList = () => {
                 style={{
                   background: darkMode ? '#16213e' : '#ffffff',
                   padding: '12px 16px',
-                  borderRadius: 12,
+                  borderRadius: 8,
                   boxShadow: darkMode ? '0 2px 10px rgba(0,0,0,0.3)' : '0 2px 10px rgba(0,0,0,0.06)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: '12px',
                   border: `1px solid ${darkMode ? '#2d2d3d' : '#eef0f2'}`,
+                  borderBottom: `3px solid #1e3c72`,
                   transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                  cursor: 'pointer',
                   minHeight: '56px',
                   opacity: isLocked ? 0.85 : 1,
-                  position: 'relative'
+                  position: 'relative',
+                  cursor: 'default'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateX(4px)';
@@ -319,7 +321,6 @@ export const PreCouncilExamList = () => {
                   e.currentTarget.style.transform = 'translateX(0)';
                   e.currentTarget.style.boxShadow = darkMode ? '0 2px 10px rgba(0,0,0,0.3)' : '0 2px 10px rgba(0,0,0,0.06)';
                 }}
-                onClick={() => handleStartExam(exam)}
               >
                 {/* Premium Badge */}
                 {isLocked && (
@@ -351,7 +352,7 @@ export const PreCouncilExamList = () => {
                   <span style={{ fontSize: 'clamp(22px, 3.5vw, 30px)' }}>
                     {isLocked ? '🔒' : '📝'}
                   </span>
-                  <div style={{ minWidth: 0 }}>
+                  <div style={{ minWidth: 0, textAlign: 'left' }}>
                     <h3 style={{
                       color: headingColor,
                       fontSize: 'clamp(14px, 1.8vw, 17px)',
@@ -387,31 +388,47 @@ export const PreCouncilExamList = () => {
                         color: secondaryText,
                         whiteSpace: 'nowrap'
                       }}>
-                        ⏰ {exam.timeLimit || 180}m
+                         {exam.timeLimit || 180}m
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Right: Action */}
+                {/* Right: Button – only clickable element */}
                 <div style={{ flex: '0 0 auto' }}>
-                  <span style={{
-                    display: 'inline-block',
-                    background: isLocked 
-                      ? 'linear-gradient(135deg, #ff9800, #e65100)' 
-                      : 'linear-gradient(135deg, #1e3c72, #2a5298)',
-                    color: 'white',
-                    padding: '6px 16px',
-                    borderRadius: 30,
-                    fontSize: 'clamp(11px, 1.2vw, 13px)',
-                    fontWeight: 600,
-                    transition: 'transform 0.2s ease',
-                    boxShadow: isLocked 
-                      ? '0 2px 8px rgba(255, 152, 0, 0.25)' 
-                      : '0 2px 8px rgba(30, 60, 114, 0.2)'
-                  }}>
-                    {isLocked ? '⭐ Unlock' : 'Start →'}
-                  </span>
+                  <button
+                    onClick={() => handleStartExam(exam)}
+                    style={{
+                      background: isLocked 
+                        ? 'linear-gradient(135deg, #ff9800, #e65100)' 
+                        : 'linear-gradient(135deg, #1e3c72, #2a5298)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '6px 18px',
+                      borderRadius: 30,
+                      fontSize: 'clamp(12px, 1.2vw, 14px)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                      boxShadow: isLocked 
+                        ? '0 2px 8px rgba(255, 152, 0, 0.25)' 
+                        : '0 2px 8px rgba(30, 60, 114, 0.2)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = isLocked 
+                        ? '0 4px 12px rgba(255, 152, 0, 0.35)' 
+                        : '0 4px 12px rgba(30, 60, 114, 0.35)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = isLocked 
+                        ? '0 2px 8px rgba(255, 152, 0, 0.25)' 
+                        : '0 2px 8px rgba(30, 60, 114, 0.2)';
+                    }}
+                  >
+                    {isLocked ? 'Unlock' : 'Start'}
+                  </button>
                 </div>
               </div>
             );
