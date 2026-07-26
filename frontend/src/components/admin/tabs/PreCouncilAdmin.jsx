@@ -23,19 +23,30 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
 
   // ---- PAPER FORM ----
   const [paperForm, setPaperForm] = useState({ categoryId: '', name: '', description: '', hasCourses: false, courses: [], order: 0, active: true });
+  const [coursesRaw, setCoursesRaw] = useState('');
   const [editPaperId, setEditPaperId] = useState(null);
   const [paperModalOpen, setPaperModalOpen] = useState(false);
   const [courseInput, setCourseInput] = useState('');
 
-  // ---- EXAM FORM ----
-  const [examForm, setExamForm] = useState({ paperId: '', title: '', description: '', questions: [], timeLimit: 180, passingScore: 70, order: 0, isActive: true });
+  // ---- EXAM FORM (now includes categoryId for filtering) ----
+  const [examForm, setExamForm] = useState({
+    categoryId: '',       // NEW: used only to filter papers, not saved
+    paperId: '',
+    title: '',
+    description: '',
+    questions: [],
+    timeLimit: 180,
+    passingScore: 70,
+    order: 0,
+    isActive: true
+  });
   const [editExamId, setEditExamId] = useState(null);
   const [examModalOpen, setExamModalOpen] = useState(false);
   // ---- Batch import state ----
   const [batchInput, setBatchInput] = useState('');
   const [batchResult, setBatchResult] = useState('');
 
-  // ---- NEW: Single question form ----
+  // ---- Single question form ----
   const [questionForm, setQuestionForm] = useState({
     questionText: '',
     options: ['', '', '', ''],
@@ -101,8 +112,10 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
   const handlePaperSubmit = async () => {
     if (!paperForm.categoryId || !paperForm.name.trim()) return alert('Category and Name are required');
     const payload = { ...paperForm };
-    if (payload.courses && typeof payload.courses === 'string') {
-      payload.courses = payload.courses.split(',').map(s => s.trim()).filter(Boolean);
+    if (payload.hasCourses && coursesRaw.trim()) {
+      payload.courses = coursesRaw.split(',').map(s => s.trim()).filter(Boolean);
+    } else {
+      payload.courses = [];
     }
     try {
       const url = editPaperId ? `/api/admin/pre-council/papers/${editPaperId}` : '/api/admin/pre-council/papers';
@@ -112,6 +125,7 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         fetchAll();
         setPaperModalOpen(false);
         setPaperForm({ categoryId: '', name: '', description: '', hasCourses: false, courses: [], order: 0, active: true });
+        setCoursesRaw('');
         setEditPaperId(null);
         setCourseInput('');
       }
@@ -141,7 +155,7 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
       if (res.data.success) {
         fetchAll();
         setExamModalOpen(false);
-        setExamForm({ paperId: '', title: '', description: '', questions: [], timeLimit: 180, passingScore: 70, order: 0, isActive: true });
+        setExamForm({ categoryId: '', paperId: '', title: '', description: '', questions: [], timeLimit: 180, passingScore: 70, order: 0, isActive: true });
         setEditExamId(null);
         setBatchInput('');
         setBatchResult('');
@@ -164,7 +178,7 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
     }
   };
 
-  // ---- BATCH IMPORT FUNCTION ----
+  // ---- BATCH IMPORT ----
   const handleBatchImport = () => {
     if (!batchInput.trim()) {
       alert('Please paste some questions first.');
@@ -262,19 +276,34 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
     setBatchResult(`✅ ${parsedQuestions.length} questions added to the exam.`);
   };
 
-  // ===== ROBUST HELPER FUNCTIONS =====
-  // Uses String() conversion and null/undefined checks.
-  // If the category/paper is not found, returns a clear fallback so you can see the data exists.
-  const getCategoryName = (id) => {
-    if (!id) return '⚠️ Category not set';
-    const cat = categories.find(c => String(c._id) === String(id));
-    return cat ? cat.name : `⚠️ Category not found (ID: ${String(id)})`;
+  // ===== HELPER: Extract category ID from a paper (handles both string and populated object) =====
+  const getPaperCategoryId = (paper) => {
+    if (!paper) return '';
+    const catId = paper.categoryId;
+    if (!catId) return '';
+    if (typeof catId === 'object' && catId._id) {
+      return String(catId._id);
+    }
+    return String(catId);
   };
 
-  const getPaperName = (id) => {
-    if (!id) return '⚠️ Paper not set';
-    const paper = papers.find(p => String(p._id) === String(id));
-    return paper ? paper.name : `⚠️ Paper not found (ID: ${String(id)})`;
+  // ===== HELPER: Get category name (handles both string and populated object) =====
+  const getCategoryName = (catId) => {
+    if (!catId) return '⚠️ Category not set';
+    if (typeof catId === 'object' && catId.name) {
+      return catId.name;
+    }
+    const cat = categories.find(c => String(c._id) === String(catId));
+    return cat ? cat.name : `⚠️ Category not found (ID: ${String(catId)})`;
+  };
+
+  const getPaperName = (paperId) => {
+    if (!paperId) return '⚠️ Paper not set';
+    if (typeof paperId === 'object' && paperId.name) {
+      return paperId.name;
+    }
+    const paper = papers.find(p => String(p._id) === String(paperId));
+    return paper ? paper.name : `⚠️ Paper not found (ID: ${String(paperId)})`;
   };
 
   // ---- RENDER ----
@@ -310,19 +339,19 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         </div>
       )}
 
-      {/* ===== PAPERS – GROUPED BY CATEGORY ===== */}
+      {/* ===== PAPERS – GROUPED BY CATEGORY (unchanged) ===== */}
       {activeSubTab === 'papers' && (
         <div>
-          <button onClick={() => { setPaperForm({ categoryId: '', name: '', description: '', hasCourses: false, courses: [], order: 0, active: true }); setEditPaperId(null); setPaperModalOpen(true); }} style={{ background: '#28a745', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', marginBottom: 16 }}>+ Add Paper</button>
+          <button onClick={() => { setPaperForm({ categoryId: '', name: '', description: '', hasCourses: false, courses: [], order: 0, active: true }); setCoursesRaw(''); setEditPaperId(null); setPaperModalOpen(true); }} style={{ background: '#28a745', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', marginBottom: 16 }}>+ Add Paper</button>
           
           {papers.length === 0 ? (
             <p style={{ color: secondaryText }}>No papers found.</p>
           ) : (
-            // Group papers by category
             (() => {
               const grouped = {};
               papers.forEach(p => {
-                const key = String(p.categoryId) || 'unknown';
+                const catId = getPaperCategoryId(p);
+                const key = catId || 'unknown';
                 if (!grouped[key]) grouped[key] = [];
                 grouped[key].push(p);
               });
@@ -339,11 +368,11 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
                       {catPapers.map(p => (
                         <div key={p._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 16, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
                           <h4 style={{ color: headingColor }}>{p.name}</h4>
-                          <p style={{ fontSize: 13, color: secondaryText }}>Category: {getCategoryName(p.categoryId)}</p>
+                          <p style={{ fontSize: 13, color: secondaryText }}>Category: {getCategoryName(getPaperCategoryId(p))}</p>
                           <p style={{ fontSize: 13, color: secondaryText }}>Courses: {p.hasCourses ? (p.courses?.join(', ') || 'None') : 'N/A'}</p>
                           <p style={{ fontSize: 12, color: secondaryText }}>Order: {p.order} | {p.active ? '✅ Active' : '❌ Inactive'}</p>
                           <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                            <button onClick={() => { setPaperForm({ categoryId: p.categoryId, name: p.name, description: p.description || '', hasCourses: p.hasCourses, courses: p.courses || [], order: p.order, active: p.active }); setEditPaperId(p._id); setPaperModalOpen(true); }} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                            <button onClick={() => { setPaperForm({ categoryId: getPaperCategoryId(p), name: p.name, description: p.description || '', hasCourses: p.hasCourses, courses: p.courses || [], order: p.order, active: p.active }); setCoursesRaw(p.courses?.join(', ') || ''); setEditPaperId(p._id); setPaperModalOpen(true); }} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
                             <button onClick={() => deletePaper(p._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
                           </div>
                         </div>
@@ -357,48 +386,86 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         </div>
       )}
 
-      {/* ===== EXAMS – GROUPED BY PAPER, WITH CATEGORY HEADINGS ===== */}
+      {/* ===== EXAMS – GROUPED BY PAPER (unchanged) ===== */}
       {activeSubTab === 'exams' && (
         <div>
-          <button onClick={() => { setExamForm({ paperId: '', title: '', description: '', questions: [], timeLimit: 180, passingScore: 70, order: 0, isActive: true }); setEditExamId(null); setExamModalOpen(true); }} style={{ background: '#28a745', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', marginBottom: 16 }}>+ Add Exam</button>
+          <button onClick={() => { 
+            setExamForm({ 
+              categoryId: '', 
+              paperId: '', 
+              title: '', 
+              description: '', 
+              questions: [], 
+              timeLimit: 180, 
+              passingScore: 70, 
+              order: 0, 
+              isActive: true 
+            }); 
+            setEditExamId(null); 
+            setExamModalOpen(true); 
+          }} style={{ background: '#28a745', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', marginBottom: 16 }}>+ Add Exam</button>
           
           {exams.length === 0 ? (
             <p style={{ color: secondaryText }}>No exams found.</p>
           ) : (
-            // Group exams by paper
             (() => {
               const grouped = {};
               exams.forEach(e => {
-                const key = String(e.paperId) || 'unknown';
+                let paperId = e.paperId;
+                if (paperId && typeof paperId === 'object' && paperId._id) {
+                  paperId = paperId._id;
+                }
+                const key = String(paperId) || 'unknown';
                 if (!grouped[key]) grouped[key] = [];
                 grouped[key].push(e);
               });
               
-              return Object.keys(grouped).map(paperId => {
-                const paperName = getPaperName(paperId);
-                const paperExams = grouped[paperId];
-                // Find the category for this paper
-                const paperObj = papers.find(p => String(p._id) === String(paperId));
-                const categoryName = paperObj ? getCategoryName(paperObj.categoryId) : '⚠️ Category not found';
-                
+              return Object.keys(grouped).map(paperIdKey => {
+                const paper = papers.find(p => String(p._id) === String(paperIdKey));
+                const paperName = paper ? paper.name : `⚠️ Paper not found (ID: ${String(paperIdKey)})`;
+                let categoryName = '⚠️ Category not found';
+                if (paper) {
+                  categoryName = getCategoryName(getPaperCategoryId(paper));
+                }
+                const paperExams = grouped[paperIdKey];
                 return (
-                  <div key={paperId} style={{ marginBottom: 24 }}>
+                  <div key={paperIdKey} style={{ marginBottom: 24 }}>
                     <h4 style={{ color: headingColor, borderBottom: '2px solid #1e3c72', paddingBottom: 6, marginBottom: 12 }}>
                       {paperName} <span style={{ fontWeight: 'normal', fontSize: 14, color: secondaryText }}>({categoryName})</span>
                     </h4>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-                      {paperExams.map(e => (
-                        <div key={e._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 16, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
-                          <h4 style={{ color: headingColor }}>{e.title}</h4>
-                          <p style={{ fontSize: 13, color: secondaryText }}>Paper: {getPaperName(e.paperId)}</p>
-                          <p style={{ fontSize: 13, color: secondaryText }}>Questions: {e.questionCount || 0} | Time: {e.timeLimit || 180} min</p>
-                          <p style={{ fontSize: 12, color: secondaryText }}>Passing: {e.passingScore || 70}% | Order: {e.order} | {e.isActive ? '✅ Active' : '❌ Inactive'}</p>
-                          <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                            <button onClick={() => { setExamForm({ paperId: e.paperId, title: e.title, description: e.description || '', questions: e.questions || [], timeLimit: e.timeLimit || 180, passingScore: e.passingScore || 70, order: e.order, isActive: e.isActive }); setEditExamId(e._id); setExamModalOpen(true); }} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
-                            <button onClick={() => deleteExam(e._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                      {paperExams.map(e => {
+                        const examPaperName = (typeof e.paperId === 'object' && e.paperId.name) ? e.paperId.name : paperName;
+                        return (
+                          <div key={e._id} style={{ background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 16, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0') }}>
+                            <h4 style={{ color: headingColor }}>{e.title}</h4>
+                            <p style={{ fontSize: 13, color: secondaryText }}>Paper: {examPaperName}</p>
+                            <p style={{ fontSize: 13, color: secondaryText }}>Questions: {e.questionCount || 0} | Time: {e.timeLimit || 180} min</p>
+                            <p style={{ fontSize: 12, color: secondaryText }}>Passing: {e.passingScore || 70}% | Order: {e.order} | {e.isActive ? '✅ Active' : '❌ Inactive'}</p>
+                            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                              <button onClick={() => {
+                                // When editing, pre‑select the category based on the paper
+                                const paperObj = papers.find(p => String(p._id) === String(e.paperId));
+                                const catId = paperObj ? getPaperCategoryId(paperObj) : '';
+                                setExamForm({
+                                  categoryId: catId,
+                                  paperId: e.paperId,
+                                  title: e.title,
+                                  description: e.description || '',
+                                  questions: e.questions || [],
+                                  timeLimit: e.timeLimit || 180,
+                                  passingScore: e.passingScore || 70,
+                                  order: e.order,
+                                  isActive: e.isActive
+                                });
+                                setEditExamId(e._id);
+                                setExamModalOpen(true);
+                              }} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+                              <button onClick={() => deleteExam(e._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -555,8 +622,8 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
                 <label style={{ color: textColor, fontWeight: 'bold' }}>Courses (comma separated)</label>
                 <input
                   type="text"
-                  value={paperForm.courses.join(', ')}
-                  onChange={e => setPaperForm({ ...paperForm, courses: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                  value={coursesRaw}
+                  onChange={e => setCoursesRaw(e.target.value)}
                   style={{
                     width: '100%',
                     padding: 10,
@@ -569,6 +636,9 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
                   }}
                   placeholder="Anatomy, Physiology, Pharmacology"
                 />
+                <p style={{ fontSize: 12, color: secondaryText, marginTop: -8, marginBottom: 12 }}>
+                  Separate each course with a comma.
+                </p>
               </>
             )}
             <label style={{ color: textColor, fontWeight: 'bold' }}>Order</label>
@@ -599,13 +669,40 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         </div>
       )}
 
-      {/* ===== EXAM MODAL (unchanged) ===== */}
+      {/* ===== EXAM MODAL – WITH CATEGORY DROPDOWN & FILTERING ===== */}
       {examModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
           <div style={{ background: cardBg, borderRadius: 20, padding: 28, maxWidth: 700, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ color: headingColor, marginBottom: 16 }}>{editExamId ? 'Edit' : 'Add'} Exam</h3>
 
-            {/* ----- Exam fields ----- */}
+            {/* ----- NEW: Category dropdown (filters papers) ----- */}
+            <label style={{ color: textColor, fontWeight: 'bold' }}>Category *</label>
+            <select
+              value={examForm.categoryId}
+              onChange={e => {
+                const catId = e.target.value;
+                setExamForm({
+                  ...examForm,
+                  categoryId: catId,
+                  paperId: '' // Reset paper when category changes
+                });
+              }}
+              style={{
+                width: '100%',
+                padding: 10,
+                margin: '8px 0 16px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                background: darkMode ? '#1a1a2e' : 'white',
+                color: textColor,
+                boxSizing: 'border-box'
+              }}
+            >
+              <option value="">Select Category</option>
+              {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+            </select>
+
+            {/* ----- Paper dropdown (filtered by selected category) ----- */}
             <label style={{ color: textColor, fontWeight: 'bold' }}>Paper *</label>
             <select
               value={examForm.paperId}
@@ -620,11 +717,18 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
                 color: textColor,
                 boxSizing: 'border-box'
               }}
+              disabled={!examForm.categoryId}
             >
-              <option value="">Select Paper</option>
-              {papers.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+              <option value="">{examForm.categoryId ? 'Select Paper' : 'Select a category first'}</option>
+              {papers
+                .filter(p => {
+                  const paperCatId = getPaperCategoryId(p);
+                  return paperCatId === String(examForm.categoryId);
+                })
+                .map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
             </select>
 
+            {/* ----- Rest of the exam fields (unchanged) ----- */}
             <label style={{ color: textColor, fontWeight: 'bold' }}>Title *</label>
             <input
               type="text"
@@ -722,7 +826,7 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
               Active
             </label>
 
-            {/* ----- Batch Import ----- */}
+            {/* ----- Batch Import (unchanged) ----- */}
             <div style={{ margin: '16px 0', padding: '12px', background: darkMode ? '#1a1a2e' : '#f8f9fa', borderRadius: 8, border: '1px dashed ' + (darkMode ? '#555' : '#aaa') }}>
               <p style={{ fontWeight: 'bold', color: headingColor }}>📥 Batch Import Questions</p>
               <p style={{ fontSize: 13, color: secondaryText, marginBottom: 8 }}>
@@ -758,7 +862,7 @@ Answer: b'
               {batchResult && <p style={{ marginTop: 6, color: '#28a745', fontSize: 13 }}>{batchResult}</p>}
             </div>
 
-            {/* ----- Add Single Question ----- */}
+            {/* ----- Add Single Question (unchanged) ----- */}
             <div style={{ margin: '16px 0', padding: '12px', background: darkMode ? '#1a1a2e' : '#f8f9fa', borderRadius: 8, border: '1px solid ' + (darkMode ? '#555' : '#ddd') }}>
               <button
                 onClick={() => {
@@ -885,7 +989,7 @@ Answer: b'
               )}
             </div>
 
-            {/* ----- Question List ----- */}
+            {/* ----- Question List (unchanged) ----- */}
             <label style={{ color: textColor, fontWeight: 'bold' }}>Current Questions ({examForm.questions.length})</label>
             <div style={{ maxHeight: 250, overflowY: 'auto', marginBottom: 12, padding: '8px', background: darkMode ? '#1a1a2e' : '#f8f9fa', borderRadius: 6, border: '1px solid #ddd' }}>
               {examForm.questions.length === 0 ? (

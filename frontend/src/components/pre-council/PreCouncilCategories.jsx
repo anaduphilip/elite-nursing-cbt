@@ -232,11 +232,11 @@ export const PreCouncilCategories = () => {
           <p style={{ color: secondaryText, fontSize: 'clamp(9px, 0.8vw, 11px)' }}>
             © 2026 ELITE Nursing & Midwifery CBT.
             <Link to="/privacy" style={{ color: '#2196f3', fontSize: 'clamp(9px, 0.8vw, 11px)', textDecoration: 'none', marginLeft: 4 }}>
-              Privacy
+              Privacy Policy
             </Link>
             <span style={{ color: secondaryText, margin: '0 4px' }}>|</span>
             <Link to="/terms" style={{ color: '#2196f3', fontSize: 'clamp(9px, 0.8vw, 11px)', textDecoration: 'none' }}>
-              Terms
+              Terms & Conditions
             </Link>
           </p>
         </div>
