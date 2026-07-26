@@ -16,6 +16,10 @@ export const PreCouncilCourseModal = ({ paper, categorySlug, onClose }) => {
     navigate(`/pre-council/${categorySlug}/${paper.slug}/exams`);
   };
 
+  const handleBack = () => {
+    onClose(); // Close the modal (which essentially goes back to papers)
+  };
+
   return (
     <div style={{
       position: 'fixed',
@@ -38,13 +42,56 @@ export const PreCouncilCourseModal = ({ paper, categorySlug, onClose }) => {
         width: '100%',
         maxHeight: '80vh',
         overflowY: 'auto',
-        boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+        boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+        position: 'relative'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ color: headingColor, margin: 0 }}>{paper.name} – Courses</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: secondaryText }}>✕</button>
+        {/* ===== BACK ARROW BUTTON (replaces ✕) ===== */}
+        <button
+          onClick={handleBack}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            left: '16px',
+            zIndex: 10,
+            background: darkMode ? '#2d2d3d' : '#ffffff',
+            color: headingColor,
+            border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            fontSize: '18px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            backdropFilter: 'blur(4px)',
+            backgroundColor: darkMode ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 255, 255, 0.9)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.08)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+          }}
+          aria-label="Go back"
+        >
+          ←
+        </button>
+
+        <div style={{ marginLeft: '48px' }}>
+          {/* Title now has left margin to avoid overlap with back button */}
+          <h2 style={{ color: headingColor, marginTop: 0, marginBottom: 16 }}>
+            {paper.name} – Courses
+          </h2>
         </div>
-        <p style={{ color: secondaryText, marginBottom: 16 }}>This paper covers the following courses:</p>
+
+        <p style={{ color: secondaryText, marginBottom: 16 }}>
+          This paper covers the following courses:
+        </p>
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {paper.courses.map((course, idx) => (
             <li key={idx} style={{
