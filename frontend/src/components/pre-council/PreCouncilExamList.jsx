@@ -348,7 +348,7 @@ export const PreCouncilExamList = () => {
                   minWidth: 0
                 }}>
                   <span style={{ fontSize: 'clamp(22px, 3.5vw, 30px)' }}>
-                    {isLocked ? '🔒' : '📝'}
+                    {isLocked ? '' : ''}
                   </span>
                   <div style={{ minWidth: 0, textAlign: 'left' }}>
                     <h3 style={{
