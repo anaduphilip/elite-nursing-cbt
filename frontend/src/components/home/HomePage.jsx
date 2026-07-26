@@ -25,8 +25,8 @@ export const HomePage = () => {
     showStudyMode: true,
     showProgressSnapshot: true,
     showDownloadApp: true,
-    showWeeklyQuiz: true,
-    showGetPremium: true
+    showGetPremium: true,
+    showPreCouncil: true
   });
   const [configLoading, setConfigLoading] = useState(true);
 
@@ -50,7 +50,7 @@ export const HomePage = () => {
   const [offerDismissed, setOfferDismissed] = useState(false);
   const [offerTimeLeft, setOfferTimeLeft] = useState(null);
 
-  // ===== PRIVATE MESSAGE STATE (NEW) =====
+  // ===== PRIVATE MESSAGE STATE =====
   const [privateMessages, setPrivateMessages] = useState([]);
   const [showPrivateMessage, setShowPrivateMessage] = useState(false);
   const [currentPrivateMessage, setCurrentPrivateMessage] = useState(null);
@@ -68,8 +68,8 @@ export const HomePage = () => {
             showStudyMode: res.data.config.showStudyMode !== undefined ? res.data.config.showStudyMode : true,
             showProgressSnapshot: res.data.config.showProgressSnapshot !== undefined ? res.data.config.showProgressSnapshot : true,
             showDownloadApp: res.data.config.showDownloadApp !== undefined ? res.data.config.showDownloadApp : true,
-            showWeeklyQuiz: res.data.config.showWeeklyQuiz !== undefined ? res.data.config.showWeeklyQuiz : true,
-            showGetPremium: res.data.config.showGetPremium !== undefined ? res.data.config.showGetPremium : true
+            showGetPremium: res.data.config.showGetPremium !== undefined ? res.data.config.showGetPremium : true,
+            showPreCouncil: res.data.config.showPreCouncil !== undefined ? res.data.config.showPreCouncil : true
           });
         }
       } catch (error) {
@@ -188,7 +188,7 @@ export const HomePage = () => {
     return () => clearInterval(interval);
   }, [showOffer, offer?.endDate]);
 
-  // ===== FETCH PRIVATE MESSAGES (NEW) =====
+  // ===== FETCH PRIVATE MESSAGES =====
   useEffect(() => {
     const fetchPrivateMessages = async () => {
       if (!token) return;
@@ -197,13 +197,10 @@ export const HomePage = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.success && res.data.messages.length > 0) {
-          // Get only unread messages
           const unread = res.data.messages.filter(m => !m.isRead);
           setPrivateMessages(unread);
           
-          // Show the first unread message if any
           if (unread.length > 0) {
-            // Check if this message was already dismissed in this session
             const dismissed = localStorage.getItem(`privateMsg_${unread[0]._id}`);
             if (!dismissed) {
               setCurrentPrivateMessage(unread[0]);
@@ -246,12 +243,9 @@ export const HomePage = () => {
       localStorage.setItem(`privateMsg_${messageId}`, 'dismissed');
       setShowPrivateMessage(false);
       setCurrentPrivateMessage(null);
-      
-      // Remove from list
       setPrivateMessages(prev => prev.filter(m => m._id !== messageId));
     } catch (error) {
       console.error('Failed to dismiss message:', error);
-      // Still hide it locally
       localStorage.setItem(`privateMsg_${messageId}`, 'dismissed');
       setShowPrivateMessage(false);
       setCurrentPrivateMessage(null);
@@ -337,18 +331,6 @@ export const HomePage = () => {
       );
     }
 
-    if (config.showWeeklyQuiz) {
-      buttons.push(
-        <button
-          key="weekly"
-          onClick={() => navigate('/weekly-quiz')}
-          style={buttonStyle}
-        >
-          📅 WEEKLY QUIZ
-        </button>
-      );
-    }
-
     if (config.showGetPremium) {
       buttons.push(
         <button
@@ -357,6 +339,19 @@ export const HomePage = () => {
           style={premiumButtonStyle}
         >
           {isUserPremium ? '⭐ PREMIUM ACTIVE' : '⭐ GET PREMIUM'}
+        </button>
+      );
+    }
+
+    // ===== Pre Council Exam Button =====
+    if (config.showPreCouncil) {
+      buttons.push(
+        <button
+          key="pre-council"
+          onClick={() => navigate('/pre-council')}
+          style={buttonStyle}
+        >
+          📋 PRE COUNCIL EXAM
         </button>
       );
     }
@@ -372,7 +367,7 @@ export const HomePage = () => {
           <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 16px)' }}>Computer Based Testing Platform</p>
         </div>
 
-        {/* ===== PRIVATE MESSAGE BANNER (NEW) ===== */}
+        {/* ===== PRIVATE MESSAGE BANNER ===== */}
         {showPrivateMessage && currentPrivateMessage && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#e8f5e9',

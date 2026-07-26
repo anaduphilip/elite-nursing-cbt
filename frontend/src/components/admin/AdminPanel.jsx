@@ -29,6 +29,9 @@ import { HomePageControlTab } from './tabs/HomePageControlTab';
 import { GamificationTab } from './tabs/GamificationTab';
 import { ForceRefreshTab } from './tabs/ForceRefreshTab';
 
+// ===== NEW: Pre Council Admin Import =====
+import { PreCouncilAdmin } from './tabs/PreCouncilAdmin';
+
 // Import modal components
 import { QuestionModal } from './components/QuestionModal';
 import { AdjustPremiumModal } from './components/AdjustPremiumModal';
@@ -1734,7 +1737,7 @@ useEffect(() => {
         fetchFaqs(),
         fetchQuizzes(),
         fetchCategoryManagerQuizzes(),
-        loadForceRefresh() // ← NEW: Load force refresh state on mount
+        loadForceRefresh()
       ]);
       setDataLoaded(true);
     } catch (error) {
@@ -1794,18 +1797,21 @@ useEffect(() => {
             <button onClick={() => setActiveTab('system')} style={{ background: activeTab === 'system' ? '#1e3c72' : 'transparent', color: activeTab === 'system' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'system' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>General System Settings</button>
             <button onClick={() => setActiveTab('categories')} style={{ background: activeTab === 'categories' ? '#1e3c72' : 'transparent', color: activeTab === 'categories' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'categories' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Category Management</button>
             <button onClick={() => setActiveTab('coupons')} style={{ background: activeTab === 'coupons' ? '#1e3c72' : 'transparent', color: activeTab === 'coupons' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'coupons' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Coupon Code Generation</button>
-            <button onClick={() => setActiveTab('questionEditor')} style={{ background: activeTab === 'questionEditor' ? '#1e3c72' : 'transparent', color: activeTab === 'questionEditor' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'questionEditor' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📝 Question Editor</button>
-            <button onClick={() => setActiveTab('categoryManager')} style={{ background: activeTab === 'categoryManager' ? '#2E7D64' : 'transparent', color: activeTab === 'categoryManager' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'categoryManager' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📂 Category Question Manager</button>
+            <button onClick={() => setActiveTab('questionEditor')} style={{ background: activeTab === 'questionEditor' ? '#1e3c72' : 'transparent', color: activeTab === 'questionEditor' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'questionEditor' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Question Editor</button>
+            <button onClick={() => setActiveTab('categoryManager')} style={{ background: activeTab === 'categoryManager' ? '#2E7D64' : 'transparent', color: activeTab === 'categoryManager' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'categoryManager' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Category Question Manager</button>
             <button onClick={() => setActiveTab('faq')} style={{ background: activeTab === 'faq' ? '#1e3c72' : 'transparent', color: activeTab === 'faq' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'faq' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> FAQ Tab</button>
             <button onClick={() => setActiveTab('weeklyQuiz')} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
             {/* ===== NEW TABS ===== */}
-            <button onClick={() => setActiveTab('studyNotes')} style={{ background: activeTab === 'studyNotes' ? '#2E7D64' : 'transparent', color: activeTab === 'studyNotes' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'studyNotes' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📖 Study Notes</button>
-            <button onClick={() => setActiveTab('homePageControl')} style={{ background: activeTab === 'homePageControl' ? '#1e3c72' : 'transparent', color: activeTab === 'homePageControl' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'homePageControl' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏠 Home Page Control</button>
-            <button onClick={() => setActiveTab('limitedOffer')} style={{ background: activeTab === 'limitedOffer' ? '#ff9800' : 'transparent', color: activeTab === 'limitedOffer' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'limitedOffer' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🔥 Limited Offer</button>
+            <button onClick={() => setActiveTab('studyNotes')} style={{ background: activeTab === 'studyNotes' ? '#2E7D64' : 'transparent', color: activeTab === 'studyNotes' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'studyNotes' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Study Notes</button>
+            <button onClick={() => setActiveTab('homePageControl')} style={{ background: activeTab === 'homePageControl' ? '#1e3c72' : 'transparent', color: activeTab === 'homePageControl' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'homePageControl' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Home Page Control</button>
+            <button onClick={() => setActiveTab('limitedOffer')} style={{ background: activeTab === 'limitedOffer' ? '#ff9800' : 'transparent', color: activeTab === 'limitedOffer' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'limitedOffer' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Limited Offer</button>
             {/* ===== NEW GAMIFICATION TAB ===== */}
-            <button onClick={() => setActiveTab('gamification')} style={{ background: activeTab === 'gamification' ? '#1e3c72' : 'transparent', color: activeTab === 'gamification' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'gamification' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏆 Gamification</button>
+            <button onClick={() => setActiveTab('gamification')} style={{ background: activeTab === 'gamification' ? '#1e3c72' : 'transparent', color: activeTab === 'gamification' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'gamification' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Gamification</button>
             {/* ===== NEW FORCE REFRESH TAB ===== */}
-            <button onClick={() => setActiveTab('forceRefresh')} style={{ background: activeTab === 'forceRefresh' ? '#dc3545' : 'transparent', color: activeTab === 'forceRefresh' ? 'white' : '#dc3545', padding: '10px 24px', border: activeTab === 'forceRefresh' ? 'none' : '2px solid #dc3545', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🔄 Force Refresh</button>
+            <button onClick={() => setActiveTab('forceRefresh')} style={{ background: activeTab === 'forceRefresh' ? '#dc3545' : 'transparent', color: activeTab === 'forceRefresh' ? 'white' : '#dc3545', padding: '10px 24px', border: activeTab === 'forceRefresh' ? 'none' : '2px solid #dc3545', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Force Refresh</button>
+
+            {/* ===== NEW PRE COUNCIL TAB ===== */}
+            <button onClick={() => setActiveTab('preCouncil')} style={{ background: activeTab === 'preCouncil' ? '#1e3c72' : 'transparent', color: activeTab === 'preCouncil' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'preCouncil' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Pre Council</button>
           </div>
 
           {/* ===== Render the active tab ===== */}
@@ -1889,6 +1895,8 @@ useEffect(() => {
             loadForceRefresh,
             ...commonProps 
           }} />}
+          {/* ===== NEW PRE COUNCIL TAB ===== */}
+          {activeTab === 'preCouncil' && <PreCouncilAdmin {...commonProps} />}
 
           {/* ===== Modals ===== */}
           <QuestionModal

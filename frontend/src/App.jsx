@@ -45,6 +45,10 @@ import { LogoutModal } from './components/common/LogoutModal';
 import { FAQ } from './components/pages/FAQ';
 import { Maintenance } from './components/pages/Maintenance';
 import { StudyPlan } from './components/study/StudyPlan';
+import { PreCouncilCategories } from './components/pre-council/PreCouncilCategories';
+import { PreCouncilPapers } from './components/pre-council/PreCouncilPapers';
+import { PreCouncilExamList } from './components/pre-council/PreCouncilExamList';
+import { PreCouncilTakeExam } from './components/pre-council/PreCouncilTakeExam';
 
 const API_URL = 'https://elite-nursing-cbt-production.up.railway.app';
 axios.defaults.baseURL = API_URL;
@@ -131,6 +135,10 @@ const AppContent = () => {
         <Route path="/premium-exam/:categoryName/:topic/:examId/:mode" element={<PremiumExam />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/study-plan" element={<StudyPlan />} />
+        <Route path="/pre-council" element={<PreCouncilCategories />} />
+        <Route path="/pre-council/:categorySlug" element={<PreCouncilPapers />} />
+        <Route path="/pre-council/:categorySlug/:paperSlug/exams" element={<PreCouncilExamList />} />
+        <Route path="/pre-council/exam/:examId" element={<PreCouncilTakeExam />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <FloatingChatButton />
