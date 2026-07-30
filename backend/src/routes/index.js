@@ -150,9 +150,9 @@ router.use('/weekly-quiz', weeklyQuizRoutes);
 router.use('/pre-council', preCouncilRoutes);
 
 // =====================================================================
-// PAYMENT
+// PAYMENT (mounted at root so /api/initialize-payment, /api/verify-payment work)
 // =====================================================================
-router.use('/payment', paymentRoutes);
+router.use('/', paymentRoutes);
 
 // =====================================================================
 // CONTACT

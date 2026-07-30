@@ -6,8 +6,8 @@ const { authenticate } = require('../middleware');
 
 const router = express.Router();
 
-// Initialize payment
-router.post('/initialize', async (req, res) => {
+// ---- Initialize payment ----
+router.post('/initialize-payment', async (req, res) => {
   try {
     const { email, amount, userId, planType, examId, examTitle, sectionNumber, redirect_url, couponCode } = req.body;
     if (!userId) {
@@ -121,8 +121,8 @@ router.post('/initialize', async (req, res) => {
   }
 });
 
-// Verify payment
-router.post('/verify', async (req, res) => {
+// ---- Verify payment ----
+router.post('/verify-payment', async (req, res) => {
   try {
     const { reference, transactionId, userId } = req.body;
     console.log(`🔍 VERIFYING - Reference: ${reference}, TransactionId: ${transactionId}, UserId: ${userId}`);
@@ -193,7 +193,7 @@ router.post('/verify', async (req, res) => {
   }
 });
 
-// Validate coupon (for checkout)
+// ---- Validate coupon (for checkout) ----
 router.post('/validate-coupon', authenticate, async (req, res) => {
   try {
     const { code, amount, planType } = req.body;
