@@ -1,7 +1,9 @@
 // src/routes/index.js
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { Config, User } = require('../models');
 const { authenticate } = require('../middleware');
+const { JWT_SECRET, checkAndUpdatePremium } = require('../utils');
 
 const authRoutes = require('./auth');
 const quizRoutes = require('./quiz');
@@ -35,10 +37,11 @@ const userRoutes = require('./user');
 const configRoutes = require('./config');
 const categoriesRoutes = require('./categories');
 const faqsRoutes = require('./faqs');
+const notificationRoutes = require('./notification');   // NEW
 
 const router = express.Router();
 
-// ---- PUBLIC ROUTES (fixes 404s) ----
+// ---- PUBLIC ROUTES (must match original paths) ----
 router.get('/force-refresh', async (req, res) => {
   try {
     const config = await Config.findOne();
@@ -70,6 +73,35 @@ router.get('/explanation-remaining', authenticate, async (req, res) => {
   res.json({ remaining, isPremium: false });
 });
 
+// ---- VERIFY SESSION (public, but uses token) ----
+router.get('/verify-session', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(401).json({ error: 'User not found' });
+    if (user.currentSessionToken !== decoded.sessionToken) {
+      return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
+    }
+    const premiumStatus = await checkAndUpdatePremium(user);
+    res.json({
+      valid: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isPremium: premiumStatus.isPremium
+      }
+    });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// ---- NOTIFICATION ROUTES (mounted at root) ----
+router.use('/', notificationRoutes);
+
 // ---- AUTH ----
 router.use('/auth', authRoutes);
 
@@ -86,13 +118,13 @@ router.use('/admin/faqs', adminFaqsRoutes);
 router.use('/admin/study-notes', adminStudyNotesRoutes);
 router.use('/admin/announcement', adminAnnouncementRoutes);
 router.use('/admin/marketing-consent', adminMarketingConsentRoutes);
-router.use('/admin/weekly-quizzes', adminWeeklyQuizRoutes);
+router.use('/admin/weekly-quizzes', adminWeeklyQuizRoutes);   // plural
 router.use('/admin/pre-council', adminPreCouncilRoutes);
 router.use('/admin/badges', adminBadgesRoutes);
 router.use('/admin/dashboard', adminDashboardRoutes);
 router.use('/admin/force-refresh', adminForceRefreshRoutes);
-router.use('/admin/quizzes', adminQuizManagementRoutes);     
-router.use('/admin/premium', adminPremiumRoutes);             
+router.use('/admin/quizzes', adminQuizManagementRoutes);
+router.use('/admin/premium', adminPremiumRoutes);
 
 // ---- WEEKLY QUIZ (user) ----
 router.use('/weekly-quiz', weeklyQuizRoutes);
