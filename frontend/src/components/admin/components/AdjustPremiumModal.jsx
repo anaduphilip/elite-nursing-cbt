@@ -5,6 +5,7 @@ export const AdjustPremiumModal = ({
   showAdjustModal,
   setShowAdjustModal,
   adjustUserId,
+  setAdjustUserId,          
   adjustPlanType,
   setAdjustPlanType,
   adjustCustomDays,
@@ -13,6 +14,7 @@ export const AdjustPremiumModal = ({
   setAdjustCustomHours,
   adjustLoading,
   adjustResult,
+  setAdjustResult,        
   handleAdjustPremium,
   cardBg,
   headingColor,
@@ -110,8 +112,8 @@ export const AdjustPremiumModal = ({
         <button
           onClick={() => {
             setShowAdjustModal(false);
-            setAdjustUserId(null);
-            setAdjustResult('');
+            setAdjustUserId(null);    // now defined
+            setAdjustResult('');      // now defined
             setAdjustCustomDays('');
             setAdjustCustomHours('');
           }}
