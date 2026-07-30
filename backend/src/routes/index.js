@@ -1,5 +1,8 @@
 // src/routes/index.js
 const express = require('express');
+const { Config, User } = require('../models');
+const { authenticate } = require('../middleware');
+
 const authRoutes = require('./auth');
 const quizRoutes = require('./quiz');
 const adminRoutes = require('./admin');
@@ -16,6 +19,8 @@ const adminPreCouncilRoutes = require('./admin-pre-council');
 const adminBadgesRoutes = require('./admin-badges');
 const adminDashboardRoutes = require('./admin-dashboard');
 const adminForceRefreshRoutes = require('./admin-force-refresh');
+const adminQuizManagementRoutes = require('./admin-quiz-management');
+const adminPremiumRoutes = require('./admin-premium');
 const weeklyQuizRoutes = require('./weekly-quiz');
 const preCouncilRoutes = require('./pre-council');
 const paymentRoutes = require('./payment');
@@ -33,8 +38,45 @@ const faqsRoutes = require('./faqs');
 
 const router = express.Router();
 
+// ---- PUBLIC ROUTES (fixes 404s) ----
+router.get('/force-refresh', async (req, res) => {
+  try {
+    const config = await Config.findOne();
+    if (!config) return res.json({ success: true, version: 0, message: '' });
+    res.json({
+      success: true,
+      version: config.refreshVersion || 0,
+      message: config.refreshMessage || 'A new version is available. Please refresh your page to continue.'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch refresh status' });
+  }
+});
+
+router.get('/explanation-remaining', authenticate, async (req, res) => {
+  if (req.user.isPremium) {
+    return res.json({ remaining: Infinity, isPremium: true });
+  }
+  const today = new Date().toDateString();
+  const lastReset = req.user.lastExplanationReset ? new Date(req.user.lastExplanationReset).toDateString() : null;
+  if (lastReset !== today) {
+    req.user.dailyExplanations = 0;
+    req.user.lastExplanationReset = new Date();
+    await req.user.save();
+  }
+  const limit = 10;
+  const used = req.user.dailyExplanations || 0;
+  const remaining = Math.max(0, limit - used);
+  res.json({ remaining, isPremium: false });
+});
+
+// ---- AUTH ----
 router.use('/auth', authRoutes);
+
+// ---- QUIZ (user) ----
 router.use('/quizzes', quizRoutes);
+
+// ---- ADMIN ----
 router.use('/admin', adminRoutes);
 router.use('/admin/users', adminUsersRoutes);
 router.use('/admin/config', adminConfigRoutes);
@@ -44,24 +86,54 @@ router.use('/admin/faqs', adminFaqsRoutes);
 router.use('/admin/study-notes', adminStudyNotesRoutes);
 router.use('/admin/announcement', adminAnnouncementRoutes);
 router.use('/admin/marketing-consent', adminMarketingConsentRoutes);
-router.use('/admin/weekly-quiz', adminWeeklyQuizRoutes);
+router.use('/admin/weekly-quizzes', adminWeeklyQuizRoutes);
 router.use('/admin/pre-council', adminPreCouncilRoutes);
 router.use('/admin/badges', adminBadgesRoutes);
 router.use('/admin/dashboard', adminDashboardRoutes);
 router.use('/admin/force-refresh', adminForceRefreshRoutes);
+router.use('/admin/quizzes', adminQuizManagementRoutes);     
+router.use('/admin/premium', adminPremiumRoutes);             
+
+// ---- WEEKLY QUIZ (user) ----
 router.use('/weekly-quiz', weeklyQuizRoutes);
+
+// ---- PRE COUNCIL (user) ----
 router.use('/pre-council', preCouncilRoutes);
+
+// ---- PAYMENT ----
 router.use('/payment', paymentRoutes);
+
+// ---- CONTACT ----
 router.use('/contact', contactRoutes);
+
+// ---- ANNOUNCEMENT (public) ----
 router.use('/announcement', announcementRoutes);
+
+// ---- MARKETING CONSENT ----
 router.use('/marketing-consent', marketingConsentRoutes);
+
+// ---- PRIVATE MESSAGES ----
 router.use('/private-messages', privateMessageRoutes);
+
+// ---- STUDY NOTES ----
 router.use('/study-notes', studyNotesRoutes);
+
+// ---- GAMIFICATION ----
 router.use('/gamification', gamificationRoutes);
+
+// ---- AI EXPLANATION ----
 router.use('/explain-question', aiExplainRoutes);
+
+// ---- USER PROFILE ----
 router.use('/user', userRoutes);
+
+// ---- CONFIG (public) ----
 router.use('/config', configRoutes);
+
+// ---- CATEGORIES (public) ----
 router.use('/categories', categoriesRoutes);
+
+// ---- FAQS (public) ----
 router.use('/faqs', faqsRoutes);
 
 module.exports = router;
