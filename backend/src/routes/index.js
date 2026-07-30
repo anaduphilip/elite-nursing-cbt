@@ -37,11 +37,15 @@ const userRoutes = require('./user');
 const configRoutes = require('./config');
 const categoriesRoutes = require('./categories');
 const faqsRoutes = require('./faqs');
-const notificationRoutes = require('./notification');   // NEW
+const notificationRoutes = require('./notification');
 
 const router = express.Router();
 
-// ---- PUBLIC ROUTES (must match original paths) ----
+// =====================================================================
+// PUBLIC ROUTES (match original monolithic server paths)
+// =====================================================================
+
+// GET /api/force-refresh
 router.get('/force-refresh', async (req, res) => {
   try {
     const config = await Config.findOne();
@@ -56,6 +60,7 @@ router.get('/force-refresh', async (req, res) => {
   }
 });
 
+// GET /api/explanation-remaining
 router.get('/explanation-remaining', authenticate, async (req, res) => {
   if (req.user.isPremium) {
     return res.json({ remaining: Infinity, isPremium: true });
@@ -73,7 +78,7 @@ router.get('/explanation-remaining', authenticate, async (req, res) => {
   res.json({ remaining, isPremium: false });
 });
 
-// ---- VERIFY SESSION (public, but uses token) ----
+// GET /api/verify-session
 router.get('/verify-session', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -99,16 +104,24 @@ router.get('/verify-session', async (req, res) => {
   }
 });
 
-// ---- NOTIFICATION ROUTES (mounted at root) ----
+// =====================================================================
+// NOTIFICATION ROUTES (mounted at root so /api/register-token works)
+// =====================================================================
 router.use('/', notificationRoutes);
 
-// ---- AUTH ----
-router.use('/auth', authRoutes);
+// =====================================================================
+// AUTH ROUTES (mounted at root so /api/login, /api/register work)
+// =====================================================================
+router.use('/', authRoutes);
 
-// ---- QUIZ (user) ----
+// =====================================================================
+// QUIZ ROUTES (user)
+// =====================================================================
 router.use('/quizzes', quizRoutes);
 
-// ---- ADMIN ----
+// =====================================================================
+// ADMIN ROUTES
+// =====================================================================
 router.use('/admin', adminRoutes);
 router.use('/admin/users', adminUsersRoutes);
 router.use('/admin/config', adminConfigRoutes);
@@ -118,7 +131,7 @@ router.use('/admin/faqs', adminFaqsRoutes);
 router.use('/admin/study-notes', adminStudyNotesRoutes);
 router.use('/admin/announcement', adminAnnouncementRoutes);
 router.use('/admin/marketing-consent', adminMarketingConsentRoutes);
-router.use('/admin/weekly-quizzes', adminWeeklyQuizRoutes);   // plural
+router.use('/admin/weekly-quizzes', adminWeeklyQuizRoutes);    // plural – matches frontend
 router.use('/admin/pre-council', adminPreCouncilRoutes);
 router.use('/admin/badges', adminBadgesRoutes);
 router.use('/admin/dashboard', adminDashboardRoutes);
@@ -126,46 +139,74 @@ router.use('/admin/force-refresh', adminForceRefreshRoutes);
 router.use('/admin/quizzes', adminQuizManagementRoutes);
 router.use('/admin/premium', adminPremiumRoutes);
 
-// ---- WEEKLY QUIZ (user) ----
+// =====================================================================
+// WEEKLY QUIZ (user)
+// =====================================================================
 router.use('/weekly-quiz', weeklyQuizRoutes);
 
-// ---- PRE COUNCIL (user) ----
+// =====================================================================
+// PRE COUNCIL (user)
+// =====================================================================
 router.use('/pre-council', preCouncilRoutes);
 
-// ---- PAYMENT ----
+// =====================================================================
+// PAYMENT
+// =====================================================================
 router.use('/payment', paymentRoutes);
 
-// ---- CONTACT ----
+// =====================================================================
+// CONTACT
+// =====================================================================
 router.use('/contact', contactRoutes);
 
-// ---- ANNOUNCEMENT (public) ----
+// =====================================================================
+// ANNOUNCEMENT (public)
+// =====================================================================
 router.use('/announcement', announcementRoutes);
 
-// ---- MARKETING CONSENT ----
+// =====================================================================
+// MARKETING CONSENT (public & user)
+// =====================================================================
 router.use('/marketing-consent', marketingConsentRoutes);
 
-// ---- PRIVATE MESSAGES ----
+// =====================================================================
+// PRIVATE MESSAGES
+// =====================================================================
 router.use('/private-messages', privateMessageRoutes);
 
-// ---- STUDY NOTES ----
+// =====================================================================
+// STUDY NOTES
+// =====================================================================
 router.use('/study-notes', studyNotesRoutes);
 
-// ---- GAMIFICATION ----
+// =====================================================================
+// GAMIFICATION
+// =====================================================================
 router.use('/gamification', gamificationRoutes);
 
-// ---- AI EXPLANATION ----
+// =====================================================================
+// AI EXPLANATION
+// =====================================================================
 router.use('/explain-question', aiExplainRoutes);
 
-// ---- USER PROFILE ----
+// =====================================================================
+// USER PROFILE
+// =====================================================================
 router.use('/user', userRoutes);
 
-// ---- CONFIG (public) ----
+// =====================================================================
+// CONFIG (public)
+// =====================================================================
 router.use('/config', configRoutes);
 
-// ---- CATEGORIES (public) ----
+// =====================================================================
+// CATEGORIES (public)
+// =====================================================================
 router.use('/categories', categoriesRoutes);
 
-// ---- FAQS (public) ----
+// =====================================================================
+// FAQS (public)
+// =====================================================================
 router.use('/faqs', faqsRoutes);
 
 module.exports = router;
