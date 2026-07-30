@@ -137,7 +137,7 @@ router.use('/admin/badges', adminBadgesRoutes);
 router.use('/admin/dashboard', adminDashboardRoutes);
 router.use('/admin/force-refresh', adminForceRefreshRoutes);
 router.use('/admin/quizzes', adminQuizManagementRoutes);
-router.use('/admin/premium', adminPremiumRoutes);
+router.use('/admin', adminPremiumRoutes);
 
 // =====================================================================
 // WEEKLY QUIZ (user)
