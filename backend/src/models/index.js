@@ -11,11 +11,12 @@ const StudyNote = require('./StudyNote');
 const PrivateMessage = require('./PrivateMessage');
 const MarketingConsent = require('./MarketingConsent');
 const Announcement = require('./Announcement');
-const WeeklyQuiz = require('./WeeklyQuiz');
-const WeeklyQuizAttempt = require('./WeeklyQuizAttempt');
-const PreCouncilCategory = require('./PreCouncilCategory');
-const PreCouncilPaper = require('./PreCouncilPaper');
-const PreCouncilExam = require('./PreCouncilExam');
+
+// WeeklyQuiz and WeeklyQuizAttempt are in the same file
+const WeeklyQuizModule = require('./WeeklyQuiz');
+
+// PreCouncil models are in the same file
+const PreCouncilModule = require('./PreCouncil');
 
 module.exports = {
   User,
@@ -30,9 +31,9 @@ module.exports = {
   PrivateMessage,
   MarketingConsent,
   Announcement,
-  WeeklyQuiz,
-  WeeklyQuizAttempt,
-  PreCouncilCategory,
-  PreCouncilPaper,
-  PreCouncilExam
+  WeeklyQuiz: WeeklyQuizModule.WeeklyQuiz,
+  WeeklyQuizAttempt: WeeklyQuizModule.WeeklyQuizAttempt,
+  PreCouncilCategory: PreCouncilModule.PreCouncilCategory,
+  PreCouncilPaper: PreCouncilModule.PreCouncilPaper,
+  PreCouncilExam: PreCouncilModule.PreCouncilExam
 };
