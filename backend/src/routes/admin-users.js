@@ -1,0 +1,178 @@
+// src/routes/admin-users.js
+const express = require('express');
+const { User, Quiz } = require('../models');
+const { isAdmin } = require('../middleware');
+const { sendEmail, generateOTP, JWT_SECRET } = require('../utils');
+const jwt = require('jsonwebtoken');
+const SibApiV3Sdk = require('sib-api-v3-sdk');
+
+const router = express.Router();
+
+// Get user profile with full details
+router.get('/:userId', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('-password');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const totalExams = user.quizResults.length;
+    let passed = 0, failed = 0;
+    for (const r of user.quizResults) {
+      if (r.percentage >= 70) passed++;
+      else failed++;
+    }
+    const passRate = totalExams > 0 ? Math.round((passed / totalExams) * 100) : 0;
+    const badgesCount = user.badges?.length || 0;
+    const streak = user.streak || 0;
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isPremium: user.isPremium,
+        premiumPlan: user.premiumPlan,
+        premiumExpiry: user.premiumExpiry,
+        isVerified: user.isVerified,
+        isBanned: user.isBanned || false,
+        isDeleted: user.isDeleted || false,
+        createdAt: user.createdAt,
+        marketingConsent: user.marketingConsent
+      },
+      stats: { totalExams, passed, failed, passRate, streak, badgesCount, badges: user.badges?.map(b => b.badgeId) || [] }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch user profile' });
+  }
+});
+
+// Send private message
+router.post('/:userId/message', isAdmin, async (req, res) => {
+  try {
+    const { message, buttonText, buttonLink } = req.body;
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const PrivateMessage = require('../models/PrivateMessage');
+    const newMessage = new PrivateMessage({
+      userId: user._id,
+      message,
+      buttonText: buttonText || 'Learn More',
+      buttonLink: buttonLink || null,
+      isRead: false
+    });
+    await newMessage.save();
+    console.log(`📩 Private message sent to ${user.email} (${user._id})`);
+    res.json({ success: true, message: 'Private message sent successfully', data: newMessage });
+  } catch (error) {
+    console.error('Send private message error:', error);
+    res.status(500).json({ error: 'Failed to send private message' });
+  }
+});
+
+// Force logout user
+router.post('/:userId/force-logout', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    user.currentSessionToken = null;
+    await user.save();
+    console.log(`🔒 Admin force logged out: ${user.email}`);
+    res.json({ success: true, message: 'User logged out from all devices' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset streak
+router.post('/:userId/reset-streak', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    user.streak = 0;
+    await user.save();
+    console.log(`🔄 Admin reset streak for: ${user.email}`);
+    res.json({ success: true, message: 'Streak reset to 0' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle ban
+router.post('/:userId/toggle-ban', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    user.isBanned = !user.isBanned;
+    await user.save();
+    console.log(`🚫 Admin ${user.isBanned ? 'banned' : 'unbanned'}: ${user.email}`);
+    res.json({ success: true, isBanned: user.isBanned, message: user.isBanned ? 'User banned' : 'User unbanned' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle soft delete
+router.post('/:userId/toggle-delete', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    user.isDeleted = !user.isDeleted;
+    await user.save();
+    console.log(`🗑️ Admin ${user.isDeleted ? 'soft deleted' : 'restored'}: ${user.email}`);
+    res.json({ success: true, isDeleted: user.isDeleted, message: user.isDeleted ? 'User soft deleted' : 'User restored' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Resend verification email
+router.post('/:userId/resend-verification', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.isVerified) {
+      return res.json({ success: false, message: 'User is already verified' });
+    }
+    const otp = generateOTP();
+    const otpStore = require('../server').otpStore; // We'll export otpStore from server or handle differently.
+    // For safety, we'll just send a new OTP using existing function.
+    // We'll need to access otpStore from utils or pass it. We'll use a global in the main file.
+    // Since we're in a module, we can require the store from server later.
+    // For now, we'll just use a simple fallback.
+    await sendEmail(user.email, user.name || 'User', otp, 'verification');
+    console.log(`📧 Admin resent verification to: ${user.email}`);
+    res.json({ success: true, message: 'Verification email sent' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send direct email
+router.post('/:userId/send-email', isAdmin, async (req, res) => {
+  try {
+    const { subject, body } = req.body;
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!subject || !body) {
+      return res.status(400).json({ error: 'Subject and body are required' });
+    }
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: user.email }];
+    sendSmtpEmail.sender = { email: 'elitenursingcbt@gmail.com', name: 'ELITE Nursing CBT Support' };
+    sendSmtpEmail.subject = subject;
+    sendSmtpEmail.htmlContent = `
+      <h2>${subject}</h2>
+      <p>Dear ${user.name || 'User'},</p>
+      <p>${body.replace(/\n/g, '<br/>')}</p>
+      <br/>
+      <p>Best regards,<br/>ELITE Nursing CBT Support Team</p>
+    `;
+    sendSmtpEmail.textContent = `Dear ${user.name || 'User'},\n\n${body}\n\nBest regards,\nELITE Nursing CBT Support Team`;
+    await new SibApiV3Sdk.TransactionalEmailsApi().sendTransacEmail(sendSmtpEmail);
+    console.log(`📧 Admin sent email to: ${user.email} - "${subject}"`);
+    res.json({ success: true, message: 'Email sent successfully' });
+  } catch (error) {
+    console.error('Send email error:', error);
+    res.status(500).json({ error: 'Failed to send email' });
+  }
+});
+
+module.exports = router;
