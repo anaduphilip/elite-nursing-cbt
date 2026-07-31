@@ -25,7 +25,7 @@ const PreCouncilPaperSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Exam (contains questions) – UPDATED with imageUrl
+// Exam (contains questions)
 const PreCouncilExamSchema = new mongoose.Schema({
   paperId: { type: mongoose.Schema.Types.ObjectId, ref: 'PreCouncilPaper', required: true },
   title: { type: String, required: true },
@@ -34,8 +34,7 @@ const PreCouncilExamSchema = new mongoose.Schema({
     questionText: String,
     options: [String],
     correctAnswer: Number,
-    points: { type: Number, default: 1 },
-    imageUrl: { type: String, default: null }
+    points: { type: Number, default: 1 }
   }],
   timeLimit: { type: Number, default: 180 },
   questionCount: { type: Number, default: 250 },

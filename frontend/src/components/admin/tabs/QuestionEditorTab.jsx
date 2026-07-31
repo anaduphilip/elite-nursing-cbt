@@ -1,6 +1,5 @@
 // src/components/admin/tabs/QuestionEditorTab.jsx
-import React, { useState } from 'react';
-import CloudinaryUpload from '../CloudinaryUpload';
+import React from 'react';
 
 export const QuestionEditorTab = ({
   selectedQuiz,
@@ -13,60 +12,14 @@ export const QuestionEditorTab = ({
   setShowQuestionModal,
   resetQuestionForm,
   handleDeleteQuestionFromQuiz,
-  fetchQuestions,
-  openEditQuestionInQuiz,
-  updateQuestionImage,
-  removeQuestionImage,
+  fetchQuestions,          // ← NEW
+  openEditQuestionInQuiz,  // ← NEW
   darkMode,
   headingColor,
   secondaryText,
   textColor,
   cardBg
 }) => {
-  // ===== IMAGE UPLOAD STATE =====
-  const [showImageUpload, setShowImageUpload] = useState(false);
-  const [imageQuestion, setImageQuestion] = useState(null);
-  const [imageQuestionId, setImageQuestionId] = useState(null);
-  const [imageQuestionIndex, setImageQuestionIndex] = useState(null);
-
-  // ===== OPEN IMAGE UPLOAD MODAL =====
-  const openImageUpload = (q, idx) => {
-    setImageQuestion(q);
-    setImageQuestionId(q._id);
-    setImageQuestionIndex(idx);
-    setShowImageUpload(true);
-  };
-
-  // ===== HANDLE IMAGE UPLOAD SUCCESS =====
-  const handleImageUploadSuccess = async (url) => {
-    if (updateQuestionImage && imageQuestionId) {
-      await updateQuestionImage(imageQuestionId, url);
-    }
-    setShowImageUpload(false);
-    setImageQuestion(null);
-    setImageQuestionId(null);
-    setImageQuestionIndex(null);
-  };
-
-  // ===== HANDLE IMAGE REMOVE =====
-  const handleImageRemove = async () => {
-    if (removeQuestionImage && imageQuestionId) {
-      await removeQuestionImage(imageQuestionId);
-    }
-    setShowImageUpload(false);
-    setImageQuestion(null);
-    setImageQuestionId(null);
-    setImageQuestionIndex(null);
-  };
-
-  // ===== CLOSE MODAL =====
-  const closeImageUpload = () => {
-    setShowImageUpload(false);
-    setImageQuestion(null);
-    setImageQuestionId(null);
-    setImageQuestionIndex(null);
-  };
-
   return (
     <div style={{ padding: 20 }}>
       <h3 style={{ color: headingColor, marginBottom: 20 }}>📝 Question Editor</h3>
@@ -133,34 +86,13 @@ export const QuestionEditorTab = ({
                             </div>
                           ))}
                         </div>
-                        {q.imageUrl && (
-                          <div style={{ marginTop: 4 }}>
-                            <img src={q.imageUrl} alt="Question" style={{ maxHeight: 40, maxWidth: 80, borderRadius: 4 }} />
-                          </div>
-                        )}
                       </div>
-                      <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                         <button
                           onClick={() => openEditQuestionInQuiz(q)}
                           style={{ background: '#ffc107', color: '#333', border: 'none', padding: '4px 10px', borderRadius: 4, cursor: 'pointer' }}
                         >
                           Edit
-                        </button>
-                        {/* ===== Image Button ===== */}
-                        <button
-                          onClick={() => openImageUpload(q, idx)}
-                          style={{
-                            background: q.imageUrl ? '#28a745' : '#17a2b8',
-                            color: 'white',
-                            border: 'none',
-                            padding: '4px 10px',
-                            borderRadius: 4,
-                            cursor: 'pointer',
-                            fontWeight: 'bold',
-                            fontSize: 12
-                          }}
-                        >
-                          {q.imageUrl ? '🔄 Image' : '📷 Image'}
                         </button>
                         <button
                           onClick={() => handleDeleteQuestionFromQuiz(q._id)}
@@ -175,89 +107,6 @@ export const QuestionEditorTab = ({
             </div>
           )}
         </>
-      )}
-
-      {/* ===== IMAGE UPLOAD MODAL ===== */}
-      {showImageUpload && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2000,
-          padding: 20
-        }}>
-          <div style={{
-            background: cardBg,
-            borderRadius: 20,
-            padding: 28,
-            maxWidth: 500,
-            width: '100%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            textAlign: 'center'
-          }}>
-            <h3 style={{ color: headingColor, marginBottom: 8 }}>📷 Question Image</h3>
-            <p style={{ color: secondaryText, marginBottom: 20, fontSize: 14 }}>
-              Upload an image to display with this question.
-            </p>
-
-            {imageQuestion?.imageUrl && (
-              <div style={{ marginBottom: 16 }}>
-                <img
-                  src={imageQuestion.imageUrl}
-                  alt="Current"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '150px',
-                    borderRadius: 8,
-                    objectFit: 'contain',
-                    background: '#f0f0f0'
-                  }}
-                />
-                <button
-                  onClick={handleImageRemove}
-                  style={{
-                    marginTop: 8,
-                    background: '#dc3545',
-                    color: 'white',
-                    padding: '6px 16px',
-                    border: 'none',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    fontSize: 13
-                  }}
-                >
-                  🗑️ Remove Image
-                </button>
-              </div>
-            )}
-
-            <CloudinaryUpload
-              onUploadSuccess={handleImageUploadSuccess}
-              onClose={closeImageUpload}
-              buttonText="📤 Upload Image"
-            />
-
-            <button
-              onClick={closeImageUpload}
-              style={{
-                marginTop: 16,
-                background: '#6c757d',
-                color: 'white',
-                padding: '8px 20px',
-                border: 'none',
-                borderRadius: 6,
-                cursor: 'pointer',
-                fontSize: 13
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

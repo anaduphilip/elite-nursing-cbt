@@ -211,7 +211,7 @@ export const AdminPanel = () => {
   const [categoryManagerEditingIdx, setCategoryManagerEditingIdx] = useState(null);
   const [categoryManagerExistingQuizId, setCategoryManagerExistingQuizId] = useState(null);
 
-  // ===== FORCE REFRESH STATES =====
+  // ===== FORCE REFRESH STATES (NEW) =====
   const [forceRefreshMessage, setForceRefreshMessage] = useState(
     'A new version is available. Please refresh your page to continue.'
   );
@@ -219,1589 +219,1540 @@ export const AdminPanel = () => {
   const [forceRefreshResult, setForceRefreshResult] = useState('');
   const [forceRefreshVersion, setForceRefreshVersion] = useState(0);
 
-  // ============================================================
-  // ========== ALL ORIGINAL FUNCTIONS ==========================
-  // ============================================================
+// ============================================================
+// ========== ALL ORIGINAL FUNCTIONS ==========================
+// ============================================================
 
-  // ===== Dashboard =====
-  const fetchDashboard = async () => {
-    setDashboardLoading(true);
-    try {
-      const res = await axios.get('/api/admin/dashboard', { headers: { Authorization: `Bearer ${token}` } });
-      setDashboardData(res.data.dashboard);
-    } catch (error) {
-      console.error('Dashboard fetch error:', error);
-    } finally {
-      setDashboardLoading(false);
-    }
-  };
+// ===== Dashboard =====
+const fetchDashboard = async () => {
+  setDashboardLoading(true);
+  try {
+    const res = await axios.get('/api/admin/dashboard', { headers: { Authorization: `Bearer ${token}` } });
+    setDashboardData(res.data.dashboard);
+  } catch (error) {
+    console.error('Dashboard fetch error:', error);
+  } finally {
+    setDashboardLoading(false);
+  }
+};
 
-  // ===== Config =====
-  const fetchConfig = async () => {
-    try {
-      const res = await axios.get('/api/admin/config', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setConfig(res.data.config);
-        // Load limited offer from config
-        if (res.data.config.limitedOffer) {
-          const offer = res.data.config.limitedOffer;
-          setLimitedOffer({
-            enabled: offer.enabled || false,
-            discountPercent: offer.discountPercent || 0,
-            startDate: offer.startDate ? new Date(offer.startDate).toISOString().slice(0, 16) : '',
-            endDate: offer.endDate ? new Date(offer.endDate).toISOString().slice(0, 16) : '',
-            message: offer.message || '🔥 Limited Time Offer!',
-            buttonText: offer.buttonText || 'Get Premium Now',
-            buttonLink: offer.buttonLink || '/get-premium',
-            targetAudience: offer.targetAudience || 'free'
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Config fetch error:', error);
-    }
-  };
-
-  // ===== Force Refresh Functions =====
-  const handleForceRefresh = async () => {
-    setForceRefreshLoading(true);
-    setForceRefreshResult('');
-    try {
-      const res = await axios.post(
-        '/api/admin/force-refresh',
-        {
-          message: forceRefreshMessage,
-          version: forceRefreshVersion + 1
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.data.success) {
-        setForceRefreshVersion(res.data.version);
-        setForceRefreshResult(`✅ Force refresh triggered! Version: ${res.data.version}. Users will see the refresh message.`);
-      }
-    } catch (error) {
-      setForceRefreshResult('❌ Failed to trigger refresh: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setForceRefreshLoading(false);
-    }
-  };
-
-  const loadForceRefresh = async () => {
-    setForceRefreshLoading(true);
-    try {
-      const res = await axios.get('/api/admin/force-refresh', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setForceRefreshMessage(res.data.message || 'A new version is available. Please refresh your page to continue.');
-        setForceRefreshVersion(res.data.version || 0);
-        setForceRefreshResult('✅ Loaded current refresh settings.');
-      } else {
-        setForceRefreshResult('No active refresh. Users are up to date.');
-      }
-    } catch (error) {
-      setForceRefreshResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setForceRefreshLoading(false);
-    }
-  };
-
-  const handleDeactivateRefresh = async () => {
-    if (!window.confirm('Deactivate the force refresh? Users will not see the refresh prompt.')) return;
-    setForceRefreshLoading(true);
-    try {
-      const res = await axios.delete('/api/admin/force-refresh', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setForceRefreshResult('✅ Force refresh deactivated. Users will no longer be prompted to refresh.');
-        setForceRefreshVersion(0);
-      }
-    } catch (error) {
-      setForceRefreshResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setForceRefreshLoading(false);
-    }
-  };
-
-  const handleSaveConfig = async () => {
-    setConfigLoading(true);
-    setConfigResult('');
-    try {
-      const res = await axios.put('/api/admin/config', config, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setConfig(res.data.config);
-        setConfigResult('✅ Configuration updated successfully!');
-      }
-    } catch (error) {
-      setConfigResult('❌ Failed to update config: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setConfigLoading(false);
-    }
-  };
-
-  // ===== Limited Offer Functions =====
-  const handleSaveLimitedOffer = async () => {
-    setLimitedOfferLoading(true);
-    setLimitedOfferResult('');
-    try {
-      const updatedConfig = { ...config };
-      updatedConfig.limitedOffer = {
-        enabled: limitedOffer.enabled,
-        discountPercent: parseFloat(limitedOffer.discountPercent) || 0,
-        startDate: limitedOffer.startDate ? new Date(limitedOffer.startDate) : null,
-        endDate: limitedOffer.endDate ? new Date(limitedOffer.endDate) : null,
-        message: limitedOffer.message || '🔥 Limited Time Offer!',
-        buttonText: limitedOffer.buttonText || 'Get Premium Now',
-        buttonLink: limitedOffer.buttonLink || '/get-premium',
-        targetAudience: limitedOffer.targetAudience || 'free'
-      };
-
-      const res = await axios.put('/api/admin/config', updatedConfig, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setConfig(res.data.config);
-        if (res.data.config.limitedOffer) {
-          const offer = res.data.config.limitedOffer;
-          setLimitedOffer({
-            enabled: offer.enabled || false,
-            discountPercent: offer.discountPercent || 0,
-            startDate: offer.startDate ? new Date(offer.startDate).toISOString().slice(0, 16) : '',
-            endDate: offer.endDate ? new Date(offer.endDate).toISOString().slice(0, 16) : '',
-            message: offer.message || '🔥 Limited Time Offer!',
-            buttonText: offer.buttonText || 'Get Premium Now',
-            buttonLink: offer.buttonLink || '/get-premium',
-            targetAudience: offer.targetAudience || 'free'
-          });
-        }
-        setLimitedOfferResult('✅ Limited offer updated successfully!');
-      }
-    } catch (error) {
-      setLimitedOfferResult('❌ Failed to update limited offer: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setLimitedOfferLoading(false);
-    }
-  };
-
-  // ===== Categories =====
-  const fetchCategories = async () => {
-    setCatLoading(true);
-    try {
-      const res = await axios.get('/api/admin/categories', { headers: { Authorization: `Bearer ${token}` } });
-      const sorted = (res.data.categories || []).sort((a, b) => (a.order || 0) - (b.order || 0));
-      setCategories(sorted);
-    } catch (error) {
-      console.error('Category fetch error:', error);
-    } finally {
-      setCatLoading(false);
-    }
-  };
-
-  const handleSaveCategory = async () => {
-    if (!catName.trim()) {
-      setCatResult('❌ Category name is required');
-      return;
-    }
-    setCatLoading(true);
-    setCatResult('');
-    try {
-      const payload = {
-        name: catName,
-        icon: catIcon || '📚',
-        description: catDescription,
-        order: catOrder || 0,
-        active: catActive
-      };
-      let res;
-      if (editingCatId) {
-        res = await axios.put(`/api/admin/categories/${editingCatId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
-      } else {
-        res = await axios.post('/api/admin/categories', payload, { headers: { Authorization: `Bearer ${token}` } });
-      }
-      if (res.data.success) {
-        setCatResult(editingCatId ? '✅ Category updated!' : '✅ Category created!');
-        setCatName('');
-        setCatIcon('📚');
-        setCatDescription('');
-        setCatOrder(0);
-        setCatActive(true);
-        setEditingCatId(null);
-        await fetchCategories();
-      }
-    } catch (error) {
-      setCatResult('❌ Failed to save category: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setCatLoading(false);
-    }
-  };
-
-  const handleDeleteCategory = async (id) => {
-    if (!window.confirm('Deactivate this category? It will be hidden from users.')) return;
-    try {
-      await axios.delete(`/api/admin/categories/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      await fetchCategories();
-      setCatResult('✅ Category deactivated');
-    } catch (error) {
-      setCatResult('❌ Failed to deactivate category');
-    }
-  };
-
-  const editCategory = (cat) => {
-    setCatName(cat.name);
-    setCatIcon(cat.icon || '📚');
-    setCatDescription(cat.description || '');
-    setCatOrder(cat.order || 0);
-    setCatActive(cat.active);
-    setEditingCatId(cat._id);
-  };
-
-  // ===== Coupons =====
-  const fetchCoupons = async () => {
-    setCouponLoading(true);
-    try {
-      const res = await axios.get('/api/admin/coupons', { headers: { Authorization: `Bearer ${token}` } });
-      setCoupons(res.data.coupons || []);
-    } catch (error) {
-      console.error('Coupon fetch error:', error);
-    } finally {
-      setCouponLoading(false);
-    }
-  };
-
-  const handleSaveCoupon = async () => {
-    if (!couponCode.trim() || !couponDiscountValue || !couponExpiryDate) {
-      setCouponResult('❌ Code, discount value, and expiry date are required');
-      return;
-    }
-    setCouponLoading(true);
-    setCouponResult('');
-    try {
-      const payload = {
-        code: couponCode,
-        discountType: couponDiscountType,
-        discountValue: parseFloat(couponDiscountValue),
-        planType: couponPlanType,
-        minPurchase: parseFloat(couponMinPurchase) || 0,
-        maxDiscount: couponMaxDiscount ? parseFloat(couponMaxDiscount) : null,
-        expiryDate: new Date(couponExpiryDate),
-        usageLimit: parseInt(couponUsageLimit) || 1,
-        active: couponActive,
-        description: couponDescription
-      };
-      let res;
-      if (editingCouponId) {
-        res = await axios.put(`/api/admin/coupons/${editingCouponId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
-      } else {
-        res = await axios.post('/api/admin/coupons', payload, { headers: { Authorization: `Bearer ${token}` } });
-      }
-      if (res.data.success) {
-        setCouponResult(editingCouponId ? '✅ Coupon updated!' : '✅ Coupon created!');
-        resetCouponForm();
-        await fetchCoupons();
-      }
-    } catch (error) {
-      setCouponResult('❌ Failed to save coupon: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setCouponLoading(false);
-    }
-  };
-
-  const resetCouponForm = () => {
-    setCouponCode('');
-    setCouponDiscountType('percentage');
-    setCouponDiscountValue('');
-    setCouponMinPurchase('');
-    setCouponMaxDiscount('');
-    setCouponExpiryDate('');
-    setCouponUsageLimit(1);
-    setCouponActive(true);
-    setCouponDescription('');
-    setCouponPlanType('all');
-    setEditingCouponId(null);
-  };
-
-  const editCoupon = (c) => {
-    setCouponCode(c.code);
-    setCouponDiscountType(c.discountType);
-    setCouponDiscountValue(c.discountValue);
-    setCouponMinPurchase(c.minPurchase || '');
-    setCouponMaxDiscount(c.maxDiscount || '');
-    setCouponExpiryDate(c.expiryDate ? new Date(c.expiryDate).toISOString().slice(0, 16) : '');
-    setCouponUsageLimit(c.usageLimit);
-    setCouponActive(c.active);
-    setCouponDescription(c.description || '');
-    setCouponPlanType(c.planType || 'all');
-    setEditingCouponId(c._id);
-  };
-
-  const handleDeleteCoupon = async (id) => {
-    if (!window.confirm('Delete this coupon permanently?')) return;
-    try {
-      await axios.delete(`/api/admin/coupons/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      await fetchCoupons();
-      setCouponResult('✅ Coupon deleted');
-    } catch (error) {
-      setCouponResult('❌ Failed to delete coupon');
-    }
-  };
-
-  // ===== FAQs =====
-  const fetchFaqs = async () => {
-    setFaqLoading(true);
-    try {
-      const res = await axios.get('/api/admin/faqs', { headers: { Authorization: `Bearer ${token}` } });
-      setFaqs(res.data.faqs || []);
-    } catch (error) {
-      console.error('FAQ fetch error:', error);
-    } finally {
-      setFaqLoading(false);
-    }
-  };
-
-  const handleSaveFaq = async () => {
-    if (!faqQuestion.trim() || !faqAnswer.trim()) {
-      setFaqResult('❌ Question and answer are required');
-      return;
-    }
-    setFaqLoading(true);
-    setFaqResult('');
-    try {
-      const payload = {
-        question: faqQuestion,
-        answer: faqAnswer,
-        category: faqCategory || 'General',
-        order: faqOrder || 0,
-        active: faqActive
-      };
-      let res;
-      if (editingFaqId) {
-        res = await axios.put(`/api/admin/faqs/${editingFaqId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
-      } else {
-        res = await axios.post('/api/admin/faqs', payload, { headers: { Authorization: `Bearer ${token}` } });
-      }
-      if (res.data.success) {
-        setFaqResult(editingFaqId ? '✅ FAQ updated!' : '✅ FAQ created!');
-        setFaqQuestion('');
-        setFaqAnswer('');
-        setFaqCategory('General');
-        setFaqOrder(0);
-        setFaqActive(true);
-        setEditingFaqId(null);
-        await fetchFaqs();
-      }
-    } catch (error) {
-      setFaqResult('❌ Failed to save FAQ: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setFaqLoading(false);
-    }
-  };
-
-  const editFaq = (f) => {
-    setFaqQuestion(f.question);
-    setFaqAnswer(f.answer);
-    setFaqCategory(f.category || 'General');
-    setFaqOrder(f.order || 0);
-    setFaqActive(f.active);
-    setEditingFaqId(f._id);
-  };
-
-  const handleDeleteFaq = async (id) => {
-    if (!window.confirm('Delete this FAQ permanently?')) return;
-    try {
-      await axios.delete(`/api/admin/faqs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      await fetchFaqs();
-      setFaqResult('✅ FAQ deleted');
-    } catch (error) {
-      setFaqResult('❌ Failed to delete FAQ');
-    }
-  };
-
-  // ===== Users =====
-  const applyPlan = async (userId) => {
-    const plan = selectedPlan[userId];
-    if (!plan) return alert('Please select a plan first.');
-    try {
-      const response = await axios.post('/api/admin/set-premium-plan',
-        { userId, planType: plan },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (response.data.success) {
-        const updatedUser = response.data.user || { ...users.find(u => u._id === userId), isPremium: plan !== 'none', premiumPlan: plan !== 'none' ? plan : null };
-        setUsers(users.map(u => u._id === userId ? updatedUser : u));
-        alert(response.data.message);
-      }
-    } catch (error) {
-      alert('Failed to apply plan: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
-  const deleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      try {
-        await axios.delete(`/api/admin/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
-        setUsers(users.filter(u => u._id !== userId));
-        alert('User deleted successfully');
-      } catch (error) {
-        alert('Failed to delete user');
+// ===== Config =====
+const fetchConfig = async () => {
+  try {
+    const res = await axios.get('/api/admin/config', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setConfig(res.data.config);
+      // Load limited offer from config
+      if (res.data.config.limitedOffer) {
+        const offer = res.data.config.limitedOffer;
+        setLimitedOffer({
+          enabled: offer.enabled || false,
+          discountPercent: offer.discountPercent || 0,
+          startDate: offer.startDate ? new Date(offer.startDate).toISOString().slice(0, 16) : '',
+          endDate: offer.endDate ? new Date(offer.endDate).toISOString().slice(0, 16) : '',
+          message: offer.message || '🔥 Limited Time Offer!',
+          buttonText: offer.buttonText || 'Get Premium Now',
+          buttonLink: offer.buttonLink || '/get-premium',
+          targetAudience: offer.targetAudience || 'free'
+        });
       }
     }
-  };
+  } catch (error) {
+    console.error('Config fetch error:', error);
+  }
+};
 
-  // ===== Contacts =====
-  const sendReply = async (contactEmail, contactName, originalMessage) => {
-    if (!replyMessage.trim()) {
-      alert('Please enter a reply message');
-      return;
+// ===== Force Refresh Functions (NEW) =====
+const handleForceRefresh = async () => {
+  setForceRefreshLoading(true);
+  setForceRefreshResult('');
+  try {
+    const res = await axios.post(
+      '/api/admin/force-refresh',
+      {
+        message: forceRefreshMessage,
+        version: forceRefreshVersion + 1
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data.success) {
+      setForceRefreshVersion(res.data.version);
+      setForceRefreshResult(`✅ Force refresh triggered! Version: ${res.data.version}. Users will see the refresh message.`);
     }
-    setSendingReply(true);
-    try {
-      await axios.post('/api/admin/reply-message', {
-        to: contactEmail,
-        name: contactName,
-        originalMessage: originalMessage,
-        reply: replyMessage
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      alert('Reply sent successfully!');
-      setReplyingTo(null);
-      setReplyMessage('');
-    } catch (error) {
-      alert('Failed to send reply: ' + (error.response?.data?.error || 'Unknown error'));
-    } finally {
-      setSendingReply(false);
-    }
-  };
+  } catch (error) {
+    setForceRefreshResult('❌ Failed to trigger refresh: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setForceRefreshLoading(false);
+  }
+};
 
-  // ===== Notifications =====
-  const sendNotification = async () => {
-    if (!notificationTitle || !notificationMessage) {
-      alert('Please enter both a title and a message.');
-      return;
-    }
-    setSendingNotification(true);
-    setNotificationStatus('');
-    try {
-      const response = await axios.post('/api/admin/send-notification', {
-        title: notificationTitle,
-        message: notificationMessage
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      if (response.data.success) {
-        setNotificationStatus(`✅ Sent successfully to ${response.data.successCount} devices.`);
-        setNotificationTitle('');
-        setNotificationMessage('');
-      } else {
-        setNotificationStatus('❌ Failed to send notifications.');
-      }
-    } catch (error) {
-      console.error('Error sending notification:', error);
-      setNotificationStatus('❌ An error occurred.');
-    } finally {
-      setSendingNotification(false);
-    }
-  };
-
-  // ===== Manual OTP =====
-  const generateManualOtp = async () => {
-    if (!manualOtpEmail.trim()) {
-      alert('Please enter an email address');
-      return;
-    }
-    setGeneratingOtp(true);
-    setManualOtpResult('');
-    try {
-      const response = await axios.post('/api/admin/generate-verification-code', 
-        { email: manualOtpEmail },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (response.data.otp) {
-        setManualOtpResult(`✅ Verification code for ${manualOtpEmail}: ${response.data.otp} (valid 10 minutes)`);
-      } else {
-        setManualOtpResult('❌ Failed to generate code');
-      }
-    } catch (error) {
-      console.error('Generate OTP error:', error);
-      setManualOtpResult(`❌ Error: ${error.response?.data?.error || error.message}`);
-    } finally {
-      setGeneratingOtp(false);
-    }
-  };
-
-  // ===== Manual Reset =====
-  const generateManualResetOtp = async () => {
-    if (!resetEmail.trim()) {
-      alert('Please enter an email address');
-      return;
-    }
-    setGeneratingResetOtp(true);
-    setResetOtpResult('');
-    try {
-      const response = await axios.post('/api/admin/generate-reset-code', 
-        { email: resetEmail },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (response.data.otp) {
-        setResetOtpResult(`✅ Reset code for ${resetEmail}: ${response.data.otp} (valid 10 minutes)`);
-      } else {
-        setResetOtpResult('❌ Failed to generate code');
-      }
-    } catch (error) {
-      console.error('Generate reset OTP error:', error);
-      setResetOtpResult(`❌ Error: ${error.response?.data?.error || error.message}`);
-    } finally {
-      setGeneratingResetOtp(false);
-    }
-  };
-
-  // ===== Broadcast =====
-  const handleBroadcast = async () => {
-    setBroadcastLoading(true);
-    setBroadcastResult('');
-    try {
-      const res = await axios.post('/api/admin/broadcast-email', {
-        subject: broadcastSubject,
-        message: broadcastMessage,
-        templateType: broadcastTemplate
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      setBroadcastResult(`✅ ${res.data.message}`);
-    } catch (error) {
-      setBroadcastResult('❌ Failed to send broadcast: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setBroadcastLoading(false);
-    }
-  };
-
-  // ===== Marketing Consent =====
-  const handleSaveConsent = async () => {
-    if (!consentMessage.trim()) {
-      alert('Message is required');
-      return;
-    }
-    setConsentLoading(true);
-    setConsentResult('');
-    try {
-      const res = await axios.post('/api/admin/marketing-consent', {
-        message: consentMessage,
-        buttonText: consentButtonText,
-        active: consentActive
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setConsentResult(`✅ Consent banner updated! Version: ${res.data.consent.version}`);
-        setConsentVersion(res.data.consent.version);
-      }
-    } catch (error) {
-      setConsentResult('❌ Failed to update banner: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setConsentLoading(false);
-    }
-  };
-
-  const handleDeactivateConsent = async () => {
-    if (!window.confirm('Deactivate the consent banner? Users will not see it.')) return;
-    setConsentLoading(true);
-    try {
-      const res = await axios.delete('/api/admin/marketing-consent', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setConsentResult('✅ Consent banner deactivated.');
-        setConsentActive(false);
-        setConsentVersion(prev => prev + 1);
-      }
-    } catch (error) {
-      setConsentResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setConsentLoading(false);
-    }
-  };
-
-  const loadConsent = async () => {
-    setConsentLoading(true);
-    try {
-      const res = await axios.get('/api/admin/marketing-consent', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.consent) {
-        const c = res.data.consent;
-        setConsentMessage(c.message || '');
-        setConsentButtonText(c.buttonText || 'Yes, Opt me in!');
-        setConsentActive(c.active || false);
-        setConsentVersion(c.version || 0);
-        setConsentResult('✅ Loaded current consent banner.');
-      } else {
-        setConsentResult('No consent banner found. Create one now.');
-      }
-    } catch (error) {
-      setConsentResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setConsentLoading(false);
-    }
-  };
-
-  // ===== Announcement =====
-  const handleSaveAnnouncement = async () => {
-    if (!announcementMessage.trim()) {
-      alert('Message is required');
-      return;
-    }
-    setAnnouncementLoading(true);
-    setAnnouncementResult('');
-    try {
-      const res = await axios.post('/api/admin/announcement', {
-        message: announcementMessage,
-        buttonText: announcementButtonText,
-        buttonLink: announcementButtonLink,
-        active: announcementActive
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setAnnouncementResult(`✅ Banner updated! Version: ${res.data.announcement.version}`);
-        setAnnouncementVersion(res.data.announcement.version);
-      }
-    } catch (error) {
-      setAnnouncementResult('❌ Failed to update banner: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setAnnouncementLoading(false);
-    }
-  };
-
-  const handleDeactivateAnnouncement = async () => {
-    if (!window.confirm('Deactivate the banner? Users who haven\'t seen it will not see it.')) return;
-    setAnnouncementLoading(true);
-    try {
-      const res = await axios.delete('/api/admin/announcement', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setAnnouncementResult('✅ Banner deactivated.');
-        setAnnouncementActive(false);
-        setAnnouncementVersion(prev => prev + 1);
-      }
-    } catch (error) {
-      setAnnouncementResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setAnnouncementLoading(false);
-    }
-  };
-
-  const loadAnnouncement = async () => {
-    setAnnouncementLoading(true);
-    try {
-      const res = await axios.get('/api/admin/announcement', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.announcement) {
-        const a = res.data.announcement;
-        setAnnouncementMessage(a.message || '');
-        setAnnouncementButtonText(a.buttonText || 'Learn More');
-        setAnnouncementButtonLink(a.buttonLink || '/get-premium');
-        setAnnouncementActive(a.active || false);
-        setAnnouncementVersion(a.version || 0);
-        setAnnouncementResult('✅ Loaded current banner.');
-      } else {
-        setAnnouncementResult('No banner found. Create one now.');
-      }
-    } catch (error) {
-      setAnnouncementResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setAnnouncementLoading(false);
-    }
-  };
-
-  // ===== Weekly Quiz =====
-  const fetchWeeklyQuizzes = async () => {
-    setLoadingQuizzes(true);
-    try {
-      const res = await axios.get('/api/admin/weekly-quizzes', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setWeeklyQuizzes(res.data);
-    } catch (error) {
-      alert('Failed to fetch weekly quizzes');
-    } finally {
-      setLoadingQuizzes(false);
-    }
-  };
-
-  const handleAddQuestion = () => {
-    if (!qText.trim()) {
-      alert('Please enter a question');
-      return;
-    }
-    if (qOptions.some(opt => !opt.trim())) {
-      alert('Please fill in all 4 options');
-      return;
-    }
-    const newQuestion = {
-      questionText: qText.trim(),
-      options: qOptions.map(opt => opt.trim()),
-      correctAnswer: qCorrect,
-      points: 1
-    };
-    if (editingQuestionIndex !== null) {
-      const updated = [...quizQuestions];
-      updated[editingQuestionIndex] = newQuestion;
-      setQuizQuestions(updated);
-      setEditingQuestionIndex(null);
+const loadForceRefresh = async () => {
+  setForceRefreshLoading(true);
+  try {
+    const res = await axios.get('/api/admin/force-refresh', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setForceRefreshMessage(res.data.message || 'A new version is available. Please refresh your page to continue.');
+      setForceRefreshVersion(res.data.version || 0);
+      setForceRefreshResult('✅ Loaded current refresh settings.');
     } else {
-      setQuizQuestions([...quizQuestions, newQuestion]);
+      setForceRefreshResult('No active refresh. Users are up to date.');
     }
-    setQText('');
-    setQOptions(['', '', '', '']);
-    setQCorrect(0);
-  };
+  } catch (error) {
+    setForceRefreshResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setForceRefreshLoading(false);
+  }
+};
 
-  const handleBatchImport = () => {
-    if (!batchInput.trim()) {
-      alert('Please paste some questions first.');
-      return;
+const handleDeactivateRefresh = async () => {
+  if (!window.confirm('Deactivate the force refresh? Users will not see the refresh prompt.')) return;
+  setForceRefreshLoading(true);
+  try {
+    const res = await axios.delete('/api/admin/force-refresh', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setForceRefreshResult('✅ Force refresh deactivated. Users will no longer be prompted to refresh.');
+      setForceRefreshVersion(0);
     }
+  } catch (error) {
+    setForceRefreshResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setForceRefreshLoading(false);
+  }
+};
 
-    const lines = batchInput.split('\n').map(l => l.trim()).filter(l => l);
-    const parsedQuestions = [];
-    
-    let currentBlock = '';
-    const blocks = [];
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.match(/^Q\d+\./i)) {
-        if (currentBlock.trim()) {
-          blocks.push(currentBlock.trim());
-        }
-        currentBlock = line;
-      } else {
-        currentBlock += '\n' + line;
-      }
+const handleSaveConfig = async () => {
+  setConfigLoading(true);
+  setConfigResult('');
+  try {
+    const res = await axios.put('/api/admin/config', config, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setConfig(res.data.config);
+      setConfigResult('✅ Configuration updated successfully!');
     }
-    if (currentBlock.trim()) {
-      blocks.push(currentBlock.trim());
-    }
+  } catch (error) {
+    setConfigResult('❌ Failed to update config: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setConfigLoading(false);
+  }
+};
 
-    for (const block of blocks) {
-      const qMatch = block.match(/^Q\d+\.\s*(.*)/i);
-      if (!qMatch) continue;
-      
-      const fullText = qMatch[1];
-      let questionText = fullText;
-      const options = [];
-      let answerLetter = null;
+// ===== Limited Offer Functions =====
+const handleSaveLimitedOffer = async () => {
+  setLimitedOfferLoading(true);
+  setLimitedOfferResult('');
+  try {
+    const updatedConfig = { ...config };
+    updatedConfig.limitedOffer = {
+      enabled: limitedOffer.enabled,
+      discountPercent: parseFloat(limitedOffer.discountPercent) || 0,
+      startDate: limitedOffer.startDate ? new Date(limitedOffer.startDate) : null,
+      endDate: limitedOffer.endDate ? new Date(limitedOffer.endDate) : null,
+      message: limitedOffer.message || '🔥 Limited Time Offer!',
+      buttonText: limitedOffer.buttonText || 'Get Premium Now',
+      buttonLink: limitedOffer.buttonLink || '/get-premium',
+      targetAudience: limitedOffer.targetAudience || 'free'
+    };
 
-      const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
-      let match;
-      while ((match = optionPattern.exec(fullText)) !== null) {
-        options.push(match[2].trim());
-      }
-
-      if (options.length !== 4) {
-        const linesInBlock = block.split('\n');
-        for (const line of linesInBlock) {
-          const optMatch = line.match(/^\(([a-d])\)\s*(.*)/i);
-          if (optMatch) {
-            options.push(optMatch[2].trim());
-          }
-        }
-      }
-
-      questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
-      
-      if (!questionText) {
-        const firstLine = block.split('\n')[0];
-        if (firstLine) {
-          questionText = firstLine.replace(/^Q\d+\.\s*/i, '').trim();
-        }
-      }
-
-      const answerMatch = block.match(/Answer:\s*([a-d])/i);
-      if (answerMatch) {
-        answerLetter = answerMatch[1].toUpperCase();
-      } else {
-        const lastLines = block.split('\n').slice(-3);
-        for (const line of lastLines) {
-          const ansMatch = line.match(/^([a-d])\.?\s*$/i);
-          if (ansMatch) {
-            answerLetter = ansMatch[1].toUpperCase();
-            break;
-          }
-        }
-      }
-
-      if (options.length === 4 && questionText) {
-        const correctIndex = answerLetter ? answerLetter.charCodeAt(0) - 65 : 0;
-        parsedQuestions.push({
-          questionText: questionText,
-          options: options,
-          correctAnswer: correctIndex,
-          points: 1
+    const res = await axios.put('/api/admin/config', updatedConfig, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setConfig(res.data.config);
+      if (res.data.config.limitedOffer) {
+        const offer = res.data.config.limitedOffer;
+        setLimitedOffer({
+          enabled: offer.enabled || false,
+          discountPercent: offer.discountPercent || 0,
+          startDate: offer.startDate ? new Date(offer.startDate).toISOString().slice(0, 16) : '',
+          endDate: offer.endDate ? new Date(offer.endDate).toISOString().slice(0, 16) : '',
+          message: offer.message || '🔥 Limited Time Offer!',
+          buttonText: offer.buttonText || 'Get Premium Now',
+          buttonLink: offer.buttonLink || '/get-premium',
+          targetAudience: offer.targetAudience || 'free'
         });
       }
+      setLimitedOfferResult('✅ Limited offer updated successfully!');
     }
+  } catch (error) {
+    setLimitedOfferResult('❌ Failed to update limited offer: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setLimitedOfferLoading(false);
+  }
+};
 
-    if (parsedQuestions.length === 0) {
-      for (const line of lines) {
-        if (line.match(/^Q\d+\./i)) {
-          const qText2 = line.replace(/^Q\d+\.\s*/i, '').trim();
-          const options2 = [];
-          const optPattern2 = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
-          let match2;
-          while ((match2 = optPattern2.exec(qText2)) !== null) {
-            options2.push(match2[2].trim());
-          }
-          let questionText2 = qText2.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
-          if (options2.length === 4 && questionText2) {
-            parsedQuestions.push({
-              questionText: questionText2,
-              options: options2,
-              correctAnswer: 0,
-              points: 1
-            });
-          }
-        }
-      }
+// ===== Categories =====
+const fetchCategories = async () => {
+  setCatLoading(true);
+  try {
+    const res = await axios.get('/api/admin/categories', { headers: { Authorization: `Bearer ${token}` } });
+    const sorted = (res.data.categories || []).sort((a, b) => (a.order || 0) - (b.order || 0));
+    setCategories(sorted);
+  } catch (error) {
+    console.error('Category fetch error:', error);
+  } finally {
+    setCatLoading(false);
+  }
+};
+
+const handleSaveCategory = async () => {
+  if (!catName.trim()) {
+    setCatResult('❌ Category name is required');
+    return;
+  }
+  setCatLoading(true);
+  setCatResult('');
+  try {
+    const payload = {
+      name: catName,
+      icon: catIcon || '📚',
+      description: catDescription,
+      order: catOrder || 0,
+      active: catActive
+    };
+    let res;
+    if (editingCatId) {
+      res = await axios.put(`/api/admin/categories/${editingCatId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+    } else {
+      res = await axios.post('/api/admin/categories', payload, { headers: { Authorization: `Bearer ${token}` } });
     }
-
-    if (parsedQuestions.length === 0) {
-      alert('No valid questions found. Please check the format.\n\nSupported formats:\n1. Q1. Question text? (a) Option (b) Option (c) Option (d) Option\n2. Q1. Question text?\n(a) Option\n(b) Option\n(c) Option\n(d) Option\nAnswer: a');
-      return;
+    if (res.data.success) {
+      setCatResult(editingCatId ? '✅ Category updated!' : '✅ Category created!');
+      setCatName('');
+      setCatIcon('📚');
+      setCatDescription('');
+      setCatOrder(0);
+      setCatActive(true);
+      setEditingCatId(null);
+      await fetchCategories();
     }
+  } catch (error) {
+    setCatResult('❌ Failed to save category: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setCatLoading(false);
+  }
+};
 
-    setQuizQuestions(prev => [...prev, ...parsedQuestions]);
-    setBatchInput('');
-    alert(`✅ ${parsedQuestions.length} questions added successfully!`);
+const handleDeleteCategory = async (id) => {
+  if (!window.confirm('Deactivate this category? It will be hidden from users.')) return;
+  try {
+    await axios.delete(`/api/admin/categories/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    await fetchCategories();
+    setCatResult('✅ Category deactivated');
+  } catch (error) {
+    setCatResult('❌ Failed to deactivate category');
+  }
+};
+
+const editCategory = (cat) => {
+  setCatName(cat.name);
+  setCatIcon(cat.icon || '📚');
+  setCatDescription(cat.description || '');
+  setCatOrder(cat.order || 0);
+  setCatActive(cat.active);
+  setEditingCatId(cat._id);
+};
+
+// ===== Coupons =====
+const fetchCoupons = async () => {
+  setCouponLoading(true);
+  try {
+    const res = await axios.get('/api/admin/coupons', { headers: { Authorization: `Bearer ${token}` } });
+    setCoupons(res.data.coupons || []);
+  } catch (error) {
+    console.error('Coupon fetch error:', error);
+  } finally {
+    setCouponLoading(false);
+  }
+};
+
+const handleSaveCoupon = async () => {
+  if (!couponCode.trim() || !couponDiscountValue || !couponExpiryDate) {
+    setCouponResult('❌ Code, discount value, and expiry date are required');
+    return;
+  }
+  setCouponLoading(true);
+  setCouponResult('');
+  try {
+    const payload = {
+      code: couponCode,
+      discountType: couponDiscountType,
+      discountValue: parseFloat(couponDiscountValue),
+      planType: couponPlanType,
+      minPurchase: parseFloat(couponMinPurchase) || 0,
+      maxDiscount: couponMaxDiscount ? parseFloat(couponMaxDiscount) : null,
+      expiryDate: new Date(couponExpiryDate),
+      usageLimit: parseInt(couponUsageLimit) || 1,
+      active: couponActive,
+      description: couponDescription
+    };
+    let res;
+    if (editingCouponId) {
+      res = await axios.put(`/api/admin/coupons/${editingCouponId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+    } else {
+      res = await axios.post('/api/admin/coupons', payload, { headers: { Authorization: `Bearer ${token}` } });
+    }
+    if (res.data.success) {
+      setCouponResult(editingCouponId ? '✅ Coupon updated!' : '✅ Coupon created!');
+      resetCouponForm();
+      await fetchCoupons();
+    }
+  } catch (error) {
+    setCouponResult('❌ Failed to save coupon: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setCouponLoading(false);
+  }
+};
+
+const resetCouponForm = () => {
+  setCouponCode('');
+  setCouponDiscountType('percentage');
+  setCouponDiscountValue('');
+  setCouponMinPurchase('');
+  setCouponMaxDiscount('');
+  setCouponExpiryDate('');
+  setCouponUsageLimit(1);
+  setCouponActive(true);
+  setCouponDescription('');
+  setCouponPlanType('all');
+  setEditingCouponId(null);
+};
+
+const editCoupon = (c) => {
+  setCouponCode(c.code);
+  setCouponDiscountType(c.discountType);
+  setCouponDiscountValue(c.discountValue);
+  setCouponMinPurchase(c.minPurchase || '');
+  setCouponMaxDiscount(c.maxDiscount || '');
+  setCouponExpiryDate(c.expiryDate ? new Date(c.expiryDate).toISOString().slice(0, 16) : '');
+  setCouponUsageLimit(c.usageLimit);
+  setCouponActive(c.active);
+  setCouponDescription(c.description || '');
+  setCouponPlanType(c.planType || 'all');
+  setEditingCouponId(c._id);
+};
+
+const handleDeleteCoupon = async (id) => {
+  if (!window.confirm('Delete this coupon permanently?')) return;
+  try {
+    await axios.delete(`/api/admin/coupons/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    await fetchCoupons();
+    setCouponResult('✅ Coupon deleted');
+  } catch (error) {
+    setCouponResult('❌ Failed to delete coupon');
+  }
+};
+
+// ===== FAQs =====
+const fetchFaqs = async () => {
+  setFaqLoading(true);
+  try {
+    const res = await axios.get('/api/admin/faqs', { headers: { Authorization: `Bearer ${token}` } });
+    setFaqs(res.data.faqs || []);
+  } catch (error) {
+    console.error('FAQ fetch error:', error);
+  } finally {
+    setFaqLoading(false);
+  }
+};
+
+const handleSaveFaq = async () => {
+  if (!faqQuestion.trim() || !faqAnswer.trim()) {
+    setFaqResult('❌ Question and answer are required');
+    return;
+  }
+  setFaqLoading(true);
+  setFaqResult('');
+  try {
+    const payload = {
+      question: faqQuestion,
+      answer: faqAnswer,
+      category: faqCategory || 'General',
+      order: faqOrder || 0,
+      active: faqActive
+    };
+    let res;
+    if (editingFaqId) {
+      res = await axios.put(`/api/admin/faqs/${editingFaqId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+    } else {
+      res = await axios.post('/api/admin/faqs', payload, { headers: { Authorization: `Bearer ${token}` } });
+    }
+    if (res.data.success) {
+      setFaqResult(editingFaqId ? '✅ FAQ updated!' : '✅ FAQ created!');
+      setFaqQuestion('');
+      setFaqAnswer('');
+      setFaqCategory('General');
+      setFaqOrder(0);
+      setFaqActive(true);
+      setEditingFaqId(null);
+      await fetchFaqs();
+    }
+  } catch (error) {
+    setFaqResult('❌ Failed to save FAQ: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setFaqLoading(false);
+  }
+};
+
+const editFaq = (f) => {
+  setFaqQuestion(f.question);
+  setFaqAnswer(f.answer);
+  setFaqCategory(f.category || 'General');
+  setFaqOrder(f.order || 0);
+  setFaqActive(f.active);
+  setEditingFaqId(f._id);
+};
+
+const handleDeleteFaq = async (id) => {
+  if (!window.confirm('Delete this FAQ permanently?')) return;
+  try {
+    await axios.delete(`/api/admin/faqs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    await fetchFaqs();
+    setFaqResult('✅ FAQ deleted');
+  } catch (error) {
+    setFaqResult('❌ Failed to delete FAQ');
+  }
+};
+
+// ===== Users =====
+const applyPlan = async (userId) => {
+  const plan = selectedPlan[userId];
+  if (!plan) return alert('Please select a plan first.');
+  try {
+    const response = await axios.post('/api/admin/set-premium-plan',
+      { userId, planType: plan },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (response.data.success) {
+      const updatedUser = response.data.user || { ...users.find(u => u._id === userId), isPremium: plan !== 'none', premiumPlan: plan !== 'none' ? plan : null };
+      setUsers(users.map(u => u._id === userId ? updatedUser : u));
+      alert(response.data.message);
+    }
+  } catch (error) {
+    alert('Failed to apply plan: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+const deleteUser = async (userId) => {
+  if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    try {
+      await axios.delete(`/api/admin/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+      setUsers(users.filter(u => u._id !== userId));
+      alert('User deleted successfully');
+    } catch (error) {
+      alert('Failed to delete user');
+    }
+  }
+};
+
+// ===== Contacts =====
+const sendReply = async (contactEmail, contactName, originalMessage) => {
+  if (!replyMessage.trim()) {
+    alert('Please enter a reply message');
+    return;
+  }
+  setSendingReply(true);
+  try {
+    await axios.post('/api/admin/reply-message', {
+      to: contactEmail,
+      name: contactName,
+      originalMessage: originalMessage,
+      reply: replyMessage
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    alert('Reply sent successfully!');
+    setReplyingTo(null);
+    setReplyMessage('');
+  } catch (error) {
+    alert('Failed to send reply: ' + (error.response?.data?.error || 'Unknown error'));
+  } finally {
+    setSendingReply(false);
+  }
+};
+
+// ===== Notifications =====
+const sendNotification = async () => {
+  if (!notificationTitle || !notificationMessage) {
+    alert('Please enter both a title and a message.');
+    return;
+  }
+  setSendingNotification(true);
+  setNotificationStatus('');
+  try {
+    const response = await axios.post('/api/admin/send-notification', {
+      title: notificationTitle,
+      message: notificationMessage
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    if (response.data.success) {
+      setNotificationStatus(`✅ Sent successfully to ${response.data.successCount} devices.`);
+      setNotificationTitle('');
+      setNotificationMessage('');
+    } else {
+      setNotificationStatus('❌ Failed to send notifications.');
+    }
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    setNotificationStatus('❌ An error occurred.');
+  } finally {
+    setSendingNotification(false);
+  }
+};
+
+// ===== Manual OTP =====
+const generateManualOtp = async () => {
+  if (!manualOtpEmail.trim()) {
+    alert('Please enter an email address');
+    return;
+  }
+  setGeneratingOtp(true);
+  setManualOtpResult('');
+  try {
+    const response = await axios.post('/api/admin/generate-verification-code', 
+      { email: manualOtpEmail },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (response.data.otp) {
+      setManualOtpResult(`✅ Verification code for ${manualOtpEmail}: ${response.data.otp} (valid 10 minutes)`);
+    } else {
+      setManualOtpResult('❌ Failed to generate code');
+    }
+  } catch (error) {
+    console.error('Generate OTP error:', error);
+    setManualOtpResult(`❌ Error: ${error.response?.data?.error || error.message}`);
+  } finally {
+    setGeneratingOtp(false);
+  }
+};
+
+// ===== Manual Reset =====
+const generateManualResetOtp = async () => {
+  if (!resetEmail.trim()) {
+    alert('Please enter an email address');
+    return;
+  }
+  setGeneratingResetOtp(true);
+  setResetOtpResult('');
+  try {
+    const response = await axios.post('/api/admin/generate-reset-code', 
+      { email: resetEmail },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (response.data.otp) {
+      setResetOtpResult(`✅ Reset code for ${resetEmail}: ${response.data.otp} (valid 10 minutes)`);
+    } else {
+      setResetOtpResult('❌ Failed to generate code');
+    }
+  } catch (error) {
+    console.error('Generate reset OTP error:', error);
+    setResetOtpResult(`❌ Error: ${error.response?.data?.error || error.message}`);
+  } finally {
+    setGeneratingResetOtp(false);
+  }
+};
+
+// ===== Broadcast =====
+const handleBroadcast = async () => {
+  setBroadcastLoading(true);
+  setBroadcastResult('');
+  try {
+    const res = await axios.post('/api/admin/broadcast-email', {
+      subject: broadcastSubject,
+      message: broadcastMessage,
+      templateType: broadcastTemplate
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    setBroadcastResult(`✅ ${res.data.message}`);
+  } catch (error) {
+    setBroadcastResult('❌ Failed to send broadcast: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setBroadcastLoading(false);
+  }
+};
+
+// ===== Marketing Consent =====
+const handleSaveConsent = async () => {
+  if (!consentMessage.trim()) {
+    alert('Message is required');
+    return;
+  }
+  setConsentLoading(true);
+  setConsentResult('');
+  try {
+    const res = await axios.post('/api/admin/marketing-consent', {
+      message: consentMessage,
+      buttonText: consentButtonText,
+      active: consentActive
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setConsentResult(`✅ Consent banner updated! Version: ${res.data.consent.version}`);
+      setConsentVersion(res.data.consent.version);
+    }
+  } catch (error) {
+    setConsentResult('❌ Failed to update banner: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setConsentLoading(false);
+  }
+};
+
+const handleDeactivateConsent = async () => {
+  if (!window.confirm('Deactivate the consent banner? Users will not see it.')) return;
+  setConsentLoading(true);
+  try {
+    const res = await axios.delete('/api/admin/marketing-consent', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setConsentResult('✅ Consent banner deactivated.');
+      setConsentActive(false);
+      setConsentVersion(prev => prev + 1);
+    }
+  } catch (error) {
+    setConsentResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setConsentLoading(false);
+  }
+};
+
+const loadConsent = async () => {
+  setConsentLoading(true);
+  try {
+    const res = await axios.get('/api/admin/marketing-consent', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.consent) {
+      const c = res.data.consent;
+      setConsentMessage(c.message || '');
+      setConsentButtonText(c.buttonText || 'Yes, Opt me in!');
+      setConsentActive(c.active || false);
+      setConsentVersion(c.version || 0);
+      setConsentResult('✅ Loaded current consent banner.');
+    } else {
+      setConsentResult('No consent banner found. Create one now.');
+    }
+  } catch (error) {
+    setConsentResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setConsentLoading(false);
+  }
+};
+
+// ===== Announcement =====
+const handleSaveAnnouncement = async () => {
+  if (!announcementMessage.trim()) {
+    alert('Message is required');
+    return;
+  }
+  setAnnouncementLoading(true);
+  setAnnouncementResult('');
+  try {
+    const res = await axios.post('/api/admin/announcement', {
+      message: announcementMessage,
+      buttonText: announcementButtonText,
+      buttonLink: announcementButtonLink,
+      active: announcementActive
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setAnnouncementResult(`✅ Banner updated! Version: ${res.data.announcement.version}`);
+      setAnnouncementVersion(res.data.announcement.version);
+    }
+  } catch (error) {
+    setAnnouncementResult('❌ Failed to update banner: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setAnnouncementLoading(false);
+  }
+};
+
+const handleDeactivateAnnouncement = async () => {
+  if (!window.confirm('Deactivate the banner? Users who haven\'t seen it will not see it.')) return;
+  setAnnouncementLoading(true);
+  try {
+    const res = await axios.delete('/api/admin/announcement', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setAnnouncementResult('✅ Banner deactivated.');
+      setAnnouncementActive(false);
+      setAnnouncementVersion(prev => prev + 1);
+    }
+  } catch (error) {
+    setAnnouncementResult('❌ Failed to deactivate: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setAnnouncementLoading(false);
+  }
+};
+
+const loadAnnouncement = async () => {
+  setAnnouncementLoading(true);
+  try {
+    const res = await axios.get('/api/admin/announcement', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.announcement) {
+      const a = res.data.announcement;
+      setAnnouncementMessage(a.message || '');
+      setAnnouncementButtonText(a.buttonText || 'Learn More');
+      setAnnouncementButtonLink(a.buttonLink || '/get-premium');
+      setAnnouncementActive(a.active || false);
+      setAnnouncementVersion(a.version || 0);
+      setAnnouncementResult('✅ Loaded current banner.');
+    } else {
+      setAnnouncementResult('No banner found. Create one now.');
+    }
+  } catch (error) {
+    setAnnouncementResult('❌ Failed to load: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setAnnouncementLoading(false);
+  }
+};
+
+// ===== Weekly Quiz =====
+const fetchWeeklyQuizzes = async () => {
+  setLoadingQuizzes(true);
+  try {
+    const res = await axios.get('/api/admin/weekly-quizzes', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setWeeklyQuizzes(res.data);
+  } catch (error) {
+    alert('Failed to fetch weekly quizzes');
+  } finally {
+    setLoadingQuizzes(false);
+  }
+};
+
+const handleAddQuestion = () => {
+  if (!qText.trim()) {
+    alert('Please enter a question');
+    return;
+  }
+  if (qOptions.some(opt => !opt.trim())) {
+    alert('Please fill in all 4 options');
+    return;
+  }
+  const newQuestion = {
+    questionText: qText.trim(),
+    options: qOptions.map(opt => opt.trim()),
+    correctAnswer: qCorrect,
+    points: 1
   };
-
-  const handleEditQuestion = (index) => {
-    const q = quizQuestions[index];
-    setQText(q.questionText);
-    setQOptions(q.options);
-    setQCorrect(q.correctAnswer);
-    setEditingQuestionIndex(index);
-  };
-
-  const handleDeleteQuestion = (index) => {
+  if (editingQuestionIndex !== null) {
     const updated = [...quizQuestions];
-    updated.splice(index, 1);
+    updated[editingQuestionIndex] = newQuestion;
     setQuizQuestions(updated);
-    if (editingQuestionIndex === index) {
-      setEditingQuestionIndex(null);
-      setQText('');
-      setQOptions(['', '', '', '']);
-      setQCorrect(0);
-    }
-  };
+    setEditingQuestionIndex(null);
+  } else {
+    setQuizQuestions([...quizQuestions, newQuestion]);
+  }
+  setQText('');
+  setQOptions(['', '', '', '']);
+  setQCorrect(0);
+};
 
-  const handleSaveQuiz = async () => {
-    if (!quizTitle.trim()) {
-      alert('Please enter a quiz title');
-      return;
-    }
-    if (!quizWeekNumber || isNaN(quizWeekNumber)) {
-      alert('Please enter a valid week number');
-      return;
-    }
-    if (quizQuestions.length === 0) {
-      alert('Please add at least one question');
-      return;
-    }
+const handleBatchImport = () => {
+  if (!batchInput.trim()) {
+    alert('Please paste some questions first.');
+    return;
+  }
 
-    const payload = {
-      title: quizTitle.trim(),
-      description: quizDescription.trim() || `${quizTitle.trim()} - Week ${quizWeekNumber}`,
-      instructions: quizInstructions.trim() || '',
-      weekNumber: parseInt(quizWeekNumber),
-      questions: quizQuestions,
-      passingScore: quizPassingScore || 70,
-      timeLimit: quizTimeLimit || 20,
-      startDate: quizStartDate ? new Date(quizStartDate) : null,
-      endDate: quizEndDate ? new Date(quizEndDate) : null,
-      isActive: false,
-      isPremium: quizIsPremium
-    };
-
-    try {
-      let res;
-      if (editingQuizId) {
-        res = await axios.put(`/api/admin/weekly-quiz/${editingQuizId}`, payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } else {
-        res = await axios.post('/api/admin/weekly-quiz', payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+  const lines = batchInput.split('\n').map(l => l.trim()).filter(l => l);
+  const parsedQuestions = [];
+  
+  let currentBlock = '';
+  const blocks = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.match(/^Q\d+\./i)) {
+      if (currentBlock.trim()) {
+        blocks.push(currentBlock.trim());
       }
-      if (res.data.success) {
-        alert(editingQuizId ? 'Quiz updated successfully!' : 'Quiz created successfully!');
-        resetQuizForm();
-        await fetchWeeklyQuizzes();
+      currentBlock = line;
+    } else {
+      currentBlock += '\n' + line;
+    }
+  }
+  if (currentBlock.trim()) {
+    blocks.push(currentBlock.trim());
+  }
+
+  for (const block of blocks) {
+    const qMatch = block.match(/^Q\d+\.\s*(.*)/i);
+    if (!qMatch) continue;
+    
+    const fullText = qMatch[1];
+    let questionText = fullText;
+    const options = [];
+    let answerLetter = null;
+
+    const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
+    let match;
+    while ((match = optionPattern.exec(fullText)) !== null) {
+      options.push(match[2].trim());
+    }
+
+    if (options.length !== 4) {
+      const linesInBlock = block.split('\n');
+      for (const line of linesInBlock) {
+        const optMatch = line.match(/^\(([a-d])\)\s*(.*)/i);
+        if (optMatch) {
+          options.push(optMatch[2].trim());
+        }
       }
-    } catch (error) {
-      alert('Failed to save quiz: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
-  const handlePublishQuiz = async () => {
-    if (!quizTitle.trim()) {
-      alert('Please enter a quiz title');
-      return;
-    }
-    if (!quizWeekNumber || isNaN(quizWeekNumber)) {
-      alert('Please enter a valid week number');
-      return;
-    }
-    if (quizQuestions.length === 0) {
-      alert('Please add at least one question');
-      return;
     }
 
-    const payload = {
-      title: quizTitle.trim(),
-      description: quizDescription.trim() || `${quizTitle.trim()} - Week ${quizWeekNumber}`,
-      instructions: quizInstructions.trim() || '',
-      weekNumber: parseInt(quizWeekNumber),
-      questions: quizQuestions,
-      passingScore: quizPassingScore || 70,
-      timeLimit: quizTimeLimit || 20,
-      startDate: quizStartDate ? new Date(quizStartDate) : null,
-      endDate: quizEndDate ? new Date(quizEndDate) : null,
-      isActive: true,
-      isPremium: quizIsPremium
-    };
-
-    try {
-      let res;
-      if (editingQuizId) {
-        res = await axios.put(`/api/admin/weekly-quiz/${editingQuizId}`, payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } else {
-        res = await axios.post('/api/admin/weekly-quiz', payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+    questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
+    
+    if (!questionText) {
+      const firstLine = block.split('\n')[0];
+      if (firstLine) {
+        questionText = firstLine.replace(/^Q\d+\.\s*/i, '').trim();
       }
-      if (res.data.success) {
-        alert('✅ Quiz published successfully!');
-        resetQuizForm();
-        await fetchWeeklyQuizzes();
-      }
-    } catch (error) {
-      alert('Failed to publish quiz: ' + (error.response?.data?.error || error.message));
     }
-  };
 
-  const handleTogglePublish = async (quizId, currentStatus) => {
-    try {
-      const res = await axios.post(`/api/admin/weekly-quiz/${quizId}/toggle-publish`, 
-        { isActive: !currentStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.data.success) {
-        await fetchWeeklyQuizzes();
-        alert(currentStatus ? 'Quiz unpublished' : 'Quiz published!');
+    const answerMatch = block.match(/Answer:\s*([a-d])/i);
+    if (answerMatch) {
+      answerLetter = answerMatch[1].toUpperCase();
+    } else {
+      const lastLines = block.split('\n').slice(-3);
+      for (const line of lastLines) {
+        const ansMatch = line.match(/^([a-d])\.?\s*$/i);
+        if (ansMatch) {
+          answerLetter = ansMatch[1].toUpperCase();
+          break;
+        }
       }
-    } catch (error) {
-      alert('Failed to toggle publish status: ' + (error.response?.data?.error || error.message));
     }
-  };
 
-  const handleTogglePremium = async (quizId, currentStatus) => {
-    try {
-      const res = await axios.post(`/api/admin/weekly-quiz/${quizId}/toggle-premium`, 
-        { isPremium: !currentStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.data.success) {
-        await fetchWeeklyQuizzes();
-        alert(currentStatus ? 'Premium removed' : 'Quiz is now Premium!');
-      }
-    } catch (error) {
-      alert('Failed to toggle premium status: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
-  const handleDeleteQuiz = async (quizId) => {
-    if (!window.confirm('Are you sure you want to delete this quiz? All attempts will be lost.')) return;
-    try {
-      await axios.delete(`/api/admin/weekly-quiz/${quizId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+    if (options.length === 4 && questionText) {
+      const correctIndex = answerLetter ? answerLetter.charCodeAt(0) - 65 : 0;
+      parsedQuestions.push({
+        questionText: questionText,
+        options: options,
+        correctAnswer: correctIndex,
+        points: 1
       });
-      alert('Quiz deleted successfully');
-      await fetchWeeklyQuizzes();
-    } catch (error) {
-      alert('Failed to delete quiz');
     }
-  };
+  }
 
-  const handleViewResults = async (quizId) => {
-    try {
-      const res = await axios.get(`/api/admin/weekly-quiz/${quizId}/results`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSelectedQuizResults(res.data);
-      setShowResults(true);
-    } catch (error) {
-      alert('Failed to fetch results');
+  if (parsedQuestions.length === 0) {
+    for (const line of lines) {
+      if (line.match(/^Q\d+\./i)) {
+        const qText2 = line.replace(/^Q\d+\.\s*/i, '').trim();
+        const options2 = [];
+        const optPattern2 = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
+        let match2;
+        while ((match2 = optPattern2.exec(qText2)) !== null) {
+          options2.push(match2[2].trim());
+        }
+        let questionText2 = qText2.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
+        if (options2.length === 4 && questionText2) {
+          parsedQuestions.push({
+            questionText: questionText2,
+            options: options2,
+            correctAnswer: 0,
+            points: 1
+          });
+        }
+      }
     }
-  };
+  }
 
-  const resetQuizForm = () => {
-    setQuizTitle('');
-    setQuizDescription('');
-    setQuizInstructions('');
-    setQuizWeekNumber('');
-    setQuizQuestions([]);
-    setQuizPassingScore(70);
-    setQuizTimeLimit(20);
-    setQuizStartDate('');
-    setQuizEndDate('');
-    setQuizIsPremium(false);
-    setEditingQuizId(null);
+  if (parsedQuestions.length === 0) {
+    alert('No valid questions found. Please check the format.\n\nSupported formats:\n1. Q1. Question text? (a) Option (b) Option (c) Option (d) Option\n2. Q1. Question text?\n(a) Option\n(b) Option\n(c) Option\n(d) Option\nAnswer: a');
+    return;
+  }
+
+  setQuizQuestions(prev => [...prev, ...parsedQuestions]);
+  setBatchInput('');
+  alert(`✅ ${parsedQuestions.length} questions added successfully!`);
+};
+
+const handleEditQuestion = (index) => {
+  const q = quizQuestions[index];
+  setQText(q.questionText);
+  setQOptions(q.options);
+  setQCorrect(q.correctAnswer);
+  setEditingQuestionIndex(index);
+};
+
+const handleDeleteQuestion = (index) => {
+  const updated = [...quizQuestions];
+  updated.splice(index, 1);
+  setQuizQuestions(updated);
+  if (editingQuestionIndex === index) {
     setEditingQuestionIndex(null);
     setQText('');
     setQOptions(['', '', '', '']);
     setQCorrect(0);
-    setBatchInput('');
-    setShowQuizForm(false);
+  }
+};
+
+const handleSaveQuiz = async () => {
+  if (!quizTitle.trim()) {
+    alert('Please enter a quiz title');
+    return;
+  }
+  if (!quizWeekNumber || isNaN(quizWeekNumber)) {
+    alert('Please enter a valid week number');
+    return;
+  }
+  if (quizQuestions.length === 0) {
+    alert('Please add at least one question');
+    return;
+  }
+
+  const payload = {
+    title: quizTitle.trim(),
+    description: quizDescription.trim() || `${quizTitle.trim()} - Week ${quizWeekNumber}`,
+    instructions: quizInstructions.trim() || '',
+    weekNumber: parseInt(quizWeekNumber),
+    questions: quizQuestions,
+    passingScore: quizPassingScore || 70,
+    timeLimit: quizTimeLimit || 20,
+    startDate: quizStartDate ? new Date(quizStartDate) : null,
+    endDate: quizEndDate ? new Date(quizEndDate) : null,
+    isActive: false,
+    isPremium: quizIsPremium
   };
 
-  const editQuiz = (quiz) => {
-    setQuizTitle(quiz.title);
-    setQuizDescription(quiz.description || '');
-    setQuizInstructions(quiz.instructions || '');
-    setQuizWeekNumber(quiz.weekNumber.toString());
-    setQuizQuestions(quiz.questions);
-    setQuizPassingScore(quiz.passingScore || 70);
-    setQuizTimeLimit(quiz.timeLimit || 20);
-    setQuizStartDate(quiz.startDate ? new Date(quiz.startDate).toISOString().slice(0, 16) : '');
-    setQuizEndDate(quiz.endDate ? new Date(quiz.endDate).toISOString().slice(0, 16) : '');
-    setQuizIsPremium(quiz.isPremium || false);
-    setEditingQuizId(quiz._id);
-    setShowQuizForm(true);
-  };
-
-  // ===== Question Editor =====
-  const fetchQuizzes = async () => {
-    try {
-      const res = await axios.get('/api/admin/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setQuizzes(res.data.quizzes || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch quizzes:', error);
-    }
-  };
-
-  const fetchQuestions = async (quizId) => {
-    setLoadingQuestions(true);
-    try {
-      const res = await axios.get(`/api/admin/quizzes/${quizId}/questions`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setQuestions(res.data.questions || []);
-      }
-    } catch (error) {
-      alert('Failed to load questions: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setLoadingQuestions(false);
-    }
-  };
-
-  // ===== NEW: Update question image =====
-  const handleUpdateQuestionImage = async (questionId, imageUrl) => {
-    if (!selectedQuiz) {
-      alert('Please select a quiz first');
-      return;
-    }
-    try {
-      const res = await axios.patch(
-        `/api/admin/quizzes/${selectedQuiz}/questions/${questionId}/image`,
-        { imageUrl },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.data.success) {
-        // Refresh questions to show updated image
-        await fetchQuestions(selectedQuiz);
-        alert('✅ Image added successfully!');
-        return true;
-      }
-    } catch (error) {
-      console.error('Failed to update image:', error);
-      alert('Failed to update image: ' + (error.response?.data?.error || error.message));
-      return false;
-    }
-  };
-
-  // ===== NEW: Remove question image =====
-  const handleRemoveQuestionImage = async (questionId) => {
-    if (!selectedQuiz) {
-      alert('Please select a quiz first');
-      return;
-    }
-    if (!window.confirm('Remove this image?')) return;
-    try {
-      const res = await axios.delete(
-        `/api/admin/quizzes/${selectedQuiz}/questions/${questionId}/image`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.data.success) {
-        await fetchQuestions(selectedQuiz);
-        alert('✅ Image removed');
-        return true;
-      }
-    } catch (error) {
-      console.error('Failed to remove image:', error);
-      alert('Failed to remove image: ' + (error.response?.data?.error || error.message));
-      return false;
-    }
-  };
-
-  const openEditQuestionInQuiz = (question) => {
-    setEditingQuestion(question);
-    setQuestionForm({
-      questionText: question.questionText,
-      options: [...question.options],
-      correctAnswer: question.correctAnswer,
-      points: question.points || 1
-    });
-    setShowQuestionModal(true);
-  };
-
-  const handleAddQuestionToQuiz = async () => {
-    const { questionText, options, correctAnswer, points } = questionForm;
-    if (!questionText.trim()) {
-      alert('Please enter a question');
-      return;
-    }
-    if (options.some(opt => !opt.trim())) {
-      alert('Please fill in all 4 options');
-      return;
-    }
-    if (!selectedQuiz) {
-      alert('Please select a quiz first');
-      return;
-    }
-    try {
-      const res = await axios.post(`/api/admin/quizzes/${selectedQuiz}/questions`, {
-        questionText: questionText.trim(),
-        options: options.map(o => o.trim()),
-        correctAnswer: correctAnswer,
-        points: points || 1
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setQuestions([...questions, res.data.question]);
-        resetQuestionForm();
-        setShowQuestionModal(false);
-      }
-    } catch (error) {
-      alert('Failed to add question: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
-  const handleUpdateQuestionInQuiz = async () => {
-    const { questionText, options, correctAnswer, points } = questionForm;
-    if (!questionText.trim()) {
-      alert('Please enter a question');
-      return;
-    }
-    if (options.some(opt => !opt.trim())) {
-      alert('Please fill in all 4 options');
-      return;
-    }
-    if (!selectedQuiz || !editingQuestion) {
-      alert('Missing data');
-      return;
-    }
-    try {
-      const res = await axios.put(`/api/admin/quizzes/${selectedQuiz}/questions/${editingQuestion._id}`, {
-        questionText: questionText.trim(),
-        options: options.map(o => o.trim()),
-        correctAnswer: correctAnswer,
-        points: points || 1
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setQuestions(questions.map(q => q._id === editingQuestion._id ? res.data.question : q));
-        resetQuestionForm();
-        setShowQuestionModal(false);
-      }
-    } catch (error) {
-      alert('Failed to update question: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
-  const handleDeleteQuestionFromQuiz = async (questionId) => {
-    if (!window.confirm('Delete this question permanently?')) return;
-    if (!selectedQuiz) return;
-    try {
-      await axios.delete(`/api/admin/quizzes/${selectedQuiz}/questions/${questionId}`, { headers: { Authorization: `Bearer ${token}` } });
-      setQuestions(questions.filter(q => q._id !== questionId));
-    } catch (error) {
-      alert('Failed to delete question: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
-  const resetQuestionForm = () => {
-    setQuestionForm({
-      questionText: '',
-      options: ['', '', '', ''],
-      correctAnswer: 0,
-      points: 1
-    });
-    setEditingQuestion(null);
-  };
-
-  // ===== Category Manager =====
-  const fetchCategoryManagerQuizzes = async () => {
-    try {
-      const res = await axios.get('/api/admin/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setCategoryManagerQuizzes(res.data.quizzes || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch quizzes for manager:', error);
-    }
-  };
-
-  const handleCategoryManagerBatchImport = () => {
-    if (!categoryManagerBatch.trim()) {
-      alert('Please paste some questions first.');
-      return;
-    }
-    if (!categoryManagerCategory) {
-      alert('Please select a category.');
-      return;
-    }
-    if (!categoryManagerTitle.trim()) {
-      alert('Please enter a title.');
-      return;
-    }
-
-    const lines = categoryManagerBatch.split('\n').map(l => l.trim()).filter(l => l);
-    const parsedQuestions = [];
-    
-    let currentBlock = '';
-    const blocks = [];
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.match(/^Q\d+\./i)) {
-        if (currentBlock.trim()) {
-          blocks.push(currentBlock.trim());
-        }
-        currentBlock = line;
-      } else {
-        currentBlock += '\n' + line;
-      }
-    }
-    if (currentBlock.trim()) {
-      blocks.push(currentBlock.trim());
-    }
-
-    for (const block of blocks) {
-      const qMatch = block.match(/^Q\d+\.\s*(.*)/i);
-      if (!qMatch) continue;
-      
-      const fullText = qMatch[1];
-      const options = [];
-      let answerLetter = null;
-
-      const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
-      let match;
-      while ((match = optionPattern.exec(fullText)) !== null) {
-        options.push(match[2].trim());
-      }
-
-      if (options.length !== 4) {
-        const linesInBlock = block.split('\n');
-        for (const line of linesInBlock) {
-          const optMatch = line.match(/^\(([a-d])\)\s*(.*)/i);
-          if (optMatch) {
-            options.push(optMatch[2].trim());
-          }
-        }
-      }
-
-      let questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
-      if (!questionText) {
-        const firstLine = block.split('\n')[0];
-        if (firstLine) {
-          questionText = firstLine.replace(/^Q\d+\.\s*/i, '').trim();
-        }
-      }
-
-      const answerMatch = block.match(/Answer:\s*([a-d])/i);
-      if (answerMatch) {
-        answerLetter = answerMatch[1].toUpperCase();
-      } else {
-        const lastLines = block.split('\n').slice(-3);
-        for (const line of lastLines) {
-          const ansMatch = line.match(/^([a-d])\.?\s*$/i);
-          if (ansMatch) {
-            answerLetter = ansMatch[1].toUpperCase();
-            break;
-          }
-        }
-      }
-
-      if (options.length === 4 && questionText) {
-        const correctIndex = answerLetter ? answerLetter.charCodeAt(0) - 65 : 0;
-        parsedQuestions.push({
-          questionText: questionText,
-          options: options,
-          correctAnswer: correctIndex,
-          points: 1
-        });
-      }
-    }
-
-    if (parsedQuestions.length === 0) {
-      alert('No valid questions found. Please check the format.\n\nSupported formats:\n1. Q1. Question text? (a) Option (b) Option (c) Option (d) Option\n2. Q1. Question text?\n(a) Option\n(b) Option\n(c) Option\n(d) Option\nAnswer: a');
-      return;
-    }
-
-    const existingQuestions = categoryManagerQuestions || [];
-    setCategoryManagerQuestions([...existingQuestions, ...parsedQuestions]);
-    setCategoryManagerBatch('');
-    alert(`✅ ${parsedQuestions.length} questions added to the list.`);
-  };
-
-  const handleCategoryManagerAddSingle = () => {
-    if (!categoryManagerSingleQ.trim()) {
-      alert('Please enter a question.');
-      return;
-    }
-    if (categoryManagerSingleOpts.some(opt => !opt.trim())) {
-      alert('Please fill in all 4 options.');
-      return;
-    }
-    const newQ = {
-      questionText: categoryManagerSingleQ.trim(),
-      options: categoryManagerSingleOpts.map(o => o.trim()),
-      correctAnswer: categoryManagerSingleCorrect,
-      points: 1
-    };
-    if (categoryManagerEditingIdx !== null) {
-      const updated = [...categoryManagerQuestions];
-      updated[categoryManagerEditingIdx] = newQ;
-      setCategoryManagerQuestions(updated);
-      setCategoryManagerEditingIdx(null);
+  try {
+    let res;
+    if (editingQuizId) {
+      res = await axios.put(`/api/admin/weekly-quiz/${editingQuizId}`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
     } else {
-      setCategoryManagerQuestions([...categoryManagerQuestions, newQ]);
+      res = await axios.post('/api/admin/weekly-quiz', payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
     }
-    setCategoryManagerSingleQ('');
-    setCategoryManagerSingleOpts(['', '', '', '']);
-    setCategoryManagerSingleCorrect(0);
+    if (res.data.success) {
+      alert(editingQuizId ? 'Quiz updated successfully!' : 'Quiz created successfully!');
+      resetQuizForm();
+      await fetchWeeklyQuizzes();
+    }
+  } catch (error) {
+    alert('Failed to save quiz: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+const handlePublishQuiz = async () => {
+  if (!quizTitle.trim()) {
+    alert('Please enter a quiz title');
+    return;
+  }
+  if (!quizWeekNumber || isNaN(quizWeekNumber)) {
+    alert('Please enter a valid week number');
+    return;
+  }
+  if (quizQuestions.length === 0) {
+    alert('Please add at least one question');
+    return;
+  }
+
+  const payload = {
+    title: quizTitle.trim(),
+    description: quizDescription.trim() || `${quizTitle.trim()} - Week ${quizWeekNumber}`,
+    instructions: quizInstructions.trim() || '',
+    weekNumber: parseInt(quizWeekNumber),
+    questions: quizQuestions,
+    passingScore: quizPassingScore || 70,
+    timeLimit: quizTimeLimit || 20,
+    startDate: quizStartDate ? new Date(quizStartDate) : null,
+    endDate: quizEndDate ? new Date(quizEndDate) : null,
+    isActive: true,
+    isPremium: quizIsPremium
   };
 
-  const handleCategoryManagerEditQuestion = (idx) => {
-    const q = categoryManagerQuestions[idx];
-    setCategoryManagerSingleQ(q.questionText);
-    setCategoryManagerSingleOpts([...q.options]);
-    setCategoryManagerSingleCorrect(q.correctAnswer);
-    setCategoryManagerEditingIdx(idx);
-  };
+  try {
+    let res;
+    if (editingQuizId) {
+      res = await axios.put(`/api/admin/weekly-quiz/${editingQuizId}`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } else {
+      res = await axios.post('/api/admin/weekly-quiz', payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    }
+    if (res.data.success) {
+      alert('✅ Quiz published successfully!');
+      resetQuizForm();
+      await fetchWeeklyQuizzes();
+    }
+  } catch (error) {
+    alert('Failed to publish quiz: ' + (error.response?.data?.error || error.message));
+  }
+};
 
-  const handleCategoryManagerDeleteQuestion = (idx) => {
+const handleTogglePublish = async (quizId, currentStatus) => {
+  try {
+    const res = await axios.post(`/api/admin/weekly-quiz/${quizId}/toggle-publish`, 
+      { isActive: !currentStatus },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data.success) {
+      await fetchWeeklyQuizzes();
+      alert(currentStatus ? 'Quiz unpublished' : 'Quiz published!');
+    }
+  } catch (error) {
+    alert('Failed to toggle publish status: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+const handleTogglePremium = async (quizId, currentStatus) => {
+  try {
+    const res = await axios.post(`/api/admin/weekly-quiz/${quizId}/toggle-premium`, 
+      { isPremium: !currentStatus },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data.success) {
+      await fetchWeeklyQuizzes();
+      alert(currentStatus ? 'Premium removed' : 'Quiz is now Premium!');
+    }
+  } catch (error) {
+    alert('Failed to toggle premium status: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+const handleDeleteQuiz = async (quizId) => {
+  if (!window.confirm('Are you sure you want to delete this quiz? All attempts will be lost.')) return;
+  try {
+    await axios.delete(`/api/admin/weekly-quiz/${quizId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    alert('Quiz deleted successfully');
+    await fetchWeeklyQuizzes();
+  } catch (error) {
+    alert('Failed to delete quiz');
+  }
+};
+
+const handleViewResults = async (quizId) => {
+  try {
+    const res = await axios.get(`/api/admin/weekly-quiz/${quizId}/results`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setSelectedQuizResults(res.data);
+    setShowResults(true);
+  } catch (error) {
+    alert('Failed to fetch results');
+  }
+};
+
+const resetQuizForm = () => {
+  setQuizTitle('');
+  setQuizDescription('');
+  setQuizInstructions('');
+  setQuizWeekNumber('');
+  setQuizQuestions([]);
+  setQuizPassingScore(70);
+  setQuizTimeLimit(20);
+  setQuizStartDate('');
+  setQuizEndDate('');
+  setQuizIsPremium(false);
+  setEditingQuizId(null);
+  setEditingQuestionIndex(null);
+  setQText('');
+  setQOptions(['', '', '', '']);
+  setQCorrect(0);
+  setBatchInput('');
+  setShowQuizForm(false);
+};
+
+const editQuiz = (quiz) => {
+  setQuizTitle(quiz.title);
+  setQuizDescription(quiz.description || '');
+  setQuizInstructions(quiz.instructions || '');
+  setQuizWeekNumber(quiz.weekNumber.toString());
+  setQuizQuestions(quiz.questions);
+  setQuizPassingScore(quiz.passingScore || 70);
+  setQuizTimeLimit(quiz.timeLimit || 20);
+  setQuizStartDate(quiz.startDate ? new Date(quiz.startDate).toISOString().slice(0, 16) : '');
+  setQuizEndDate(quiz.endDate ? new Date(quiz.endDate).toISOString().slice(0, 16) : '');
+  setQuizIsPremium(quiz.isPremium || false);
+  setEditingQuizId(quiz._id);
+  setShowQuizForm(true);
+};
+
+// ===== Question Editor =====
+const fetchQuizzes = async () => {
+  try {
+    const res = await axios.get('/api/admin/quizzes', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setQuizzes(res.data.quizzes || []);
+    }
+  } catch (error) {
+    console.error('Failed to fetch quizzes:', error);
+  }
+};
+
+const fetchQuestions = async (quizId) => {
+  setLoadingQuestions(true);
+  try {
+    const res = await axios.get(`/api/admin/quizzes/${quizId}/questions`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setQuestions(res.data.questions || []);
+    }
+  } catch (error) {
+    alert('Failed to load questions: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setLoadingQuestions(false);
+  }
+};
+
+const openEditQuestionInQuiz = (question) => {
+  setEditingQuestion(question);
+  setQuestionForm({
+    questionText: question.questionText,
+    options: [...question.options],
+    correctAnswer: question.correctAnswer,
+    points: question.points || 1
+  });
+  setShowQuestionModal(true);
+};
+
+const handleAddQuestionToQuiz = async () => {
+  const { questionText, options, correctAnswer, points } = questionForm;
+  if (!questionText.trim()) {
+    alert('Please enter a question');
+    return;
+  }
+  if (options.some(opt => !opt.trim())) {
+    alert('Please fill in all 4 options');
+    return;
+  }
+  if (!selectedQuiz) {
+    alert('Please select a quiz first');
+    return;
+  }
+  try {
+    const res = await axios.post(`/api/admin/quizzes/${selectedQuiz}/questions`, {
+      questionText: questionText.trim(),
+      options: options.map(o => o.trim()),
+      correctAnswer: correctAnswer,
+      points: points || 1
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setQuestions([...questions, res.data.question]);
+      resetQuestionForm();
+      setShowQuestionModal(false);
+    }
+  } catch (error) {
+    alert('Failed to add question: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+const handleUpdateQuestionInQuiz = async () => {
+  const { questionText, options, correctAnswer, points } = questionForm;
+  if (!questionText.trim()) {
+    alert('Please enter a question');
+    return;
+  }
+  if (options.some(opt => !opt.trim())) {
+    alert('Please fill in all 4 options');
+    return;
+  }
+  if (!selectedQuiz || !editingQuestion) {
+    alert('Missing data');
+    return;
+  }
+  try {
+    const res = await axios.put(`/api/admin/quizzes/${selectedQuiz}/questions/${editingQuestion._id}`, {
+      questionText: questionText.trim(),
+      options: options.map(o => o.trim()),
+      correctAnswer: correctAnswer,
+      points: points || 1
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setQuestions(questions.map(q => q._id === editingQuestion._id ? res.data.question : q));
+      resetQuestionForm();
+      setShowQuestionModal(false);
+    }
+  } catch (error) {
+    alert('Failed to update question: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+const handleDeleteQuestionFromQuiz = async (questionId) => {
+  if (!window.confirm('Delete this question permanently?')) return;
+  if (!selectedQuiz) return;
+  try {
+    await axios.delete(`/api/admin/quizzes/${selectedQuiz}/questions/${questionId}`, { headers: { Authorization: `Bearer ${token}` } });
+    setQuestions(questions.filter(q => q._id !== questionId));
+  } catch (error) {
+    alert('Failed to delete question: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+const resetQuestionForm = () => {
+  setQuestionForm({
+    questionText: '',
+    options: ['', '', '', ''],
+    correctAnswer: 0,
+    points: 1
+  });
+  setEditingQuestion(null);
+};
+
+// ===== Category Manager =====
+const fetchCategoryManagerQuizzes = async () => {
+  try {
+    const res = await axios.get('/api/admin/quizzes', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setCategoryManagerQuizzes(res.data.quizzes || []);
+    }
+  } catch (error) {
+    console.error('Failed to fetch quizzes for manager:', error);
+  }
+};
+
+const handleCategoryManagerBatchImport = () => {
+  if (!categoryManagerBatch.trim()) {
+    alert('Please paste some questions first.');
+    return;
+  }
+  if (!categoryManagerCategory) {
+    alert('Please select a category.');
+    return;
+  }
+  if (!categoryManagerTitle.trim()) {
+    alert('Please enter a title.');
+    return;
+  }
+
+  const lines = categoryManagerBatch.split('\n').map(l => l.trim()).filter(l => l);
+  const parsedQuestions = [];
+  
+  let currentBlock = '';
+  const blocks = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.match(/^Q\d+\./i)) {
+      if (currentBlock.trim()) {
+        blocks.push(currentBlock.trim());
+      }
+      currentBlock = line;
+    } else {
+      currentBlock += '\n' + line;
+    }
+  }
+  if (currentBlock.trim()) {
+    blocks.push(currentBlock.trim());
+  }
+
+  for (const block of blocks) {
+    const qMatch = block.match(/^Q\d+\.\s*(.*)/i);
+    if (!qMatch) continue;
+    
+    const fullText = qMatch[1];
+    const options = [];
+    let answerLetter = null;
+
+    const optionPattern = /\(([a-d])\)\s*([^(]+?)(?=\s*\([a-d]\)|$)/gi;
+    let match;
+    while ((match = optionPattern.exec(fullText)) !== null) {
+      options.push(match[2].trim());
+    }
+
+    if (options.length !== 4) {
+      const linesInBlock = block.split('\n');
+      for (const line of linesInBlock) {
+        const optMatch = line.match(/^\(([a-d])\)\s*(.*)/i);
+        if (optMatch) {
+          options.push(optMatch[2].trim());
+        }
+      }
+    }
+
+    let questionText = fullText.replace(/\s*\([a-d]\)[^(]*/g, '').trim();
+    if (!questionText) {
+      const firstLine = block.split('\n')[0];
+      if (firstLine) {
+        questionText = firstLine.replace(/^Q\d+\.\s*/i, '').trim();
+      }
+    }
+
+    const answerMatch = block.match(/Answer:\s*([a-d])/i);
+    if (answerMatch) {
+      answerLetter = answerMatch[1].toUpperCase();
+    } else {
+      const lastLines = block.split('\n').slice(-3);
+      for (const line of lastLines) {
+        const ansMatch = line.match(/^([a-d])\.?\s*$/i);
+        if (ansMatch) {
+          answerLetter = ansMatch[1].toUpperCase();
+          break;
+        }
+      }
+    }
+
+    if (options.length === 4 && questionText) {
+      const correctIndex = answerLetter ? answerLetter.charCodeAt(0) - 65 : 0;
+      parsedQuestions.push({
+        questionText: questionText,
+        options: options,
+        correctAnswer: correctIndex,
+        points: 1
+      });
+    }
+  }
+
+  if (parsedQuestions.length === 0) {
+    alert('No valid questions found. Please check the format.\n\nSupported formats:\n1. Q1. Question text? (a) Option (b) Option (c) Option (d) Option\n2. Q1. Question text?\n(a) Option\n(b) Option\n(c) Option\n(d) Option\nAnswer: a');
+    return;
+  }
+
+  const existingQuestions = categoryManagerQuestions || [];
+  setCategoryManagerQuestions([...existingQuestions, ...parsedQuestions]);
+  setCategoryManagerBatch('');
+  alert(`✅ ${parsedQuestions.length} questions added to the list.`);
+};
+
+const handleCategoryManagerAddSingle = () => {
+  if (!categoryManagerSingleQ.trim()) {
+    alert('Please enter a question.');
+    return;
+  }
+  if (categoryManagerSingleOpts.some(opt => !opt.trim())) {
+    alert('Please fill in all 4 options.');
+    return;
+  }
+  const newQ = {
+    questionText: categoryManagerSingleQ.trim(),
+    options: categoryManagerSingleOpts.map(o => o.trim()),
+    correctAnswer: categoryManagerSingleCorrect,
+    points: 1
+  };
+  if (categoryManagerEditingIdx !== null) {
     const updated = [...categoryManagerQuestions];
-    updated.splice(idx, 1);
+    updated[categoryManagerEditingIdx] = newQ;
     setCategoryManagerQuestions(updated);
-    if (categoryManagerEditingIdx === idx) {
-      setCategoryManagerEditingIdx(null);
-      setCategoryManagerSingleQ('');
-      setCategoryManagerSingleOpts(['', '', '', '']);
-      setCategoryManagerSingleCorrect(0);
-    }
-  };
+    setCategoryManagerEditingIdx(null);
+  } else {
+    setCategoryManagerQuestions([...categoryManagerQuestions, newQ]);
+  }
+  setCategoryManagerSingleQ('');
+  setCategoryManagerSingleOpts(['', '', '', '']);
+  setCategoryManagerSingleCorrect(0);
+};
 
-  const handleClearCategoryManager = () => {
-    setCategoryManagerQuestions([]);
-    setCategoryManagerBatch('');
-    setCategoryManagerTopic('');
-    setCategoryManagerTitle('');
+const handleCategoryManagerEditQuestion = (idx) => {
+  const q = categoryManagerQuestions[idx];
+  setCategoryManagerSingleQ(q.questionText);
+  setCategoryManagerSingleOpts([...q.options]);
+  setCategoryManagerSingleCorrect(q.correctAnswer);
+  setCategoryManagerEditingIdx(idx);
+};
+
+const handleCategoryManagerDeleteQuestion = (idx) => {
+  const updated = [...categoryManagerQuestions];
+  updated.splice(idx, 1);
+  setCategoryManagerQuestions(updated);
+  if (categoryManagerEditingIdx === idx) {
     setCategoryManagerEditingIdx(null);
     setCategoryManagerSingleQ('');
     setCategoryManagerSingleOpts(['', '', '', '']);
     setCategoryManagerSingleCorrect(0);
-    setCategoryManagerExistingQuizId(null);
-    setCategoryManagerResult('');
-  };
+  }
+};
 
-  const handleCategoryManagerSaveQuiz = async () => {
-    if (!categoryManagerCategory) {
-      alert('Please select a category.');
-      return;
-    }
-    if (!categoryManagerTitle.trim()) {
-      alert('Please enter a title.');
-      return;
-    }
-    if (!categoryManagerTopic.trim()) {
-      alert('Please enter a topic name.');
-      return;
-    }
-    if (categoryManagerQuestions.length === 0) {
-      alert('Please add at least one question.');
-      return;
-    }
+const handleClearCategoryManager = () => {
+  setCategoryManagerQuestions([]);
+  setCategoryManagerBatch('');
+  setCategoryManagerTopic('');
+  setCategoryManagerTitle('');
+  setCategoryManagerEditingIdx(null);
+  setCategoryManagerSingleQ('');
+  setCategoryManagerSingleOpts(['', '', '', '']);
+  setCategoryManagerSingleCorrect(0);
+  setCategoryManagerExistingQuizId(null);
+  setCategoryManagerResult('');
+};
 
-    setCategoryManagerLoading(true);
-    setCategoryManagerResult('');
-    try {
-      const existingQuizMeta = categoryManagerQuizzes.find(
-        q => q.title === categoryManagerTitle.trim() && q.category === categoryManagerCategory
-      );
+const handleCategoryManagerSaveQuiz = async () => {
+  if (!categoryManagerCategory) {
+    alert('Please select a category.');
+    return;
+  }
+  if (!categoryManagerTitle.trim()) {
+    alert('Please enter a title.');
+    return;
+  }
+  if (!categoryManagerTopic.trim()) {
+    alert('Please enter a topic name.');
+    return;
+  }
+  if (categoryManagerQuestions.length === 0) {
+    alert('Please add at least one question.');
+    return;
+  }
 
-      let res;
-      if (existingQuizMeta) {
-        const fullQuizRes = await axios.get(`/api/admin/quizzes/${existingQuizMeta._id}/questions`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const existingQuestions = fullQuizRes.data.questions || [];
-        const updatedQuestions = [...existingQuestions, ...categoryManagerQuestions];
+  setCategoryManagerLoading(true);
+  setCategoryManagerResult('');
+  try {
+    const existingQuizMeta = categoryManagerQuizzes.find(
+      q => q.title === categoryManagerTitle.trim() && q.category === categoryManagerCategory
+    );
 
-        setCategoryManagerResult(`📝 Appending ${categoryManagerQuestions.length} questions to "${existingQuizMeta.title}"...`);
+    let res;
+    if (existingQuizMeta) {
+      const fullQuizRes = await axios.get(`/api/admin/quizzes/${existingQuizMeta._id}/questions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const existingQuestions = fullQuizRes.data.questions || [];
+      const updatedQuestions = [...existingQuestions, ...categoryManagerQuestions];
 
-        res = await axios.put(`/api/admin/quizzes/${existingQuizMeta._id}`, {
-          title: existingQuizMeta.title,
-          description: existingQuizMeta.description || `${existingQuizMeta.title} - ${updatedQuestions.length} practice questions`,
-          category: existingQuizMeta.category,
-          topic: categoryManagerTopic.trim(),
-          questions: updatedQuestions,
-          passingScore: existingQuizMeta.passingScore || 70,
-          isPremium: existingQuizMeta.isPremium || false
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+      setCategoryManagerResult(`📝 Appending ${categoryManagerQuestions.length} questions to "${existingQuizMeta.title}"...`);
 
-        if (res.data.success) {
-          setCategoryManagerResult(`✅ Appended ${categoryManagerQuestions.length} questions to "${existingQuizMeta.title}"! Total: ${updatedQuestions.length} questions.`);
-        }
-      } else {
-        const payload = {
-          title: categoryManagerTitle.trim(),
-          description: `${categoryManagerTitle.trim()} - ${categoryManagerQuestions.length} practice questions`,
-          category: categoryManagerCategory,
-          topic: categoryManagerTopic.trim(),
-          questions: categoryManagerQuestions,
-          passingScore: 70,
-          isPremium: false
-        };
-        res = await axios.post('/api/admin/quizzes', payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data.success) {
-          setCategoryManagerResult(`✅ Quiz created with ${categoryManagerQuestions.length} questions under "${categoryManagerCategory}"!`);
-        }
-      }
+      res = await axios.put(`/api/admin/quizzes/${existingQuizMeta._id}`, {
+        title: existingQuizMeta.title,
+        description: existingQuizMeta.description || `${existingQuizMeta.title} - ${updatedQuestions.length} practice questions`,
+        category: existingQuizMeta.category,
+        topic: categoryManagerTopic.trim(),
+        questions: updatedQuestions,
+        passingScore: existingQuizMeta.passingScore || 70,
+        isPremium: existingQuizMeta.isPremium || false
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-      if (res?.data?.success) {
-        setCategoryManagerQuestions([]);
-        setCategoryManagerTopic('');
-        setCategoryManagerTitle('');
-        setCategoryManagerBatch('');
-        setCategoryManagerExistingQuizId(null);
-        await fetchCategoryManagerQuizzes();
-        await fetchQuizzes();
-      }
-    } catch (error) {
-      console.error('Save quiz error:', error);
-      setCategoryManagerResult('❌ Failed to save quiz: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setCategoryManagerLoading(false);
-    }
-  };
-
-  const handleCategoryManagerEditQuiz = async (quizId) => {
-    try {
-      const res = await axios.get(`/api/admin/quizzes/${quizId}/questions`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
-        const quiz = categoryManagerQuizzes.find(q => q._id === quizId);
-        if (quiz) {
-          setCategoryManagerCategory(quiz.category);
-          setCategoryManagerTitle(quiz.title);
-          setCategoryManagerTopic(quiz.topic || quiz.title);
-          setCategoryManagerQuestions(res.data.questions || []);
-          setCategoryManagerResult(`✅ Loaded "${quiz.title}" for editing.`);
-        }
+        setCategoryManagerResult(`✅ Appended ${categoryManagerQuestions.length} questions to "${existingQuizMeta.title}"! Total: ${updatedQuestions.length} questions.`);
       }
-    } catch (error) {
-      alert('Failed to load quiz: ' + (error.response?.data?.error || error.message));
+    } else {
+      const payload = {
+        title: categoryManagerTitle.trim(),
+        description: `${categoryManagerTitle.trim()} - ${categoryManagerQuestions.length} practice questions`,
+        category: categoryManagerCategory,
+        topic: categoryManagerTopic.trim(),
+        questions: categoryManagerQuestions,
+        passingScore: 70,
+        isPremium: false
+      };
+      res = await axios.post('/api/admin/quizzes', payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setCategoryManagerResult(`✅ Quiz created with ${categoryManagerQuestions.length} questions under "${categoryManagerCategory}"!`);
+      }
     }
-  };
 
-  const handleCategoryManagerDeleteQuiz = async (quizId) => {
-    if (!window.confirm('Delete this quiz permanently? This will remove all questions.')) return;
-    try {
-      await axios.delete(`/api/admin/quizzes/${quizId}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res?.data?.success) {
+      setCategoryManagerQuestions([]);
+      setCategoryManagerTopic('');
+      setCategoryManagerTitle('');
+      setCategoryManagerBatch('');
+      setCategoryManagerExistingQuizId(null);
       await fetchCategoryManagerQuizzes();
-      setCategoryManagerResult('✅ Quiz deleted.');
-    } catch (error) {
-      setCategoryManagerResult('❌ Failed to delete quiz: ' + (error.response?.data?.error || error.message));
+      await fetchQuizzes();
     }
-  };
+  } catch (error) {
+    console.error('Save quiz error:', error);
+    setCategoryManagerResult('❌ Failed to save quiz: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setCategoryManagerLoading(false);
+  }
+};
 
-  // ===== Adjust Premium =====
-  const handleAdjustPremium = async (userId, planType, customDays, customHours) => {
-    setAdjustLoading(true);
-    setAdjustResult('');
+const handleCategoryManagerEditQuiz = async (quizId) => {
+  try {
+    const res = await axios.get(`/api/admin/quizzes/${quizId}/questions`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      const quiz = categoryManagerQuizzes.find(q => q._id === quizId);
+      if (quiz) {
+        setCategoryManagerCategory(quiz.category);
+        setCategoryManagerTitle(quiz.title);
+        setCategoryManagerTopic(quiz.topic || quiz.title);
+        setCategoryManagerQuestions(res.data.questions || []);
+        setCategoryManagerResult(`✅ Loaded "${quiz.title}" for editing.`);
+      }
+    }
+  } catch (error) {
+    alert('Failed to load quiz: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+const handleCategoryManagerDeleteQuiz = async (quizId) => {
+  if (!window.confirm('Delete this quiz permanently? This will remove all questions.')) return;
+  try {
+    await axios.delete(`/api/admin/quizzes/${quizId}`, { headers: { Authorization: `Bearer ${token}` } });
+    await fetchCategoryManagerQuizzes();
+    setCategoryManagerResult('✅ Quiz deleted.');
+  } catch (error) {
+    setCategoryManagerResult('❌ Failed to delete quiz: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+// ===== Adjust Premium =====
+const handleAdjustPremium = async (userId, planType, customDays, customHours) => {
+  setAdjustLoading(true);
+  setAdjustResult('');
+  try {
+    const payload = { userId };
+    if (planType) {
+      payload.planType = planType;
+    } else {
+      payload.customDays = customDays || 0;
+      payload.customHours = customHours || 0;
+    }
+    const res = await axios.post('/api/admin/add-premium-time', payload, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setAdjustResult(`✅ ${res.data.message}`);
+      const usersRes = await axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } });
+      setUsers(usersRes.data);
+      setTimeout(() => {
+        setShowAdjustModal(false);
+        setAdjustUserId(null);
+        setAdjustResult('');
+      }, 2000);
+    } else {
+      setAdjustResult('❌ ' + (res.data.error || 'Unknown error'));
+    }
+  } catch (error) {
+    setAdjustResult('❌ Failed: ' + (error.response?.data?.error || error.message));
+  } finally {
+    setAdjustLoading(false);
+  }
+};
+
+// ============================================================
+// ========== FETCH ALL DATA ON MOUNT =========================
+// ============================================================
+useEffect(() => {
+  if (!user || user.email !== 'elitenursingcbt@gmail.com') {
+    alert('Admin access only');
+    window.location.href = '/';
+    return;
+  }
+
+  const fetchData = async () => {
     try {
-      const payload = { userId };
-      if (planType) {
-        payload.planType = planType;
-      } else {
-        payload.customDays = customDays || 0;
-        payload.customHours = customHours || 0;
-      }
-      const res = await axios.post('/api/admin/add-premium-time', payload, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setAdjustResult(`✅ ${res.data.message}`);
-        const usersRes = await axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } });
-        setUsers(usersRes.data);
-        setTimeout(() => {
-          setShowAdjustModal(false);
-          setAdjustUserId(null);
-          setAdjustResult('');
-        }, 2000);
-      } else {
-        setAdjustResult('❌ ' + (res.data.error || 'Unknown error'));
-      }
+      const [usersRes, contactsRes, quizzesRes] = await Promise.all([
+        axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/admin/weekly-quizzes', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setUsers(usersRes.data);
+      setContacts(contactsRes.data);
+      setWeeklyQuizzes(quizzesRes.data);
+      const initial = {};
+      usersRes.data.forEach(u => {
+        initial[u._id] = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
+      });
+      setSelectedPlan(initial);
+      await Promise.all([
+        fetchDashboard(),
+        fetchConfig(),
+        fetchCategories(),
+        fetchCoupons(),
+        fetchFaqs(),
+        fetchQuizzes(),
+        fetchCategoryManagerQuizzes(),
+        loadForceRefresh()
+      ]);
+      setDataLoaded(true);
     } catch (error) {
-      setAdjustResult('❌ Failed: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setAdjustLoading(false);
+      if (error.response?.status === 403 || error.response?.status === 401) {
+        alert('Admin access only. You will be redirected.');
+        logout();
+        window.location.href = '/login';
+      } else {
+        console.error('Error fetching admin data:', error);
+      }
     }
   };
 
-  // ============================================================
-  // ========== FETCH ALL DATA ON MOUNT =========================
-  // ============================================================
-  useEffect(() => {
-    if (!user || user.email !== 'elitenursingcbt@gmail.com') {
-      alert('Admin access only');
-      window.location.href = '/';
-      return;
-    }
-
-    const fetchData = async () => {
-      try {
-        const [usersRes, contactsRes, quizzesRes] = await Promise.all([
-          axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/admin/weekly-quizzes', { headers: { Authorization: `Bearer ${token}` } })
-        ]);
-        setUsers(usersRes.data);
-        setContacts(contactsRes.data);
-        setWeeklyQuizzes(quizzesRes.data);
-        const initial = {};
-        usersRes.data.forEach(u => {
-          initial[u._id] = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
-        });
-        setSelectedPlan(initial);
-        await Promise.all([
-          fetchDashboard(),
-          fetchConfig(),
-          fetchCategories(),
-          fetchCoupons(),
-          fetchFaqs(),
-          fetchQuizzes(),
-          fetchCategoryManagerQuizzes(),
-          loadForceRefresh()
-        ]);
-        setDataLoaded(true);
-      } catch (error) {
-        if (error.response?.status === 403 || error.response?.status === 401) {
-          alert('Admin access only. You will be redirected.');
-          logout();
-          window.location.href = '/login';
-        } else {
-          console.error('Error fetching admin data:', error);
-        }
-      }
-    };
-
-    fetchData();
-  }, []);
+  fetchData();
+}, []);
 
   // ===== Render =====
   if (!dataLoaded) return <LoadingWithBar message="Loading admin panel" />;
@@ -1876,26 +1827,21 @@ export const AdminPanel = () => {
           {activeTab === 'system' && <SystemSettingsTab {...{ config, setConfig, configLoading, handleSaveConfig, configResult, ...commonProps }} />}
           {activeTab === 'categories' && <CategoriesTab {...{ categories, catLoading, catName, setCatName, catIcon, setCatIcon, catDescription, setCatDescription, catOrder, setCatOrder, catActive, setCatActive, editingCatId, catResult, handleSaveCategory, handleDeleteCategory, editCategory, setCatResult, fetchCategories, ...commonProps }} />}
           {activeTab === 'coupons' && <CouponsTab {...{ coupons, couponLoading, couponCode, setCouponCode, couponDiscountType, setCouponDiscountType, couponDiscountValue, setCouponDiscountValue, couponMinPurchase, setCouponMinPurchase, couponMaxDiscount, setCouponMaxDiscount, couponExpiryDate, setCouponExpiryDate, couponUsageLimit, setCouponUsageLimit, couponActive, setCouponActive, couponDescription, setCouponDescription, couponPlanType, setCouponPlanType, editingCouponId, couponResult, handleSaveCoupon, handleDeleteCoupon, editCoupon, resetCouponForm, ...commonProps }} />}
-          {activeTab === 'questionEditor' && <QuestionEditorTab 
-            {...{ 
-              selectedQuiz, 
-              setSelectedQuiz, 
-              quizzes, 
-              questions, 
-              loadingQuestions, 
-              questionSearch, 
-              setQuestionSearch, 
-              setShowQuestionModal, 
-              resetQuestionForm, 
-              handleDeleteQuestionFromQuiz,
-              fetchQuestions,
-              openEditQuestionInQuiz,
-              // ===== NEW: Image upload props =====
-              updateQuestionImage: handleUpdateQuestionImage,
-              removeQuestionImage: handleRemoveQuestionImage,
-              ...commonProps 
-            }} 
-          />}
+          {activeTab === 'questionEditor' && <QuestionEditorTab {...{ 
+            selectedQuiz, 
+            setSelectedQuiz, 
+            quizzes, 
+            questions, 
+            loadingQuestions, 
+            questionSearch, 
+            setQuestionSearch, 
+            setShowQuestionModal, 
+            resetQuestionForm, 
+            handleDeleteQuestionFromQuiz,
+            fetchQuestions,
+            openEditQuestionInQuiz,
+            ...commonProps 
+          }} />}
           {activeTab === 'categoryManager' && <CategoryManagerTab {...{ 
             categoryManagerCategory, setCategoryManagerCategory, 
             categoryManagerTitle, setCategoryManagerTitle, 

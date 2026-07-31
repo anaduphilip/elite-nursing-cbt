@@ -10,8 +10,7 @@ const QuizSchema = new mongoose.Schema({
     questionText: String,
     options: [String],
     correctAnswer: Number,
-    points: { type: Number, default: 1 },
-    imageUrl: { type: String, default: null } 
+    points: { type: Number, default: 1 }
   }],
   passingScore: { type: Number, default: 70 },
   isPremium: { type: Boolean, default: false },
