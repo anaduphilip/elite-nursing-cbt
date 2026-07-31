@@ -157,7 +157,7 @@ function App() {
   });
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // ========== Maintenance mode states ==========
+  // ========= Maintenance mode states =========
   const [maintenance, setMaintenance] = useState(null);
   const [maintenanceLoading, setMaintenanceLoading] = useState(true);
 
