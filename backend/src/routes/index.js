@@ -131,7 +131,8 @@ router.use('/admin/faqs', adminFaqsRoutes);
 router.use('/admin/study-notes', adminStudyNotesRoutes);
 router.use('/admin/announcement', adminAnnouncementRoutes);
 router.use('/admin/marketing-consent', adminMarketingConsentRoutes);
-router.use('/admin/weekly-quizzes', adminWeeklyQuizRoutes);    // plural – matches frontend
+router.use('/admin/weekly-quiz', adminWeeklyQuizRoutes);
+router.use('/admin/weekly-quizzes', adminWeeklyQuizRoutes);
 router.use('/admin/pre-council', adminPreCouncilRoutes);
 router.use('/admin/badges', adminBadgesRoutes);
 router.use('/admin/dashboard', adminDashboardRoutes);

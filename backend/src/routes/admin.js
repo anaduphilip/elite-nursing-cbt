@@ -2,9 +2,10 @@
 const express = require('express');
 const { User, Contact } = require('../models');
 const { isAdmin } = require('../middleware');
-const { getReplyEmailTemplate } = require('../utils');
+const { getReplyEmailTemplate, sendMarketingEmail } = require('../utils');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 const otpStore = require('../utils/otpStore');
+
 const router = express.Router();
 
 // Get all users
@@ -58,7 +59,7 @@ router.post('/reply-message', isAdmin, async (req, res) => {
   }
 });
 
-// ===== NEW: Admin generate verification OTP =====
+// ===== Admin generate verification OTP =====
 router.post('/generate-verification-code', isAdmin, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required' });
@@ -68,7 +69,7 @@ router.post('/generate-verification-code', isAdmin, async (req, res) => {
   res.json({ otp, message: 'Verification code generated successfully' });
 });
 
-// ===== NEW: Admin generate reset password OTP =====
+// ===== Admin generate reset password OTP =====
 router.post('/generate-reset-code', isAdmin, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required' });
@@ -78,6 +79,76 @@ router.post('/generate-reset-code', isAdmin, async (req, res) => {
   otpStore.set(`reset_${email}`, { otp, expires: Date.now() + 10 * 60000, name: user.name });
   console.log(`Admin generated reset OTP for ${email}: ${otp}`);
   res.json({ otp, message: 'Reset code generated successfully' });
+});
+
+// ===== NEW: Broadcast email to free users =====
+router.post('/broadcast-email', isAdmin, async (req, res) => {
+  try {
+    const { subject, message, templateType } = req.body;
+    const freeUsers = await User.find({
+      isPremium: false,
+      isVerified: true,
+      marketingConsent: true
+    });
+
+    if (freeUsers.length === 0) {
+      return res.json({ success: true, sent: 0, message: 'No eligible free users found.' });
+    }
+
+    let successCount = 0;
+    const failures = [];
+
+    for (const user of freeUsers) {
+      try {
+        const sent = await sendMarketingEmail(
+          user.email,
+          user.name,
+          templateType || 'upgrade',
+          subject || null,
+          message || null
+        );
+        if (sent) {
+          successCount++;
+          user.lastMarketingEmailSent = new Date();
+          await user.save();
+        }
+      } catch (err) {
+        failures.push(user.email);
+      }
+    }
+
+    res.json({
+      success: true,
+      sent: successCount,
+      total: freeUsers.length,
+      failures: failures,
+      message: `Sent to ${successCount} out of ${freeUsers.length} users.`
+    });
+  } catch (error) {
+    console.error('Broadcast error:', error);
+    res.status(500).json({ error: 'Failed to send broadcast' });
+  }
+});
+
+// ===== NEW: Get gamification settings =====
+router.get('/gamification-settings', isAdmin, async (req, res) => {
+  try {
+    const { Config } = require('../models');
+    const config = await Config.findOne();
+    res.json({
+      success: true,
+      settings: config?.gamification || {
+        enabled: true,
+        showStreak: true,
+        showBadges: true,
+        streakResetHours: 24,
+        showBadgesOnHome: true,
+        showStreakOnHome: true
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch gamification settings' });
+  }
 });
 
 module.exports = router;
