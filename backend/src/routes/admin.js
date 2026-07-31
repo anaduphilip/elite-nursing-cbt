@@ -4,7 +4,7 @@ const { User, Contact } = require('../models');
 const { isAdmin } = require('../middleware');
 const { getReplyEmailTemplate } = require('../utils');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
-
+const otpStore = require('../utils/otpStore');
 const router = express.Router();
 
 // Get all users
@@ -56,6 +56,28 @@ router.post('/reply-message', isAdmin, async (req, res) => {
     console.error('Reply error:', error);
     res.status(500).json({ error: 'Failed to send reply' });
   }
+});
+
+// ===== NEW: Admin generate verification OTP =====
+router.post('/generate-verification-code', isAdmin, async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  otpStore.set(`verify_${email}`, { otp, expires: Date.now() + 10 * 60000 });
+  console.log(`Admin generated OTP for ${email}: ${otp}`);
+  res.json({ otp, message: 'Verification code generated successfully' });
+});
+
+// ===== NEW: Admin generate reset password OTP =====
+router.post('/generate-reset-code', isAdmin, async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  otpStore.set(`reset_${email}`, { otp, expires: Date.now() + 10 * 60000, name: user.name });
+  console.log(`Admin generated reset OTP for ${email}: ${otp}`);
+  res.json({ otp, message: 'Reset code generated successfully' });
 });
 
 module.exports = router;

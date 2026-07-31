@@ -15,7 +15,7 @@ const {
 const router = express.Router();
 
 // OTP Store (in-memory for simplicity – in production use Redis)
-const otpStore = new Map();
+const otpStore = require('../utils/otpStore');
 
 // ============ VERIFICATION ROUTES ============
 router.post('/send-verification', async (req, res) => {
