@@ -218,6 +218,7 @@ export const PremiumExam = () => {
     );
   }
 
+  // ===== Review view (with images) =====
   if (submitted && showReview) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -232,6 +233,29 @@ export const PremiumExam = () => {
             const isCorrect = userAnswer !== undefined && userAnswer === q.correctAnswer;
             return (
               <div key={idx} style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 12, padding: 16, marginBottom: 12, borderLeft: `5px solid ${isCorrect ? '#4caf50' : '#f44336'}` }}>
+                {/* ===== IMAGE DISPLAY IN REVIEW ===== */}
+                {q.imageUrl && (
+                  <div style={{
+                    marginBottom: 12,
+                    textAlign: 'center',
+                    background: darkMode ? '#1a1a2e' : '#f8f9fa',
+                    padding: 8,
+                    borderRadius: 6
+                  }}>
+                    <img
+                      src={q.imageUrl}
+                      alt={`Question ${idx + 1} illustration`}
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '180px',
+                        borderRadius: 6,
+                        objectFit: 'contain'
+                      }}
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+
                 <h4 style={{ fontSize: 15, marginBottom: 10 }}>Q{idx+1}: {q.questionText}</h4>
                 {q.options.map((opt, optIdx) => (
                   <div key={optIdx} style={{ padding: '10px 12px', margin: '6px 0', background: optIdx === q.correctAnswer ? '#c8e6c9' : (optIdx === userAnswer ? '#ffcdd2' : '#f5f5f5'), borderRadius: 10, fontSize: 14 }}>
@@ -249,6 +273,7 @@ export const PremiumExam = () => {
     );
   }
 
+  // ===== Active exam (one question at a time) =====
   const currentQuestion = questions[currentIndex];
   const timerDuration = questions.length;
 
@@ -263,6 +288,29 @@ export const PremiumExam = () => {
         </div>
 
         <div style={{ background: '#1e3c72', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+          {/* ===== IMAGE DISPLAY IN ACTIVE EXAM ===== */}
+          {currentQuestion?.imageUrl && (
+            <div style={{
+              marginBottom: 16,
+              textAlign: 'center',
+              background: darkMode ? '#1a1a2e' : '#f8f9fa',
+              padding: 12,
+              borderRadius: 8
+            }}>
+              <img
+                src={currentQuestion.imageUrl}
+                alt={`Question ${currentIndex + 1} illustration`}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '250px',
+                  borderRadius: 8,
+                  objectFit: 'contain'
+                }}
+                loading="lazy"
+              />
+            </div>
+          )}
+
           <h4 style={{ color: 'white', marginBottom: 16, fontSize: 16 }}>Question {currentIndex+1}: {currentQuestion.questionText}</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {currentQuestion.options.map((opt, optIdx) => (

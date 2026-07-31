@@ -11,7 +11,8 @@ const WeeklyQuizSchema = new mongoose.Schema({
     questionText: String,
     options: [String],
     correctAnswer: Number,
-    points: { type: Number, default: 1 }
+    points: { type: Number, default: 1 },
+    imageUrl: { type: String, default: null }
   }],
   passingScore: { type: Number, default: 70 },
   timeLimit: { type: Number, default: 20 },

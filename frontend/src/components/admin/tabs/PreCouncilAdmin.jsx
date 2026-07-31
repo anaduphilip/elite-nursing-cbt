@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../../utils/theme';
+import CloudinaryUpload from '../CloudinaryUpload'; // ← NEW
 
 export const PreCouncilAdmin = ({ token, darkMode }) => {
   const headingColor = getHeadingColor(darkMode);
@@ -55,6 +56,12 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
   });
   const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
   const [showQuestionForm, setShowQuestionForm] = useState(false);
+
+  // ===== NEW: IMAGE UPLOAD STATE =====
+  const [showImageUpload, setShowImageUpload] = useState(false);
+  const [imageQuestionIndex, setImageQuestionIndex] = useState(null);
+  const [imageQuestionId, setImageQuestionId] = useState(null);
+  const [currentExamIdForImage, setCurrentExamIdForImage] = useState(null);
 
   // ---- FETCH DATA ----
   const fetchAll = async () => {
@@ -305,6 +312,61 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
     const paper = papers.find(p => String(p._id) === String(paperId));
     return paper ? paper.name : `⚠️ Paper not found (ID: ${String(paperId)})`;
   };
+
+  // ===== NEW: IMAGE UPLOAD HANDLERS =====
+  const openImageUpload = (questionIndex, questionId, examId) => {
+    setImageQuestionIndex(questionIndex);
+    setImageQuestionId(questionId);
+    setCurrentExamIdForImage(examId);
+    setShowImageUpload(true);
+  };
+
+  const handleImageUploadSuccess = async (url) => {
+    try {
+      const res = await axios.patch(
+        `/api/admin/pre-council/exams/${currentExamIdForImage}/questions/${imageQuestionId}/image`,
+        { imageUrl: url },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        // Update the local examForm.questions array
+        const updatedQuestions = [...examForm.questions];
+        updatedQuestions[imageQuestionIndex] = {
+          ...updatedQuestions[imageQuestionIndex],
+          imageUrl: url
+        };
+        setExamForm({ ...examForm, questions: updatedQuestions });
+        setShowImageUpload(false);
+        alert('✅ Image added successfully!');
+      }
+    } catch (error) {
+      alert('Failed to save image: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const handleImageRemove = async () => {
+    if (!window.confirm('Remove this image?')) return;
+    try {
+      const res = await axios.delete(
+        `/api/admin/pre-council/exams/${currentExamIdForImage}/questions/${imageQuestionId}/image`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        const updatedQuestions = [...examForm.questions];
+        updatedQuestions[imageQuestionIndex] = {
+          ...updatedQuestions[imageQuestionIndex],
+          imageUrl: null
+        };
+        setExamForm({ ...examForm, questions: updatedQuestions });
+        setShowImageUpload(false);
+        alert('✅ Image removed');
+      }
+    } catch (error) {
+      alert('Failed to remove image: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  // ===== END IMAGE UPLOAD =====
 
   // ---- RENDER ----
   if (loading) return <div style={{ padding: 20, textAlign: 'center', color: secondaryText }}>Loading Pre Council data...</div>;
@@ -669,7 +731,7 @@ export const PreCouncilAdmin = ({ token, darkMode }) => {
         </div>
       )}
 
-      {/* ===== EXAM MODAL – WITH CATEGORY DROPDOWN & FILTERING ===== */}
+      {/* ===== EXAM MODAL – WITH CATEGORY DROPDOWN & FILTERING (and NEW Image button in question list) ===== */}
       {examModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
           <div style={{ background: cardBg, borderRadius: 20, padding: 28, maxWidth: 700, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -989,57 +1051,91 @@ Answer: b'
               )}
             </div>
 
-            {/* ----- Question List (unchanged) ----- */}
+            {/* ----- Question List – with NEW Image button ----- */}
             <label style={{ color: textColor, fontWeight: 'bold' }}>Current Questions ({examForm.questions.length})</label>
             <div style={{ maxHeight: 250, overflowY: 'auto', marginBottom: 12, padding: '8px', background: darkMode ? '#1a1a2e' : '#f8f9fa', borderRadius: 6, border: '1px solid #ddd' }}>
               {examForm.questions.length === 0 ? (
                 <p style={{ color: secondaryText, fontSize: 13, textAlign: 'center' }}>No questions added yet.</p>
               ) : (
-                examForm.questions.map((q, idx) => (
-                  <div key={idx} style={{ padding: '8px', borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontSize: 13, color: textColor }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1 }}>
-                        <strong>{idx+1}.</strong> {q.questionText}
-                        <div style={{ fontSize: 12, color: secondaryText, marginTop: 2 }}>
-                          {q.options.map((opt, i) => (
-                            <span key={i} style={{ marginRight: 8, background: darkMode ? '#333' : '#f0f0f0', padding: '2px 6px', borderRadius: 4 }}>
-                              {String.fromCharCode(65 + i)}: {opt}
-                              {i === q.correctAnswer && <span style={{ color: '#28a745', marginLeft: 4 }}>✓</span>}
-                            </span>
-                          ))}
+                examForm.questions.map((q, idx) => {
+                  const currentExamId = editExamId || (examForm._id); // use editExamId if editing, else form id (but we only have examForm)
+                  // We'll use the editExamId if available, otherwise the new exam hasn't been saved yet, so we can't upload images.
+                  // For new exam, we'll store the exam id after creation.
+                  // For now, we'll pass a dummy id if not saved – the backend will reject, but we handle it.
+                  const examIdForImage = editExamId || 'new';
+                  return (
+                    <div key={idx} style={{ padding: '8px', borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee'), fontSize: 13, color: textColor }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ flex: 1 }}>
+                          <strong>{idx+1}.</strong> {q.questionText}
+                          <div style={{ fontSize: 12, color: secondaryText, marginTop: 2 }}>
+                            {q.options.map((opt, i) => (
+                              <span key={i} style={{ marginRight: 8, background: darkMode ? '#333' : '#f0f0f0', padding: '2px 6px', borderRadius: 4 }}>
+                                {String.fromCharCode(65 + i)}: {opt}
+                                {i === q.correctAnswer && <span style={{ color: '#28a745', marginLeft: 4 }}>✓</span>}
+                              </span>
+                            ))}
+                          </div>
+                          {q.imageUrl && (
+                            <div style={{ marginTop: 4 }}>
+                              <img src={q.imageUrl} alt="Question" style={{ maxHeight: 40, maxWidth: 80, borderRadius: 4 }} />
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 8, flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => {
+                              setEditingQuestionIndex(idx);
+                              setQuestionForm({
+                                questionText: q.questionText,
+                                options: [...q.options],
+                                correctAnswer: q.correctAnswer,
+                                points: q.points || 1
+                              });
+                              setShowQuestionForm(true);
+                            }}
+                            style={{ background: '#ffc107', color: '#333', padding: '2px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
+                          >
+                            Edit
+                          </button>
+                          {/* ===== NEW: Image button ===== */}
+                          <button
+                            onClick={() => {
+                              if (!editExamId) {
+                                alert('Please save the exam first before adding images.');
+                                return;
+                              }
+                              openImageUpload(idx, q._id, editExamId);
+                            }}
+                            style={{
+                              background: q.imageUrl ? '#28a745' : '#17a2b8',
+                              color: 'white',
+                              padding: '2px 8px',
+                              border: 'none',
+                              borderRadius: 4,
+                              cursor: 'pointer',
+                              fontSize: 11,
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            {q.imageUrl ? '🔄 Image' : '📷 Image'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (!window.confirm('Delete this question?')) return;
+                              const updated = [...examForm.questions];
+                              updated.splice(idx, 1);
+                              setExamForm({ ...examForm, questions: updated });
+                            }}
+                            style={{ background: '#dc3545', color: 'white', padding: '2px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 8 }}>
-                        <button
-                          onClick={() => {
-                            setEditingQuestionIndex(idx);
-                            setQuestionForm({
-                              questionText: q.questionText,
-                              options: [...q.options],
-                              correctAnswer: q.correctAnswer,
-                              points: q.points || 1
-                            });
-                            setShowQuestionForm(true);
-                          }}
-                          style={{ background: '#ffc107', color: '#333', padding: '2px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (!window.confirm('Delete this question?')) return;
-                            const updated = [...examForm.questions];
-                            updated.splice(idx, 1);
-                            setExamForm({ ...examForm, questions: updated });
-                          }}
-                          style={{ background: '#dc3545', color: 'white', padding: '2px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
-                        >
-                          Delete
-                        </button>
-                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
@@ -1047,6 +1143,89 @@ Answer: b'
               <button onClick={() => setExamModalOpen(false)} style={{ flex: 1, background: '#6c757d', color: 'white', padding: '10px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
               <button onClick={handleExamSubmit} style={{ flex: 1, background: '#28a745', color: 'white', padding: '10px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Save</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== IMAGE UPLOAD MODAL (NEW) ===== */}
+      {showImageUpload && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: 20
+        }}>
+          <div style={{
+            background: cardBg,
+            borderRadius: 20,
+            padding: 28,
+            maxWidth: 500,
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ color: headingColor, marginBottom: 8 }}>📷 Question Image</h3>
+            <p style={{ color: secondaryText, marginBottom: 20, fontSize: 14 }}>
+              Upload an image to display with this question.
+            </p>
+
+            {imageQuestionIndex !== null && examForm.questions[imageQuestionIndex]?.imageUrl && (
+              <div style={{ marginBottom: 16 }}>
+                <img
+                  src={examForm.questions[imageQuestionIndex].imageUrl}
+                  alt="Current"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '150px',
+                    borderRadius: 8,
+                    objectFit: 'contain',
+                    background: '#f0f0f0'
+                  }}
+                />
+                <button
+                  onClick={handleImageRemove}
+                  style={{
+                    marginTop: 8,
+                    background: '#dc3545',
+                    color: 'white',
+                    padding: '6px 16px',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontSize: 13
+                  }}
+                >
+                  🗑️ Remove Image
+                </button>
+              </div>
+            )}
+
+            <CloudinaryUpload
+              onUploadSuccess={handleImageUploadSuccess}
+              onClose={() => setShowImageUpload(false)}
+              buttonText="📤 Upload Image"
+            />
+
+            <button
+              onClick={() => setShowImageUpload(false)}
+              style={{
+                marginTop: 16,
+                background: '#6c757d',
+                color: 'white',
+                padding: '8px 20px',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
