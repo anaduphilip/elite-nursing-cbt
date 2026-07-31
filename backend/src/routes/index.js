@@ -38,14 +38,10 @@ const configRoutes = require('./config');
 const categoriesRoutes = require('./categories');
 const faqsRoutes = require('./faqs');
 const notificationRoutes = require('./notification');
+const studyPlanRoutes = require('./study-plan');
 
 const router = express.Router();
 
-// =====================================================================
-// PUBLIC ROUTES (match original monolithic server paths)
-// =====================================================================
-
-// GET /api/force-refresh
 router.get('/force-refresh', async (req, res) => {
   try {
     const config = await Config.findOne();
@@ -60,7 +56,6 @@ router.get('/force-refresh', async (req, res) => {
   }
 });
 
-// GET /api/explanation-remaining
 router.get('/explanation-remaining', authenticate, async (req, res) => {
   if (req.user.isPremium) {
     return res.json({ remaining: Infinity, isPremium: true });
@@ -78,7 +73,6 @@ router.get('/explanation-remaining', authenticate, async (req, res) => {
   res.json({ remaining, isPremium: false });
 });
 
-// GET /api/verify-session
 router.get('/verify-session', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -104,24 +98,10 @@ router.get('/verify-session', async (req, res) => {
   }
 });
 
-// =====================================================================
-// NOTIFICATION ROUTES (mounted at root so /api/register-token works)
-// =====================================================================
 router.use('/', notificationRoutes);
-
-// =====================================================================
-// AUTH ROUTES (mounted at root so /api/login, /api/register work)
-// =====================================================================
 router.use('/', authRoutes);
-
-// =====================================================================
-// QUIZ ROUTES (user)
-// =====================================================================
 router.use('/quizzes', quizRoutes);
 
-// =====================================================================
-// ADMIN ROUTES
-// =====================================================================
 router.use('/admin', adminRoutes);
 router.use('/admin/users', adminUsersRoutes);
 router.use('/admin/config', adminConfigRoutes);
@@ -140,74 +120,20 @@ router.use('/admin/force-refresh', adminForceRefreshRoutes);
 router.use('/admin/quizzes', adminQuizManagementRoutes);
 router.use('/admin', adminPremiumRoutes);
 
-// =====================================================================
-// WEEKLY QUIZ (user)
-// =====================================================================
 router.use('/weekly-quiz', weeklyQuizRoutes);
-
-// =====================================================================
-// PRE COUNCIL (user)
-// =====================================================================
 router.use('/pre-council', preCouncilRoutes);
-
-// =====================================================================
-// PAYMENT (mounted at root so /api/initialize-payment, /api/verify-payment work)
-// =====================================================================
 router.use('/', paymentRoutes);
-
-// =====================================================================
-// CONTACT
-// =====================================================================
 router.use('/contact', contactRoutes);
-
-// =====================================================================
-// ANNOUNCEMENT (public)
-// =====================================================================
 router.use('/announcement', announcementRoutes);
-
-// =====================================================================
-// MARKETING CONSENT (public & user)
-// =====================================================================
 router.use('/marketing-consent', marketingConsentRoutes);
-
-// =====================================================================
-// PRIVATE MESSAGES
-// =====================================================================
 router.use('/private-messages', privateMessageRoutes);
-
-// =====================================================================
-// STUDY NOTES
-// =====================================================================
 router.use('/study-notes', studyNotesRoutes);
-
-// =====================================================================
-// GAMIFICATION
-// =====================================================================
 router.use('/gamification', gamificationRoutes);
-
-// =====================================================================
-// AI EXPLANATION
-// =====================================================================
 router.use('/explain-question', aiExplainRoutes);
-
-// =====================================================================
-// USER PROFILE
-// =====================================================================
 router.use('/user', userRoutes);
-
-// =====================================================================
-// CONFIG (public)
-// =====================================================================
+router.use('/study-plan', studyPlanRoutes);
 router.use('/config', configRoutes);
-
-// =====================================================================
-// CATEGORIES (public)
-// =====================================================================
 router.use('/categories', categoriesRoutes);
-
-// =====================================================================
-// FAQS (public)
-// =====================================================================
 router.use('/faqs', faqsRoutes);
 
 module.exports = router;
