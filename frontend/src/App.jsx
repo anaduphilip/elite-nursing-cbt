@@ -187,7 +187,9 @@ function App() {
   const openLogoutModal = () => setShowLogoutModal(true);
   const closeLogoutModal = () => setShowLogoutModal(false);
 
-  // ========== FIXED INTERCEPTOR ==========
+  // ========== TEMPORARY INTERCEPTOR FIX ==========
+  // This version does NOT call logout() on 401 – only clears client storage.
+  // It lets you log in and access the admin panel without the logout loop.
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       response => response,
@@ -196,79 +198,55 @@ function App() {
           if (error.config.url === '/api/login') {
             return Promise.reject(error);
           }
-          const message = error.response?.data?.error || '';
-          
-          // ✅ Only call logout() if it's a real session conflict
-          if (message.includes('logged out from another device')) {
-            alert('⚠️ ' + message);
-            logout(); // This calls the backend to clear the session token
-            window.location.href = '/login';
-          } else {
-            // ❌ For any other 401, just clear client-side storage
-            // Without calling the logout API (so the session token stays valid in DB)
-            localStorage.removeItem('auth');
-            delete axios.defaults.headers.common['Authorization'];
-            window.location.href = '/login';
-          }
+          // ⛔ TEMPORARY: Do NOT call logout() – just redirect to login.
+          localStorage.removeItem('auth');
+          delete axios.defaults.headers.common['Authorization'];
+          window.location.href = '/login';
         }
         return Promise.reject(error);
       }
     );
     return () => axios.interceptors.response.eject(interceptor);
-  }, [logout]);
+  }, []); // Empty dependency array – logout is not used.
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     localStorage.setItem('darkMode', !darkMode);
   };
 
-  // ========== MAINTENANCE POLLING (with 401 handling) ==========
+  // ========== Fetch maintenance config with polling ==========
   useEffect(() => {
-    let isMounted = true;
-    let interval = null;
-
     const fetchConfig = async () => {
       try {
         const res = await axios.get('/api/config');
-        if (isMounted && res.data.success) {
+        if (res.data.success) {
           setMaintenance(res.data.config);
         }
       } catch (error) {
-        // If we get a 401, we should stop polling to avoid loops
-        if (error.response?.status === 401) {
-          console.warn('Maintenance polling stopped due to auth error');
-          clearInterval(interval);
-          // Don't redirect here – let the interceptor handle it
-        }
         console.error('Failed to fetch config:', error);
       } finally {
-        if (isMounted) setMaintenanceLoading(false);
+        setMaintenanceLoading(false);
       }
     };
 
     // Initial fetch
     fetchConfig();
 
-    // Poll every 30 seconds (but only if we haven't stopped)
-    interval = setInterval(fetchConfig, 30000);
+    // Poll every 30 seconds to check for maintenance mode changes
+    const interval = setInterval(fetchConfig, 30000);
 
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
-  // ========== FORCE REFRESH POLLING (with 401 handling) ==========
+  // ========== Force Refresh polling (NEW) ==========
   useEffect(() => {
-    let isMounted = true;
-    let interval = null;
-
     const checkForRefresh = async () => {
       try {
         const res = await axios.get('/api/force-refresh');
-        if (isMounted && res.data.success) {
+        if (res.data.success) {
           const newVersion = res.data.version || 0;
           if (newVersion > refreshVersion) {
+            // New refresh version detected – store and show modal
             localStorage.setItem('refreshVersion', String(newVersion));
             setRefreshVersion(newVersion);
             setRefreshModal({
@@ -278,25 +256,16 @@ function App() {
           }
         }
       } catch (error) {
-        // If we get a 401, stop polling to avoid loops
-        if (error.response?.status === 401) {
-          console.warn('Force refresh polling stopped due to auth error');
-          clearInterval(interval);
-        }
-        // Silent fail for other errors
+        // Silent fail – network errors shouldn't break the app
       }
     };
 
     // Initial check
     checkForRefresh();
 
-    // Poll every 30 seconds (but only if we haven't stopped)
-    interval = setInterval(checkForRefresh, 30000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
+    // Poll every 30 seconds
+    const interval = setInterval(checkForRefresh, 30000);
+    return () => clearInterval(interval);
   }, [refreshVersion]);
 
   const [notificationModal, setNotificationModal] = useState(null);
@@ -507,6 +476,11 @@ function App() {
   }, [auth.token, auth.user?.isPremium, auth.user?.premiumExpiry]);
 
   // ========== MAINTENANCE MODE CHECK ==========
+  // Show maintenance page if:
+  // 1. Config is loaded
+  // 2. Maintenance mode is enabled
+  // 3. User is NOT admin (elitenursingcbt@gmail.com)
+  // This check runs on every render, so it will reflect the latest state from polling.
   if (maintenanceLoading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>Loading...</div>;
   }
@@ -515,7 +489,7 @@ function App() {
     return <Maintenance message={maintenance.maintenanceMessage} />;
   }
 
-  // ========== FORCE REFRESH MODAL ==========
+  // ========== FORCE REFRESH MODAL (shown on top of everything) ==========
   const handleRefresh = () => {
     window.location.reload();
   };
@@ -565,7 +539,7 @@ function App() {
           </div>
         )}
 
-        {/* ===== FORCE REFRESH MODAL ===== */}
+        {/* ===== FORCE REFRESH MODAL (NEW) ===== */}
         {refreshModal?.show && (
           <div style={{
             position: 'fixed',
