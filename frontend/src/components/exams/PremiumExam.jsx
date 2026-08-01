@@ -3,6 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
+import { getCachedQuizzes } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/theme';
 import { Timer } from '../common/Timer';
 import { saveExamAttempt } from '../../utils/quizHelpers';
@@ -45,15 +46,30 @@ export const PremiumExam = () => {
           }
         }
 
-        const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
-        const allQuizzes = res.data.filter(q => q.category === categoryName && q.topic === topic);
-        allQuizzes.sort((a, b) => {
+        // 1. Get quizzes from cache (or fetch and cache if not available)
+        let allQuizzes = [];
+        try {
+          allQuizzes = await getCachedQuizzes(token);
+        } catch (cacheError) {
+          console.log('Cache miss or error, falling back to API');
+        }
+
+        // 2. If cache failed or returned empty, fallback to direct API call
+        if (!allQuizzes || allQuizzes.length === 0) {
+          const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
+          allQuizzes = res.data;
+        }
+
+        // Filter quizzes by category and topic
+        const filtered = allQuizzes.filter(q => q.category === categoryName && q.topic === topic);
+        filtered.sort((a, b) => {
           const numA = parseInt(a.title.match(/\d+/)?.[0] || 0);
           const numB = parseInt(b.title.match(/\d+/)?.[0] || 0);
           return numA - numB;
         });
+
         const allQuestions = [];
-        allQuizzes.forEach(quiz => {
+        filtered.forEach(quiz => {
           allQuestions.push(...quiz.questions);
         });
         const chunkSize = 100;

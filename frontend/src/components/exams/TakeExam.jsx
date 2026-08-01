@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { AuthContext } from '../../context/AuthContext';
+import { getCachedQuizzes } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/theme';
 import { Timer } from '../common/Timer';
 import { saveExamAttempt } from '../../utils/quizHelpers';
@@ -39,8 +40,24 @@ export const TakeExam = () => {
     const fetchExam = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        const examData = res.data;
+
+        // 1. Try to get quiz from cache first
+        let examData = null;
+        try {
+          const cachedQuizzes = await getCachedQuizzes(token);
+          examData = cachedQuizzes.find(q => q._id === id);
+        } catch (cacheError) {
+          console.log('Cache miss or error, falling back to API');
+        }
+
+        // 2. If not in cache, fallback to direct API call
+        if (!examData) {
+          const res = await axios.get(`/api/quizzes/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          examData = res.data;
+        }
+
         setExam(examData);
 
         if (mode === 'free' && examData.isPremium) {
@@ -516,7 +533,6 @@ export const TakeExam = () => {
           </div>
         </div>
 
-        {/* Submit button – unchanged */}
         <button onClick={handleSubmit} disabled={!allAnswered} style={{ width: '100%', background: allAnswered ? '#28a745' : '#ccc', color: 'white', padding: 14, border: 'none', borderRadius: 50, cursor: allAnswered ? 'pointer' : 'not-allowed', fontSize: 16, fontWeight: 'bold', marginBottom: 30, opacity: allAnswered ? 1 : 0.7 }}>
           {allAnswered ? 'Submit Examination' : `Please answer all questions (${answeredCount}/${totalQuestions})`}
         </button>

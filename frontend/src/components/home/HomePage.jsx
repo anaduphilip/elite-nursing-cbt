@@ -7,8 +7,11 @@ import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { ProgressSnapshot } from './ProgressSnapshot';
 import { getCachedCategories, getCachedQuizzes } from '../../utils/quizHelpers';
-// 👇 NEW: Pre Council cache import (alias to avoid conflict)
-import { getCachedCategories as getCachedPreCouncilCategories } from '../../utils/preCouncilCache';
+// 👇 NEW: Import Pre Council cache functions (categories + exams)
+import { 
+  getCachedCategories as getCachedPreCouncilCategories,
+  getCachedExams as getCachedPreCouncilExams
+} from '../../utils/preCouncilCache';
 
 export const HomePage = () => {
   const [loading, setLoading] = useState(false);
@@ -217,18 +220,18 @@ export const HomePage = () => {
     fetchPrivateMessages();
   }, [token]);
 
-  // ===== PRELOAD DATA (existing + NEW Pre Council) =====
+  // ===== PRELOAD DATA (UPDATED: includes Pre Council categories + exams) =====
   useEffect(() => {
     if (!token) return;
     const preloadData = async () => {
       try {
-        // Preload existing data + Pre Council categories
         await Promise.all([
           getCachedCategories(),
           getCachedQuizzes(token),
-          getCachedPreCouncilCategories()   // 👈 NEW: Pre Council categories cached
+          getCachedPreCouncilCategories(),   
+          getCachedPreCouncilExams()        
         ]);
-        console.log('📚 Preloaded categories, quizzes, and Pre Council data');
+        console.log('📚 Preloaded categories, quizzes, and all Pre Council data');
       } catch (error) {
         console.error('Failed to preload data:', error);
       }

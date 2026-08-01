@@ -7,7 +7,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { Timer } from '../common/Timer';
-import { saveExamAttempt } from '../../utils/quizHelpers';
+import { saveExamAttempt, getCachedPreCouncilExam } from '../../utils/quizHelpers';
 
 export const PreCouncilTakeExam = () => {
   const { examId } = useParams();
@@ -32,27 +32,41 @@ export const PreCouncilTakeExam = () => {
   const [explanationRemaining, setExplanationRemaining] = useState(null);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
 
-  // ===== Fetch exam =====
+  // ===== Fetch exam using cache (UPDATED) =====
   useEffect(() => {
     const fetchExam = async () => {
+      setLoading(true);
       try {
-        const res = await axios.get(`/api/pre-council/exams/${examId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data.success) {
-          const examData = res.data.exam;
-          setExam(examData);
-          setQuestions(examData.questions);
-          setCurrentIndex(0);
-          setAnswers({});
-          setSubmitted(false);
-          setResult(null);
-          setShowReview(false);
-          setTimeUp(false);
-        } else {
-          alert('Exam not found');
-          navigate('/pre-council');
+        // 1. Try to get exam from cache first
+        let examData = null;
+        try {
+          examData = await getCachedPreCouncilExam(examId, token);
+        } catch (cacheError) {
+          console.log('Cache miss or error, falling back to API');
         }
+
+        // 2. If cache failed, fetch directly from API
+        if (!examData) {
+          const res = await axios.get(`/api/pre-council/exams/${examId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.data.success) {
+            examData = res.data.exam;
+          } else {
+            alert('Exam not found');
+            navigate('/pre-council');
+            return;
+          }
+        }
+
+        setExam(examData);
+        setQuestions(examData.questions);
+        setCurrentIndex(0);
+        setAnswers({});
+        setSubmitted(false);
+        setResult(null);
+        setShowReview(false);
+        setTimeUp(false);
       } catch (error) {
         console.error('Failed to fetch exam:', error);
         alert('Failed to load exam');
@@ -60,10 +74,10 @@ export const PreCouncilTakeExam = () => {
         setLoading(false);
       }
     };
-    fetchExam();
+    if (examId && token) fetchExam();
   }, [examId, token, navigate]);
 
-  // ===== Fetch remaining AI explanations =====
+  // ===== Fetch remaining AI explanations (unchanged) =====
   useEffect(() => {
     const fetchRemaining = async () => {
       try {
@@ -79,7 +93,7 @@ export const PreCouncilTakeExam = () => {
     if (token) fetchRemaining();
   }, [token]);
 
-  // ===== Handlers =====
+  // ===== Handlers (unchanged) =====
   const handleAnswer = (answerIndex) => {
     setAnswers(prev => ({ ...prev, [currentIndex]: answerIndex }));
   };
@@ -123,7 +137,7 @@ export const PreCouncilTakeExam = () => {
     }
   };
 
-  // ===== AI Explanation Functions =====
+  // ===== AI Explanation Functions (unchanged) =====
   const getExplanation = async (idx) => {
     if (!isPremiumUser && explanationRemaining <= 0) {
       alert('You have used all your free explanations for today (10/day). Upgrade to Premium for unlimited!');
@@ -173,7 +187,7 @@ export const PreCouncilTakeExam = () => {
   const totalQuestions = questions.length;
   const allAnswered = answeredCount === totalQuestions;
 
-  // ===== Results view =====
+  // ===== Results view (unchanged) =====
   if (submitted && !showReview) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
@@ -198,12 +212,11 @@ export const PreCouncilTakeExam = () => {
     );
   }
 
-  // ===== Review view with AI explanations =====
+  // ===== Review view with AI explanations (unchanged) =====
   if (submitted && showReview) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          {/* AI Remaining counter */}
           {!isPremiumUser && explanationRemaining !== null && (
             <div style={{
               textAlign: 'center',
@@ -247,7 +260,6 @@ export const PreCouncilTakeExam = () => {
                   );
                 })}
 
-                {/* AI Explanation Button */}
                 <button
                   onClick={() => getExplanation(idx)}
                   disabled={loadingExplanation[idx]}
@@ -276,7 +288,6 @@ export const PreCouncilTakeExam = () => {
                   )}
                 </button>
 
-                {/* AI Explanation Display */}
                 {explanation[idx] && (
                   <div
                     style={{

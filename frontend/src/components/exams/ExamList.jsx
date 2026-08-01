@@ -3,6 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
+import { getCachedQuizzes } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { PremiumModal } from '../premium/PremiumModal';
 import { LoadingWithBar } from '../common/LoadingWithBar';
@@ -26,15 +27,32 @@ export const ExamList = () => {
       setLoading(true);
       try {
         if (!token) return;
-        const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        setQuiz(res.data);
-        
-        const totalQuestions = res.data.questions.length;
+
+        // 1. Try to get quiz from cache first
+        let quizData = null;
+        try {
+          const cachedQuizzes = await getCachedQuizzes(token);
+          quizData = cachedQuizzes.find(q => q._id === id);
+        } catch (cacheError) {
+          console.log('Cache miss or error, falling back to API');
+        }
+
+        // 2. If not in cache, fallback to direct API call
+        if (!quizData) {
+          const res = await axios.get(`/api/quizzes/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          quizData = res.data;
+        }
+
+        setQuiz(quizData);
+
+        const totalQuestions = quizData.questions.length;
         const sectionsArray = [];
         let startIndex = 0;
         let sectionNumber = 1;
         const batchSize = 20;
-        
+
         while (startIndex < totalQuestions) {
           let endIndex = startIndex + batchSize;
           if (endIndex > totalQuestions) endIndex = totalQuestions;
@@ -48,15 +66,17 @@ export const ExamList = () => {
           sectionNumber++;
         }
         setSections(sectionsArray);
-        
-        const profileRes = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
+
+        const profileRes = await axios.get('/api/user/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setUserPremium(profileRes.data.isPremium);
-        
+
         const savedScores = localStorage.getItem(`exam_${id}_scores`);
         if (savedScores) {
           setLastScores(JSON.parse(savedScores));
         }
-        
+
         const taken = localStorage.getItem(`exam_${id}_taken`) === 'true';
         setHasTakenExam1(taken);
       } catch (error) {
@@ -83,13 +103,13 @@ export const ExamList = () => {
       window.location.href = `/take/${id}/${section.number}/${mode}`;
       return;
     }
-    
+
     if (section.isPremium && !userPremium) {
       setSelectedSection(section);
       setShowPremiumModal(true);
       return;
     }
-    
+
     window.location.href = `/take/${id}/${section.number}/${mode}`;
   };
 
@@ -116,16 +136,16 @@ export const ExamList = () => {
         <Link to={getCategorySlug()} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, background: examColor, color: 'white', padding: '10px 20px', borderRadius: 30, marginBottom: 20, fontSize: 14 }}>
           ← Back to Courses
         </Link>
-        
+
         <div style={{ background: `linear-gradient(135deg, ${examColor} 0%, ${mode === 'free' ? '#1a3a5c' : '#e65100'} 100%)`, borderRadius: 20, padding: 24, marginBottom: 28, color: 'white', textAlign: 'center' }}>
           <h1 style={{ margin: 0, fontSize: 'clamp(20px, 5vw, 28px)' }}>{quiz.title}</h1>
           <p style={{ marginTop: 8, fontSize: 14 }}>{quiz.description}</p>
           <p style={{ fontSize: 14 }}>📚 Total Questions: {quiz.questions?.length || 0}</p>
           {mode === 'free' && <p style={{ marginTop: 8, background: '#4caf50', display: 'inline-block', padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 'bold' }}>🎯 FREE MODE</p>}
         </div>
-        
+
         <h2 style={{ color: examColor, fontSize: 20, marginBottom: 20 }}>Examinations:</h2>
-        
+
         {mode === 'free' && sections[0] && (
           <>
             <div style={{ marginBottom: 28 }}>
@@ -148,14 +168,14 @@ export const ExamList = () => {
                 </div>
               </div>
             </div>
-            
+
             <div style={{ textAlign: 'center', padding: 28, background: '#fff3e0', borderRadius: 16, marginBottom: 20 }}>
               <p style={{ color: '#ff9800', fontWeight: 'bold', fontSize: 16 }}>⭐ Unlock ALL premium exams and retakes by chooseing a subscription plan that suits you!</p>
               <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 12 }}>Upgrade Now →</button></Link>
             </div>
           </>
         )}
-        
+
         {mode === 'premium' && (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>

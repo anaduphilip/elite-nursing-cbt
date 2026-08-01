@@ -36,6 +36,29 @@ router.get('/papers/:paperId/exams', authenticate, async (req, res) => {
   }
 });
 
+// ===== Get all exams (for caching) with ?all=true =====
+router.get('/exams', authenticate, async (req, res) => {
+  try {
+    // If ?all=true is present, return ALL active exams (for caching)
+    if (req.query.all === 'true') {
+      const exams = await PreCouncilExam.find({ isActive: true })
+        .populate({
+          path: 'paperId',
+          select: 'name categoryId',
+          populate: { path: 'categoryId', select: 'name slug' }
+        })
+        .lean();
+      return res.json({ success: true, exams });
+    }
+    // If no all flag, optionally you could return exams for a specific paper
+    // but we can just return a 400 or an empty array.
+    return res.status(400).json({ error: 'Missing paperId or all flag' });
+  } catch (error) {
+    console.error('Failed to fetch exams:', error);
+    res.status(500).json({ error: 'Failed to fetch exams' });
+  }
+});
+
 // Get a single exam
 router.get('/exams/:examId', authenticate, async (req, res) => {
   try {
