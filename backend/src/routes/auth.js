@@ -13,6 +13,8 @@ const {
 } = require('../utils');
 
 const router = express.Router();
+
+// OTP Store (in-memory for simplicity – in production use Redis)
 const otpStore = require('../utils/otpStore');
 
 // ============ VERIFICATION ROUTES ============
@@ -83,17 +85,8 @@ router.post('/reset-password', async (req, res) => {
 router.post('/force-logout', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    console.log(`🔍 [force-logout] Before: currentSessionToken = ${user.currentSessionToken}`);
-    user.currentSessionToken = null;
-    await user.save();
-    console.log(`✅ [force-logout] Cleared session for ${email}`);
+    await User.findOneAndUpdate({ email }, { currentSessionToken: null });
+    console.log(`✅ Force logged out from all devices for: ${email}`);
     res.json({ success: true, message: 'Logged out from all other devices' });
   } catch (error) {
     console.error('Force logout error:', error);
@@ -151,7 +144,6 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log(`🔐 Login attempt for: ${email}`);
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'User not found' });
     if (!user.isVerified) return res.status(400).json({ error: 'Email not verified' });
@@ -166,23 +158,16 @@ router.post('/login', async (req, res) => {
 
     const premiumStatus = await checkAndUpdatePremium(user);
 
-    // Check if already logged in elsewhere
     if (user.currentSessionToken) {
-      console.log(`⚠️ [login] User already has session: ${user.currentSessionToken}`);
       return res.status(401).json({ error: 'You are already logged in on another device. Please log out from that device first.' });
     }
 
-    // Generate new session token
     const sessionToken = generateSessionToken();
     user.currentSessionToken = sessionToken;
     user.lastLoginAt = new Date();
     await user.save();
-    console.log(`✅ [login] Session token saved: ${sessionToken}`);
 
     const token = jwt.sign({ userId: user._id, sessionToken }, JWT_SECRET);
-    console.log(`🔑 [login] JWT signed. Secret used: ${JWT_SECRET.substring(0, 6)}...`);
-    console.log(`📦 [login] Token (first 30 chars): ${token.substring(0, 30)}...`);
-
     res.json({
       token,
       user: {
@@ -193,7 +178,6 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -214,33 +198,14 @@ router.post('/logout', async (req, res) => {
 // ============ VERIFY SESSION ============
 router.get('/verify-session', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    console.log(`🔍 [verify-session] Authorization header: ${authHeader}`);
-    const token = authHeader?.split(' ')[1];
-    if (!token) {
-      console.log('❌ [verify-session] No token');
-      return res.status(401).json({ error: 'No token' });
-    }
-    console.log(`🔍 [verify-session] Token (first 30 chars): ${token.substring(0, 30)}...`);
-
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token' });
     const decoded = jwt.verify(token, JWT_SECRET);
-    console.log(`✅ [verify-session] Decoded: userId=${decoded.userId}, sessionToken=${decoded.sessionToken}`);
-
     const user = await User.findById(decoded.userId);
-    if (!user) {
-      console.log('❌ [verify-session] User not found');
-      return res.status(401).json({ error: 'User not found' });
+    if (!user) return res.status(401).json({ error: 'User not found' });
+    if (user.currentSessionToken !== decoded.sessionToken) {
+      return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
     }
-    console.log(`👤 [verify-session] User: ${user.email}, db session: ${user.currentSessionToken}`);
-
-    // ==========================================
-    // 🔴 TEMPORARILY DISABLED SESSION MISMATCH CHECK
-    // ==========================================
-    // if (user.currentSessionToken !== decoded.sessionToken) {
-    //   console.log(`❌ [verify-session] Session mismatch! DB: ${user.currentSessionToken}, JWT: ${decoded.sessionToken}`);
-    //   return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
-    // }
-
     const premiumStatus = await checkAndUpdatePremium(user);
     res.json({
       valid: true,
@@ -252,7 +217,6 @@ router.get('/verify-session', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ [verify-session] Error:', error);
     res.status(401).json({ error: 'Invalid token' });
   }
 });
