@@ -50,7 +50,7 @@ import { PreCouncilPapers } from './components/pre-council/PreCouncilPapers';
 import { PreCouncilExamList } from './components/pre-council/PreCouncilExamList';
 import { PreCouncilTakeExam } from './components/pre-council/PreCouncilTakeExam';
 
-const API_URL = 'https://elite-nursing-backend.onrender.com';
+const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
 
 // Helper functions
