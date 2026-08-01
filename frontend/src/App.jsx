@@ -187,9 +187,6 @@ function App() {
   const openLogoutModal = () => setShowLogoutModal(true);
   const closeLogoutModal = () => setShowLogoutModal(false);
 
-  // ========== TEMPORARY INTERCEPTOR FIX ==========
-  // This version does NOT call logout() on 401 – only clears client storage.
-  // It lets you log in and access the admin panel without the logout loop.
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       response => response,
@@ -198,16 +195,16 @@ function App() {
           if (error.config.url === '/api/login') {
             return Promise.reject(error);
           }
-          // ⛔ TEMPORARY: Do NOT call logout() – just redirect to login.
-          localStorage.removeItem('auth');
-          delete axios.defaults.headers.common['Authorization'];
+          const message = error.response?.data?.error || 'Session expired. Please log in again.';
+          alert(`⚠️ ${message}`);
+          logout();
           window.location.href = '/login';
         }
         return Promise.reject(error);
       }
     );
     return () => axios.interceptors.response.eject(interceptor);
-  }, []); // Empty dependency array – logout is not used.
+  }, [logout]);
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
