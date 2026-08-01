@@ -81,11 +81,24 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// ============ FORCE LOGOUT ============
+// ============ FORCE LOGOUT – FIXED ============
 router.post('/force-logout', async (req, res) => {
   try {
     const { email } = req.body;
-    await User.findOneAndUpdate({ email }, { currentSessionToken: null });
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Use findOne and save for reliability
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Clear the session token
+    user.currentSessionToken = null;
+    await user.save();
+
     console.log(`✅ Force logged out from all devices for: ${email}`);
     res.json({ success: true, message: 'Logged out from all other devices' });
   } catch (error) {
@@ -158,10 +171,12 @@ router.post('/login', async (req, res) => {
 
     const premiumStatus = await checkAndUpdatePremium(user);
 
+    // Check if already logged in elsewhere
     if (user.currentSessionToken) {
       return res.status(401).json({ error: 'You are already logged in on another device. Please log out from that device first.' });
     }
 
+    // Generate new session token
     const sessionToken = generateSessionToken();
     user.currentSessionToken = sessionToken;
     user.lastLoginAt = new Date();
