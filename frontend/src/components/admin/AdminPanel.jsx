@@ -27,7 +27,7 @@ import { LimitedOfferTab } from './tabs/LimitedOfferTab';
 import { StudyNotesTab } from './tabs/StudyNotesTab';
 import { HomePageControlTab } from './tabs/HomePageControlTab';
 import { GamificationTab } from './tabs/GamificationTab';
-import { ForceRefreshTab } from './tabs/ForceRefreshTab';
+// ForceRefreshTab import removed
 
 // ===== NEW: Pre Council Admin Import =====
 import { PreCouncilAdmin } from './tabs/PreCouncilAdmin';
@@ -211,7 +211,7 @@ export const AdminPanel = () => {
   const [categoryManagerEditingIdx, setCategoryManagerEditingIdx] = useState(null);
   const [categoryManagerExistingQuizId, setCategoryManagerExistingQuizId] = useState(null);
 
-  // ===== FORCE REFRESH STATES (NEW) =====
+  // ===== FORCE REFRESH STATES (kept, but tab removed) =====
   const [forceRefreshMessage, setForceRefreshMessage] = useState(
     'A new version is available. Please refresh your page to continue.'
   );
@@ -262,7 +262,7 @@ const fetchConfig = async () => {
   }
 };
 
-// ===== Force Refresh Functions (NEW) =====
+// ===== Force Refresh Functions (kept) =====
 const handleForceRefresh = async () => {
   setForceRefreshLoading(true);
   setForceRefreshResult('');
@@ -1807,8 +1807,7 @@ useEffect(() => {
             <button onClick={() => setActiveTab('limitedOffer')} style={{ background: activeTab === 'limitedOffer' ? '#ff9800' : 'transparent', color: activeTab === 'limitedOffer' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'limitedOffer' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Limited Offer</button>
             {/* ===== NEW GAMIFICATION TAB ===== */}
             <button onClick={() => setActiveTab('gamification')} style={{ background: activeTab === 'gamification' ? '#1e3c72' : 'transparent', color: activeTab === 'gamification' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'gamification' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Gamification</button>
-            {/* ===== NEW FORCE REFRESH TAB ===== */}
-            <button onClick={() => setActiveTab('forceRefresh')} style={{ background: activeTab === 'forceRefresh' ? '#dc3545' : 'transparent', color: activeTab === 'forceRefresh' ? 'white' : '#dc3545', padding: '10px 24px', border: activeTab === 'forceRefresh' ? 'none' : '2px solid #dc3545', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Force Refresh</button>
+            {/* Force Refresh tab button removed */}
 
             {/* ===== NEW PRE COUNCIL TAB ===== */}
             <button onClick={() => setActiveTab('preCouncil')} style={{ background: activeTab === 'preCouncil' ? '#1e3c72' : 'transparent', color: activeTab === 'preCouncil' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'preCouncil' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Pre Council</button>
@@ -1883,18 +1882,8 @@ useEffect(() => {
           }} />}
           {/* ===== NEW GAMIFICATION TAB ===== */}
           {activeTab === 'gamification' && <GamificationTab {...commonProps} />}
-          {/* ===== NEW FORCE REFRESH TAB ===== */}
-          {activeTab === 'forceRefresh' && <ForceRefreshTab {...{ 
-            forceRefreshMessage, 
-            setForceRefreshMessage,
-            forceRefreshLoading,
-            forceRefreshResult,
-            forceRefreshVersion,
-            handleForceRefresh,
-            handleDeactivateRefresh,
-            loadForceRefresh,
-            ...commonProps 
-          }} />}
+          {/* Force Refresh tab rendering removed */}
+          
           {/* ===== NEW PRE COUNCIL TAB ===== */}
           {activeTab === 'preCouncil' && <PreCouncilAdmin {...commonProps} />}
 
