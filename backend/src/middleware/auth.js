@@ -7,11 +7,20 @@ const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     console.log(`🔑 [authenticate] Authorization header: ${authHeader}`);
-    const token = authHeader?.split(' ')[1];
-    if (!token) {
-      console.log('❌ [authenticate] No token provided');
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.warn('⚠️ [authenticate] Missing or malformed Authorization header');
       return res.status(401).json({ error: 'No token provided' });
     }
+
+    const token = authHeader.split(' ')[1];
+
+    // Explicitly reject token values that are literally "undefined" or "null" (common frontend bug)
+    if (!token || token === 'undefined' || token === 'null') {
+      console.warn(`⚠️ [authenticate] Token is "${token}" – this is a frontend error`);
+      return res.status(401).json({ error: 'Invalid token (undefined)' });
+    }
+
     console.log(`🔑 [authenticate] Token (first 30 chars): ${token.substring(0, 30)}...`);
 
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -23,10 +32,11 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ error: 'Your account has been deleted. Please log out and contact support.' });
     }
 
-    // Log but do not block on session mismatch (since we disabled it)
+    // Optional: you can leave the session check enabled or commented out as you prefer
     if (user.currentSessionToken !== decoded.sessionToken) {
       console.log(`⚠️ [authenticate] Session mismatch! DB: ${user.currentSessionToken}, JWT: ${decoded.sessionToken}`);
-      // We are intentionally NOT returning 401 here.
+      // If you want to enforce session token match, uncomment the next line:
+      // return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
     }
 
     req.user = user;

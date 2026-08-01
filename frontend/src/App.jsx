@@ -197,25 +197,26 @@ function App() {
     setAuthHeader(auth.token);
   }, [auth.token]);
 
-  // ===== Interceptor: handle 401 globally =====
+  // ===== INTERCEPTOR: Log 401 without logging out (for debugging) =====
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       response => response,
       error => {
         if (error.response?.status === 401) {
-          if (error.config.url === '/api/login') {
-            return Promise.reject(error);
-          }
-          const message = error.response?.data?.error || 'Session expired. Please log in again.';
-          alert(`⚠️ ${message}`);
-          logout();
-          window.location.href = '/login';
+          // Log the URL and error details
+          console.log('🔴 401 detected for URL:', error.config.url);
+          console.log('🔴 Error details:', error.response?.data);
+          console.log('🔴 Request headers:', error.config.headers);
+          
+          // 🔧 TEMPORARY: Do NOT logout or redirect – just log
+          // Return the error so the calling code can handle it
+          return Promise.reject(error);
         }
         return Promise.reject(error);
       }
     );
     return () => axios.interceptors.response.eject(interceptor);
-  }, [logout]);
+  }, []); // No dependency on logout so it never triggers logout
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
