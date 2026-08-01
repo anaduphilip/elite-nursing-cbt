@@ -11,6 +11,7 @@ const {
   sendEmail,
   JWT_SECRET
 } = require('../utils');
+const { JWT_SECRET } = require('../config/constants');
 
 const router = express.Router();
 
