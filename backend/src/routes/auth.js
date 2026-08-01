@@ -171,10 +171,12 @@ router.post('/login', async (req, res) => {
 
     const premiumStatus = await checkAndUpdatePremium(user);
 
-    // Check if already logged in elsewhere
-    if (user.currentSessionToken) {
-      return res.status(401).json({ error: 'You are already logged in on another device. Please log out from that device first.' });
-    }
+    // ==========================================
+    // 🔴 TEMPORARILY DISABLED SESSION CHECK
+    // ==========================================
+    // if (user.currentSessionToken) {
+    //   return res.status(401).json({ error: 'You are already logged in on another device. Please log out from that device first.' });
+    // }
 
     // Generate new session token
     const sessionToken = generateSessionToken();
