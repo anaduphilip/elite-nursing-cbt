@@ -20,7 +20,7 @@ const adminWeeklyQuizRoutes = require('./admin-weekly-quiz');
 const adminPreCouncilRoutes = require('./admin-pre-council');
 const adminBadgesRoutes = require('./admin-badges');
 const adminDashboardRoutes = require('./admin-dashboard');
-// ========== REMOVED: adminForceRefreshRoutes ==========
+const adminForceRefreshRoutes = require('./admin-force-refresh');
 const adminQuizManagementRoutes = require('./admin-quiz-management');
 const adminPremiumRoutes = require('./admin-premium');
 const weeklyQuizRoutes = require('./weekly-quiz');
@@ -42,7 +42,19 @@ const studyPlanRoutes = require('./study-plan');
 
 const router = express.Router();
 
-// ========== REMOVED: /force-refresh ==========
+router.get('/force-refresh', async (req, res) => {
+  try {
+    const config = await Config.findOne();
+    if (!config) return res.json({ success: true, version: 0, message: '' });
+    res.json({
+      success: true,
+      version: config.refreshVersion || 0,
+      message: config.refreshMessage || 'A new version is available. Please refresh your page to continue.'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch refresh status' });
+  }
+});
 
 router.get('/explanation-remaining', authenticate, async (req, res) => {
   if (req.user.isPremium) {
@@ -68,12 +80,9 @@ router.get('/verify-session', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.userId);
     if (!user) return res.status(401).json({ error: 'User not found' });
-    
-    // TEMPORARILY DISABLED SESSION MISMATCH CHECK
-    // if (user.currentSessionToken !== decoded.sessionToken) {
-    //   return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
-    // }
-
+    if (user.currentSessionToken !== decoded.sessionToken) {
+      return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
+    }
     const premiumStatus = await checkAndUpdatePremium(user);
     res.json({
       valid: true,
@@ -107,7 +116,7 @@ router.use('/admin/weekly-quizzes', adminWeeklyQuizRoutes);
 router.use('/admin/pre-council', adminPreCouncilRoutes);
 router.use('/admin/badges', adminBadgesRoutes);
 router.use('/admin/dashboard', adminDashboardRoutes);
-// ========== REMOVED: /admin/force-refresh ==========
+router.use('/admin/force-refresh', adminForceRefreshRoutes);
 router.use('/admin/quizzes', adminQuizManagementRoutes);
 router.use('/admin', adminPremiumRoutes);
 
