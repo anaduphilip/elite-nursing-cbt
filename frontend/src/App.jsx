@@ -60,6 +60,15 @@ const getHeadingColorHelper = (darkMode) => darkMode ? '#e0e0e0' : '#1e3c72';
 const getBorderColorHelper = (darkMode) => darkMode ? '#444' : '#e0e0e0';
 const getCardBgHelper = (darkMode) => darkMode ? '#2d2d3d' : 'white';
 
+// ===== HELPER: Update axios auth header safely =====
+const setAuthHeader = (token) => {
+  if (token) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete axios.defaults.headers.common['Authorization'];
+  }
+};
+
 // Main App Content
 const AppContent = () => {
   const { token, darkMode, user } = useContext(AuthContext);
@@ -161,12 +170,6 @@ function App() {
   const [maintenance, setMaintenance] = useState(null);
   const [maintenanceLoading, setMaintenanceLoading] = useState(true);
 
-  // ========== Force Refresh states (NEW) ==========
-  const [refreshModal, setRefreshModal] = useState(null);
-  const [refreshVersion, setRefreshVersion] = useState(() => {
-    return parseInt(localStorage.getItem('refreshVersion') || '0');
-  });
-
   const headingColor = getHeadingColorHelper(darkMode);
   const secondaryText = getSecondaryTextHelper(darkMode);
   const textColor = getTextColorHelper(darkMode);
@@ -175,18 +178,26 @@ function App() {
   const login = (token, user) => {
     setAuth({ token, user });
     localStorage.setItem('auth', JSON.stringify({ token, user }));
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    // Update axios header
+    setAuthHeader(token);
   };
 
   const logout = () => {
     setAuth({ token: null, user: null });
     localStorage.removeItem('auth');
-    delete axios.defaults.headers.common['Authorization'];
+    // Remove axios header
+    setAuthHeader(null);
   };
 
   const openLogoutModal = () => setShowLogoutModal(true);
   const closeLogoutModal = () => setShowLogoutModal(false);
 
+  // ===== Update axios header whenever auth.token changes =====
+  useEffect(() => {
+    setAuthHeader(auth.token);
+  }, [auth.token]);
+
+  // ===== Interceptor: handle 401 globally =====
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       response => response,
@@ -226,12 +237,8 @@ function App() {
       }
     };
 
-    // Initial fetch
     fetchConfig();
-
-    // Poll every 30 seconds to check for maintenance mode changes
     const interval = setInterval(fetchConfig, 30000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -338,9 +345,7 @@ function App() {
               localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
             }
             
-            if (auth.token) {
-              axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
-            }
+            setAuthHeader(auth.token);
             window.location.href = '/';
           } else {
             alert('Payment verification failed: ' + (response.data.error || 'Unknown error') + '. Please contact support if you were charged.');
@@ -378,6 +383,7 @@ function App() {
               const updatedUser = { ...auth.user, isPremium: true };
               setAuth({ ...auth, user: updatedUser });
               localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
+              setAuthHeader(auth.token);
               window.location.reload();
             } else {
               alert('Payment verification failed: ' + (response.data.error || 'Unknown error'));
