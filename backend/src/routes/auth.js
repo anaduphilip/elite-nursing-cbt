@@ -233,10 +233,13 @@ router.get('/verify-session', async (req, res) => {
     }
     console.log(`👤 [verify-session] User: ${user.email}, db session: ${user.currentSessionToken}`);
 
-    if (user.currentSessionToken !== decoded.sessionToken) {
-      console.log(`❌ [verify-session] Session mismatch! DB: ${user.currentSessionToken}, JWT: ${decoded.sessionToken}`);
-      return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
-    }
+    // ==========================================
+    // 🔴 TEMPORARILY DISABLED SESSION MISMATCH CHECK
+    // ==========================================
+    // if (user.currentSessionToken !== decoded.sessionToken) {
+    //   console.log(`❌ [verify-session] Session mismatch! DB: ${user.currentSessionToken}, JWT: ${decoded.sessionToken}`);
+    //   return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
+    // }
 
     const premiumStatus = await checkAndUpdatePremium(user);
     res.json({

@@ -80,9 +80,14 @@ router.get('/verify-session', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.userId);
     if (!user) return res.status(401).json({ error: 'User not found' });
-    if (user.currentSessionToken !== decoded.sessionToken) {
-      return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
-    }
+    
+    // ==========================================
+    // 🔴 TEMPORARILY DISABLED SESSION MISMATCH CHECK
+    // ==========================================
+    // if (user.currentSessionToken !== decoded.sessionToken) {
+    //   return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
+    // }
+
     const premiumStatus = await checkAndUpdatePremium(user);
     res.json({
       valid: true,
