@@ -8,8 +8,7 @@ const {
   generateOTP,
   generateSessionToken,
   checkAndUpdatePremium,
-  sendEmail,
-  JWT_SECRET
+  sendEmail
 } = require('../utils');
 const { JWT_SECRET } = require('../config/constants');
 
