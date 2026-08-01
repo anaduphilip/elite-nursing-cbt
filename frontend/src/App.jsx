@@ -60,6 +60,29 @@ const getHeadingColorHelper = (darkMode) => darkMode ? '#e0e0e0' : '#1e3c72';
 const getBorderColorHelper = (darkMode) => darkMode ? '#444' : '#e0e0e0';
 const getCardBgHelper = (darkMode) => darkMode ? '#2d2d3d' : 'white';
 
+// ========== REQUEST INTERCEPTOR ==========
+axios.interceptors.request.use(
+  config => {
+    const auth = localStorage.getItem('auth');
+    if (auth) {
+      try {
+        const { token } = JSON.parse(auth);
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        } else {
+          delete config.headers.Authorization;
+        }
+      } catch (e) {
+        delete config.headers.Authorization;
+      }
+    } else {
+      delete config.headers.Authorization;
+    }
+    return config;
+  },
+  error => Promise.reject(error)
+);
+
 // Main App Content
 const AppContent = () => {
   const { token, darkMode, user } = useContext(AuthContext);
@@ -161,7 +184,7 @@ function App() {
   const [maintenance, setMaintenance] = useState(null);
   const [maintenanceLoading, setMaintenanceLoading] = useState(true);
 
-  // ========== Force Refresh states (NEW) ==========
+  // ========== Force Refresh states ==========
   const [refreshModal, setRefreshModal] = useState(null);
   const [refreshVersion, setRefreshVersion] = useState(() => {
     return parseInt(localStorage.getItem('refreshVersion') || '0');
@@ -187,6 +210,7 @@ function App() {
   const openLogoutModal = () => setShowLogoutModal(true);
   const closeLogoutModal = () => setShowLogoutModal(false);
 
+  // ========== FIXED RESPONSE INTERCEPTOR ==========
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       response => response,
@@ -195,10 +219,18 @@ function App() {
           if (error.config.url === '/api/login') {
             return Promise.reject(error);
           }
-          const message = error.response?.data?.error || 'Session expired. Please log in again.';
-          alert(`⚠️ ${message}`);
-          logout();
-          window.location.href = '/login';
+          const message = error.response?.data?.error || '';
+          
+          if (message.includes('logged out from another device')) {
+            alert('⚠️ ' + message);
+            logout(); // This calls the backend to clear the session token
+            window.location.href = '/login';
+          } else {
+
+            localStorage.removeItem('auth');
+            delete axios.defaults.headers.common['Authorization'];
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }
@@ -211,39 +243,48 @@ function App() {
     localStorage.setItem('darkMode', !darkMode);
   };
 
-  // ========== Fetch maintenance config with polling ==========
+  // ========== MAINTENANCE POLLING (stops on 401) ==========
   useEffect(() => {
+    let isMounted = true;
+    let interval = null;
+
     const fetchConfig = async () => {
       try {
         const res = await axios.get('/api/config');
-        if (res.data.success) {
+        if (isMounted && res.data.success) {
           setMaintenance(res.data.config);
         }
       } catch (error) {
+        if (error.response?.status === 401) {
+          console.warn('Maintenance polling stopped due to auth error');
+          clearInterval(interval);
+        }
         console.error('Failed to fetch config:', error);
       } finally {
-        setMaintenanceLoading(false);
+        if (isMounted) setMaintenanceLoading(false);
       }
     };
 
-    // Initial fetch
     fetchConfig();
+    interval = setInterval(fetchConfig, 30000);
 
-    // Poll every 30 seconds to check for maintenance mode changes
-    const interval = setInterval(fetchConfig, 30000);
-
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
-  // ========== Force Refresh polling (NEW) ==========
+  // ========== FORCE REFRESH POLLING (stops on 401) ==========
   useEffect(() => {
+    let isMounted = true;
+    let interval = null;
+
     const checkForRefresh = async () => {
       try {
         const res = await axios.get('/api/force-refresh');
-        if (res.data.success) {
+        if (isMounted && res.data.success) {
           const newVersion = res.data.version || 0;
           if (newVersion > refreshVersion) {
-            // New refresh version detected – store and show modal
             localStorage.setItem('refreshVersion', String(newVersion));
             setRefreshVersion(newVersion);
             setRefreshModal({
@@ -253,16 +294,20 @@ function App() {
           }
         }
       } catch (error) {
-        // Silent fail – network errors shouldn't break the app
+        if (error.response?.status === 401) {
+          console.warn('Force refresh polling stopped due to auth error');
+          clearInterval(interval);
+        }
       }
     };
 
-    // Initial check
     checkForRefresh();
+    interval = setInterval(checkForRefresh, 30000);
 
-    // Poll every 30 seconds
-    const interval = setInterval(checkForRefresh, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [refreshVersion]);
 
   const [notificationModal, setNotificationModal] = useState(null);
@@ -473,11 +518,6 @@ function App() {
   }, [auth.token, auth.user?.isPremium, auth.user?.premiumExpiry]);
 
   // ========== MAINTENANCE MODE CHECK ==========
-  // Show maintenance page if:
-  // 1. Config is loaded
-  // 2. Maintenance mode is enabled
-  // 3. User is NOT admin (elitenursingcbt@gmail.com)
-  // This check runs on every render, so it will reflect the latest state from polling.
   if (maintenanceLoading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>Loading...</div>;
   }
@@ -486,7 +526,7 @@ function App() {
     return <Maintenance message={maintenance.maintenanceMessage} />;
   }
 
-  // ========== FORCE REFRESH MODAL (shown on top of everything) ==========
+  // ========== FORCE REFRESH MODAL ==========
   const handleRefresh = () => {
     window.location.reload();
   };
@@ -536,7 +576,7 @@ function App() {
           </div>
         )}
 
-        {/* ===== FORCE REFRESH MODAL (NEW) ===== */}
+        {/* ===== FORCE REFRESH MODAL ===== */}
         {refreshModal?.show && (
           <div style={{
             position: 'fixed',
