@@ -60,22 +60,6 @@ const getHeadingColorHelper = (darkMode) => darkMode ? '#e0e0e0' : '#1e3c72';
 const getBorderColorHelper = (darkMode) => darkMode ? '#444' : '#e0e0e0';
 const getCardBgHelper = (darkMode) => darkMode ? '#2d2d3d' : 'white';
 
-// ===== HELPER: Update axios auth header safely =====
-const setAuthHeader = (token) => {
-  // Reject invalid token values
-  if (token && token !== 'undefined' && token !== 'null') {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete axios.defaults.headers.common['Authorization'];
-  }
-};
-
-// ===== HELPER: Sanitize token =====
-const sanitizeToken = (token) => {
-  if (!token || token === 'undefined' || token === 'null') return null;
-  return token;
-};
-
 // Main App Content
 const AppContent = () => {
   const { token, darkMode, user } = useContext(AuthContext);
@@ -165,22 +149,7 @@ const AppContent = () => {
 function App() {
   const [auth, setAuth] = useState(() => {
     const saved = localStorage.getItem('auth');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Sanitize token on load
-        if (parsed.token && parsed.token !== 'undefined' && parsed.token !== 'null') {
-          return { token: parsed.token, user: parsed.user };
-        }
-        // If token is invalid, clear it
-        localStorage.removeItem('auth');
-        return { token: null, user: null };
-      } catch (e) {
-        localStorage.removeItem('auth');
-        return { token: null, user: null };
-      }
-    }
-    return { token: null, user: null };
+    return saved ? JSON.parse(saved) : { token: null, user: null };
   });
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -192,52 +161,50 @@ function App() {
   const [maintenance, setMaintenance] = useState(null);
   const [maintenanceLoading, setMaintenanceLoading] = useState(true);
 
+  // ========== Force Refresh states (NEW) ==========
+  const [refreshModal, setRefreshModal] = useState(null);
+  const [refreshVersion, setRefreshVersion] = useState(() => {
+    return parseInt(localStorage.getItem('refreshVersion') || '0');
+  });
+
   const headingColor = getHeadingColorHelper(darkMode);
   const secondaryText = getSecondaryTextHelper(darkMode);
   const textColor = getTextColorHelper(darkMode);
   const cardBg = getCardBgHelper(darkMode);
 
   const login = (token, user) => {
-    // Sanitize token before storing
-    const cleanToken = sanitizeToken(token);
-    if (!cleanToken) {
-      console.error('Invalid token provided to login:', token);
-      return;
-    }
-    setAuth({ token: cleanToken, user });
-    localStorage.setItem('auth', JSON.stringify({ token: cleanToken, user }));
-    setAuthHeader(cleanToken);
+    setAuth({ token, user });
+    localStorage.setItem('auth', JSON.stringify({ token, user }));
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   };
 
   const logout = () => {
     setAuth({ token: null, user: null });
     localStorage.removeItem('auth');
-    setAuthHeader(null);
+    delete axios.defaults.headers.common['Authorization'];
   };
 
   const openLogoutModal = () => setShowLogoutModal(true);
   const closeLogoutModal = () => setShowLogoutModal(false);
 
-  // ===== Update axios header whenever auth.token changes =====
-  useEffect(() => {
-    setAuthHeader(auth.token);
-  }, [auth.token]);
-
-  // ===== INTERCEPTOR: Log 401 without logging out (for debugging) =====
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       response => response,
       error => {
         if (error.response?.status === 401) {
-          console.log('🔴 401 detected for URL:', error.config.url);
-          console.log('🔴 Error details:', error.response?.data);
-          console.log('🔴 Request headers:', error.config.headers);
+          if (error.config.url === '/api/login') {
+            return Promise.reject(error);
+          }
+          const message = error.response?.data?.error || 'Session expired. Please log in again.';
+          alert(`⚠️ ${message}`);
+          logout();
+          window.location.href = '/login';
         }
         return Promise.reject(error);
       }
     );
     return () => axios.interceptors.response.eject(interceptor);
-  }, []);
+  }, [logout]);
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -259,10 +226,44 @@ function App() {
       }
     };
 
+    // Initial fetch
     fetchConfig();
+
+    // Poll every 30 seconds to check for maintenance mode changes
     const interval = setInterval(fetchConfig, 30000);
+
     return () => clearInterval(interval);
   }, []);
+
+  // ========== Force Refresh polling (NEW) ==========
+  useEffect(() => {
+    const checkForRefresh = async () => {
+      try {
+        const res = await axios.get('/api/force-refresh');
+        if (res.data.success) {
+          const newVersion = res.data.version || 0;
+          if (newVersion > refreshVersion) {
+            // New refresh version detected – store and show modal
+            localStorage.setItem('refreshVersion', String(newVersion));
+            setRefreshVersion(newVersion);
+            setRefreshModal({
+              show: true,
+              message: res.data.message || 'A new version is available. Please refresh your page to continue.'
+            });
+          }
+        }
+      } catch (error) {
+        // Silent fail – network errors shouldn't break the app
+      }
+    };
+
+    // Initial check
+    checkForRefresh();
+
+    // Poll every 30 seconds
+    const interval = setInterval(checkForRefresh, 30000);
+    return () => clearInterval(interval);
+  }, [refreshVersion]);
 
   const [notificationModal, setNotificationModal] = useState(null);
 
@@ -367,7 +368,9 @@ function App() {
               localStorage.setItem('auth', JSON.stringify({ ...auth, user: updatedUser }));
             }
             
-            setAuthHeader(auth.token);
+            if (auth.token) {
+              axios.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
+            }
             window.location.href = '/';
           } else {
             alert('Payment verification failed: ' + (response.data.error || 'Unknown error') + '. Please contact support if you were charged.');
@@ -405,7 +408,6 @@ function App() {
               const updatedUser = { ...auth.user, isPremium: true };
               setAuth({ ...auth, user: updatedUser });
               localStorage.setItem('auth', JSON.stringify({ token: auth.token, user: updatedUser }));
-              setAuthHeader(auth.token);
               window.location.reload();
             } else {
               alert('Payment verification failed: ' + (response.data.error || 'Unknown error'));
@@ -471,6 +473,11 @@ function App() {
   }, [auth.token, auth.user?.isPremium, auth.user?.premiumExpiry]);
 
   // ========== MAINTENANCE MODE CHECK ==========
+  // Show maintenance page if:
+  // 1. Config is loaded
+  // 2. Maintenance mode is enabled
+  // 3. User is NOT admin (elitenursingcbt@gmail.com)
+  // This check runs on every render, so it will reflect the latest state from polling.
   if (maintenanceLoading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>Loading...</div>;
   }
@@ -478,6 +485,11 @@ function App() {
   if (maintenance?.maintenanceMode && auth.user?.email !== 'elitenursingcbt@gmail.com') {
     return <Maintenance message={maintenance.maintenanceMessage} />;
   }
+
+  // ========== FORCE REFRESH MODAL (shown on top of everything) ==========
+  const handleRefresh = () => {
+    window.location.reload();
+  };
 
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode, openLogoutModal }}>
@@ -519,6 +531,54 @@ function App() {
                 }}
               >
                 OK
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ===== FORCE REFRESH MODAL (NEW) ===== */}
+        {refreshModal?.show && (
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            backdropFilter: 'blur(4px)'
+          }}>
+            <div style={{
+              background: cardBg,
+              borderRadius: 24,
+              padding: 32,
+              maxWidth: 420,
+              width: '90%',
+              textAlign: 'center',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+            }}>
+              <div style={{ fontSize: 52, marginBottom: 16 }}>🔄</div>
+              <h2 style={{ color: headingColor, marginBottom: 12 }}>Update Available</h2>
+              <p style={{ color: secondaryText, fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
+                {refreshModal.message || 'A new version is available. Please refresh your page to continue.'}
+              </p>
+              <button
+                onClick={handleRefresh}
+                style={{
+                  background: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 36px',
+                  borderRadius: 50,
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(220, 53, 69, 0.3)'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 6px 20px rgba(220, 53, 69, 0.4)'}
+                onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 4px 15px rgba(220, 53, 69, 0.3)'}
+              >
+                🔄 Refresh Now
               </button>
             </div>
           </div>
