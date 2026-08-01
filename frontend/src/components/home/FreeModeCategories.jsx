@@ -294,30 +294,51 @@ export const FreeModeCategories = () => {
   const displayCategories = getCategoriesWithCount();
   const hasSearchResults = searchTerm && searchTerm.trim() && groupedSearchResults && groupedSearchResults.length > 0;
 
+  // 👇 FLOATING BACK BUTTON – GO TO HOME
+  const goBack = () => navigate('/');
+
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      {/* ===== FLOATING BACK BUTTON – BOTTOM CENTER ===== */}
+      <button
+        onClick={goBack}
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          background: darkMode ? '#2d2d3d' : '#ffffff',
+          color: headingColor,
+          border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+          borderRadius: '50%',
+          width: '50px',
+          height: '50px',
+          fontSize: '22px',
+          cursor: 'pointer',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+          backdropFilter: 'blur(4px)',
+          backgroundColor: darkMode ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 255, 255, 0.9)'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateX(-50%) scale(1.08)';
+          e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+        }}
+        aria-label="Go back to home"
+      >
+        ←
+      </button>
+
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        {/* ---- BACK TO HOME ---- */}
-        <div style={{ marginBottom: 16 }}>
-          <button
-            onClick={() => navigate('/')}
-            style={{
-              background: 'transparent',
-              color: headingColor,
-              border: '1px solid ' + headingColor,
-              padding: '8px 20px',
-              borderRadius: 30,
-              cursor: 'pointer',
-              fontSize: 14,
-              fontWeight: 'bold',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8
-            }}
-          >
-            ← Back to Home
-          </button>
-        </div>
+        {/* ---- BACK BUTTON REMOVED – NOW FLOATING ---- */}
 
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <h1 style={{ color: headingColor, fontSize: 'clamp(24px, 5vw, 32px)', marginBottom: 4 }}>🆓 Free Mode</h1>
