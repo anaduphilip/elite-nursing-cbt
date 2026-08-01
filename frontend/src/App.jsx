@@ -62,11 +62,18 @@ const getCardBgHelper = (darkMode) => darkMode ? '#2d2d3d' : 'white';
 
 // ===== HELPER: Update axios auth header safely =====
 const setAuthHeader = (token) => {
-  if (token) {
+  // Reject invalid token values
+  if (token && token !== 'undefined' && token !== 'null') {
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   } else {
     delete axios.defaults.headers.common['Authorization'];
   }
+};
+
+// ===== HELPER: Sanitize token =====
+const sanitizeToken = (token) => {
+  if (!token || token === 'undefined' || token === 'null') return null;
+  return token;
 };
 
 // Main App Content
@@ -158,7 +165,22 @@ const AppContent = () => {
 function App() {
   const [auth, setAuth] = useState(() => {
     const saved = localStorage.getItem('auth');
-    return saved ? JSON.parse(saved) : { token: null, user: null };
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Sanitize token on load
+        if (parsed.token && parsed.token !== 'undefined' && parsed.token !== 'null') {
+          return { token: parsed.token, user: parsed.user };
+        }
+        // If token is invalid, clear it
+        localStorage.removeItem('auth');
+        return { token: null, user: null };
+      } catch (e) {
+        localStorage.removeItem('auth');
+        return { token: null, user: null };
+      }
+    }
+    return { token: null, user: null };
   });
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -176,16 +198,20 @@ function App() {
   const cardBg = getCardBgHelper(darkMode);
 
   const login = (token, user) => {
-    setAuth({ token, user });
-    localStorage.setItem('auth', JSON.stringify({ token, user }));
-    // Update axios header
-    setAuthHeader(token);
+    // Sanitize token before storing
+    const cleanToken = sanitizeToken(token);
+    if (!cleanToken) {
+      console.error('Invalid token provided to login:', token);
+      return;
+    }
+    setAuth({ token: cleanToken, user });
+    localStorage.setItem('auth', JSON.stringify({ token: cleanToken, user }));
+    setAuthHeader(cleanToken);
   };
 
   const logout = () => {
     setAuth({ token: null, user: null });
     localStorage.removeItem('auth');
-    // Remove axios header
     setAuthHeader(null);
   };
 
@@ -203,20 +229,15 @@ function App() {
       response => response,
       error => {
         if (error.response?.status === 401) {
-          // Log the URL and error details
           console.log('🔴 401 detected for URL:', error.config.url);
           console.log('🔴 Error details:', error.response?.data);
           console.log('🔴 Request headers:', error.config.headers);
-          
-          // 🔧 TEMPORARY: Do NOT logout or redirect – just log
-          // Return the error so the calling code can handle it
-          return Promise.reject(error);
         }
         return Promise.reject(error);
       }
     );
     return () => axios.interceptors.response.eject(interceptor);
-  }, []); // No dependency on logout so it never triggers logout
+  }, []);
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);

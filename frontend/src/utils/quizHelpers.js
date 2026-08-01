@@ -6,6 +6,12 @@ let globalQuizzesCache = null;
 let globalQuizzesPromise = null;
 
 export async function getCachedQuizzes(token) {
+  // 🔧 GUARD: Reject invalid token
+  if (!token || token === 'undefined' || token === 'null') {
+    console.warn('⚠️ getCachedQuizzes called with invalid token:', token);
+    return null; // Return null so components can handle it
+  }
+
   if (globalQuizzesCache) return globalQuizzesCache;
   if (globalQuizzesPromise) return await globalQuizzesPromise;
   
@@ -31,7 +37,6 @@ export async function getCachedCategories() {
   
   globalCategoriesPromise = (async () => {
     const res = await axios.get('/api/categories');
-    // Sort categories by the 'order' field from MongoDB (ascending)
     const categories = (res.data.categories || [])
       .sort((a, b) => (a.order || 0) - (b.order || 0));
     globalCategoriesCache = categories;
@@ -44,18 +49,21 @@ export async function getCachedCategories() {
 
 export const hasCachedCategories = () => globalCategoriesCache !== null;
 
-// ---------- Pre-Council Exam Cache (NEW) ----------
+// ---------- Pre-Council Exam Cache ----------
 let globalPreCouncilExamsCache = null;
 let globalPreCouncilExamsPromise = null;
 
 export async function getCachedPreCouncilExams(token) {
+  // 🔧 GUARD: Reject invalid token
+  if (!token || token === 'undefined' || token === 'null') {
+    console.warn('⚠️ getCachedPreCouncilExams called with invalid token:', token);
+    return null;
+  }
+
   if (globalPreCouncilExamsCache) return globalPreCouncilExamsCache;
   if (globalPreCouncilExamsPromise) return await globalPreCouncilExamsPromise;
   
   globalPreCouncilExamsPromise = (async () => {
-    // Fetch all pre-council exams (admin might need to expose a public endpoint)
-    // We'll use the same endpoint as the exam list, but with ?all=true to get all exams
-    // If that endpoint doesn't exist, you can adjust to your actual route.
     const res = await axios.get('/api/pre-council/exams', {
       params: { all: true },
       headers: { Authorization: `Bearer ${token}` }
@@ -71,12 +79,12 @@ export async function getCachedPreCouncilExams(token) {
 
 export async function getCachedPreCouncilExam(examId, token) {
   const exams = await getCachedPreCouncilExams(token);
-  return exams.find(e => e._id === examId);
+  return exams ? exams.find(e => e._id === examId) : null;
 }
 
 export const hasCachedPreCouncilExams = () => globalPreCouncilExamsCache !== null;
 
-// ---------- Exam History Helpers (unchanged) ----------
+// ---------- Exam History Helpers ----------
 export const saveExamAttempt = (quizId, title, category, topic, answers, score, total, percentage, isPremium = false) => {
   const attempts = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
   attempts[quizId] = {
