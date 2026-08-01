@@ -1,9 +1,8 @@
 // src/routes/index.js
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const { Config, User } = require('../models');
 const { authenticate } = require('../middleware');
-const { JWT_SECRET, checkAndUpdatePremium } = require('../utils');
+const { checkAndUpdatePremium } = require('../utils');
 
 const authRoutes = require('./auth');
 const quizRoutes = require('./quiz');
@@ -42,6 +41,7 @@ const studyPlanRoutes = require('./study-plan');
 
 const router = express.Router();
 
+// ============ FORCE REFRESH (public) ============
 router.get('/force-refresh', async (req, res) => {
   try {
     const config = await Config.findOne();
@@ -56,6 +56,7 @@ router.get('/force-refresh', async (req, res) => {
   }
 });
 
+// ============ AI EXPLANATION REMAINING (uses authenticate) ============
 router.get('/explanation-remaining', authenticate, async (req, res) => {
   if (req.user.isPremium) {
     return res.json({ remaining: Infinity, isPremium: true });
@@ -73,23 +74,16 @@ router.get('/explanation-remaining', authenticate, async (req, res) => {
   res.json({ remaining, isPremium: false });
 });
 
-router.get('/verify-session', async (req, res) => {
+// ============ VERIFY SESSION – FIXED ============
+router.get('/verify-session', authenticate, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token' });
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.userId);
-    if (!user) return res.status(401).json({ error: 'User not found' });
-    if (user.currentSessionToken !== decoded.sessionToken) {
-      return res.status(401).json({ error: 'Session expired. You have been logged out from another device.' });
-    }
-    const premiumStatus = await checkAndUpdatePremium(user);
+    const premiumStatus = await checkAndUpdatePremium(req.user);
     res.json({
       valid: true,
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
+        id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
         isPremium: premiumStatus.isPremium
       }
     });
@@ -98,6 +92,7 @@ router.get('/verify-session', async (req, res) => {
   }
 });
 
+// ============ MOUNT ROUTES ============
 router.use('/', notificationRoutes);
 router.use('/', authRoutes);
 router.use('/quizzes', quizRoutes);
