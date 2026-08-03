@@ -9,13 +9,13 @@ const otpStore = require('../utils/otpStore');
 
 const router = express.Router();
 
-// ---- Get user profile with full details (EXTENDED) ----
+// ---- Get user profile with full details ----
 router.get('/:userId', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId).select('-password');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // ---- Stats (unchanged) ----
+    // ---- Stats ----
     const totalExams = user.quizResults.length;
     let passed = 0, failed = 0;
     for (const r of user.quizResults) {
@@ -26,7 +26,7 @@ router.get('/:userId', isAdmin, async (req, res) => {
     const badgesCount = user.badges?.length || 0;
     const streak = user.streak || 0;
 
-    // ---- Transactions (ADDED) ----
+    // ---- Transactions ----
     const transactions = user.transactions
       .filter(t => t.status === 'completed')
       .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -40,7 +40,7 @@ router.get('/:userId', isAdmin, async (req, res) => {
         discountAmount: t.discountAmount || 0
       }));
 
-    // ---- Quiz History with titles (ADDED) ----
+    // ---- Quiz History with titles ----
     const quizHistory = await Promise.all(
       user.quizResults
         .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -62,7 +62,7 @@ router.get('/:userId', isAdmin, async (req, res) => {
         })
     );
 
-    // ---- Response (EXTENDED) ----
+    // ---- Response ----
     res.json({
       success: true,
       user: {
@@ -96,7 +96,7 @@ router.get('/:userId', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Send private message (UNCHANGED) ----
+// ---- Send private message ----
 router.post('/:userId/message', isAdmin, async (req, res) => {
   try {
     const { message, buttonText, buttonLink } = req.body;
@@ -119,7 +119,7 @@ router.post('/:userId/message', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Force logout (UNCHANGED) ----
+// ---- Force logout ----
 router.post('/:userId/force-logout', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -133,7 +133,7 @@ router.post('/:userId/force-logout', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Reset streak (UNCHANGED) ----
+// ---- Reset streak ----
 router.post('/:userId/reset-streak', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -147,7 +147,7 @@ router.post('/:userId/reset-streak', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Toggle ban (UNCHANGED) ----
+// ---- Toggle ban ----
 router.post('/:userId/toggle-ban', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -161,7 +161,7 @@ router.post('/:userId/toggle-ban', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Toggle soft delete (UNCHANGED) ----
+// ---- Toggle soft delete ----
 router.post('/:userId/toggle-delete', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -175,7 +175,7 @@ router.post('/:userId/toggle-delete', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Resend verification email (FIXED OTP STORE) ----
+// ---- Resend verification email ----
 router.post('/:userId/resend-verification', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -184,7 +184,7 @@ router.post('/:userId/resend-verification', isAdmin, async (req, res) => {
       return res.json({ success: false, message: 'User is already verified' });
     }
     const otp = generateOTP();
-    // Use the shared OTP store (fixed)
+    // Use the shared OTP store
     otpStore.set(`verify_${user.email}`, { otp, expires: Date.now() + 10 * 60000, name: user.name });
     await sendEmail(user.email, user.name || 'User', otp, 'verification');
     console.log(`📧 Admin resent verification to: ${user.email}`);
@@ -194,7 +194,7 @@ router.post('/:userId/resend-verification', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Send direct email (UNCHANGED) ----
+// ---- Send direct email ----
 router.post('/:userId/send-email', isAdmin, async (req, res) => {
   try {
     const { subject, body } = req.body;
