@@ -2,17 +2,20 @@
 const express = require('express');
 const { User, Quiz } = require('../models');
 const { isAdmin } = require('../middleware');
-const { sendEmail, generateOTP, JWT_SECRET } = require('../utils');
+const { sendEmail, generateOTP } = require('../utils');
 const jwt = require('jsonwebtoken');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
+const otpStore = require('../utils/otpStore');
 
 const router = express.Router();
 
-// Get user profile with full details
+// ---- Get user profile with full details (EXTENDED) ----
 router.get('/:userId', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId).select('-password');
     if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // ---- Stats (unchanged) ----
     const totalExams = user.quizResults.length;
     let passed = 0, failed = 0;
     for (const r of user.quizResults) {
@@ -22,6 +25,44 @@ router.get('/:userId', isAdmin, async (req, res) => {
     const passRate = totalExams > 0 ? Math.round((passed / totalExams) * 100) : 0;
     const badgesCount = user.badges?.length || 0;
     const streak = user.streak || 0;
+
+    // ---- Transactions (ADDED) ----
+    const transactions = user.transactions
+      .filter(t => t.status === 'completed')
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 20)
+      .map(t => ({
+        date: t.date,
+        planType: t.planType || 'premium',
+        amount: t.amount,
+        status: t.status,
+        couponCode: t.couponCode || null,
+        discountAmount: t.discountAmount || 0
+      }));
+
+    // ---- Quiz History with titles (ADDED) ----
+    const quizHistory = await Promise.all(
+      user.quizResults
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 30)
+        .map(async (result) => {
+          let quizTitle = 'Unknown Quiz';
+          try {
+            const quiz = await Quiz.findById(result.quizId);
+            if (quiz) quizTitle = quiz.title;
+          } catch (e) {}
+          return {
+            date: result.date,
+            quizId: result.quizId,
+            quizTitle: quizTitle,
+            score: result.score,
+            total: result.total,
+            percentage: result.percentage
+          };
+        })
+    );
+
+    // ---- Response (EXTENDED) ----
     res.json({
       success: true,
       user: {
@@ -37,14 +78,25 @@ router.get('/:userId', isAdmin, async (req, res) => {
         createdAt: user.createdAt,
         marketingConsent: user.marketingConsent
       },
-      stats: { totalExams, passed, failed, passRate, streak, badgesCount, badges: user.badges?.map(b => b.badgeId) || [] }
+      stats: {
+        totalExams,
+        passed,
+        failed,
+        passRate,
+        streak,
+        badgesCount,
+        badges: user.badges?.map(b => b.badgeId) || []
+      },
+      transactions,
+      quizHistory
     });
   } catch (error) {
+    console.error('Admin user profile error:', error);
     res.status(500).json({ error: 'Failed to fetch user profile' });
   }
 });
 
-// Send private message
+// ---- Send private message (UNCHANGED) ----
 router.post('/:userId/message', isAdmin, async (req, res) => {
   try {
     const { message, buttonText, buttonLink } = req.body;
@@ -67,7 +119,7 @@ router.post('/:userId/message', isAdmin, async (req, res) => {
   }
 });
 
-// Force logout user
+// ---- Force logout (UNCHANGED) ----
 router.post('/:userId/force-logout', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -81,7 +133,7 @@ router.post('/:userId/force-logout', isAdmin, async (req, res) => {
   }
 });
 
-// Reset streak
+// ---- Reset streak (UNCHANGED) ----
 router.post('/:userId/reset-streak', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -95,7 +147,7 @@ router.post('/:userId/reset-streak', isAdmin, async (req, res) => {
   }
 });
 
-// Toggle ban
+// ---- Toggle ban (UNCHANGED) ----
 router.post('/:userId/toggle-ban', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -109,7 +161,7 @@ router.post('/:userId/toggle-ban', isAdmin, async (req, res) => {
   }
 });
 
-// Toggle soft delete
+// ---- Toggle soft delete (UNCHANGED) ----
 router.post('/:userId/toggle-delete', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -123,7 +175,7 @@ router.post('/:userId/toggle-delete', isAdmin, async (req, res) => {
   }
 });
 
-// Resend verification email
+// ---- Resend verification email (FIXED OTP STORE) ----
 router.post('/:userId/resend-verification', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -132,11 +184,8 @@ router.post('/:userId/resend-verification', isAdmin, async (req, res) => {
       return res.json({ success: false, message: 'User is already verified' });
     }
     const otp = generateOTP();
-    const otpStore = require('../server').otpStore; // We'll export otpStore from server or handle differently.
-    // For safety, we'll just send a new OTP using existing function.
-    // We'll need to access otpStore from utils or pass it. We'll use a global in the main file.
-    // Since we're in a module, we can require the store from server later.
-    // For now, we'll just use a simple fallback.
+    // Use the shared OTP store (fixed)
+    otpStore.set(`verify_${user.email}`, { otp, expires: Date.now() + 10 * 60000, name: user.name });
     await sendEmail(user.email, user.name || 'User', otp, 'verification');
     console.log(`📧 Admin resent verification to: ${user.email}`);
     res.json({ success: true, message: 'Verification email sent' });
@@ -145,7 +194,7 @@ router.post('/:userId/resend-verification', isAdmin, async (req, res) => {
   }
 });
 
-// Send direct email
+// ---- Send direct email (UNCHANGED) ----
 router.post('/:userId/send-email', isAdmin, async (req, res) => {
   try {
     const { subject, body } = req.body;
