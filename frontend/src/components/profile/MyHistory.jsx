@@ -16,17 +16,17 @@ export const MyHistory = () => {
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
 
-  // ===== Static fallback mapping (preserves old classification) =====
+  // ===== Static fallback mapping (includes 'general' for old attempts) =====
   const [categoryNames, setCategoryNames] = useState({
     'general-nursing': 'General Nursing',
+    'general': 'General Nursing',           // ← legacy slug
     'midwifery': 'Midwifery',
     'public-health': 'Public Health',
     'pediatric-nursing': 'Pediatric Nursing',
     'dental-nursing': 'Dental Nursing',
-    'general': 'general',
   });
 
-  // ===== Fetch categories dynamically (so new PreCouncil categories appear) =====
+  // ===== Fetch categories on mount (dynamic) =====
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -36,11 +36,11 @@ export const MyHistory = () => {
           categories.forEach(cat => {
             dynamicMap[cat.slug] = cat.name;
           });
-          // Merge with static fallback (so old entries stay unchanged)
+          // Merge with static fallback (so 'general' remains if not in DB)
           setCategoryNames(prev => ({ ...prev, ...dynamicMap }));
         }
       } catch (error) {
-        console.error('Failed to fetch categories:', error);
+        console.error('Failed to fetch categories for history:', error);
       }
     };
     fetchCategories();
@@ -50,6 +50,9 @@ export const MyHistory = () => {
     const all = getAllAttempts();
     const list = Object.entries(all).map(([quizId, data]) => ({
       quizId,
+      title: data.title || 'Exam', 
+      category: data.category || 'general',
+      topic: data.topic || 'General',
       ...data
     }));
     list.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
@@ -135,7 +138,6 @@ export const MyHistory = () => {
                 <h3 style={{ color: headingColor, fontSize: 18, marginBottom: 12 }}>{topic}</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                   {exams.map((exam) => {
-                    // ===== Detect PreCouncil =====
                     const isPreCouncil = exam.isPreCouncil === true;
                     const isPremiumExam = exam.isPremium === true;
                     const isLocked = isPremiumExam && !isUserPremium;
@@ -164,7 +166,6 @@ export const MyHistory = () => {
                         <div style={{ fontSize: 32, marginBottom: 8 }}>{isLocked ? '🔒' : '📝'}</div>
                         <h4 style={{ color: headingColor, marginBottom: 4 }}>{exam.title}</h4>
 
-                        {/* ===== PreCouncil Badge ===== */}
                         {isPreCouncil && (
                           <span style={{ display: 'inline-block', background: '#ff9800', color: 'white', fontSize: 11, fontWeight: 'bold', padding: '2px 10px', borderRadius: 12, marginBottom: 6 }}>
                             Pre-Council
