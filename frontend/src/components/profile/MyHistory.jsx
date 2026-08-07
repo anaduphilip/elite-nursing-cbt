@@ -1,6 +1,7 @@
 // src/components/profile/MyHistory.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getAllAttempts, clearAllAttempts } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
@@ -10,11 +11,31 @@ export const MyHistory = () => {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const { darkMode, user } = useContext(AuthContext);
+  const [categoryMap, setCategoryMap] = useState({});
+  const { darkMode, user, token } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
+
+  // ===== Fetch categories from backend =====
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await axios.get('/api/categories');
+        if (res.data.success && res.data.categories) {
+          const map = {};
+          res.data.categories.forEach(cat => {
+            map[cat.slug] = cat.name;
+          });
+          setCategoryMap(map);
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+    if (token) fetchCategories();
+  }, [token]);
 
   const loadAttempts = () => {
     const all = getAllAttempts();
@@ -69,6 +90,7 @@ export const MyHistory = () => {
     );
   }
 
+  // ===== Group attempts by category and topic =====
   const grouped = {};
   attempts.forEach(attempt => {
     const cat = attempt.category || 'general-nursing';
@@ -78,14 +100,18 @@ export const MyHistory = () => {
     grouped[cat][topic].push(attempt);
   });
 
-  // ===== NEW: Added 'pre-council' mapping =====
-  const categoryNames = {
-    'general-nursing': 'General Nursing',
-    'midwifery': 'Midwifery',
-    'public-health': 'Public Health',
-    'pediatric-nursing': 'Pediatric Nursing',
-    'dental-nursing': 'Dental Nursing',
-    'pre-council': 'Pre-Council Exams' 
+  // ===== Dynamic category name resolver =====
+  const getCategoryDisplayName = (slug) => {
+    if (categoryMap[slug]) return categoryMap[slug];
+    const fallback = {
+      'general-nursing': 'General Nursing',
+      'midwifery': 'Midwifery',
+      'public-health': 'Public Health',
+      'pediatric-nursing': 'Pediatric Nursing',
+      'dental-nursing': 'Dental Nursing',
+      'pre-council': 'Pre-Council Exams'
+    };
+    return fallback[slug] || slug;
   };
 
   return (
@@ -108,14 +134,13 @@ export const MyHistory = () => {
         {Object.entries(grouped).map(([category, topics]) => (
           <div key={category} style={{ marginBottom: 40 }}>
             <h2 style={{ color: '#ff9800', borderLeft: `4px solid #ff9800`, paddingLeft: 12, marginBottom: 16 }}>
-              {categoryNames[category] || category}
+              {getCategoryDisplayName(category)}
             </h2>
             {Object.entries(topics).map(([topic, exams]) => (
               <div key={topic} style={{ marginBottom: 24 }}>
                 <h3 style={{ color: headingColor, fontSize: 18, marginBottom: 12 }}>{topic}</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                   {exams.map((exam) => {
-                    // ===== NEW: Determine if this is a PreCouncil exam =====
                     const isPreCouncil = exam.isPreCouncil === true;
                     const isPremiumExam = exam.isPremium === true;
                     const isLocked = isPremiumExam && !isUserPremium;
@@ -144,7 +169,6 @@ export const MyHistory = () => {
                         <div style={{ fontSize: 32, marginBottom: 8 }}>{isLocked ? '🔒' : '📝'}</div>
                         <h4 style={{ color: headingColor, marginBottom: 4 }}>{exam.title}</h4>
 
-                        {/* ===== NEW: PreCouncil badge ===== */}
                         {isPreCouncil && (
                           <span style={{ display: 'inline-block', background: '#ff9800', color: 'white', fontSize: 11, fontWeight: 'bold', padding: '2px 10px', borderRadius: 12, marginBottom: 6 }}>
                             Pre-Council

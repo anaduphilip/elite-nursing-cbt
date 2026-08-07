@@ -39,7 +39,6 @@ router.get('/papers/:paperId/exams', authenticate, async (req, res) => {
 // ===== Get all exams (for caching) with ?all=true =====
 router.get('/exams', authenticate, async (req, res) => {
   try {
-    // If ?all=true is present, return ALL active exams (for caching)
     if (req.query.all === 'true') {
       const exams = await PreCouncilExam.find({ isActive: true })
         .populate({
@@ -50,8 +49,6 @@ router.get('/exams', authenticate, async (req, res) => {
         .lean();
       return res.json({ success: true, exams });
     }
-    // If no all flag, optionally you could return exams for a specific paper
-    // but we can just return a 400 or an empty array.
     return res.status(400).json({ error: 'Missing paperId or all flag' });
   } catch (error) {
     console.error('Failed to fetch exams:', error);
@@ -73,7 +70,13 @@ router.get('/exams/:examId', authenticate, async (req, res) => {
 // ===== UPDATED: Submit Pre Council exam result =====
 router.post('/exams/:examId/submit', authenticate, async (req, res) => {
   try {
-    const exam = await PreCouncilExam.findById(req.params.examId);
+    // Populate paper and its category
+    const exam = await PreCouncilExam.findById(req.params.examId)
+      .populate({
+        path: 'paperId',
+        populate: { path: 'categoryId' }
+      });
+
     if (!exam) return res.status(404).json({ error: 'Exam not found' });
 
     const { answers } = req.body;
@@ -87,16 +90,19 @@ router.post('/exams/:examId/submit', authenticate, async (req, res) => {
 
     const user = await User.findById(req.user._id);
     if (user) {
-      // Determine section number and premium flag
       const sectionNumber = exam.order || 1;
       const isPremiumExam = sectionNumber > 1;
 
-      // ===== Store full attempt (answers, questions, meta) =====
+      // Extract paper name and category slug
+      const paperName = exam.paperId?.name || 'Pre Council';
+      const categorySlug = exam.paperId?.categoryId?.slug || 'pre-council';
+
+      // Store full attempt with correct category slug and paper name
       user.quizResults.push({
         quizId: `precouncil_${exam._id}`,
         title: exam.title,
-        category: 'pre-council',
-        topic: exam.paperId?.name || 'Pre Council',
+        category: categorySlug,          
+        topic: paperName,                
         score: score,
         total: total,
         percentage: percentage,
@@ -105,11 +111,13 @@ router.post('/exams/:examId/submit', authenticate, async (req, res) => {
         questions: exam.questions,
         isPremium: isPremiumExam,
         isPreCouncil: true,
-        sectionNumber: sectionNumber
+        sectionNumber: sectionNumber,
+        paperName: paperName,
+        categoryName: exam.paperId?.categoryId?.name
       });
 
       await user.save();
-      console.log(`✅ PreCouncil result saved for ${user.email}: ${score}/${total}`);
+      console.log(`✅ PreCouncil result saved for ${user.email}: ${score}/${total} (${categorySlug} → ${paperName})`);
     }
 
     try {
