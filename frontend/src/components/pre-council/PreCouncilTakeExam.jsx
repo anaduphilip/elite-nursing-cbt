@@ -101,8 +101,8 @@ export const PreCouncilTakeExam = () => {
     handleSubmit();
   };
 
-  // ===== UPDATED: handleSubmit – only one entry, with full metadata =====
-  const handleSubmit = () => {
+  // ===== UPDATED: handleSubmit – save locally AND send to backend =====
+  const handleSubmit = async () => {
     let score = 0;
     questions.forEach((q, idx) => {
       if (answers[idx] !== undefined && answers[idx] === q.correctAnswer) {
@@ -122,7 +122,7 @@ export const PreCouncilTakeExam = () => {
       const categorySlug = exam.paperId?.categoryId?.slug || 'pre-council';
       const categoryName = exam.paperId?.categoryId?.name || 'Pre-Council';
 
-      // ===== Save attempt with full metadata – consistent key =====
+
       saveExamAttempt(
         `precouncil_${exam._id}`,
         exam.title,
@@ -135,8 +135,20 @@ export const PreCouncilTakeExam = () => {
         isPremiumExam,
         true,
         sectionNumber,
-        categoryName
+        categoryName,
+        questions
       );
+
+      try {
+        await axios.post(
+          `/api/pre-council/exams/${examId}/submit`,
+          { answers },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log('✅ PreCouncil exam result saved to backend');
+      } catch (error) {
+        console.error('❌ Failed to save PreCouncil exam to backend:', error);
+      }
     }
   };
 
@@ -196,7 +208,7 @@ export const PreCouncilTakeExam = () => {
   const totalQuestions = questions.length;
   const allAnswered = answeredCount === totalQuestions;
 
-  // ===== Results view (unchanged) =====
+  // ===== Results view =====
   if (submitted && !showReview) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
@@ -221,7 +233,7 @@ export const PreCouncilTakeExam = () => {
     );
   }
 
-  // ===== Review view with AI explanations (unchanged) =====
+  // ===== Review view with AI explanations =====
   if (submitted && showReview) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
