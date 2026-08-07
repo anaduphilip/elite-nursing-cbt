@@ -122,7 +122,7 @@ export const PremiumExam = () => {
               score: result.score,
               total: result.total,
               percentage: parseFloat(result.percentage),
-              questions: questions
+              questions
             },
             { headers: { Authorization: `Bearer ${token}` } }
           );
@@ -176,9 +176,9 @@ export const PremiumExam = () => {
       parseFloat(percentage),
       true,
       false,
-      null, 
       null,
-      questions 
+      null,
+      questions
     );
 
     localStorage.removeItem(`premium_exam_${examId}_answers`);
