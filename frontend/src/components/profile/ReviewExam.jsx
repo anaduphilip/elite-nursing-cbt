@@ -13,7 +13,9 @@ export const ReviewExam = () => {
   const [attempt, setAttempt] = useState(null);
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { token, darkMode } = useContext(AuthContext);
+  const [isPreCouncil, setIsPreCouncil] = useState(false);
+  const [isPremiumLocked, setIsPremiumLocked] = useState(false);
+  const { token, darkMode, user } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
@@ -22,7 +24,7 @@ export const ReviewExam = () => {
   const [explanation, setExplanation] = useState({});
   const [loadingExplanation, setLoadingExplanation] = useState({});
   const [explanationRemaining, setExplanationRemaining] = useState(null);
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,6 +37,26 @@ export const ReviewExam = () => {
           return;
         }
         setAttempt(saved);
+
+        // ===== NEW: Check if it's a PreCouncil attempt =====
+        if (saved.isPreCouncil) {
+          setIsPreCouncil(true);
+          // PreCouncil: use stored questions and check premium lock
+          if (saved.isPremium) {
+            const isUserPremium = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
+            if (!isUserPremium) {
+              setIsPremiumLocked(true);
+              setLoading(false);
+              return;
+            }
+          }
+          // No backend fetch needed – we'll use saved.questions
+          setQuiz({ questions: saved.questions, title: saved.title });
+          setLoading(false);
+          return;
+        }
+
+        // ---- Regular exam (existing logic) ----
         const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         setQuiz(res.data);
       } catch (error) {
@@ -45,7 +67,7 @@ export const ReviewExam = () => {
       }
     };
     if (id && token) fetchData();
-  }, [id, token]);
+  }, [id, token, user]);
 
   // ===== Fetch remaining explanations =====
   useEffect(() => {
@@ -55,7 +77,7 @@ export const ReviewExam = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         setExplanationRemaining(res.data.remaining);
-        setIsPremium(res.data.isPremium);
+        setIsPremiumUser(res.data.isPremium);
       } catch (error) {
         console.error('Failed to fetch explanation limit:', error);
       }
@@ -65,7 +87,7 @@ export const ReviewExam = () => {
 
   // ===== Get AI explanation for a question =====
   const getExplanation = async (idx) => {
-    if (!isPremium && explanationRemaining <= 0) {
+    if (!isPremiumUser && explanationRemaining <= 0) {
       alert('You have used all your free explanations for today (10/day). Upgrade to Premium for unlimited!');
       return;
     }
@@ -105,6 +127,28 @@ export const ReviewExam = () => {
   };
 
   if (loading) return <LoadingWithBar message="Loading review..." />;
+
+  // ===== NEW: Premium lock screen for PreCouncil premium exams =====
+  if (isPremiumLocked) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
+          <h2 style={{ color: headingColor }}>Premium Required</h2>
+          <p>This Pre-Council exam (Section 2+) requires a premium subscription to review.</p>
+          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+            <Link to="/history" style={{ flex: 1 }}>
+              <button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Back to History</button>
+            </Link>
+            <Link to="/get-premium" style={{ flex: 1 }}>
+              <button style={{ width: '100%', background: '#ff9800', color: 'white', padding: '12px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Upgrade Now</button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!attempt || !quiz) return <div>Review data not found</div>;
 
   const questions = quiz.questions;
@@ -118,7 +162,7 @@ export const ReviewExam = () => {
         </div>
 
         {/* ===== Remaining counter ===== */}
-        {!isPremium && explanationRemaining !== null && (
+        {!isPremiumUser && explanationRemaining !== null && (
           <div style={{
             textAlign: 'center',
             padding: 8,
@@ -137,6 +181,12 @@ export const ReviewExam = () => {
           <h2 style={{ color: headingColor }}>{attempt.title}</h2>
           <p>Your Score: {attempt.score}/{attempt.total} ({attempt.percentage}%)</p>
           <p>Completed: {new Date(attempt.completedAt).toLocaleString()}</p>
+          {/* ===== NEW: PreCouncil badge ===== */}
+          {attempt.isPreCouncil && (
+            <span style={{ display: 'inline-block', background: '#ff9800', color: 'white', fontSize: 12, fontWeight: 'bold', padding: '4px 12px', borderRadius: 12, marginTop: 6 }}>
+              Pre-Council Exam {attempt.sectionNumber || ''}
+            </span>
+          )}
         </div>
 
         {questions.map((q, idx) => {
