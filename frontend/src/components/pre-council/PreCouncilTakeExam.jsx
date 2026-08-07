@@ -75,6 +75,17 @@ export const PreCouncilTakeExam = () => {
     if (examId && token) fetchExam();
   }, [examId, token, navigate]);
 
+  // ===== Check if free exam (order === 1) is already taken =====
+  useEffect(() => {
+    if (!loading && exam && !isPremiumUser && exam.order === 1) {
+      const takenKey = `precouncil_exam_${examId}_taken`;
+      if (localStorage.getItem(takenKey) === 'true') {
+        alert('You can only take this free exam once. Upgrade to Premium to retake.');
+        navigate('/pre-council');
+      }
+    }
+  }, [loading, exam, isPremiumUser, examId, navigate]);
+
   // ===== Fetch remaining AI explanations =====
   useEffect(() => {
     const fetchRemaining = async () => {
@@ -101,7 +112,7 @@ export const PreCouncilTakeExam = () => {
     handleSubmit();
   };
 
-  // ===== UPDATED: handleSubmit – save locally AND send to backend =====
+  // ===== handleSubmit – save locally, send to backend, set taken flag =====
   const handleSubmit = async () => {
     let score = 0;
     questions.forEach((q, idx) => {
@@ -122,7 +133,7 @@ export const PreCouncilTakeExam = () => {
       const categorySlug = exam.paperId?.categoryId?.slug || 'pre-council';
       const categoryName = exam.paperId?.categoryId?.name || 'Pre-Council';
 
-
+      // Save locally
       saveExamAttempt(
         `precouncil_${exam._id}`,
         exam.title,
@@ -139,6 +150,7 @@ export const PreCouncilTakeExam = () => {
         questions
       );
 
+      // Send to backend
       try {
         await axios.post(
           `/api/pre-council/exams/${examId}/submit`,
@@ -148,6 +160,11 @@ export const PreCouncilTakeExam = () => {
         console.log('✅ PreCouncil exam result saved to backend');
       } catch (error) {
         console.error('❌ Failed to save PreCouncil exam to backend:', error);
+      }
+
+      // ===== Set taken flag for free exam (exam 1) =====
+      if (exam.order === 1) {
+        localStorage.setItem(`precouncil_exam_${examId}_taken`, 'true');
       }
     }
   };
