@@ -31,12 +31,21 @@ const UserSchema = new mongoose.Schema({
     sectionNumber: Number,
     date: { type: Date, default: Date.now }
   }],
+  // ===== EXTENDED quizResults =====
   quizResults: [{
     quizId: String,
+    title: String,              
+    category: String,            
+    topic: String,                
     score: Number,
     total: Number,
     percentage: Number,
-    date: { type: Date, default: Date.now }
+    date: { type: Date, default: Date.now },
+    answers: Object,           
+    questions: Array,             
+    isPremium: { type: Boolean, default: false },   
+    isPreCouncil: { type: Boolean, default: false }, 
+    sectionNumber: Number         
   }],
   deviceTokens: [{ type: String }],
   marketingConsent: { type: Boolean, default: false },

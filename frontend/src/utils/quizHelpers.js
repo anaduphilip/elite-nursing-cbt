@@ -104,3 +104,48 @@ export const saveExamAttempt = (quizId, title, category, topic, answers, score, 
 export const getAllAttempts = () => JSON.parse(localStorage.getItem('exam_attempts') || '{}');
 export const getExamAttempt = (quizId) => getAllAttempts()[quizId] || null;
 export const clearAllAttempts = () => localStorage.removeItem('exam_attempts');
+
+// ===== Sync history from server =====
+export const syncHistoryFromServer = async (token) => {
+  try {
+    const res = await axios.get('/api/user/history', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) {
+      const serverHistory = res.data.history;
+      // Convert server history to localStorage format
+      const localData = {};
+      serverHistory.forEach(entry => {
+        // Use quizId as key (fallback to a generated one if needed)
+        const key = entry.quizId || `history_${entry._id}`;
+        localData[key] = {
+          quizId: key,
+          title: entry.title || entry.quizTitle || 'Exam',
+          category: entry.category || 'general',
+          topic: entry.topic || 'General',
+          score: entry.score,
+          total: entry.total,
+          percentage: entry.percentage,
+          answers: entry.answers || {},
+          questions: entry.questions || [],
+          completedAt: entry.date || entry.completedAt || new Date().toISOString(),
+          isPremium: entry.isPremium || false,
+          isPreCouncil: entry.isPreCouncil || false,
+          sectionNumber: entry.sectionNumber || null
+        };
+      });
+      // Merge with existing local data (server wins)
+      const existing = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
+      const merged = { ...existing, ...localData };
+      localStorage.setItem('exam_attempts', JSON.stringify(merged));
+      return merged;
+    }
+  } catch (error) {
+    console.error('Failed to sync history:', error);
+  }
+};
+
+// ===== Clear local history (on logout) =====
+export const clearLocalHistory = () => {
+  localStorage.removeItem('exam_attempts');
+};

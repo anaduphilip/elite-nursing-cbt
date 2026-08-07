@@ -46,4 +46,15 @@ router.post('/check-exam-access', authenticate, async (req, res) => {
   res.json({ hasAccess: hasPurchased });
 });
 
+// ===== Get user's full exam history (with answers & questions) =====
+router.get('/history', authenticate, async (req, res) => {
+  try {
+    // req.user already contains quizResults (full array)
+    res.json({ success: true, history: req.user.quizResults });
+  } catch (error) {
+    console.error('Fetch history error:', error);
+    res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
 module.exports = router;

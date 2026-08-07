@@ -11,6 +11,7 @@ import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import { AuthContext } from './context/AuthContext';
 import { AlertProvider } from './context/AlertContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from './utils/theme';
+import { syncHistoryFromServer, clearLocalHistory } from './utils/quizHelpers';
 
 // Import all components
 import { Login } from './components/auth/Login';
@@ -195,16 +196,26 @@ function App() {
   const textColor = getTextColorHelper(darkMode);
   const cardBg = getCardBgHelper(darkMode);
 
-  const login = (token, user) => {
+  // ===== UPDATED login: added async + syncHistoryFromServer =====
+  const login = async (token, user) => {
     setAuth({ token, user });
     localStorage.setItem('auth', JSON.stringify({ token, user }));
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    // ===== Sync history from server =====
+    try {
+      await syncHistoryFromServer(token);
+    } catch (e) {
+      console.warn('History sync failed on login:', e);
+    }
   };
 
+  // ===== UPDATED logout: added clearLocalHistory =====
   const logout = () => {
     setAuth({ token: null, user: null });
     localStorage.removeItem('auth');
     delete axios.defaults.headers.common['Authorization'];
+    // ===== Clear local history =====
+    clearLocalHistory();
   };
 
   const openLogoutModal = () => setShowLogoutModal(true);
@@ -223,7 +234,7 @@ function App() {
           
           if (message.includes('logged out from another device')) {
             alert('⚠️ ' + message);
-            logout(); // This calls the backend to clear the session token
+            logout();
             window.location.href = '/login';
           } else {
 

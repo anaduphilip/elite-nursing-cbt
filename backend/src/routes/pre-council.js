@@ -70,11 +70,12 @@ router.get('/exams/:examId', authenticate, async (req, res) => {
   }
 });
 
-// Submit Pre Council exam result (no going back)
+// ===== UPDATED: Submit Pre Council exam result =====
 router.post('/exams/:examId/submit', authenticate, async (req, res) => {
   try {
     const exam = await PreCouncilExam.findById(req.params.examId);
     if (!exam) return res.status(404).json({ error: 'Exam not found' });
+
     const { answers } = req.body;
     let score = 0, total = 0;
     exam.questions.forEach((q, i) => {
@@ -83,20 +84,38 @@ router.post('/exams/:examId/submit', authenticate, async (req, res) => {
     });
     const percentage = (score / total) * 100;
     const passed = percentage >= 70;
+
     const user = await User.findById(req.user._id);
     if (user) {
+      // Determine section number and premium flag
+      const sectionNumber = exam.order || 1;
+      const isPremiumExam = sectionNumber > 1;
+
+      // ===== Store full attempt (answers, questions, meta) =====
       user.quizResults.push({
         quizId: `precouncil_${exam._id}`,
-        score,
-        total,
-        percentage,
-        date: new Date()
+        title: exam.title,
+        category: 'pre-council',
+        topic: exam.paperId?.name || 'Pre Council',
+        score: score,
+        total: total,
+        percentage: percentage,
+        date: new Date(),
+        answers: answers,
+        questions: exam.questions,
+        isPremium: isPremiumExam,
+        isPreCouncil: true,
+        sectionNumber: sectionNumber
       });
+
       await user.save();
+      console.log(`✅ PreCouncil result saved for ${user.email}: ${score}/${total}`);
     }
+
     try {
       await checkAndAwardBadges(req.user._id);
     } catch (e) { console.error('Gamification error:', e); }
+
     res.json({ score, total, percentage, passed });
   } catch (error) {
     console.error('Pre Council submit error:', error);

@@ -27,7 +27,7 @@ router.get('/:quizId', authenticate, async (req, res) => {
   }
 });
 
-// Submit quiz
+// Submit quiz (regular)
 router.post('/:quizId/submit', authenticate, async (req, res) => {
   try {
     console.log('📝 Quiz submission started for user:', req.user?._id);
@@ -52,12 +52,15 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
     console.log('🔍 User found:', user?.email);
 
     if (user) {
+      // ===== Store full attempt with answers & questions =====
       const resultEntry = {
         quizId: req.params.quizId,
         score: score,
         total: total,
         percentage: percentage,
-        date: new Date()
+        date: new Date(),
+        answers: answers,  
+        questions: quiz.questions
       };
       user.quizResults.push(resultEntry);
       await user.save();
@@ -99,27 +102,37 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
 // Premium exam submission (for history)
 router.post('/premium-exam/submit', authenticate, async (req, res) => {
   try {
-    const { category, topic, examId, answers, score, total, percentage } = req.body;
+    // ===== Accept 'questions' from frontend =====
+    const { category, topic, examId, answers, score, total, percentage, questions } = req.body;
+
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+
     const quizId = `premium-${category}-${topic}-${examId}`;
+
+    // ===== Store full attempt =====
     user.quizResults.push({
       quizId: quizId,
       score: score,
       total: total,
       percentage: percentage,
-      date: new Date()
+      date: new Date(),
+      answers: answers,
+      questions: questions
     });
+
     await user.save();
     console.log(`✅ Premium exam result saved for ${user.email}: ${score}/${total}`);
+
     try {
       const gamificationResult = await checkAndAwardBadges(user._id);
       console.log(`🏆 GAMIFICATION (premium exam): ${gamificationResult.awarded?.length || 0} badges awarded`);
     } catch (gamificationError) {
       console.error('Gamification check error:', gamificationError);
     }
+
     res.json({ success: true, message: 'Premium exam result saved' });
   } catch (error) {
     console.error('❌ Premium exam submission error:', error);
