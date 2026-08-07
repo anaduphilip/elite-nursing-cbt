@@ -6,12 +6,10 @@ let globalQuizzesCache = null;
 let globalQuizzesPromise = null;
 
 export async function getCachedQuizzes(token) {
-  // 🔧 GUARD: Reject invalid token
   if (!token || token === 'undefined' || token === 'null') {
     console.warn('⚠️ getCachedQuizzes called with invalid token:', token);
-    return null; 
+    return null;
   }
-
   if (globalQuizzesCache) return globalQuizzesCache;
   if (globalQuizzesPromise) return await globalQuizzesPromise;
   
@@ -54,7 +52,6 @@ let globalPreCouncilExamsCache = null;
 let globalPreCouncilExamsPromise = null;
 
 export async function getCachedPreCouncilExams(token) {
-  // 🔧 GUARD: Reject invalid token
   if (!token || token === 'undefined' || token === 'null') {
     console.warn('⚠️ getCachedPreCouncilExams called with invalid token:', token);
     return null;
@@ -68,7 +65,6 @@ export async function getCachedPreCouncilExams(token) {
       params: { all: true },
       headers: { Authorization: `Bearer ${token}` }
     });
-    // Assuming the response has { success: true, exams: [...] }
     globalPreCouncilExamsCache = res.data.exams || [];
     globalPreCouncilExamsPromise = null;
     return globalPreCouncilExamsCache;
@@ -85,9 +81,23 @@ export async function getCachedPreCouncilExam(examId, token) {
 export const hasCachedPreCouncilExams = () => globalPreCouncilExamsCache !== null;
 
 // ---------- Exam History Helpers ----------
-export const saveExamAttempt = (quizId, title, category, topic, answers, score, total, percentage, isPremium = false, categoryName = null) => {
+export const saveExamAttempt = (
+  quizId,
+  title,
+  category,
+  topic,
+  answers,
+  score,
+  total,
+  percentage,
+  isPremium = false,
+  isPreCouncil = false,
+  sectionNumber = null,
+  categoryName = null
+) => {
   const attempts = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
   attempts[quizId] = {
+    quizId,
     title,
     category,
     topic,
@@ -96,8 +106,10 @@ export const saveExamAttempt = (quizId, title, category, topic, answers, score, 
     total,
     percentage,
     isPremium,
-    completedAt: new Date().toISOString(),
-    categoryName: categoryName || null
+    isPreCouncil,
+    sectionNumber,
+    categoryName: categoryName || null,
+    completedAt: new Date().toISOString()
   };
   localStorage.setItem('exam_attempts', JSON.stringify(attempts));
 };
@@ -149,6 +161,13 @@ export const syncHistoryFromServer = async (token) => {
           }
           if (local.paperName && !candidate.paperName) {
             candidate.paperName = local.paperName;
+          }
+          // Preserve local isPreCouncil and sectionNumber if server missing
+          if (local.isPreCouncil !== undefined && candidate.isPreCouncil === undefined) {
+            candidate.isPreCouncil = local.isPreCouncil;
+          }
+          if (local.sectionNumber !== undefined && candidate.sectionNumber === undefined) {
+            candidate.sectionNumber = local.sectionNumber;
           }
         }
 

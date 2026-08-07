@@ -32,12 +32,11 @@ export const PreCouncilTakeExam = () => {
   const [explanationRemaining, setExplanationRemaining] = useState(null);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
 
-  // ===== Fetch exam using cache (UPDATED) =====
+  // ===== Fetch exam using cache =====
   useEffect(() => {
     const fetchExam = async () => {
       setLoading(true);
       try {
-        // 1. Try to get exam from cache first
         let examData = null;
         try {
           examData = await getCachedPreCouncilExam(examId, token);
@@ -45,7 +44,6 @@ export const PreCouncilTakeExam = () => {
           console.log('Cache miss or error, falling back to API');
         }
 
-        // 2. If cache failed, fetch directly from API
         if (!examData) {
           const res = await axios.get(`/api/pre-council/exams/${examId}`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -77,7 +75,7 @@ export const PreCouncilTakeExam = () => {
     if (examId && token) fetchExam();
   }, [examId, token, navigate]);
 
-  // ===== Fetch remaining AI explanations (unchanged) =====
+  // ===== Fetch remaining AI explanations =====
   useEffect(() => {
     const fetchRemaining = async () => {
       try {
@@ -93,7 +91,7 @@ export const PreCouncilTakeExam = () => {
     if (token) fetchRemaining();
   }, [token]);
 
-  // ===== Handlers (unchanged) =====
+  // ===== Handlers =====
   const handleAnswer = (answerIndex) => {
     setAnswers(prev => ({ ...prev, [currentIndex]: answerIndex }));
   };
@@ -103,6 +101,7 @@ export const PreCouncilTakeExam = () => {
     handleSubmit();
   };
 
+  // ===== UPDATED: handleSubmit – only one entry, with full metadata =====
   const handleSubmit = () => {
     let score = 0;
     questions.forEach((q, idx) => {
@@ -117,43 +116,27 @@ export const PreCouncilTakeExam = () => {
     setSubmitted(true);
 
     if (exam) {
-      // ---- EXISTING: Save regular attempt (unchanged) ----
+      const sectionNumber = exam.order || 1;
+      const isPremiumExam = sectionNumber > 1;
+      const paperName = exam.paperId?.name || 'Pre Council';
+      const categorySlug = exam.paperId?.categoryId?.slug || 'pre-council';
+      const categoryName = exam.paperId?.categoryId?.name || 'Pre-Council';
+
+      // ===== Save attempt with full metadata – consistent key =====
       saveExamAttempt(
         `precouncil_${exam._id}`,
         exam.title,
-        'pre-council',
-        exam.paperId?.name || 'Pre Council',
+        categorySlug,
+        paperName,
         answers,
         score,
         total,
         parseFloat(percentage),
-        false
+        isPremiumExam,
+        true,
+        sectionNumber,
+        categoryName
       );
-
-      // ===== NEW: Save PreCouncil attempt with premium flags =====
-      const sectionNumber = exam.order || 1; 
-      const isPremiumExam = sectionNumber > 1;
-      const attempts = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
-      attempts[exam._id] = {
-        quizId: exam._id,
-        title: exam.title,
-        category: 'pre-council',
-        topic: `Pre-Council Exam ${sectionNumber}`,
-        sectionNumber: sectionNumber,
-        isPreCouncil: true,
-        isPremium: isPremiumExam,
-        score: score,
-        total: total,
-        percentage: parseFloat(percentage),
-        answers: answers,
-        questions: questions.map(q => ({
-          questionText: q.questionText,
-          options: q.options,
-          correctAnswer: q.correctAnswer
-        })),
-        completedAt: new Date().toISOString()
-      };
-      localStorage.setItem('exam_attempts', JSON.stringify(attempts));
     }
   };
 
@@ -163,7 +146,7 @@ export const PreCouncilTakeExam = () => {
     }
   };
 
-  // ===== AI Explanation Functions (unchanged) =====
+  // ===== AI Explanation Functions =====
   const getExplanation = async (idx) => {
     if (!isPremiumUser && explanationRemaining <= 0) {
       alert('You have used all your free explanations for today (10/day). Upgrade to Premium for unlimited!');
@@ -392,7 +375,7 @@ export const PreCouncilTakeExam = () => {
     );
   }
 
-  // ===== Active exam (one question at a time) =====
+  // ===== Active exam =====
   const currentQuestion = questions[currentIndex];
   const timerDuration = exam.timeLimit || 180;
 
@@ -424,9 +407,8 @@ export const PreCouncilTakeExam = () => {
           </div>
         </div>
 
-        {/* ===== Navigation: Previous + Next + Submit (with "Previous" added) ===== */}
+        {/* Navigation */}
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 30 }}>
-          {/* ---- NEW: Previous button ---- */}
           {currentIndex > 0 && (
             <button
               onClick={() => goToQuestion(currentIndex - 1)}
