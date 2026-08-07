@@ -52,15 +52,21 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
     console.log('🔍 User found:', user?.email);
 
     if (user) {
-      // ===== Store full attempt with answers & questions =====
+      // ===== Store full attempt with answers, questions, and metadata =====
       const resultEntry = {
         quizId: req.params.quizId,
+        title: quiz.title,                    // ✅ store title
+        category: quiz.category,              // ✅ store category slug
+        topic: quiz.topic || '',              // ✅ store topic
         score: score,
         total: total,
         percentage: percentage,
         date: new Date(),
-        answers: answers,  
-        questions: quiz.questions
+        answers: answers,
+        questions: quiz.questions,
+        isPremium: quiz.isPremium || false,
+        isPreCouncil: false,
+        sectionNumber: null
       };
       user.quizResults.push(resultEntry);
       await user.save();
@@ -102,7 +108,6 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
 // Premium exam submission (for history)
 router.post('/premium-exam/submit', authenticate, async (req, res) => {
   try {
-    // ===== Accept 'questions' from frontend =====
     const { category, topic, examId, answers, score, total, percentage, questions } = req.body;
 
     const user = await User.findById(req.user._id);
@@ -111,16 +116,23 @@ router.post('/premium-exam/submit', authenticate, async (req, res) => {
     }
 
     const quizId = `premium-${category}-${topic}-${examId}`;
+    const title = `${category} - ${topic} - Exam ${examId}`; 
 
-    // ===== Store full attempt =====
+    // ===== Store full attempt with metadata =====
     user.quizResults.push({
       quizId: quizId,
+      title: title,
+      category: category,
+      topic: topic,
       score: score,
       total: total,
       percentage: percentage,
       date: new Date(),
       answers: answers,
-      questions: questions
+      questions: questions || [],
+      isPremium: true,
+      isPreCouncil: false,
+      sectionNumber: null
     });
 
     await user.save();
