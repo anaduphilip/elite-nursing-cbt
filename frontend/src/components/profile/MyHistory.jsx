@@ -17,7 +17,6 @@ export const MyHistory = () => {
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
 
-  // ===== Static fallback mapping (includes 'general' for old attempts) =====
   const [categoryNames, setCategoryNames] = useState({
     'general-nursing': 'General Nursing',
     'general': 'General Nursing',
@@ -27,7 +26,6 @@ export const MyHistory = () => {
     'dental-nursing': 'Dental Nursing',
   });
 
-  // ===== Fetch categories on mount (dynamic) =====
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -53,7 +51,7 @@ export const MyHistory = () => {
       title: data.title || 'Exam',
       category: data.category || 'general',
       topic: data.topic || 'General',
-      categoryName: data.categoryName || null,   // preserve categoryName if stored
+      categoryName: data.categoryName || null,
       ...data
     }));
     list.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
@@ -65,14 +63,12 @@ export const MyHistory = () => {
     loadAttempts();
   }, []);
 
-  // ===== DELETE HANDLERS (now sync with backend) =====
   const handleClearAll = () => {
     setDeleteConfirm({ quizId: 'ALL', title: 'ALL exams' });
   };
 
   const confirmDelete = async () => {
     if (deleteConfirm.quizId === 'ALL') {
-      // 1. Clear all on backend
       try {
         await axios.delete('/api/user/history', {
           headers: { Authorization: `Bearer ${token}` }
@@ -83,10 +79,8 @@ export const MyHistory = () => {
         setDeleteConfirm(null);
         return;
       }
-      // 2. Clear locally
       clearAllAttempts();
     } else {
-      // Delete single attempt on backend
       try {
         await axios.delete(`/api/user/history/${deleteConfirm.quizId}`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -97,13 +91,12 @@ export const MyHistory = () => {
         setDeleteConfirm(null);
         return;
       }
-      // Delete locally
       const all = getAllAttempts();
       delete all[deleteConfirm.quizId];
       localStorage.setItem('exam_attempts', JSON.stringify(all));
     }
     setDeleteConfirm(null);
-    loadAttempts(); // refresh UI
+    loadAttempts();
   };
 
   const cancelDelete = () => {
@@ -137,15 +130,14 @@ export const MyHistory = () => {
     grouped[cat][topic].push(attempt);
   });
 
-  // ===== Helper to get display name for a category =====
   const getCategoryDisplayName = (categorySlug, attemptsInGroup) => {
-    // 1. Try the mapping (dynamic + static)
-    if (categoryNames[categorySlug]) return categoryNames[categorySlug];
-    // 2. If not found, use categoryName from the first attempt that has it
+    // 1. Use categoryName from the attempt if available (most accurate)
     for (const att of attemptsInGroup) {
       if (att.categoryName) return att.categoryName;
     }
-    // 3. Last resort: return the slug itself
+    // 2. Use mapping
+    if (categoryNames[categorySlug]) return categoryNames[categorySlug];
+    // 3. Fallback to slug
     return categorySlug;
   };
 
@@ -167,7 +159,6 @@ export const MyHistory = () => {
         </div>
 
         {Object.entries(grouped).map(([category, topics]) => {
-          // Flatten all attempts under this category to find categoryName fallback
           const allAttemptsInCategory = Object.values(topics).flat();
           const displayName = getCategoryDisplayName(category, allAttemptsInCategory);
 

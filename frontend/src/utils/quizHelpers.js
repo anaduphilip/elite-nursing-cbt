@@ -9,7 +9,7 @@ export async function getCachedQuizzes(token) {
   // 🔧 GUARD: Reject invalid token
   if (!token || token === 'undefined' || token === 'null') {
     console.warn('⚠️ getCachedQuizzes called with invalid token:', token);
-    return null; // Return null so components can handle it
+    return null; 
   }
 
   if (globalQuizzesCache) return globalQuizzesCache;
@@ -85,7 +85,7 @@ export async function getCachedPreCouncilExam(examId, token) {
 export const hasCachedPreCouncilExams = () => globalPreCouncilExamsCache !== null;
 
 // ---------- Exam History Helpers ----------
-export const saveExamAttempt = (quizId, title, category, topic, answers, score, total, percentage, isPremium = false) => {
+export const saveExamAttempt = (quizId, title, category, topic, answers, score, total, percentage, isPremium = false, categoryName = null) => {
   const attempts = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
   attempts[quizId] = {
     title,
@@ -96,7 +96,8 @@ export const saveExamAttempt = (quizId, title, category, topic, answers, score, 
     total,
     percentage,
     isPremium,
-    completedAt: new Date().toISOString()
+    completedAt: new Date().toISOString(),
+    categoryName: categoryName || null
   };
   localStorage.setItem('exam_attempts', JSON.stringify(attempts));
 };
@@ -105,38 +106,55 @@ export const getAllAttempts = () => JSON.parse(localStorage.getItem('exam_attemp
 export const getExamAttempt = (quizId) => getAllAttempts()[quizId] || null;
 export const clearAllAttempts = () => localStorage.removeItem('exam_attempts');
 
-// ===== Sync history from server =====
+// ===== Sync history from server (smart merge) =====
 export const syncHistoryFromServer = async (token) => {
   try {
     const res = await axios.get('/api/user/history', {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.data.success) {
-      const serverHistory = res.data.history;
-      // Convert server history to localStorage format
-      const localData = {};
-      serverHistory.forEach(entry => {
-        // Use quizId as key (fallback to a generated one if needed)
-        const key = entry.quizId || `history_${entry._id}`;
-        localData[key] = {
+      const serverHistory = res.data.history || [];
+      const existing = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
+      const merged = { ...existing };
+
+      serverHistory.forEach((entry) => {
+        const key = entry.quizId || `history_${entry._id || Date.now()}`;
+        const candidate = {
           quizId: key,
           title: entry.title || entry.quizTitle || 'Exam',
           category: entry.category || 'general',
           topic: entry.topic || 'General',
-          score: entry.score,
-          total: entry.total,
-          percentage: entry.percentage,
+          score: entry.score || 0,
+          total: entry.total || 0,
+          percentage: entry.percentage || 0,
           answers: entry.answers || {},
           questions: entry.questions || [],
           completedAt: entry.date || entry.completedAt || new Date().toISOString(),
           isPremium: entry.isPremium || false,
           isPreCouncil: entry.isPreCouncil || false,
-          sectionNumber: entry.sectionNumber || null
+          sectionNumber: entry.sectionNumber || null,
+          categoryName: entry.categoryName || null,
+          paperName: entry.paperName || null
         };
+
+        if (merged[key]) {
+          const local = merged[key];
+          // Preserve local topic if server has "General" or empty
+          if (local.topic && local.topic !== 'General' && (!candidate.topic || candidate.topic === 'General')) {
+            candidate.topic = local.topic;
+          }
+          // Preserve local categoryName if server doesn't have it
+          if (local.categoryName && !candidate.categoryName) {
+            candidate.categoryName = local.categoryName;
+          }
+          if (local.paperName && !candidate.paperName) {
+            candidate.paperName = local.paperName;
+          }
+        }
+
+        merged[key] = candidate;
       });
-      // Merge with existing local data (server wins)
-      const existing = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
-      const merged = { ...existing, ...localData };
+
       localStorage.setItem('exam_attempts', JSON.stringify(merged));
       return merged;
     }
