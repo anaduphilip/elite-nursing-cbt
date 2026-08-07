@@ -56,6 +56,13 @@ export const ReviewExam = () => {
           return;
         }
 
+        // ===== NEW: If the attempt already has questions (e.g., premium exam), use them =====
+        if (saved.questions && saved.questions.length > 0) {
+          setQuiz({ questions: saved.questions, title: saved.title });
+          setLoading(false);
+          return;
+        }
+
         // ---- Regular exam (existing logic) ----
         const res = await axios.get(`/api/quizzes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         setQuiz(res.data);
@@ -128,7 +135,7 @@ export const ReviewExam = () => {
 
   if (loading) return <LoadingWithBar message="Loading review..." />;
 
-  // ===== NEW: Premium lock screen for PreCouncil premium exams =====
+  // ===== Premium lock screen for PreCouncil premium exams =====
   if (isPremiumLocked) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -181,7 +188,7 @@ export const ReviewExam = () => {
           <h2 style={{ color: headingColor }}>{attempt.title}</h2>
           <p>Your Score: {attempt.score}/{attempt.total} ({attempt.percentage}%)</p>
           <p>Completed: {new Date(attempt.completedAt).toLocaleString()}</p>
-          {/* ===== NEW: PreCouncil badge ===== */}
+          {/* ===== PreCouncil badge ===== */}
           {attempt.isPreCouncil && (
             <span style={{ display: 'inline-block', background: '#ff9800', color: 'white', fontSize: 12, fontWeight: 'bold', padding: '4px 12px', borderRadius: 12, marginTop: 6 }}>
               Pre-Council Exam {attempt.sectionNumber || ''}

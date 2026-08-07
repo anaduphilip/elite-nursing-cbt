@@ -93,7 +93,8 @@ export const saveExamAttempt = (
   isPremium = false,
   isPreCouncil = false,
   sectionNumber = null,
-  categoryName = null
+  categoryName = null,
+  questions = null
 ) => {
   const attempts = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
   attempts[quizId] = {
@@ -109,6 +110,7 @@ export const saveExamAttempt = (
     isPreCouncil,
     sectionNumber,
     categoryName: categoryName || null,
+    questions: questions || [],
     completedAt: new Date().toISOString()
   };
   localStorage.setItem('exam_attempts', JSON.stringify(attempts));

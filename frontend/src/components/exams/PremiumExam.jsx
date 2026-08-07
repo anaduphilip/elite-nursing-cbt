@@ -46,7 +46,6 @@ export const PremiumExam = () => {
           }
         }
 
-        // 1. Get quizzes from cache (or fetch and cache if not available)
         let allQuizzes = [];
         try {
           allQuizzes = await getCachedQuizzes(token);
@@ -54,13 +53,11 @@ export const PremiumExam = () => {
           console.log('Cache miss or error, falling back to API');
         }
 
-        // 2. If cache failed or returned empty, fallback to direct API call
         if (!allQuizzes || allQuizzes.length === 0) {
           const res = await axios.get('/api/quizzes', { headers: { Authorization: `Bearer ${token}` } });
           allQuizzes = res.data;
         }
 
-        // Filter quizzes by category and topic
         const filtered = allQuizzes.filter(q => q.category === categoryName && q.topic === topic);
         filtered.sort((a, b) => {
           const numA = parseInt(a.title.match(/\d+/)?.[0] || 0);
@@ -110,13 +107,11 @@ export const PremiumExam = () => {
     }
   }, [answers, examId, submitted]);
 
-  // ===== NEW: Send premium exam results to backend after submission =====
+  // ===== Send premium exam results to backend after submission =====
   useEffect(() => {
     if (submitted && result && Object.keys(answers).length > 0) {
       const sendToBackend = async () => {
         try {
-          // Construct a payload for the premium exam
-          // The backend will need a special handler for this endpoint
           await axios.post(
             '/api/premium-exam/submit',
             {
@@ -127,6 +122,7 @@ export const PremiumExam = () => {
               score: result.score,
               total: result.total,
               percentage: parseFloat(result.percentage),
+              questions: questions
             },
             { headers: { Authorization: `Bearer ${token}` } }
           );
@@ -178,7 +174,11 @@ export const PremiumExam = () => {
       score,
       total,
       parseFloat(percentage),
-      true
+      true,
+      false,
+      null, 
+      null,
+      questions 
     );
 
     localStorage.removeItem(`premium_exam_${examId}_answers`);
