@@ -1,5 +1,8 @@
 // src/utils/gamification.js
+const mongoose = require('mongoose'); // <-- added
 const { Config, Badge, Quiz, User } = require('../models');
+
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // Helper: Check and update user streak
 const updateUserStreak = async (user) => {
@@ -38,7 +41,6 @@ const updateUserStreak = async (user) => {
   }
 };
 
-// Helper: Check if user qualifies for a badge
 const checkBadgeEligibility = async (user, badge) => {
   const { requirementType, targetCategory, targetQuizId, requirementValue } = badge;
   
@@ -51,9 +53,11 @@ const checkBadgeEligibility = async (user, badge) => {
       if (!targetCategory) return false;
       let count = 0;
       for (const result of user.quizResults) {
-        const quiz = await Quiz.findById(result.quizId);
-        if (quiz && quiz.category === targetCategory) {
-          count++;
+        if (isValidObjectId(result.quizId)) {
+          const quiz = await Quiz.findById(result.quizId);
+          if (quiz && quiz.category === targetCategory) {
+            count++;
+          }
         }
       }
       return count >= requirementValue;
@@ -71,14 +75,16 @@ const checkBadgeEligibility = async (user, badge) => {
     }
     case 'category_perfect': {
       if (!targetCategory) return false;
-      const categoryResults = [];
+      let count = 0;
       for (const result of user.quizResults) {
-        const quiz = await Quiz.findById(result.quizId);
-        if (quiz && quiz.category === targetCategory && result.percentage === 100) {
-          categoryResults.push(result);
+        if (result.percentage === 100 && isValidObjectId(result.quizId)) {
+          const quiz = await Quiz.findById(result.quizId);
+          if (quiz && quiz.category === targetCategory) {
+            count++;
+          }
         }
       }
-      return categoryResults.length >= requirementValue;
+      return count >= requirementValue;
     }
     case 'pass_rate': {
       if (user.quizResults.length === 0) return false;
@@ -127,8 +133,9 @@ const checkBadgeEligibility = async (user, badge) => {
     }
     case 'specific_exam': {
       if (!targetQuizId) return false;
+      const targetStr = targetQuizId.toString();
       for (const result of user.quizResults) {
-        if (result.quizId.toString() === targetQuizId.toString()) {
+        if (result.quizId.toString() === targetStr) {
           return true;
         }
       }
