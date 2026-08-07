@@ -78,12 +78,14 @@ export const MyHistory = () => {
     grouped[cat][topic].push(attempt);
   });
 
+  // ===== NEW: Added 'pre-council' mapping =====
   const categoryNames = {
     'general-nursing': 'General Nursing',
     'midwifery': 'Midwifery',
     'public-health': 'Public Health',
     'pediatric-nursing': 'Pediatric Nursing',
-    'dental-nursing': 'Dental Nursing'
+    'dental-nursing': 'Dental Nursing',
+    'pre-council': 'Pre-Council Exams' 
   };
 
   return (
@@ -113,6 +115,8 @@ export const MyHistory = () => {
                 <h3 style={{ color: headingColor, fontSize: 18, marginBottom: 12 }}>{topic}</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                   {exams.map((exam) => {
+                    // ===== NEW: Determine if this is a PreCouncil exam =====
+                    const isPreCouncil = exam.isPreCouncil === true;
                     const isPremiumExam = exam.isPremium === true;
                     const isLocked = isPremiumExam && !isUserPremium;
 
@@ -139,6 +143,13 @@ export const MyHistory = () => {
                         </button>
                         <div style={{ fontSize: 32, marginBottom: 8 }}>{isLocked ? '🔒' : '📝'}</div>
                         <h4 style={{ color: headingColor, marginBottom: 4 }}>{exam.title}</h4>
+
+                        {/* ===== NEW: PreCouncil badge ===== */}
+                        {isPreCouncil && (
+                          <span style={{ display: 'inline-block', background: '#ff9800', color: 'white', fontSize: 11, fontWeight: 'bold', padding: '2px 10px', borderRadius: 12, marginBottom: 6 }}>
+                            Pre-Council
+                          </span>
+                        )}
 
                         {isLocked ? (
                           <>

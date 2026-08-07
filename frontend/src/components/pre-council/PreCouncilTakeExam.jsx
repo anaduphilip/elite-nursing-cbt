@@ -117,6 +117,7 @@ export const PreCouncilTakeExam = () => {
     setSubmitted(true);
 
     if (exam) {
+      // ---- EXISTING: Save regular attempt (unchanged) ----
       saveExamAttempt(
         `precouncil_${exam._id}`,
         exam.title,
@@ -128,6 +129,31 @@ export const PreCouncilTakeExam = () => {
         parseFloat(percentage),
         false
       );
+
+      // ===== NEW: Save PreCouncil attempt with premium flags =====
+      const sectionNumber = exam.order || 1; 
+      const isPremiumExam = sectionNumber > 1;
+      const attempts = JSON.parse(localStorage.getItem('exam_attempts') || '{}');
+      attempts[exam._id] = {
+        quizId: exam._id,
+        title: exam.title,
+        category: 'pre-council',
+        topic: `Pre-Council Exam ${sectionNumber}`,
+        sectionNumber: sectionNumber,
+        isPreCouncil: true,
+        isPremium: isPremiumExam,
+        score: score,
+        total: total,
+        percentage: parseFloat(percentage),
+        answers: answers,
+        questions: questions.map(q => ({
+          questionText: q.questionText,
+          options: q.options,
+          correctAnswer: q.correctAnswer
+        })),
+        completedAt: new Date().toISOString()
+      };
+      localStorage.setItem('exam_attempts', JSON.stringify(attempts));
     }
   };
 
@@ -366,7 +392,7 @@ export const PreCouncilTakeExam = () => {
     );
   }
 
-  // ===== Active exam (one question at a time, no going back) =====
+  // ===== Active exam (one question at a time) =====
   const currentQuestion = questions[currentIndex];
   const timerDuration = exam.timeLimit || 180;
 
@@ -398,32 +424,43 @@ export const PreCouncilTakeExam = () => {
           </div>
         </div>
 
-        {/* Navigation: Only Next button (no going back) */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginBottom: 30 }}>
-          {currentIndex < totalQuestions - 1 ? (
+        {/* ===== Navigation: Previous + Next + Submit (with "Previous" added) ===== */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 30 }}>
+          {/* ---- NEW: Previous button ---- */}
+          {currentIndex > 0 && (
             <button
-              onClick={() => goToQuestion(currentIndex + 1)}
-              style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+              onClick={() => goToQuestion(currentIndex - 1)}
+              style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
             >
-              Next Question
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={!allAnswered}
-              style={{
-                background: allAnswered ? '#28a745' : '#ccc',
-                color: 'white',
-                padding: '10px 20px',
-                border: 'none',
-                borderRadius: 8,
-                cursor: allAnswered ? 'pointer' : 'not-allowed',
-                fontWeight: 'bold'
-              }}
-            >
-              {allAnswered ? 'Submit Exam' : `Answer all questions (${answeredCount}/${totalQuestions})`}
+              Previous
             </button>
           )}
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+            {currentIndex < totalQuestions - 1 ? (
+              <button
+                onClick={() => goToQuestion(currentIndex + 1)}
+                style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Next Question
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!allAnswered}
+                style={{
+                  background: allAnswered ? '#28a745' : '#ccc',
+                  color: 'white',
+                  padding: '10px 20px',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: allAnswered ? 'pointer' : 'not-allowed',
+                  fontWeight: 'bold'
+                }}
+              >
+                {allAnswered ? 'Submit Exam' : `Answer all questions (${answeredCount}/${totalQuestions})`}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Question Palette */}
