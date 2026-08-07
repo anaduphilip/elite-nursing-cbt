@@ -11,31 +11,43 @@ export const MyHistory = () => {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [categoryMap, setCategoryMap] = useState({});
   const { darkMode, user, token } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
 
-  // ===== Fetch categories from backend =====
+  // ===== Dynamic category name mapping =====
+  const [categoryMap, setCategoryMap] = useState({
+    'general-nursing': 'General Nursing',
+    'midwifery': 'Midwifery',
+    'public-health': 'Public Health',
+    'pediatric-nursing': 'Pediatric Nursing',
+    'dental-nursing': 'Dental Nursing',
+    'pre-council': 'Pre-Council Exams'
+  });
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  // ===== Fetch PreCouncil category names =====
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchCategoryNames = async () => {
       try {
-        const res = await axios.get('/api/categories');
-        if (res.data.success && res.data.categories) {
-          const map = {};
+        const res = await axios.get('/api/pre-council/categories');
+        if (res.data.success) {
+          const newMap = { ...categoryMap };
           res.data.categories.forEach(cat => {
-            map[cat.slug] = cat.name;
+            newMap[cat.slug] = cat.name;
           });
-          setCategoryMap(map);
+          setCategoryMap(newMap);
         }
       } catch (error) {
-        console.error('Failed to fetch categories:', error);
+        console.error('Failed to fetch PreCouncil categories:', error);
+      } finally {
+        setCategoriesLoading(false);
       }
     };
-    if (token) fetchCategories();
-  }, [token]);
+    fetchCategoryNames();
+  }, []);
 
   const loadAttempts = () => {
     const all = getAllAttempts();
@@ -74,7 +86,7 @@ export const MyHistory = () => {
 
   const isUserPremium = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
 
-  if (loading) return <LoadingWithBar message="Loading history..." />;
+  if (loading || categoriesLoading) return <LoadingWithBar message="Loading history..." />;
 
   if (attempts.length === 0) {
     return (
@@ -90,7 +102,6 @@ export const MyHistory = () => {
     );
   }
 
-  // ===== Group attempts by category and topic =====
   const grouped = {};
   attempts.forEach(attempt => {
     const cat = attempt.category || 'general-nursing';
@@ -99,20 +110,6 @@ export const MyHistory = () => {
     if (!grouped[cat][topic]) grouped[cat][topic] = [];
     grouped[cat][topic].push(attempt);
   });
-
-  // ===== Dynamic category name resolver =====
-  const getCategoryDisplayName = (slug) => {
-    if (categoryMap[slug]) return categoryMap[slug];
-    const fallback = {
-      'general-nursing': 'General Nursing',
-      'midwifery': 'Midwifery',
-      'public-health': 'Public Health',
-      'pediatric-nursing': 'Pediatric Nursing',
-      'dental-nursing': 'Dental Nursing',
-      'pre-council': 'Pre-Council Exams'
-    };
-    return fallback[slug] || slug;
-  };
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -134,7 +131,7 @@ export const MyHistory = () => {
         {Object.entries(grouped).map(([category, topics]) => (
           <div key={category} style={{ marginBottom: 40 }}>
             <h2 style={{ color: '#ff9800', borderLeft: `4px solid #ff9800`, paddingLeft: 12, marginBottom: 16 }}>
-              {getCategoryDisplayName(category)}
+              {categoryMap[category] || category}
             </h2>
             {Object.entries(topics).map(([topic, exams]) => (
               <div key={topic} style={{ marginBottom: 24 }}>
