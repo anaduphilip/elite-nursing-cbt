@@ -38,6 +38,7 @@ const categoriesRoutes = require('./categories');
 const faqsRoutes = require('./faqs');
 const notificationRoutes = require('./notification');
 const studyPlanRoutes = require('./study-plan');
+const premiumRoutes = require('./premium');
 
 const router = express.Router();
 
@@ -130,5 +131,6 @@ router.use('/study-plan', studyPlanRoutes);
 router.use('/config', configRoutes);
 router.use('/categories', categoriesRoutes);
 router.use('/faqs', faqsRoutes);
+router.use('/', premiumRoutes);
 
 module.exports = router;

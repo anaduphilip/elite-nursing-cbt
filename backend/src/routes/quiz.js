@@ -52,12 +52,11 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
     console.log('🔍 User found:', user?.email);
 
     if (user) {
-      // ===== Store full attempt with answers, questions, and metadata =====
       const resultEntry = {
         quizId: req.params.quizId,
-        title: quiz.title,                    // ✅ store title
-        category: quiz.category,              // ✅ store category slug
-        topic: quiz.topic || '',              // ✅ store topic
+        title: quiz.title,
+        category: quiz.category,
+        topic: quiz.topic || '',
         score: score,
         total: total,
         percentage: percentage,
@@ -72,7 +71,6 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
       await user.save();
       console.log(`✅ After save: ${user.quizResults.length} results`);
 
-      // Gamification
       try {
         const gamificationResult = await checkAndAwardBadges(user._id);
         console.log(`🏆 GAMIFICATION: ${gamificationResult.awarded?.length || 0} badges awarded`);
@@ -81,7 +79,6 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
       }
     }
 
-    // Marketing email trigger
     if (user && !user.isPremium && user.marketingConsent) {
       const freeExamsTaken = user.quizResults.length || 0;
       const lastEmailDate = user.lastMarketingEmailSent || new Date(0);
@@ -105,51 +102,5 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
   }
 });
 
-// Premium exam submission (for history)
-router.post('/premium-exam/submit', authenticate, async (req, res) => {
-  try {
-    const { category, topic, examId, answers, score, total, percentage, questions } = req.body;
-
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const quizId = `premium-${category}-${topic}-${examId}`;
-    const title = `${category} - ${topic} - Exam ${examId}`; 
-
-    // ===== Store full attempt with metadata =====
-    user.quizResults.push({
-      quizId: quizId,
-      title: title,
-      category: category,
-      topic: topic,
-      score: score,
-      total: total,
-      percentage: percentage,
-      date: new Date(),
-      answers: answers,
-      questions: questions || [],
-      isPremium: true,
-      isPreCouncil: false,
-      sectionNumber: null
-    });
-
-    await user.save();
-    console.log(`✅ Premium exam result saved for ${user.email}: ${score}/${total}`);
-
-    try {
-      const gamificationResult = await checkAndAwardBadges(user._id);
-      console.log(`🏆 GAMIFICATION (premium exam): ${gamificationResult.awarded?.length || 0} badges awarded`);
-    } catch (gamificationError) {
-      console.error('Gamification check error:', gamificationError);
-    }
-
-    res.json({ success: true, message: 'Premium exam result saved' });
-  } catch (error) {
-    console.error('❌ Premium exam submission error:', error);
-    res.status(500).json({ error: 'Failed to save premium exam result' });
-  }
-});
 
 module.exports = router;
