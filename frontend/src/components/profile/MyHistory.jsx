@@ -1,9 +1,8 @@
 // src/components/profile/MyHistory.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
-import { getAllAttempts, clearAllAttempts } from '../../utils/quizHelpers';
+import { getAllAttempts, clearAllAttempts, getCachedCategories } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 
@@ -11,42 +10,40 @@ export const MyHistory = () => {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const { darkMode, user, token } = useContext(AuthContext);
+  const { darkMode, user } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
 
-  // ===== Dynamic category name mapping =====
-  const [categoryMap, setCategoryMap] = useState({
+  // ===== dynamic category names =====
+  const [categoryNames, setCategoryNames] = useState({
     'general-nursing': 'General Nursing',
     'midwifery': 'Midwifery',
     'public-health': 'Public Health',
     'pediatric-nursing': 'Pediatric Nursing',
     'dental-nursing': 'Dental Nursing',
-    'pre-council': 'Pre-Council Exams'
+    // fallback for PreCouncil if fetch fails 
   });
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
-  // ===== Fetch PreCouncil category names =====
+  // ===== fetch categories on mount =====
   useEffect(() => {
-    const fetchCategoryNames = async () => {
+    const fetchCategories = async () => {
       try {
-        const res = await axios.get('/api/pre-council/categories');
-        if (res.data.success) {
-          const newMap = { ...categoryMap };
-          res.data.categories.forEach(cat => {
-            newMap[cat.slug] = cat.name;
+        const categories = await getCachedCategories();
+        if (categories && categories.length) {
+          const dynamicMap = {};
+          categories.forEach(cat => {
+            dynamicMap[cat.slug] = cat.name;
           });
-          setCategoryMap(newMap);
+          setCategoryNames(dynamicMap);
         }
       } catch (error) {
-        console.error('Failed to fetch PreCouncil categories:', error);
-      } finally {
-        setCategoriesLoading(false);
+        console.error('Failed to fetch categories for history:', error);
+        // fallback static mapping remains
       }
     };
-    fetchCategoryNames();
+    fetchCategories();
   }, []);
 
   const loadAttempts = () => {
@@ -86,7 +83,7 @@ export const MyHistory = () => {
 
   const isUserPremium = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
 
-  if (loading || categoriesLoading) return <LoadingWithBar message="Loading history..." />;
+  if (loading) return <LoadingWithBar message="Loading history..." />;
 
   if (attempts.length === 0) {
     return (
@@ -131,7 +128,8 @@ export const MyHistory = () => {
         {Object.entries(grouped).map(([category, topics]) => (
           <div key={category} style={{ marginBottom: 40 }}>
             <h2 style={{ color: '#ff9800', borderLeft: `4px solid #ff9800`, paddingLeft: 12, marginBottom: 16 }}>
-              {categoryMap[category] || category}
+              {/* ===== Dynamic category name, with fallback ===== */}
+              {categoryNames[category] || category}
             </h2>
             {Object.entries(topics).map(([topic, exams]) => (
               <div key={topic} style={{ marginBottom: 24 }}>
