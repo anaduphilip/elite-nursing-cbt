@@ -1,6 +1,7 @@
 // src/components/profile/MyHistory.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getAllAttempts, clearAllAttempts, getCachedCategories } from '../../utils/quizHelpers';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
@@ -10,7 +11,7 @@ export const MyHistory = () => {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const { darkMode, user } = useContext(AuthContext);
+  const { darkMode, user, token } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
@@ -19,7 +20,7 @@ export const MyHistory = () => {
   // ===== Static fallback mapping (includes 'general' for old attempts) =====
   const [categoryNames, setCategoryNames] = useState({
     'general-nursing': 'General Nursing',
-    'general': 'General Nursing',           // ← legacy slug
+    'general': 'General Nursing',
     'midwifery': 'Midwifery',
     'public-health': 'Public Health',
     'pediatric-nursing': 'Pediatric Nursing',
@@ -36,7 +37,6 @@ export const MyHistory = () => {
           categories.forEach(cat => {
             dynamicMap[cat.slug] = cat.name;
           });
-          // Merge with static fallback (so 'general' remains if not in DB)
           setCategoryNames(prev => ({ ...prev, ...dynamicMap }));
         }
       } catch (error) {
@@ -50,9 +50,10 @@ export const MyHistory = () => {
     const all = getAllAttempts();
     const list = Object.entries(all).map(([quizId, data]) => ({
       quizId,
-      title: data.title || 'Exam', 
+      title: data.title || 'Exam',
       category: data.category || 'general',
       topic: data.topic || 'General',
+      categoryName: data.categoryName || null,   // preserve categoryName if stored
       ...data
     }));
     list.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
@@ -64,20 +65,45 @@ export const MyHistory = () => {
     loadAttempts();
   }, []);
 
+  // ===== DELETE HANDLERS (now sync with backend) =====
   const handleClearAll = () => {
     setDeleteConfirm({ quizId: 'ALL', title: 'ALL exams' });
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteConfirm.quizId === 'ALL') {
+      // 1. Clear all on backend
+      try {
+        await axios.delete('/api/user/history', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (error) {
+        console.error('Failed to clear history on server:', error);
+        alert('Could not clear history on server. Please try again.');
+        setDeleteConfirm(null);
+        return;
+      }
+      // 2. Clear locally
       clearAllAttempts();
     } else {
+      // Delete single attempt on backend
+      try {
+        await axios.delete(`/api/user/history/${deleteConfirm.quizId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (error) {
+        console.error('Failed to delete attempt on server:', error);
+        alert('Could not delete attempt on server. Please try again.');
+        setDeleteConfirm(null);
+        return;
+      }
+      // Delete locally
       const all = getAllAttempts();
       delete all[deleteConfirm.quizId];
       localStorage.setItem('exam_attempts', JSON.stringify(all));
     }
     setDeleteConfirm(null);
-    loadAttempts();
+    loadAttempts(); // refresh UI
   };
 
   const cancelDelete = () => {
@@ -104,12 +130,24 @@ export const MyHistory = () => {
 
   const grouped = {};
   attempts.forEach(attempt => {
-    const cat = attempt.category || 'general-nursing';
+    const cat = attempt.category || 'general';
     const topic = attempt.topic || 'General';
     if (!grouped[cat]) grouped[cat] = {};
     if (!grouped[cat][topic]) grouped[cat][topic] = [];
     grouped[cat][topic].push(attempt);
   });
+
+  // ===== Helper to get display name for a category =====
+  const getCategoryDisplayName = (categorySlug, attemptsInGroup) => {
+    // 1. Try the mapping (dynamic + static)
+    if (categoryNames[categorySlug]) return categoryNames[categorySlug];
+    // 2. If not found, use categoryName from the first attempt that has it
+    for (const att of attemptsInGroup) {
+      if (att.categoryName) return att.categoryName;
+    }
+    // 3. Last resort: return the slug itself
+    return categorySlug;
+  };
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -128,83 +166,89 @@ export const MyHistory = () => {
           </button>
         </div>
 
-        {Object.entries(grouped).map(([category, topics]) => (
-          <div key={category} style={{ marginBottom: 40 }}>
-            <h2 style={{ color: '#ff9800', borderLeft: `4px solid #ff9800`, paddingLeft: 12, marginBottom: 16 }}>
-              {categoryNames[category] || category}
-            </h2>
-            {Object.entries(topics).map(([topic, exams]) => (
-              <div key={topic} style={{ marginBottom: 24 }}>
-                <h3 style={{ color: headingColor, fontSize: 18, marginBottom: 12 }}>{topic}</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                  {exams.map((exam) => {
-                    const isPreCouncil = exam.isPreCouncil === true;
-                    const isPremiumExam = exam.isPremium === true;
-                    const isLocked = isPremiumExam && !isUserPremium;
+        {Object.entries(grouped).map(([category, topics]) => {
+          // Flatten all attempts under this category to find categoryName fallback
+          const allAttemptsInCategory = Object.values(topics).flat();
+          const displayName = getCategoryDisplayName(category, allAttemptsInCategory);
 
-                    return (
-                      <div key={exam.quizId} style={{ background: darkMode ? '#16213e' : 'white', padding: 16, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', position: 'relative', opacity: isLocked ? 0.7 : 1 }}>
-                        <button
-                          onClick={() => setDeleteConfirm({ quizId: exam.quizId, title: exam.title })}
-                          style={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            background: '#dc3545',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: 4,
-                            fontSize: 12,
-                            cursor: 'pointer',
-                            padding: '4px 8px',
-                            fontWeight: 'bold',
-                            zIndex: 1
-                          }}
-                        >
-                          Delete
-                        </button>
-                        <div style={{ fontSize: 32, marginBottom: 8 }}>{isLocked ? '🔒' : '📝'}</div>
-                        <h4 style={{ color: headingColor, marginBottom: 4 }}>{exam.title}</h4>
+          return (
+            <div key={category} style={{ marginBottom: 40 }}>
+              <h2 style={{ color: '#ff9800', borderLeft: `4px solid #ff9800`, paddingLeft: 12, marginBottom: 16 }}>
+                {displayName}
+              </h2>
+              {Object.entries(topics).map(([topic, exams]) => (
+                <div key={topic} style={{ marginBottom: 24 }}>
+                  <h3 style={{ color: headingColor, fontSize: 18, marginBottom: 12 }}>{topic}</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                    {exams.map((exam) => {
+                      const isPreCouncil = exam.isPreCouncil === true;
+                      const isPremiumExam = exam.isPremium === true;
+                      const isLocked = isPremiumExam && !isUserPremium;
 
-                        {isPreCouncil && (
-                          <span style={{ display: 'inline-block', background: '#ff9800', color: 'white', fontSize: 11, fontWeight: 'bold', padding: '2px 10px', borderRadius: 12, marginBottom: 6 }}>
-                            Pre-Council
-                          </span>
-                        )}
+                      return (
+                        <div key={exam.quizId} style={{ background: darkMode ? '#16213e' : 'white', padding: 16, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', position: 'relative', opacity: isLocked ? 0.7 : 1 }}>
+                          <button
+                            onClick={() => setDeleteConfirm({ quizId: exam.quizId, title: exam.title })}
+                            style={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              background: '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: 4,
+                              fontSize: 12,
+                              cursor: 'pointer',
+                              padding: '4px 8px',
+                              fontWeight: 'bold',
+                              zIndex: 1
+                            }}
+                          >
+                            Delete
+                          </button>
+                          <div style={{ fontSize: 32, marginBottom: 8 }}>{isLocked ? '🔒' : '📝'}</div>
+                          <h4 style={{ color: headingColor, marginBottom: 4 }}>{exam.title}</h4>
 
-                        {isLocked ? (
-                          <>
-                            <p style={{ fontSize: 13, color: secondaryText, fontStyle: 'italic' }}>
-                              This is a premium exam history. Upgrade to view details.
-                            </p>
-                            <Link to="/get-premium">
-                              <button style={{ width: '100%', marginTop: 12, background: '#ff9800', color: 'white', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
-                                ⭐ Upgrade to View
-                              </button>
-                            </Link>
-                          </>
-                        ) : (
-                          <>
-                            <p style={{ fontSize: 13, color: secondaryText }}>Score: {exam.score}/{exam.total} ({exam.percentage}%)</p>
-                            <p style={{ fontSize: 12, color: secondaryText }}>Completed: {new Date(exam.completedAt).toLocaleString()}</p>
-                            {isPremiumExam && isUserPremium && (
-                              <p style={{ fontSize: 11, color: '#ff9800', fontWeight: 'bold' }}>⭐ Premium Exam</p>
-                            )}
-                            <Link to={`/review/${exam.quizId}`}>
-                              <button style={{ width: '100%', marginTop: 12, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
-                                Review Exam
-                              </button>
-                            </Link>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
+                          {isPreCouncil && (
+                            <span style={{ display: 'inline-block', background: '#ff9800', color: 'white', fontSize: 11, fontWeight: 'bold', padding: '2px 10px', borderRadius: 12, marginBottom: 6 }}>
+                              Pre-Council
+                            </span>
+                          )}
+
+                          {isLocked ? (
+                            <>
+                              <p style={{ fontSize: 13, color: secondaryText, fontStyle: 'italic' }}>
+                                This is a premium exam history. Upgrade to view details.
+                              </p>
+                              <Link to="/get-premium">
+                                <button style={{ width: '100%', marginTop: 12, background: '#ff9800', color: 'white', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+                                  ⭐ Upgrade to View
+                                </button>
+                              </Link>
+                            </>
+                          ) : (
+                            <>
+                              <p style={{ fontSize: 13, color: secondaryText }}>Score: {exam.score}/{exam.total} ({exam.percentage}%)</p>
+                              <p style={{ fontSize: 12, color: secondaryText }}>Completed: {new Date(exam.completedAt).toLocaleString()}</p>
+                              {isPremiumExam && isUserPremium && (
+                                <p style={{ fontSize: 11, color: '#ff9800', fontWeight: 'bold' }}>⭐ Premium Exam</p>
+                              )}
+                              <Link to={`/review/${exam.quizId}`}>
+                                <button style={{ width: '100%', marginTop: 12, background: '#1e3c72', color: 'white', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+                                  Review Exam
+                                </button>
+                              </Link>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ))}
+              ))}
+            </div>
+          );
+        })}
       </div>
 
       {deleteConfirm && (

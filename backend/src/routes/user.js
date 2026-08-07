@@ -1,5 +1,6 @@
 // src/routes/user.js
 const express = require('express');
+const { User } = require('../models');
 const { authenticate } = require('../middleware');
 const { checkAndUpdatePremium } = require('../utils');
 
@@ -49,11 +50,33 @@ router.post('/check-exam-access', authenticate, async (req, res) => {
 // ===== Get user's full exam history (with answers & questions) =====
 router.get('/history', authenticate, async (req, res) => {
   try {
-    // req.user already contains quizResults (full array)
     res.json({ success: true, history: req.user.quizResults });
   } catch (error) {
     console.error('Fetch history error:', error);
     res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+// ===== DELETE all history =====
+router.delete('/history', authenticate, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, { $set: { quizResults: [] } });
+    res.json({ success: true, message: 'All history cleared.' });
+  } catch (error) {
+    console.error('Clear history error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== DELETE a specific attempt =====
+router.delete('/history/:quizId', authenticate, async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    await User.findByIdAndUpdate(req.user._id, { $pull: { quizResults: { quizId: quizId } } });
+    res.json({ success: true, message: 'Attempt deleted.' });
+  } catch (error) {
+    console.error('Delete attempt error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
