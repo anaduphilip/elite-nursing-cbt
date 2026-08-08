@@ -1,12 +1,18 @@
 // src/components/common/BadgeAwardModal.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Confetti from 'react-confetti';
 
 export const BadgeAwardModal = ({ badges, onClose, darkMode }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
   });
+
+  // Reset index when new badges arrive
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [badges]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -20,6 +26,17 @@ export const BadgeAwardModal = ({ badges, onClose, darkMode }) => {
   }, []);
 
   if (!badges || badges.length === 0) return null;
+
+  const currentBadge = badges[currentIndex];
+  const isLast = currentIndex === badges.length - 1;
+
+  const handleClose = () => {
+    if (isLast) {
+      onClose();
+    } else {
+      setCurrentIndex(prev => prev + 1);
+    }
+  };
 
   return (
     <>
@@ -45,14 +62,14 @@ export const BadgeAwardModal = ({ badges, onClose, darkMode }) => {
           padding: 20,
           backdropFilter: 'blur(4px)',
         }}
-        onClick={onClose}
+        onClick={handleClose}
       >
         <div
           style={{
             background: darkMode ? '#16213e' : 'white',
             borderRadius: 24,
             padding: 32,
-            maxWidth: 450,
+            maxWidth: 400,
             width: '100%',
             textAlign: 'center',
             boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
@@ -61,35 +78,31 @@ export const BadgeAwardModal = ({ badges, onClose, darkMode }) => {
           onClick={(e) => e.stopPropagation()}
         >
           <div style={{ fontSize: 56, marginBottom: 8 }}>🎉</div>
-          <h2 style={{ color: '#ff9800', fontSize: 28, marginBottom: 8 }}>
-            New Badge{ badges.length > 1 ? 's' : '' } Earned!
+          <h2 style={{ color: '#ff9800', fontSize: 24, marginBottom: 4 }}>
+            New Badge Earned!
           </h2>
-          <p style={{ color: darkMode ? '#ccc' : '#666', marginBottom: 16 }}>
-            Congratulations! You've unlocked:
+          <p style={{ color: darkMode ? '#ccc' : '#666', marginBottom: 16, fontSize: 13 }}>
+            {currentIndex + 1} of {badges.length}
           </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 16, marginBottom: 20 }}>
-            {badges.map((badge, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  background: darkMode ? '#1a1a2e' : '#f5f5f5',
-                  padding: '16px 20px',
-                  borderRadius: 12,
-                  minWidth: 80,
-                }}
-              >
-                <span style={{ fontSize: 40 }}>{badge.icon || '🏅'}</span>
-                <span style={{ fontSize: 14, fontWeight: 'bold', marginTop: 4, color: darkMode ? '#eee' : '#333' }}>
-                  {badge.name}
-                </span>
-              </div>
-            ))}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              background: darkMode ? '#1a1a2e' : '#f5f5f5',
+              padding: '20px',
+              borderRadius: 16,
+              marginBottom: 16,
+              minWidth: 80,
+            }}
+          >
+            <span style={{ fontSize: 48 }}>{currentBadge.icon || '🏅'}</span>
+            <span style={{ fontSize: 18, fontWeight: 'bold', marginTop: 8, color: darkMode ? '#eee' : '#333' }}>
+              {currentBadge.name}
+            </span>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             style={{
               background: '#1e3c72',
               color: 'white',
@@ -104,7 +117,7 @@ export const BadgeAwardModal = ({ badges, onClose, darkMode }) => {
             onMouseEnter={(e) => (e.currentTarget.style.background = '#2a5298')}
             onMouseLeave={(e) => (e.currentTarget.style.background = '#1e3c72')}
           >
-            Awesome!
+            {isLast ? 'Awesome!' : 'Next →'}
           </button>
         </div>
       </div>
