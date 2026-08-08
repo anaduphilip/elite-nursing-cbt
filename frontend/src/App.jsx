@@ -12,6 +12,7 @@ import { AuthContext } from './context/AuthContext';
 import { AlertProvider } from './context/AlertContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from './utils/theme';
 import { syncHistoryFromServer, clearLocalHistory } from './utils/quizHelpers';
+import { BadgeCelebrationChecker } from './components/common/BadgeCelebrationChecker';
 
 // Import all components
 import { Login } from './components/auth/Login';
@@ -201,7 +202,6 @@ function App() {
     setAuth({ token, user });
     localStorage.setItem('auth', JSON.stringify({ token, user }));
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    // ===== Sync history from server =====
     try {
       await syncHistoryFromServer(token);
     } catch (e) {
@@ -209,13 +209,14 @@ function App() {
     }
   };
 
-  // ===== UPDATED logout: added clearLocalHistory =====
+  // ===== UPDATED logout: added clearLocalHistory and badge ID clear =====
   const logout = () => {
     setAuth({ token: null, user: null });
     localStorage.removeItem('auth');
     delete axios.defaults.headers.common['Authorization'];
-    // ===== Clear local history =====
     clearLocalHistory();
+    // ===== Clear stored badge IDs to prevent stale celebrations =====
+    localStorage.removeItem('badgeIds');
   };
 
   const openLogoutModal = () => setShowLogoutModal(true);
@@ -545,9 +546,13 @@ function App() {
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, darkMode, toggleDarkMode, openLogoutModal }}>
       <AlertProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
+        {/* ===== WRAP WITH BADGE CELEBRATION CHECKER ===== */}
+        <BadgeCelebrationChecker>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </BadgeCelebrationChecker>
+
         {notificationModal && (
           <div style={{
             position: 'fixed',
