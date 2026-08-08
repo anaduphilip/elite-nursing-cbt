@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { syncHistoryFromServer } from '../../../utils/quizHelpers';
+import { BadgeAwardModal } from '../../common/BadgeAwardModal';
 
 export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, secondaryText, textColor, cardBg, token }) => {
   const [userData, setUserData] = useState(null);
@@ -22,22 +23,23 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
   const [emailBody, setEmailBody] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
 
-  // ----- States for Edit User -----
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editVerified, setEditVerified] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editResult, setEditResult] = useState('');
 
-  // ----- States for Restore History -----
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [restoreResult, setRestoreResult] = useState('');
 
-  // ----- States for Award Badge -----
   const [badges, setBadges] = useState([]);
   const [selectedBadgeId, setSelectedBadgeId] = useState('');
   const [awardLoading, setAwardLoading] = useState(false);
   const [awardResult, setAwardResult] = useState('');
+
+  // ----- NEW: celebration modal state -----
+  const [awardedBadges, setAwardedBadges] = useState([]);
+  const [showAwardCelebration, setShowAwardCelebration] = useState(false);
 
   // ----- FETCH USER DATA -----
   useEffect(() => {
@@ -166,7 +168,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ----- AWARD BADGE -----
+  // ----- AWARD BADGE (UPDATED with celebration) -----
   const handleAwardBadge = async () => {
     if (!selectedBadgeId) {
       alert('Please select a badge.');
@@ -181,6 +183,12 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success) {
+        // Find the badge details to show in celebration
+        const awardedBadge = badges.find(b => b._id === selectedBadgeId);
+        if (awardedBadge) {
+          setAwardedBadges([{ name: awardedBadge.name, icon: awardedBadge.icon }]);
+          setShowAwardCelebration(true);
+        }
         setAwardResult('✅ Badge awarded successfully!');
         const refreshRes = await axios.get(`/api/admin/users/${userId}`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -451,7 +459,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </button>
         </div>
 
-        {/* ===== STATS (with badge list) ===== */}
+        {/* ===== STATS ===== */}
         {stats && (
           <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
             <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Stats</h3>
@@ -750,6 +758,15 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
             </div>
           </div>
         </div>
+      )}
+
+      {/* ===== BADGE AWARD CELEBRATION ===== */}
+      {showAwardCelebration && (
+        <BadgeAwardModal
+          badges={awardedBadges}
+          onClose={() => setShowAwardCelebration(false)}
+          darkMode={darkMode}
+        />
       )}
     </div>
   );
