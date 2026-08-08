@@ -41,10 +41,21 @@ router.post('/verify-email', async (req, res) => {
     if (!stored) return res.status(400).json({ error: 'No code found' });
     if (Date.now() > stored.expires) return res.status(400).json({ error: 'Code expired' });
     if (stored.otp !== otp) return res.status(400).json({ error: 'Invalid code' });
+
+    // ===== Update user's isVerified in the database =====
+    const user = await User.findOne({ email });
+    if (user) {
+      user.isVerified = true;
+      await user.save();
+      console.log(`✅ User ${email} verified via OTP`);
+    }
+
     otpStore.set(`verified_${email}`, { verified: true, name: stored.name });
     otpStore.delete(`verify_${email}`);
+
     res.json({ success: true, message: 'Email verified' });
   } catch (error) {
+    console.error('Verification error:', error);
     res.status(500).json({ error: 'Verification failed' });
   }
 });
