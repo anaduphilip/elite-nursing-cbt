@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
-import { GamificationWidget } from './GamificationWidget';   // ← UPDATED: now in profile folder
+import { GamificationWidget } from './GamificationWidget';
 
 export const Profile = () => {
   const { token, user, login, logout, darkMode, toggleDarkMode, openLogoutModal } = useContext(AuthContext);
@@ -27,6 +27,24 @@ export const Profile = () => {
   // ===== AI Explanations Remaining =====
   const [aiRemaining, setAiRemaining] = useState(null);
   const [aiLoading, setAiLoading] = useState(true);
+
+  // ===== Refresh user data on mount to reflect admin edits =====
+  useEffect(() => {
+    const refreshProfile = async () => {
+      try {
+        const res = await axios.get('/api/user/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        login(token, res.data);
+        setEditName(res.data.name || '');
+      } catch (err) {
+        console.error('Failed to refresh profile:', err);
+      }
+    };
+    if (token) {
+      refreshProfile();
+    }
+  }, [token]);
 
   useEffect(() => {
     if (!user?.premiumExpiry) {
@@ -280,7 +298,7 @@ export const Profile = () => {
             <span style={{ fontSize: 20 }}> </span> My History
           </Link>
 
-          {/* ===== NEW: Study Plan Link ===== */}
+          {/* ===== Study Plan Link ===== */}
           <Link to="/study-plan" style={{ display: 'flex', alignItems: 'center', gap: 10, background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: headingColor, fontWeight: 'bold' }}>
             <span style={{ fontSize: 20 }}>📝</span> Review Failed Quizzes
           </Link>

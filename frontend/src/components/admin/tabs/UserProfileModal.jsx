@@ -1,6 +1,7 @@
 // src/components/admin/tabs/UserProfileModal.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { syncHistoryFromServer } from '../../../utils/quizHelpers';
 
 export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, secondaryText, textColor, cardBg, token }) => {
   const [userData, setUserData] = useState(null);
@@ -130,6 +131,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
         setEditName(res.data.user.name);
         setEditEmail(res.data.user.email);
         setEditVerified(res.data.user.isVerified);
+        await syncHistoryFromServer(token);
       }
     } catch (err) {
       setEditResult('❌ Failed to update user: ' + (err.response?.data?.error || err.message));
@@ -138,7 +140,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ----- NEW: RESTORE DELETED HISTORY -----
+  // ----- RESTORE DELETED HISTORY (UPDATED with sync) -----
   const handleRestoreHistory = async () => {
     if (!window.confirm('Restore all deleted history for this user?')) return;
     setRestoreLoading(true);
@@ -157,6 +159,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
       setUserData(refreshRes.data.user);
       setStats(refreshRes.data.stats);
       setQuizHistory(refreshRes.data.quizHistory || []);
+      await syncHistoryFromServer(token);
     } catch (err) {
       setRestoreResult('❌ Failed to restore history: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -164,7 +167,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ----- NEW: AWARD BADGE -----
+  // ----- AWARD BADGE (UPDATED with sync) -----
   const handleAwardBadge = async () => {
     if (!selectedBadgeId) {
       alert('Please select a badge.');
@@ -185,6 +188,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           headers: { Authorization: `Bearer ${token}` }
         });
         setStats(refreshRes.data.stats);
+        await syncHistoryFromServer(token);
       } else {
         setAwardResult(res.data.message || '❌ Failed to award badge.');
       }
@@ -407,7 +411,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </span></div>
         </div>
 
-        {/* ===== NEW: EDIT USER DETAILS ===== */}
+        {/* ===== EDIT USER DETAILS (unchanged) ===== */}
         <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Edit User Details</h3>
           {editResult && <p style={{ color: editResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{editResult}</p>}
@@ -470,7 +474,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         )}
 
-        {/* ===== NEW: RESTORE DELETED HISTORY ===== */}
+        {/* ===== RESTORE DELETED HISTORY (unchanged) ===== */}
         <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Restore Deleted History</h3>
           {restoreResult && <p style={{ color: restoreResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{restoreResult}</p>}
@@ -484,7 +488,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </button>
         </div>
 
-        {/* ===== NEW: AWARD BADGE ===== */}
+        {/* ===== AWARD BADGE (unchanged) ===== */}
         <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Award Badge</h3>
           {awardResult && <p style={{ color: awardResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{awardResult}</p>}

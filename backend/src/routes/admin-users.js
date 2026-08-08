@@ -1,6 +1,7 @@
 // src/routes/admin-users.js
 const express = require('express');
-const { User, Quiz } = require('../models');
+const mongoose = require('mongoose');
+const { User, Quiz, Badge } = require('../models');
 const { isAdmin } = require('../middleware');
 const { sendEmail, generateOTP } = require('../utils');
 const jwt = require('jsonwebtoken');
@@ -40,17 +41,19 @@ router.get('/:userId', isAdmin, async (req, res) => {
         discountAmount: t.discountAmount || 0
       }));
 
-    // ---- Quiz History with titles ----
+    // ---- Quiz History with titles (FIXED) ----
     const quizHistory = await Promise.all(
       user.quizResults
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .slice(0, 30)
         .map(async (result) => {
-          let quizTitle = 'Unknown Quiz';
-          try {
-            const quiz = await Quiz.findById(result.quizId);
-            if (quiz) quizTitle = quiz.title;
-          } catch (e) {}
+          let quizTitle = result.title || 'Unknown Quiz';
+          if (!result.title && mongoose.Types.ObjectId.isValid(result.quizId)) {
+            try {
+              const quiz = await Quiz.findById(result.quizId);
+              if (quiz) quizTitle = quiz.title;
+            } catch (e) {}
+          }
           return {
             date: result.date,
             quizId: result.quizId,
@@ -223,9 +226,6 @@ router.post('/:userId/send-email', isAdmin, async (req, res) => {
   }
 });
 
-// ============================================================
-// ===== NEW: UPDATE user (name, email, isVerified) =====
-// ============================================================
 router.put('/:userId', isAdmin, async (req, res) => {
   try {
     const { name, email, isVerified } = req.body;
@@ -246,9 +246,7 @@ router.put('/:userId', isAdmin, async (req, res) => {
   }
 });
 
-// ============================================================
-// ===== NEW: RESTORE all deleted history =====
-// ============================================================
+
 router.post('/:userId/restore-history', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -269,6 +267,28 @@ router.post('/:userId/restore-history', isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Restore history error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/:userId/award-badge/:badgeId', isAdmin, async (req, res) => {
+  try {
+    const { userId, badgeId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const badge = await Badge.findById(badgeId);
+    if (!badge) return res.status(404).json({ error: 'Badge not found' });
+
+    const alreadyHas = user.awardedBadgeIds && user.awardedBadgeIds.some(id => id.toString() === badgeId);
+    if (alreadyHas) {
+      return res.json({ success: false, message: 'User already has this badge' });
+    }
+    user.badges.push({ badgeId: badge._id, earnedAt: new Date() });
+    user.awardedBadgeIds.push(badge._id);
+    await user.save();
+    res.json({ success: true, message: `Badge "${badge.name}" awarded to ${user.email}`, badge });
+  } catch (error) {
+    console.error('Manual badge award error:', error);
+    res.status(500).json({ error: 'Failed to award badge' });
   }
 });
 
