@@ -6,6 +6,7 @@ import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { PremiumModal } from '../premium/PremiumModal';
 import { getCachedCategories, getCachedPapers, getCachedExams } from '../../utils/preCouncilCache';
+import { getExamAttempt } from '../../utils/quizHelpers';
 
 export const PreCouncilExamList = () => {
   const { categorySlug, paperSlug } = useParams();
@@ -21,6 +22,16 @@ export const PreCouncilExamList = () => {
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const navigate = useNavigate();
+
+  // ===== Check if exam 1 has been taken =====
+  const isFreeExamTaken = (examId) => {
+    return localStorage.getItem(`precouncil_exam_${examId}_taken`) === 'true';
+  };
+
+  // ===== Get attempt data for an exam =====
+  const getAttempt = (examId) => {
+    return getExamAttempt(`precouncil_${examId}`);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,8 +57,14 @@ export const PreCouncilExamList = () => {
     fetchData();
   }, [categorySlug, paperSlug, navigate, token]);
 
-  // ===== UPDATED: Accept isLocked flag =====
-  const handleStartExam = (exam, isLocked) => {
+  // ===== Handle start exam =====
+  const handleStartExam = (exam, isLocked, isAttempted) => {
+    if (exam.order === 1 && isAttempted && !user?.isPremium) {
+      setSelectedExam(exam);
+      setShowPremiumModal(true);
+      return;
+    }
+    // If premium exam locked -> show premium modal
     if (isLocked && !user?.isPremium) {
       setSelectedExam(exam);
       setShowPremiumModal(true);
@@ -291,6 +308,44 @@ export const PreCouncilExamList = () => {
         }}>
           {exams.map((exam, index) => {
             const isLocked = index > 0 && !user?.isPremium;
+            const isFreeExam = exam.order === 1;
+            const isAttempted = getAttempt(exam._id) !== null;
+            const attemptData = getAttempt(exam._id);
+            const freeExamTaken = isFreeExam && isFreeExamTaken(exam._id);
+
+            // Determine button text and behavior
+            let buttonText = 'Start';
+            let isButtonDisabled = false;
+            let buttonStyle = {};
+
+            if (isFreeExam && freeExamTaken) {
+              if (user?.isPremium) {
+                buttonText = 'Retake';
+                // Premium: allow retake
+              } else {
+                buttonText = 'Upgrade to Retake';
+                isButtonDisabled = true;
+                buttonStyle = { background: 'linear-gradient(135deg, #ff9800, #e65100)', opacity: 0.7 };
+              }
+            } else if (isLocked) {
+              buttonText = 'Unlock';
+              buttonStyle = { background: 'linear-gradient(135deg, #ff9800, #e65100)' };
+            } else if (isAttempted) {
+              buttonText = 'Retake';
+            } else {
+              buttonText = 'Start';
+            }
+
+            const handleClick = () => {
+              if (isFreeExam && freeExamTaken && !user?.isPremium) {
+                // Show premium modal for upgrade
+                setSelectedExam(exam);
+                setShowPremiumModal(true);
+                return;
+              }
+              handleStartExam(exam, isLocked, isAttempted);
+            };
+
             return (
               <div
                 key={exam._id}
@@ -388,6 +443,20 @@ export const PreCouncilExamList = () => {
                       }}>
                          {exam.timeLimit || 180}m
                       </span>
+                      {/* ===== NEW: Show last attempt score & percentage ===== */}
+                      {attemptData && (
+                        <span style={{
+                          background: darkMode ? '#1a1a2e' : '#e8f5e9',
+                          padding: '2px 10px',
+                          borderRadius: 16,
+                          fontSize: 'clamp(9px, 0.8vw, 11px)',
+                          color: attemptData.percentage >= 70 ? '#2e7d32' : '#dc3545',
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap'
+                        }}>
+                          Last: {attemptData.score}/{attemptData.total} ({attemptData.percentage}%)
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -395,37 +464,47 @@ export const PreCouncilExamList = () => {
                 {/* Right: Button */}
                 <div style={{ flex: '0 0 auto' }}>
                   <button
-                    onClick={() => handleStartExam(exam, isLocked)}   // ← PASS isLocked
+                    onClick={handleClick}
+                    disabled={isButtonDisabled}
                     style={{
-                      background: isLocked 
-                        ? 'linear-gradient(135deg, #ff9800, #e65100)' 
-                        : 'linear-gradient(135deg, #1e3c72, #2a5298)',
+                      background: isButtonDisabled 
+                        ? '#6c757d' 
+                        : (isLocked || (isFreeExam && freeExamTaken && !user?.isPremium))
+                          ? 'linear-gradient(135deg, #ff9800, #e65100)'
+                          : 'linear-gradient(135deg, #1e3c72, #2a5298)',
                       color: 'white',
                       border: 'none',
                       padding: '6px 18px',
                       borderRadius: 30,
                       fontSize: 'clamp(12px, 1.2vw, 14px)',
                       fontWeight: 600,
-                      cursor: 'pointer',
+                      cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
                       transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                      boxShadow: isLocked 
-                        ? '0 2px 8px rgba(255, 152, 0, 0.25)' 
-                        : '0 2px 8px rgba(30, 60, 114, 0.2)'
+                      boxShadow: isButtonDisabled 
+                        ? 'none'
+                        : (isLocked || (isFreeExam && freeExamTaken && !user?.isPremium))
+                          ? '0 2px 8px rgba(255, 152, 0, 0.25)'
+                          : '0 2px 8px rgba(30, 60, 114, 0.2)',
+                      opacity: isButtonDisabled ? 0.7 : 1
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'scale(1.05)';
-                      e.currentTarget.style.boxShadow = isLocked 
-                        ? '0 4px 12px rgba(255, 152, 0, 0.35)' 
-                        : '0 4px 12px rgba(30, 60, 114, 0.35)';
+                      if (!isButtonDisabled) {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.boxShadow = isLocked || (isFreeExam && freeExamTaken && !user?.isPremium)
+                          ? '0 4px 12px rgba(255, 152, 0, 0.35)'
+                          : '0 4px 12px rgba(30, 60, 114, 0.35)';
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)';
-                      e.currentTarget.style.boxShadow = isLocked 
-                        ? '0 2px 8px rgba(255, 152, 0, 0.25)' 
-                        : '0 2px 8px rgba(30, 60, 114, 0.2)';
+                      if (!isButtonDisabled) {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = isLocked || (isFreeExam && freeExamTaken && !user?.isPremium)
+                          ? '0 2px 8px rgba(255, 152, 0, 0.25)'
+                          : '0 2px 8px rgba(30, 60, 114, 0.2)';
+                      }
                     }}
                   >
-                    {isLocked ? 'Unlock' : 'Start'}
+                    {buttonText}
                   </button>
                 </div>
               </div>

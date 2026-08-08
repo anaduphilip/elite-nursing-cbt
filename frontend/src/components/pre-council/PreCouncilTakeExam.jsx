@@ -8,6 +8,7 @@ import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/the
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { Timer } from '../common/Timer';
 import { saveExamAttempt, getCachedPreCouncilExam } from '../../utils/quizHelpers';
+import { BadgeAwardModal } from '../common/BadgeAwardModal';
 
 export const PreCouncilTakeExam = () => {
   const { examId } = useParams();
@@ -31,6 +32,10 @@ export const PreCouncilTakeExam = () => {
   const [loadingExplanation, setLoadingExplanation] = useState({});
   const [explanationRemaining, setExplanationRemaining] = useState(null);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
+
+  // ===== Badge award state =====
+  const [awardedBadges, setAwardedBadges] = useState([]);
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
 
   // ===== Fetch exam using cache =====
   useEffect(() => {
@@ -152,12 +157,18 @@ export const PreCouncilTakeExam = () => {
 
       // Send to backend
       try {
-        await axios.post(
+        const response = await axios.post(
           `/api/pre-council/exams/${examId}/submit`,
           { answers },
           { headers: { Authorization: `Bearer ${token}` } }
         );
         console.log('✅ PreCouncil exam result saved to backend');
+
+        // ===== Check for awarded badges =====
+        if (response.data.awardedBadges && response.data.awardedBadges.length > 0) {
+          setAwardedBadges(response.data.awardedBadges);
+          setShowBadgeModal(true);
+        }
       } catch (error) {
         console.error('❌ Failed to save PreCouncil exam to backend:', error);
       }
@@ -507,6 +518,15 @@ export const PreCouncilTakeExam = () => {
           100% { transform: rotate(360deg); }
         }
       `}</style>
+
+      {/* ===== Badge Award Modal ===== */}
+      {showBadgeModal && (
+        <BadgeAwardModal
+          badges={awardedBadges}
+          onClose={() => setShowBadgeModal(false)}
+          darkMode={darkMode}
+        />
+      )}
     </div>
   );
 };

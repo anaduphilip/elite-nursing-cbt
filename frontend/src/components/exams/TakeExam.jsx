@@ -9,6 +9,7 @@ import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/the
 import { Timer } from '../common/Timer';
 import { saveExamAttempt } from '../../utils/quizHelpers';
 import { LoadingWithBar } from '../common/LoadingWithBar';
+import { BadgeAwardModal } from '../common/BadgeAwardModal';
 
 export const TakeExam = () => {
   const { id, sectionNumber, mode } = useParams();
@@ -35,6 +36,10 @@ export const TakeExam = () => {
 
   // ===== Submission loading state =====
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ===== Badge award state =====
+  const [awardedBadges, setAwardedBadges] = useState([]);
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
 
   useEffect(() => {
     const fetchExam = async () => {
@@ -150,7 +155,7 @@ export const TakeExam = () => {
     handleSubmit();
   };
 
-  // ===== UPDATED: handleSubmit with better logging =====
+  // ===== UPDATED: handleSubmit with badge award handling =====
   const handleSubmit = async () => {
     // --- Local calculation (existing code) ---
     let score = 0;
@@ -189,23 +194,27 @@ export const TakeExam = () => {
     }
     localStorage.removeItem(`exam_${id}_answers`);
 
-    // --- NEW: Send answers to backend with detailed logging ---
+    // --- Send answers to backend and check for awarded badges ---
     try {
       setIsSubmitting(true);
       console.log('📤 Sending exam result to backend for quiz:', id);
-      console.log('🔗 Backend URL:', axios.defaults.baseURL || 'default');
-      console.log('📦 Payload:', { answers });
 
       const response = await axios.post(
         `/api/quizzes/${id}/submit`,
         { answers },
-        { 
+        {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 15000 // 15 second timeout
         }
       );
-      
+
       console.log('✅ Exam results saved to backend:', response.status, response.data);
+
+      // ===== Check for awarded badges =====
+      if (response.data.awardedBadges && response.data.awardedBadges.length > 0) {
+        setAwardedBadges(response.data.awardedBadges);
+        setShowBadgeModal(true);
+      }
     } catch (error) {
       console.error('❌ Failed to save exam results to backend:');
       if (error.response) {
@@ -540,6 +549,15 @@ export const TakeExam = () => {
       <div style={{ textAlign: 'center', padding: '20px' }}>
         <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
+
+      {/* ===== Badge Award Modal ===== */}
+      {showBadgeModal && (
+        <BadgeAwardModal
+          badges={awardedBadges}
+          onClose={() => setShowBadgeModal(false)}
+          darkMode={darkMode}
+        />
+      )}
     </div>
   );
 };

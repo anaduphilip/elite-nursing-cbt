@@ -89,6 +89,8 @@ router.post('/exams/:examId/submit', authenticate, async (req, res) => {
     const passed = percentage >= 70;
 
     const user = await User.findById(req.user._id);
+    let awardedBadges = [];
+
     if (user) {
       const sectionNumber = exam.order || 1;
       const isPremiumExam = sectionNumber > 1;
@@ -118,13 +120,15 @@ router.post('/exams/:examId/submit', authenticate, async (req, res) => {
 
       await user.save();
       console.log(`✅ PreCouncil result saved for ${user.email}: ${score}/${total} (${categorySlug} → ${paperName})`);
+
+      try {
+        const gamificationResult = await checkAndAwardBadges(req.user._id);
+        awardedBadges = gamificationResult.awarded || [];
+        console.log(`🏆 GAMIFICATION (PreCouncil): ${awardedBadges.length} badges awarded`);
+      } catch (e) { console.error('Gamification error:', e); }
     }
 
-    try {
-      await checkAndAwardBadges(req.user._id);
-    } catch (e) { console.error('Gamification error:', e); }
-
-    res.json({ score, total, percentage, passed });
+    res.json({ score, total, percentage, passed, awardedBadges }); // <-- ADD awardedBadges to response
   } catch (error) {
     console.error('Pre Council submit error:', error);
     res.status(400).json({ error: error.message });

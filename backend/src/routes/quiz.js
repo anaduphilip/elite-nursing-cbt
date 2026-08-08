@@ -51,6 +51,8 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
     const user = await User.findById(req.user._id);
     console.log('🔍 User found:', user?.email);
 
+    let awardedBadges = [];
+
     if (user) {
       const resultEntry = {
         quizId: req.params.quizId,
@@ -73,7 +75,8 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
 
       try {
         const gamificationResult = await checkAndAwardBadges(user._id);
-        console.log(`🏆 GAMIFICATION: ${gamificationResult.awarded?.length || 0} badges awarded`);
+        awardedBadges = gamificationResult.awarded || [];
+        console.log(`🏆 GAMIFICATION: ${awardedBadges.length} badges awarded`);
       } catch (gamificationError) {
         console.error('Gamification check error:', gamificationError);
       }
@@ -95,12 +98,11 @@ router.post('/:quizId/submit', authenticate, async (req, res) => {
       }
     }
 
-    res.json({ score, total, percentage, passed });
+    res.json({ score, total, percentage, passed, awardedBadges });
   } catch (error) {
     console.error('❌ Submit error:', error);
     res.status(400).json({ error: error.message });
   }
 });
-
 
 module.exports = router;

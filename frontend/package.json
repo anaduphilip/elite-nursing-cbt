@@ -19,6 +19,7 @@
     "axios": "^1.15.2",
     "firebase": "^12.14.0",
     "react": "^19.2.5",
+    "react-confetti": "^6.4.0",
     "react-dom": "^19.2.5",
     "react-markdown": "^10.1.0",
     "react-quill-new": "^3.8.3",

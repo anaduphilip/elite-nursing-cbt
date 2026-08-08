@@ -8,6 +8,7 @@ import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/the
 import { Timer } from '../common/Timer';
 import { saveExamAttempt } from '../../utils/quizHelpers';
 import { LoadingWithBar } from '../common/LoadingWithBar';
+import { BadgeAwardModal } from '../common/BadgeAwardModal';
 
 export const PremiumExam = () => {
   const { categoryName, topic, examId, mode } = useParams();
@@ -26,6 +27,10 @@ export const PremiumExam = () => {
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
   const navigate = useNavigate();
+
+  // ===== Badge award state =====
+  const [awardedBadges, setAwardedBadges] = useState([]);
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
 
   useEffect(() => {
     const fetchExam = async () => {
@@ -112,7 +117,7 @@ export const PremiumExam = () => {
     if (submitted && result && Object.keys(answers).length > 0) {
       const sendToBackend = async () => {
         try {
-          await axios.post(
+          const response = await axios.post(
             '/api/premium-exam/submit',
             {
               category: categoryName,
@@ -127,13 +132,18 @@ export const PremiumExam = () => {
             { headers: { Authorization: `Bearer ${token}` } }
           );
           console.log('✅ Premium exam results saved to backend');
+
+          // ===== Check for awarded badges =====
+          if (response.data.awardedBadges && response.data.awardedBadges.length > 0) {
+            setAwardedBadges(response.data.awardedBadges);
+            setShowBadgeModal(true);
+          }
         } catch (error) {
           console.error('❌ Failed to save premium exam results:', error);
         }
       };
       sendToBackend();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submitted, result]);
 
   const handleAnswer = (answerIndex) => {
@@ -326,6 +336,15 @@ export const PremiumExam = () => {
       <div style={{ textAlign: 'center', padding: '20px' }}>
         <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.</p>
       </div>
+
+      {/* ===== Badge Award Modal ===== */}
+      {showBadgeModal && (
+        <BadgeAwardModal
+          badges={awardedBadges}
+          onClose={() => setShowBadgeModal(false)}
+          darkMode={darkMode}
+        />
+      )}
     </div>
   );
 };
