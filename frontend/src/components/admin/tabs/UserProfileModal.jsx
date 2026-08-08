@@ -409,7 +409,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
 
         {/* ===== NEW: EDIT USER DETAILS ===== */}
         <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
-          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>✏️ Edit User Details</h3>
+          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Edit User Details</h3>
           {editResult && <p style={{ color: editResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{editResult}</p>}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
@@ -418,7 +418,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: 6, background: darkMode ? '#2d2d3d' : 'white', color: textColor }}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, background: darkMode ? '#2d2d3d' : 'white', color: textColor, boxSizing: 'border-box' }}
               />
             </div>
             <div>
@@ -427,7 +427,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
                 type="email"
                 value={editEmail}
                 onChange={(e) => setEditEmail(e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: 6, background: darkMode ? '#2d2d3d' : 'white', color: textColor }}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, background: darkMode ? '#2d2d3d' : 'white', color: textColor, boxSizing: 'border-box' }}
               />
             </div>
             <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -453,7 +453,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
         {/* ===== STATS (unchanged) ===== */}
         {stats && (
           <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
-            <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>📊 Stats</h3>
+            <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Stats</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 12 }}>
               <div><strong>Exams:</strong> <span style={{ color: textColor }}>{stats.totalExams || 0}</span></div>
               <div><strong>Pass Rate:</strong> <span style={{ color: '#ff9800', fontWeight: 'bold' }}>{stats.passRate || 0}%</span></div>
@@ -472,7 +472,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
 
         {/* ===== NEW: RESTORE DELETED HISTORY ===== */}
         <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
-          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>🗑️ Restore Deleted History</h3>
+          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Restore Deleted History</h3>
           {restoreResult && <p style={{ color: restoreResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{restoreResult}</p>}
           <p style={{ color: secondaryText, fontSize: 13, marginBottom: 8 }}>This will restore all quiz attempts that were marked as deleted.</p>
           <button
@@ -486,7 +486,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
 
         {/* ===== NEW: AWARD BADGE ===== */}
         <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
-          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>🏅 Award Badge</h3>
+          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Award Badge</h3>
           {awardResult && <p style={{ color: awardResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{awardResult}</p>}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <select
