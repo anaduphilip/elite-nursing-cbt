@@ -451,7 +451,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </button>
         </div>
 
-        {/* ===== STATS ===== */}
+        {/* ===== STATS (with badge list) ===== */}
         {stats && (
           <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
             <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Stats</h3>
@@ -462,10 +462,14 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
               <div><strong>Badges:</strong> <span style={{ color: textColor }}>🏆 {stats.badgesCount || 0}</span></div>
             </div>
             {stats.badges && stats.badges.length > 0 && (
-              <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {stats.badges.map((badge, idx) => (
-                  <span key={idx} style={{ fontSize: 14 }} title={badge.name}>{badge.icon}</span>
-                ))}
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {stats.badges.map((badge, idx) => (
+                    <span key={idx} style={{ fontSize: 14, background: darkMode ? '#333' : '#e0e0e0', padding: '2px 10px', borderRadius: 12 }}>
+                      {badge.icon} {badge.name}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -540,7 +544,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         )}
 
-        {/* ===== QUIZ HISTORY (UPDATED with Category & Topic) ===== */}
+        {/* ===== QUIZ HISTORY ===== */}
         {quizHistory.length > 0 && (
           <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
             <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>📝 Quiz History</h3>

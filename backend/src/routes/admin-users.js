@@ -13,7 +13,10 @@ const router = express.Router();
 // ---- Get user profile with full details ----
 router.get('/:userId', isAdmin, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId).select('-password');
+    const user = await User.findById(req.params.userId)
+      .select('-password')
+      .populate('badges.badgeId');   // <-- populate badge details
+
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     // ---- Stats ----
@@ -90,7 +93,11 @@ router.get('/:userId', isAdmin, async (req, res) => {
         passRate,
         streak,
         badgesCount,
-        badges: user.badges?.map(b => b.badgeId) || []
+        badges: user.badges?.map(b => ({
+          id: b.badgeId?._id,
+          name: b.badgeId?.name || 'Badge',
+          icon: b.badgeId?.icon || '🏅'
+        })) || []
       },
       transactions,
       quizHistory
