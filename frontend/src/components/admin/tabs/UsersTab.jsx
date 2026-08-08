@@ -1,6 +1,6 @@
 // src/components/admin/tabs/UsersTab.jsx
 import React, { useState } from 'react';
-import { UserProfileModal } from './UserProfileModal'; // We'll create this next
+import { UserProfileModal } from './UserProfileModal';
 
 export const UsersTab = ({
   users,
@@ -20,27 +20,33 @@ export const UsersTab = ({
   secondaryText,
   textColor,
   cardBg,
-  token // ← NEW: passed from AdminPanel
+  token,
+  onRestoreHistory,
+  onAwardBadge,
+  availableBadges = [],
+  restoringUserId = null,
+  awardingUserId = null,
+  deletedHistoryCount = {}
 }) => {
-  // ===== NEW: State for Profile Modal =====
   const [profileUserId, setProfileUserId] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // ===== NEW: Open Profile Modal =====
   const openProfileModal = (userId) => {
     setProfileUserId(userId);
     setShowProfileModal(true);
   };
 
-  // ===== NEW: Close Profile Modal =====
   const closeProfileModal = () => {
     setProfileUserId(null);
     setShowProfileModal(false);
   };
 
+  // ===== NEW: handle badge selection per user =====
+  const [selectedBadge, setSelectedBadge] = useState({});
+
   return (
     <>
-      {/* ===== SEARCH & FILTER (UNCHANGED) ===== */}
+      {/* SEARCH & FILTER (UNCHANGED) */}
       <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <input 
           type="text" 
@@ -60,14 +66,15 @@ export const UsersTab = ({
         </select>
       </div>
 
-      {/* ===== USER CARDS ===== */}
+      {/* USER CARDS */}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 20 }}>
         {Array.isArray(filteredUsers) && filteredUsers.length > 0 ? (
           filteredUsers.map(u => {
             const currentPlan = u.isPremium ? (u.premiumPlan || 'monthly') : 'none';
+            const hasDeleted = (deletedHistoryCount && deletedHistoryCount[u._id] > 0);
             return (
               <div key={u._id} style={{ width: '350px', background: darkMode ? '#1a1a2e' : '#f8f9fa', padding: 20, borderRadius: 12, border: '1px solid ' + (darkMode ? '#444' : '#e0e0e0'), color: textColor }}>
-                {/* ===== USER INFO (UNCHANGED) ===== */}
+                {/* USER INFO (UNCHANGED) */}
                 <p><strong>Name:</strong> {u.name || 'N/A'}</p>
                 <p><strong>Email:</strong> {u.email}</p>
                 <p><strong>Premium:</strong> {u.isPremium ? '✅ Yes' : '❌ No'}</p>
@@ -76,7 +83,7 @@ export const UsersTab = ({
                 <p><strong>Verified:</strong> {u.isVerified ? '✅ Yes' : '❌ No'}</p>
                 <p><strong>Joined:</strong> {new Date(u.createdAt).toLocaleDateString()}</p>
 
-                {/* ===== PLAN MANAGEMENT (UNCHANGED) ===== */}
+                {/* PLAN MANAGEMENT (UNCHANGED) */}
                 <div style={{ marginTop: 15 }}>
                   <label style={{ fontSize: 13, fontWeight: 'bold', display: 'block', marginBottom: 4, color: textColor }}>Set Premium Plan:</label>
                   <select 
@@ -97,9 +104,74 @@ export const UsersTab = ({
                   </button>
                 </div>
 
-                {/* ===== ACTION BUTTONS (VIEW PROFILE ADDED) ===== */}
+                {/* ===== NEW: ADMIN EXTRA ACTIONS ===== */}
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Restore History button (only if deleted history exists) */}
+                  {onRestoreHistory && hasDeleted && (
+                    <button
+                      onClick={() => onRestoreHistory(u._id)}
+                      disabled={restoringUserId === u._id}
+                      style={{
+                        width: '100%',
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        border: 'none',
+                        background: restoringUserId === u._id ? '#ccc' : '#28a745',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: 13,
+                        cursor: restoringUserId === u._id ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {restoringUserId === u._id ? 'Restoring...' : '↩️ Restore Deleted History'}
+                    </button>
+                  )}
+
+                  {/* Award Badge dropdown + button */}
+                  {onAwardBadge && availableBadges.length > 0 && (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <select
+                        value={selectedBadge[u._id] || (availableBadges[0]?._id || '')}
+                        onChange={(e) => setSelectedBadge(prev => ({ ...prev, [u._id]: e.target.value }))}
+                        style={{
+                          flex: 1,
+                          padding: '6px 10px',
+                          borderRadius: 6,
+                          border: '1px solid #ccc',
+                          background: darkMode ? '#2d2d3d' : 'white',
+                          color: textColor,
+                          fontSize: 13
+                        }}
+                      >
+                        {availableBadges.map(b => (
+                          <option key={b._id} value={b._id}>{b.icon} {b.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => {
+                          const badgeId = selectedBadge[u._id] || availableBadges[0]?._id;
+                          if (badgeId) onAwardBadge(u._id, badgeId);
+                        }}
+                        disabled={awardingUserId === u._id}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: 6,
+                          border: 'none',
+                          background: awardingUserId === u._id ? '#ccc' : '#ff9800',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: 13,
+                          cursor: awardingUserId === u._id ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        {awardingUserId === u._id ? '...' : '🏅 Award'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ACTION BUTTONS (UNCHANGED) */}
                 <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
-                  {/* 👇 NEW: View Profile Button */}
                   <button 
                     onClick={() => openProfileModal(u._id)} 
                     style={{ 
@@ -117,7 +189,6 @@ export const UsersTab = ({
                     View Profile
                   </button>
 
-                  {/* DELETE USER (UNCHANGED) */}
                   <button 
                     onClick={() => deleteUser(u._id)} 
                     style={{ 
@@ -135,7 +206,6 @@ export const UsersTab = ({
                     Delete User
                   </button>
 
-                  {/* ADJUST PREMIUM (UNCHANGED) */}
                   <button 
                     onClick={() => { setAdjustUserId(u._id); setShowAdjustModal(true); }} 
                     style={{ 
@@ -161,7 +231,7 @@ export const UsersTab = ({
         )}
       </div>
 
-      {/* ===== NEW: USER PROFILE MODAL ===== */}
+      {/* USER PROFILE MODAL (UNCHANGED) */}
       {showProfileModal && profileUserId && (
         <UserProfileModal
           userId={profileUserId}

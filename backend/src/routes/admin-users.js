@@ -184,7 +184,6 @@ router.post('/:userId/resend-verification', isAdmin, async (req, res) => {
       return res.json({ success: false, message: 'User is already verified' });
     }
     const otp = generateOTP();
-    // Use the shared OTP store
     otpStore.set(`verify_${user.email}`, { otp, expires: Date.now() + 10 * 60000, name: user.name });
     await sendEmail(user.email, user.name || 'User', otp, 'verification');
     console.log(`📧 Admin resent verification to: ${user.email}`);
@@ -221,6 +220,55 @@ router.post('/:userId/send-email', isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Send email error:', error);
     res.status(500).json({ error: 'Failed to send email' });
+  }
+});
+
+// ============================================================
+// ===== NEW: UPDATE user (name, email, isVerified) =====
+// ============================================================
+router.put('/:userId', isAdmin, async (req, res) => {
+  try {
+    const { name, email, isVerified } = req.body;
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (name !== undefined) user.name = name;
+    if (email !== undefined) user.email = email;
+    if (isVerified !== undefined) user.isVerified = isVerified;
+
+    await user.save();
+    const updated = user.toObject();
+    delete updated.password;
+    res.json({ success: true, user: updated });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
+// ===== NEW: RESTORE all deleted history =====
+// ============================================================
+router.post('/:userId/restore-history', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    let modified = 0;
+    user.quizResults.forEach(entry => {
+      if (entry.deleted === true) {
+        entry.deleted = false;
+        modified++;
+      }
+    });
+    if (modified === 0) {
+      return res.json({ success: true, message: 'No deleted history to restore.' });
+    }
+    await user.save();
+    res.json({ success: true, message: `Restored ${modified} deleted history entries.` });
+  } catch (error) {
+    console.error('Restore history error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

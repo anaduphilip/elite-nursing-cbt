@@ -14,7 +14,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState('');
 
-  // ===== NEW: Admin Action States =====
   const [actionLoading, setActionLoading] = useState(false);
   const [actionResult, setActionResult] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -22,7 +21,24 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
   const [emailBody, setEmailBody] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
 
-  // ===== FETCH USER DATA =====
+  // ----- NEW States for Edit User -----
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editVerified, setEditVerified] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editResult, setEditResult] = useState('');
+
+  // ----- NEW States for Restore History -----
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreResult, setRestoreResult] = useState('');
+
+  // ----- NEW States for Award Badge -----
+  const [badges, setBadges] = useState([]);
+  const [selectedBadgeId, setSelectedBadgeId] = useState('');
+  const [awardLoading, setAwardLoading] = useState(false);
+  const [awardResult, setAwardResult] = useState('');
+
+  // ----- FETCH USER DATA (unchanged) -----
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -34,6 +50,9 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
         setStats(res.data.stats);
         setTransactions(res.data.transactions || []);
         setQuizHistory(res.data.quizHistory || []);
+        setEditName(res.data.user.name || '');
+        setEditEmail(res.data.user.email || '');
+        setEditVerified(res.data.user.isVerified || false);
       } catch (err) {
         console.error('Failed to fetch user data:', err);
       } finally {
@@ -43,7 +62,24 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     if (userId) fetchUserData();
   }, [userId, token]);
 
-  // ===== SEND PRIVATE MESSAGE (EXISTING - UNCHANGED) =====
+  // ----- NEW: Fetch badges for award dropdown -----
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        const res = await axios.get('/api/admin/badges', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const list = res.data.badges || [];
+        setBadges(list);
+        if (list.length > 0) setSelectedBadgeId(list[0]._id);
+      } catch (err) {
+        console.error('Failed to fetch badges:', err);
+      }
+    };
+    if (userId) fetchBadges();
+  }, [userId, token]);
+
+  // ----- SEND PRIVATE MESSAGE (unchanged) -----
   const sendPrivateMessage = async () => {
     if (!message.trim()) {
       alert('Please enter a message');
@@ -74,7 +110,92 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ===== NEW: FORCE LOGOUT =====
+  // ----- NEW: UPDATE USER -----
+  const handleUpdateUser = async () => {
+    setEditLoading(true);
+    setEditResult('');
+    try {
+      const res = await axios.put(
+        `/api/admin/users/${userId}`,
+        {
+          name: editName.trim(),
+          email: editEmail.trim(),
+          isVerified: editVerified
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        setEditResult('✅ User updated successfully!');
+        setUserData(res.data.user);
+        setEditName(res.data.user.name);
+        setEditEmail(res.data.user.email);
+        setEditVerified(res.data.user.isVerified);
+      }
+    } catch (err) {
+      setEditResult('❌ Failed to update user: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // ----- NEW: RESTORE DELETED HISTORY -----
+  const handleRestoreHistory = async () => {
+    if (!window.confirm('Restore all deleted history for this user?')) return;
+    setRestoreLoading(true);
+    setRestoreResult('');
+    try {
+      const res = await axios.post(
+        `/api/admin/users/${userId}/restore-history`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRestoreResult(res.data.message || '✅ History restored.');
+      // Refresh user data
+      const refreshRes = await axios.get(`/api/admin/users/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserData(refreshRes.data.user);
+      setStats(refreshRes.data.stats);
+      setQuizHistory(refreshRes.data.quizHistory || []);
+    } catch (err) {
+      setRestoreResult('❌ Failed to restore history: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setRestoreLoading(false);
+    }
+  };
+
+  // ----- NEW: AWARD BADGE -----
+  const handleAwardBadge = async () => {
+    if (!selectedBadgeId) {
+      alert('Please select a badge.');
+      return;
+    }
+    setAwardLoading(true);
+    setAwardResult('');
+    try {
+      const res = await axios.post(
+        `/api/admin/users/${userId}/award-badge/${selectedBadgeId}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        setAwardResult('✅ Badge awarded successfully!');
+        // Refresh stats
+        const refreshRes = await axios.get(`/api/admin/users/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setStats(refreshRes.data.stats);
+      } else {
+        setAwardResult(res.data.message || '❌ Failed to award badge.');
+      }
+    } catch (err) {
+      setAwardResult('❌ Failed to award badge: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setAwardLoading(false);
+    }
+  };
+
+  // ----- Existing Admin Actions (unchanged) -----
   const handleForceLogout = async () => {
     if (!window.confirm('Force logout this user from all devices?')) return;
     setActionLoading(true);
@@ -93,7 +214,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ===== NEW: RESET STREAK =====
   const handleResetStreak = async () => {
     if (!window.confirm('Reset this user\'s streak to 0?')) return;
     setActionLoading(true);
@@ -115,7 +235,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ===== NEW: BAN / UNBAN =====
   const handleToggleBan = async () => {
     const action = userData?.isBanned ? 'unban' : 'ban';
     if (!window.confirm(`${action} this user?`)) return;
@@ -138,7 +257,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ===== NEW: SOFT DELETE / RESTORE =====
   const handleToggleDelete = async () => {
     const action = userData?.isDeleted ? 'restore' : 'delete';
     if (!window.confirm(`${action} this user? This can be undone.`)) return;
@@ -161,7 +279,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ===== NEW: RESEND VERIFICATION EMAIL =====
   const handleResendVerification = async () => {
     setActionLoading(true);
     setActionResult('');
@@ -178,7 +295,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ===== NEW: SEND DIRECT EMAIL =====
   const handleSendEmail = async () => {
     if (!emailSubject.trim() || !emailBody.trim()) {
       alert('Please enter both subject and message.');
@@ -207,6 +323,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
+  // ===== LOADING / RENDER =====
   if (loading) {
     return (
       <div style={{
@@ -225,9 +342,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     );
   }
 
-  if (!userData) {
-    return null;
-  }
+  if (!userData) return null;
 
   const isBanned = userData.isBanned || false;
   const isDeleted = userData.isDeleted || false;
@@ -254,7 +369,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
         boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
         position: 'relative'
       }}>
-        {/* ===== CLOSE BUTTON ===== */}
+        {/* CLOSE BUTTON (unchanged) */}
         <button
           onClick={onClose}
           style={{
@@ -274,7 +389,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
 
         <h2 style={{ color: headingColor, fontSize: 22, marginBottom: 20 }}>User Profile</h2>
 
-        {/* ===== USER INFO (EXISTING - UNCHANGED) ===== */}
+        {/* ===== USER INFO (unchanged) ===== */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
           <div><strong>Name:</strong> <span style={{ color: textColor }}>{userData.name || 'N/A'}</span></div>
           <div><strong>Email:</strong> <span style={{ color: textColor }}>{userData.email}</span></div>
@@ -287,13 +402,55 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           )}
           <div><strong>Verified:</strong> <span style={{ color: userData.isVerified ? '#2e7d32' : '#ff9800' }}>{userData.isVerified ? '✅ Yes' : '⚠️ No'}</span></div>
           <div><strong>Joined:</strong> <span style={{ color: textColor }}>{new Date(userData.createdAt).toLocaleDateString()}</span></div>
-          {/* ===== NEW: Ban & Delete Status ===== */}
           <div><strong>Status:</strong> <span style={{ color: isDeleted ? '#dc3545' : (isBanned ? '#ff9800' : '#2e7d32') }}>
             {isDeleted ? '🗑️ Deleted' : (isBanned ? '🚫 Banned' : '✅ Active')}
           </span></div>
         </div>
 
-        {/* ===== STATS (EXISTING - UNCHANGED) ===== */}
+        {/* ===== NEW: EDIT USER DETAILS ===== */}
+        <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
+          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>✏️ Edit User Details</h3>
+          {editResult && <p style={{ color: editResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{editResult}</p>}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 'bold', color: textColor }}>Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: 6, background: darkMode ? '#2d2d3d' : 'white', color: textColor }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 'bold', color: textColor }}>Email</label>
+              <input
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: 6, background: darkMode ? '#2d2d3d' : 'white', color: textColor }}
+              />
+            </div>
+            <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <label style={{ fontSize: 13, fontWeight: 'bold', color: textColor }}>Verified:</label>
+              <input
+                type="checkbox"
+                checked={editVerified}
+                onChange={(e) => setEditVerified(e.target.checked)}
+                style={{ width: 20, height: 20, cursor: 'pointer' }}
+              />
+              <span style={{ color: textColor }}>{editVerified ? '✅ Yes' : '❌ No'}</span>
+            </div>
+          </div>
+          <button
+            onClick={handleUpdateUser}
+            disabled={editLoading}
+            style={{ marginTop: 12, background: '#1e3c72', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: editLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+          >
+            {editLoading ? 'Saving...' : 'Update User'}
+          </button>
+        </div>
+
+        {/* ===== STATS (unchanged) ===== */}
         {stats && (
           <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
             <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>📊 Stats</h3>
@@ -313,7 +470,45 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         )}
 
-        {/* ===== NEW: TRANSACTION HISTORY ===== */}
+        {/* ===== NEW: RESTORE DELETED HISTORY ===== */}
+        <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
+          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>🗑️ Restore Deleted History</h3>
+          {restoreResult && <p style={{ color: restoreResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{restoreResult}</p>}
+          <p style={{ color: secondaryText, fontSize: 13, marginBottom: 8 }}>This will restore all quiz attempts that were marked as deleted.</p>
+          <button
+            onClick={handleRestoreHistory}
+            disabled={restoreLoading}
+            style={{ background: '#28a745', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: restoreLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+          >
+            {restoreLoading ? 'Restoring...' : 'Restore All Deleted History'}
+          </button>
+        </div>
+
+        {/* ===== NEW: AWARD BADGE ===== */}
+        <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
+          <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>🏅 Award Badge</h3>
+          {awardResult && <p style={{ color: awardResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{awardResult}</p>}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <select
+              value={selectedBadgeId}
+              onChange={(e) => setSelectedBadgeId(e.target.value)}
+              style={{ flex: 1, minWidth: 200, padding: '8px', border: '1px solid #ccc', borderRadius: 6, background: darkMode ? '#2d2d3d' : 'white', color: textColor }}
+            >
+              {badges.map(b => (
+                <option key={b._id} value={b._id}>{b.icon} {b.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleAwardBadge}
+              disabled={awardLoading}
+              style={{ background: '#ff9800', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: awardLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+            >
+              {awardLoading ? 'Awarding...' : 'Award Badge'}
+            </button>
+          </div>
+        </div>
+
+        {/* ===== TRANSACTION HISTORY (unchanged) ===== */}
         {transactions.length > 0 && (
           <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
             <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>💰 Transaction History</h3>
@@ -344,7 +539,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         )}
 
-        {/* ===== NEW: QUIZ HISTORY ===== */}
+        {/* ===== QUIZ HISTORY (unchanged) ===== */}
         {quizHistory.length > 0 && (
           <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
             <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>📝 Quiz History</h3>
@@ -379,7 +574,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         )}
 
-        {/* ===== NEW: ADMIN ACTIONS SECTION ===== */}
+        {/* ===== ADMIN ACTIONS (unchanged) ===== */}
         <div style={{ marginBottom: 16, paddingTop: 16, borderTop: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Admin Actions</h3>
           {actionResult && (
@@ -388,7 +583,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
             </p>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
-            {/* Force Logout */}
             <button
               onClick={handleForceLogout}
               disabled={actionLoading}
@@ -396,8 +590,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
             >
               Force Logout
             </button>
-
-            {/* Reset Streak */}
             <button
               onClick={handleResetStreak}
               disabled={actionLoading}
@@ -405,8 +597,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
             >
               Reset Streak
             </button>
-
-            {/* Ban / Unban */}
             <button
               onClick={handleToggleBan}
               disabled={actionLoading}
@@ -414,8 +604,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
             >
               {isBanned ? 'Unban User' : 'Ban User'}
             </button>
-
-            {/* Soft Delete / Restore */}
             <button
               onClick={handleToggleDelete}
               disabled={actionLoading}
@@ -423,8 +611,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
             >
               {isDeleted ? 'Restore User' : 'Soft Delete'}
             </button>
-
-            {/* Resend Verification */}
             <button
               onClick={handleResendVerification}
               disabled={actionLoading}
@@ -432,8 +618,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
             >
               Resend Verification
             </button>
-
-            {/* Send Direct Email */}
             <button
               onClick={() => setShowEmailModal(true)}
               style={{ padding: '10px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: 13, background: '#ff9800', color: 'white' }}
@@ -443,7 +627,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         </div>
 
-        {/* ===== SEND PRIVATE MESSAGE (EXISTING - UNCHANGED) ===== */}
+        {/* ===== SEND PRIVATE MESSAGE (unchanged) ===== */}
         <div style={{ marginBottom: 16, paddingTop: 16, borderTop: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Send Private Message</h3>
           <p style={{ color: secondaryText, fontSize: 13, marginBottom: 12 }}>
@@ -497,7 +681,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
         </div>
       </div>
 
-      {/* ===== NEW: EMAIL MODAL ===== */}
+      {/* ===== EMAIL MODAL (unchanged) ===== */}
       {showEmailModal && (
         <div style={{
           position: 'fixed',

@@ -47,33 +47,39 @@ router.post('/check-exam-access', authenticate, async (req, res) => {
   res.json({ hasAccess: hasPurchased });
 });
 
-// ===== Get user's full exam history (with answers & questions) =====
+// ===== Get user's full exam history (excluding deleted) =====
 router.get('/history', authenticate, async (req, res) => {
   try {
-    res.json({ success: true, history: req.user.quizResults });
+    const history = req.user.quizResults.filter(entry => !entry.deleted);
+    res.json({ success: true, history });
   } catch (error) {
     console.error('Fetch history error:', error);
     res.status(500).json({ error: 'Failed to fetch history' });
   }
 });
 
-// ===== DELETE all history =====
+// ===== SOFT DELETE all history =====
 router.delete('/history', authenticate, async (req, res) => {
   try {
-    await User.findByIdAndUpdate(req.user._id, { $set: { quizResults: [] } });
-    res.json({ success: true, message: 'All history cleared.' });
+    const user = await User.findById(req.user._id);
+    user.quizResults.forEach(entry => { entry.deleted = true; });
+    await user.save();
+    res.json({ success: true, message: 'All history marked as deleted.' });
   } catch (error) {
-    console.error('Clear history error:', error);
+    console.error('Soft delete error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// ===== DELETE a specific attempt =====
+// ===== SOFT DELETE a specific attempt =====
 router.delete('/history/:quizId', authenticate, async (req, res) => {
   try {
     const { quizId } = req.params;
-    await User.findByIdAndUpdate(req.user._id, { $pull: { quizResults: { quizId: quizId } } });
-    res.json({ success: true, message: 'Attempt deleted.' });
+    const user = await User.findById(req.user._id);
+    const entry = user.quizResults.find(e => e.quizId === quizId);
+    if (entry) entry.deleted = true;
+    await user.save();
+    res.json({ success: true, message: 'Attempt marked as deleted.' });
   } catch (error) {
     console.error('Delete attempt error:', error);
     res.status(500).json({ error: error.message });
