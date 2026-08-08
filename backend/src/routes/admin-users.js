@@ -41,7 +41,7 @@ router.get('/:userId', isAdmin, async (req, res) => {
         discountAmount: t.discountAmount || 0
       }));
 
-    // ---- Quiz History with titles (FIXED) ----
+    // ---- Quiz History with titles, category & topic ----
     const quizHistory = await Promise.all(
       user.quizResults
         .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -60,7 +60,9 @@ router.get('/:userId', isAdmin, async (req, res) => {
             quizTitle: quizTitle,
             score: result.score,
             total: result.total,
-            percentage: result.percentage
+            percentage: result.percentage,
+            category: result.category || 'N/A',
+            topic: result.topic || 'N/A'
           };
         })
     );
@@ -226,6 +228,7 @@ router.post('/:userId/send-email', isAdmin, async (req, res) => {
   }
 });
 
+// ---- Update user ----
 router.put('/:userId', isAdmin, async (req, res) => {
   try {
     const { name, email, isVerified } = req.body;
@@ -246,7 +249,7 @@ router.put('/:userId', isAdmin, async (req, res) => {
   }
 });
 
-
+// ---- Restore deleted history ----
 router.post('/:userId/restore-history', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -270,6 +273,7 @@ router.post('/:userId/restore-history', isAdmin, async (req, res) => {
   }
 });
 
+// ---- Award badge ----
 router.post('/:userId/award-badge/:badgeId', isAdmin, async (req, res) => {
   try {
     const { userId, badgeId } = req.params;

@@ -22,24 +22,24 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
   const [emailBody, setEmailBody] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
 
-  // ----- NEW States for Edit User -----
+  // ----- States for Edit User -----
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editVerified, setEditVerified] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editResult, setEditResult] = useState('');
 
-  // ----- NEW States for Restore History -----
+  // ----- States for Restore History -----
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [restoreResult, setRestoreResult] = useState('');
 
-  // ----- NEW States for Award Badge -----
+  // ----- States for Award Badge -----
   const [badges, setBadges] = useState([]);
   const [selectedBadgeId, setSelectedBadgeId] = useState('');
   const [awardLoading, setAwardLoading] = useState(false);
   const [awardResult, setAwardResult] = useState('');
 
-  // ----- FETCH USER DATA (unchanged) -----
+  // ----- FETCH USER DATA -----
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -63,7 +63,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     if (userId) fetchUserData();
   }, [userId, token]);
 
-  // ----- NEW: Fetch badges for award dropdown -----
+  // ----- Fetch badges for award dropdown -----
   useEffect(() => {
     const fetchBadges = async () => {
       try {
@@ -80,7 +80,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     if (userId) fetchBadges();
   }, [userId, token]);
 
-  // ----- SEND PRIVATE MESSAGE (unchanged) -----
+  // ----- SEND PRIVATE MESSAGE -----
   const sendPrivateMessage = async () => {
     if (!message.trim()) {
       alert('Please enter a message');
@@ -111,7 +111,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ----- NEW: UPDATE USER -----
+  // ----- UPDATE USER -----
   const handleUpdateUser = async () => {
     setEditLoading(true);
     setEditResult('');
@@ -140,7 +140,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ----- RESTORE DELETED HISTORY (UPDATED with sync) -----
+  // ----- RESTORE DELETED HISTORY -----
   const handleRestoreHistory = async () => {
     if (!window.confirm('Restore all deleted history for this user?')) return;
     setRestoreLoading(true);
@@ -152,7 +152,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setRestoreResult(res.data.message || '✅ History restored.');
-      // Refresh user data
       const refreshRes = await axios.get(`/api/admin/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -167,7 +166,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ----- AWARD BADGE (UPDATED with sync) -----
+  // ----- AWARD BADGE -----
   const handleAwardBadge = async () => {
     if (!selectedBadgeId) {
       alert('Please select a badge.');
@@ -183,7 +182,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
       );
       if (res.data.success) {
         setAwardResult('✅ Badge awarded successfully!');
-        // Refresh stats
         const refreshRes = await axios.get(`/api/admin/users/${userId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -199,7 +197,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ----- Existing Admin Actions (unchanged) -----
+  // ----- Existing Admin Actions -----
   const handleForceLogout = async () => {
     if (!window.confirm('Force logout this user from all devices?')) return;
     setActionLoading(true);
@@ -373,7 +371,6 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
         boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
         position: 'relative'
       }}>
-        {/* CLOSE BUTTON (unchanged) */}
         <button
           onClick={onClose}
           style={{
@@ -393,7 +390,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
 
         <h2 style={{ color: headingColor, fontSize: 22, marginBottom: 20 }}>User Profile</h2>
 
-        {/* ===== USER INFO (unchanged) ===== */}
+        {/* ===== USER INFO ===== */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
           <div><strong>Name:</strong> <span style={{ color: textColor }}>{userData.name || 'N/A'}</span></div>
           <div><strong>Email:</strong> <span style={{ color: textColor }}>{userData.email}</span></div>
@@ -411,7 +408,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </span></div>
         </div>
 
-        {/* ===== EDIT USER DETAILS (unchanged) ===== */}
+        {/* ===== EDIT USER DETAILS ===== */}
         <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Edit User Details</h3>
           {editResult && <p style={{ color: editResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{editResult}</p>}
@@ -454,7 +451,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </button>
         </div>
 
-        {/* ===== STATS (unchanged) ===== */}
+        {/* ===== STATS ===== */}
         {stats && (
           <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
             <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Stats</h3>
@@ -474,7 +471,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         )}
 
-        {/* ===== RESTORE DELETED HISTORY (unchanged) ===== */}
+        {/* ===== RESTORE DELETED HISTORY ===== */}
         <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Restore Deleted History</h3>
           {restoreResult && <p style={{ color: restoreResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{restoreResult}</p>}
@@ -488,7 +485,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </button>
         </div>
 
-        {/* ===== AWARD BADGE (unchanged) ===== */}
+        {/* ===== AWARD BADGE ===== */}
         <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Award Badge</h3>
           {awardResult && <p style={{ color: awardResult.includes('✅') ? '#2e7d32' : '#dc3545', fontSize: 13, marginBottom: 10 }}>{awardResult}</p>}
@@ -512,7 +509,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         </div>
 
-        {/* ===== TRANSACTION HISTORY (unchanged) ===== */}
+        {/* ===== TRANSACTION HISTORY ===== */}
         {transactions.length > 0 && (
           <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
             <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>💰 Transaction History</h3>
@@ -543,7 +540,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         )}
 
-        {/* ===== QUIZ HISTORY (unchanged) ===== */}
+        {/* ===== QUIZ HISTORY (UPDATED with Category & Topic) ===== */}
         {quizHistory.length > 0 && (
           <div style={{ marginBottom: 20, padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
             <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>📝 Quiz History</h3>
@@ -553,6 +550,8 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
                   <tr style={{ borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
                     <th style={{ textAlign: 'left', padding: '4px 8px' }}>Date</th>
                     <th style={{ textAlign: 'left', padding: '4px 8px' }}>Quiz</th>
+                    <th style={{ textAlign: 'left', padding: '4px 8px' }}>Category</th>
+                    <th style={{ textAlign: 'left', padding: '4px 8px' }}>Topic/Course</th>
                     <th style={{ textAlign: 'center', padding: '4px 8px' }}>Score</th>
                     <th style={{ textAlign: 'center', padding: '4px 8px' }}>%</th>
                     <th style={{ textAlign: 'center', padding: '4px 8px' }}>Result</th>
@@ -563,6 +562,8 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
                     <tr key={i} style={{ borderBottom: `1px solid ${darkMode ? '#333' : '#eee'}` }}>
                       <td style={{ padding: '4px 8px', color: textColor }}>{new Date(q.date).toLocaleDateString()}</td>
                       <td style={{ padding: '4px 8px', color: textColor }}>{q.quizTitle || q.quizId || 'Unknown'}</td>
+                      <td style={{ padding: '4px 8px', color: textColor }}>{q.category || 'N/A'}</td>
+                      <td style={{ padding: '4px 8px', color: textColor }}>{q.topic || 'N/A'}</td>
                       <td style={{ padding: '4px 8px', textAlign: 'center', color: textColor }}>{q.score}/{q.total}</td>
                       <td style={{ padding: '4px 8px', textAlign: 'center', color: q.percentage >= 70 ? '#2e7d32' : '#dc3545' }}>
                         {q.percentage?.toFixed(0)}%
@@ -578,7 +579,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         )}
 
-        {/* ===== ADMIN ACTIONS (unchanged) ===== */}
+        {/* ===== ADMIN ACTIONS ===== */}
         <div style={{ marginBottom: 16, paddingTop: 16, borderTop: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Admin Actions</h3>
           {actionResult && (
@@ -631,7 +632,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           </div>
         </div>
 
-        {/* ===== SEND PRIVATE MESSAGE (unchanged) ===== */}
+        {/* ===== SEND PRIVATE MESSAGE ===== */}
         <div style={{ marginBottom: 16, paddingTop: 16, borderTop: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Send Private Message</h3>
           <p style={{ color: secondaryText, fontSize: 13, marginBottom: 12 }}>
@@ -685,7 +686,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
         </div>
       </div>
 
-      {/* ===== EMAIL MODAL (unchanged) ===== */}
+      {/* ===== EMAIL MODAL ===== */}
       {showEmailModal && (
         <div style={{
           position: 'fixed',
