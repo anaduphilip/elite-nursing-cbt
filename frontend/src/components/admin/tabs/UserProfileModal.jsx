@@ -37,9 +37,12 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
   const [awardLoading, setAwardLoading] = useState(false);
   const [awardResult, setAwardResult] = useState('');
 
-  // ----- NEW: celebration modal state -----
+  // ----- Celebration modal state -----
   const [awardedBadges, setAwardedBadges] = useState([]);
   const [showAwardCelebration, setShowAwardCelebration] = useState(false);
+
+  // ----- Remove badge state -----
+  const [removingBadge, setRemovingBadge] = useState(null);
 
   // ----- FETCH USER DATA -----
   useEffect(() => {
@@ -168,7 +171,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
     }
   };
 
-  // ----- AWARD BADGE (UPDATED with celebration) -----
+  // ----- AWARD BADGE -----
   const handleAwardBadge = async () => {
     if (!selectedBadgeId) {
       alert('Please select a badge.');
@@ -190,10 +193,16 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
           setShowAwardCelebration(true);
         }
         setAwardResult('✅ Badge awarded successfully!');
-        const refreshRes = await axios.get(`/api/admin/users/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setStats(refreshRes.data.stats);
+        // Update stats from the response (which already includes the new badge)
+        if (res.data.stats) {
+          setStats(res.data.stats);
+        } else {
+          // Fallback: refresh full user data
+          const refreshRes = await axios.get(`/api/admin/users/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setStats(refreshRes.data.stats);
+        }
         await syncHistoryFromServer(token);
       } else {
         setAwardResult(res.data.message || '❌ Failed to award badge.');
@@ -202,6 +211,39 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
       setAwardResult('❌ Failed to award badge: ' + (err.response?.data?.error || err.message));
     } finally {
       setAwardLoading(false);
+    }
+  };
+
+  // ----- NEW: REMOVE BADGE -----
+  const handleRemoveBadge = async (badgeId) => {
+    if (!window.confirm('Remove this badge from the user?')) return;
+    setRemovingBadge(badgeId);
+    try {
+      const res = await axios.delete(
+        `/api/admin/users/${userId}/badges/${badgeId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        // Update stats from the response
+        if (res.data.stats) {
+          setStats(res.data.stats);
+          // Also update the userData if needed (name, email, etc. – not changed here)
+          // Refresh the full user data to keep quizHistory and transactions in sync
+          const refreshRes = await axios.get(`/api/admin/users/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setUserData(refreshRes.data.user);
+          setQuizHistory(refreshRes.data.quizHistory || []);
+        }
+        await syncHistoryFromServer(token);
+        setActionResult('✅ Badge removed successfully.');
+      } else {
+        alert('Failed to remove badge: ' + (res.data.message || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Failed to remove badge: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setRemovingBadge(null);
     }
   };
 
@@ -283,7 +325,7 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
         setUserData(prev => ({ ...prev, isDeleted: res.data.isDeleted }));
       }
     } catch (err) {
-      setActionResult('❌ Failed to toggle delete: ' + (err.response?.data?.error || err.message));
+        setActionResult('❌ Failed to toggle delete: ' + (err.response?.data?.error || err.message));
     } finally {
       setActionLoading(false);
     }
@@ -473,8 +515,37 @@ export const UserProfileModal = ({ userId, onClose, darkMode, headingColor, seco
               <div style={{ marginTop: 8 }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                   {stats.badges.map((badge, idx) => (
-                    <span key={idx} style={{ fontSize: 14, background: darkMode ? '#333' : '#e0e0e0', padding: '2px 10px', borderRadius: 12 }}>
+                    <span
+                      key={idx}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 14,
+                        background: darkMode ? '#333' : '#e0e0e0',
+                        padding: '2px 10px',
+                        borderRadius: 12,
+                      }}
+                    >
                       {badge.icon} {badge.name}
+                      <button
+                        onClick={() => handleRemoveBadge(badge.id)}
+                        disabled={removingBadge === badge.id}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#dc3545',
+                          cursor: 'pointer',
+                          fontSize: 14,
+                          fontWeight: 'bold',
+                          padding: '0 2px',
+                          lineHeight: 1,
+                          opacity: removingBadge === badge.id ? 0.5 : 1,
+                        }}
+                        title="Remove badge"
+                      >
+                        ✕
+                      </button>
                     </span>
                   ))}
                 </div>

@@ -15,11 +15,10 @@ router.get('/:userId', isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId)
       .select('-password')
-      .populate('badges.badgeId');   // <-- populate badge details
+      .populate('badges.badgeId');
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // ---- Stats ----
     const totalExams = user.quizResults.length;
     let passed = 0, failed = 0;
     for (const r of user.quizResults) {
@@ -30,7 +29,6 @@ router.get('/:userId', isAdmin, async (req, res) => {
     const badgesCount = user.badges?.length || 0;
     const streak = user.streak || 0;
 
-    // ---- Transactions ----
     const transactions = user.transactions
       .filter(t => t.status === 'completed')
       .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -44,7 +42,6 @@ router.get('/:userId', isAdmin, async (req, res) => {
         discountAmount: t.discountAmount || 0
       }));
 
-    // ---- Quiz History with titles, category & topic ----
     const quizHistory = await Promise.all(
       user.quizResults
         .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -70,7 +67,6 @@ router.get('/:userId', isAdmin, async (req, res) => {
         })
     );
 
-    // ---- Response ----
     res.json({
       success: true,
       user: {
@@ -296,10 +292,89 @@ router.post('/:userId/award-badge/:badgeId', isAdmin, async (req, res) => {
     user.badges.push({ badgeId: badge._id, earnedAt: new Date() });
     user.awardedBadgeIds.push(badge._id);
     await user.save();
-    res.json({ success: true, message: `Badge "${badge.name}" awarded to ${user.email}`, badge });
+
+    const updatedUser = await User.findById(userId).populate('badges.badgeId');
+    const totalExams = updatedUser.quizResults.length;
+    let passed = 0, failed = 0;
+    for (const r of updatedUser.quizResults) {
+      if (r.percentage >= 70) passed++;
+      else failed++;
+    }
+    const passRate = totalExams > 0 ? Math.round((passed / totalExams) * 100) : 0;
+    const badgesCount = updatedUser.badges?.length || 0;
+    const streak = updatedUser.streak || 0;
+
+    res.json({
+      success: true,
+      message: `Badge "${badge.name}" awarded to ${user.email}`,
+      badge,
+      stats: {
+        totalExams,
+        passed,
+        failed,
+        passRate,
+        streak,
+        badgesCount,
+        badges: updatedUser.badges?.map(b => ({
+          id: b.badgeId?._id,
+          name: b.badgeId?.name || 'Badge',
+          icon: b.badgeId?.icon || '🏅'
+        })) || []
+      }
+    });
   } catch (error) {
     console.error('Manual badge award error:', error);
     res.status(500).json({ error: 'Failed to award badge' });
+  }
+});
+
+router.delete('/:userId/badges/:badgeId', isAdmin, async (req, res) => {
+  try {
+    const { userId, badgeId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const beforeCount = user.badges.length;
+    user.badges = user.badges.filter(b => b.badgeId.toString() !== badgeId);
+    user.awardedBadgeIds = user.awardedBadgeIds.filter(id => id.toString() !== badgeId);
+
+    if (user.badges.length === beforeCount) {
+      return res.status(404).json({ success: false, message: 'Badge not found on user.' });
+    }
+
+    await user.save();
+
+    const updatedUser = await User.findById(userId).populate('badges.badgeId');
+    const totalExams = updatedUser.quizResults.length;
+    let passed = 0, failed = 0;
+    for (const r of updatedUser.quizResults) {
+      if (r.percentage >= 70) passed++;
+      else failed++;
+    }
+    const passRate = totalExams > 0 ? Math.round((passed / totalExams) * 100) : 0;
+    const badgesCount = updatedUser.badges?.length || 0;
+    const streak = updatedUser.streak || 0;
+
+    res.json({
+      success: true,
+      message: 'Badge removed successfully.',
+      stats: {
+        totalExams,
+        passed,
+        failed,
+        passRate,
+        streak,
+        badgesCount,
+        badges: updatedUser.badges?.map(b => ({
+          id: b.badgeId?._id,
+          name: b.badgeId?.name || 'Badge',
+          icon: b.badgeId?.icon || '🏅'
+        })) || []
+      }
+    });
+  } catch (error) {
+    console.error('Remove badge error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
