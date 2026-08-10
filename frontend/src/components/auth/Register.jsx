@@ -1,3 +1,4 @@
+// src/components/auth/Register.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -20,7 +21,9 @@ export const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [agreeChecked, setAgreeChecked] = useState(false);
-  const [marketingConsent, setMarketingConsent] = useState(false); // ← NEW
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  
+  const [referralCode, setReferralCode] = useState('');
 
   const { login } = useContext(AuthContext);
   const { darkMode } = useContext(AuthContext);
@@ -45,12 +48,10 @@ export const Register = () => {
   const handleSendVerification = async (e) => {
     e.preventDefault();
 
-    // ---- VALIDATE PASSWORD MATCH ----
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-
     if (!name.trim()) {
       setError('Please enter your full name');
       return;
@@ -59,11 +60,6 @@ export const Register = () => {
       setError('You must agree to the Terms and Privacy Policy');
       return;
     }
-
-    // 👇 Include marketing consent in the verification request (optional – you can also send it later)
-    // We'll send marketingConsent in the final registration call, but we can also store it now.
-    // We'll set it in the store so it's available later.
-    // We'll use a global or context, but simplest: we'll pass it in the register call.
 
     setIsLoading(true);
     setError('');
@@ -87,17 +83,33 @@ export const Register = () => {
     setMessage('');
     try {
       await axios.post('/api/verify-email', { email, otp });
-      // 👇 Include marketingConsent in registration
-      const res = await axios.post('/api/register', {
+      
+      const regRes = await axios.post('/api/register', {
         name,
         email,
         password,
-        marketingConsent   // ← SEND THE CHECKBOX VALUE
+        marketingConsent
       });
-      if (res.data.success) {
+
+      if (regRes.data.success) {
         setMessage('Registration successful! Redirecting...');
+
+        if (referralCode.trim()) {
+          try {
+            const userId = regRes.data.user.id;
+            await axios.post('/api/referral/apply', {
+              referralCode: referralCode.trim(),
+              newUserId: userId
+            });
+            console.log('✅ Referral applied successfully!');
+            setMessage(prev => prev + ' 🎉 Referral bonus applied!');
+          } catch (refErr) {
+            console.error('❌ Failed to apply referral:', refErr.response?.data?.error || refErr.message);
+          }
+        }
+
         setTimeout(() => {
-          login(res.data.token, res.data.user);
+          login(regRes.data.token, regRes.data.user);
         }, 2000);
       }
     } catch (error) {
@@ -251,6 +263,25 @@ export const Register = () => {
                 </div>
               </div>
 
+              {/* ===== NEW: Referral Code Input ===== */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>
+                  Referral Code (optional)
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="Enter referral code (e.g., ELITE-XXXX1234)" 
+                  value={referralCode} 
+                  onChange={(e) => setReferralCode(e.target.value)} 
+                  style={{ width: '100%', padding: '12px 14px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  onFocus={(e) => e.target.style.borderColor = '#ff9800'}
+                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                />
+                <small style={{ color: secondaryText, fontSize: 11 }}>
+                  Have a referral code? Enter it here to get a bonus!
+                </small>
+              </div>
+
               <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <input
                   type="checkbox"
@@ -271,7 +302,7 @@ export const Register = () => {
                 </label>
               </div>
 
-              {/* ===== MARKETING CONSENT CHECKBOX ===== */}
+              {/* Marketing Consent Checkbox */}
               <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <input
                   type="checkbox"
@@ -312,6 +343,7 @@ export const Register = () => {
             </div>
           </>
         ) : (
+          // ===== OTP VERIFICATION STEP =====
           <>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
               <h2 style={{ color: textColor, fontSize: 18, marginBottom: 4 }}>Verify Your Email</h2>

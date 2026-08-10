@@ -80,7 +80,17 @@ const UserSchema = new mongoose.Schema({
   }],
   streak: { type: Number, default: 0 },
   lastActivityDate: { type: Date, default: null },
-  awardedBadgeIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }]
+  awardedBadgeIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }],
+
+  // ===== REFERRAL SYSTEM FIELDS =====
+  referralCode: { type: String, unique: true, sparse: true },
+  referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  referralCount: { type: Number, default: 0 },
+  referralRewards: [{
+    rewardedAt: { type: Date, default: Date.now },
+    type: { type: String, enum: ['premium_days', 'discount'], default: 'premium_days' },
+    value: { type: Number, default: 3 }
+  }]
 });
 
 module.exports = mongoose.model('User', UserSchema);

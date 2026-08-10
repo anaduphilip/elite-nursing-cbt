@@ -22,6 +22,7 @@ const adminDashboardRoutes = require('./admin-dashboard');
 const adminForceRefreshRoutes = require('./admin-force-refresh');
 const adminQuizManagementRoutes = require('./admin-quiz-management');
 const adminPremiumRoutes = require('./admin-premium');
+const adminScheduledNotificationsRoutes = require('./admin-scheduled-notifications');
 const weeklyQuizRoutes = require('./weekly-quiz');
 const preCouncilRoutes = require('./pre-council');
 const paymentRoutes = require('./payment');
@@ -39,6 +40,7 @@ const faqsRoutes = require('./faqs');
 const notificationRoutes = require('./notification');
 const studyPlanRoutes = require('./study-plan');
 const premiumRoutes = require('./premium');
+const referralRoutes = require('./referral');
 
 const router = express.Router();
 
@@ -115,6 +117,7 @@ router.use('/admin/dashboard', adminDashboardRoutes);
 router.use('/admin/force-refresh', adminForceRefreshRoutes);
 router.use('/admin/quizzes', adminQuizManagementRoutes);
 router.use('/admin', adminPremiumRoutes);
+router.use('/admin', adminScheduledNotificationsRoutes);
 
 router.use('/weekly-quiz', weeklyQuizRoutes);
 router.use('/pre-council', preCouncilRoutes);
@@ -128,6 +131,7 @@ router.use('/gamification', gamificationRoutes);
 router.use('/explain-question', aiExplainRoutes);
 router.use('/user', userRoutes);
 router.use('/study-plan', studyPlanRoutes);
+router.use('/referral', referralRoutes);
 router.use('/config', configRoutes);
 router.use('/categories', categoriesRoutes);
 router.use('/faqs', faqsRoutes);
