@@ -19,7 +19,6 @@ export const Register = () => {
   const [resendTimer, setResendTimer] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(true);
   const [agreeChecked, setAgreeChecked] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   
@@ -32,10 +31,6 @@ export const Register = () => {
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setShowWelcome(false), 5000);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     let timer;
@@ -140,44 +135,6 @@ export const Register = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
-      {showWelcome && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: cardBg,
-          borderRadius: '40px',
-          padding: '10px 20px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          animation: 'slideDown 0.5s ease'
-        }}>
-          <span style={{ fontSize: 20 }}>🎉</span>
-          <div>
-            <strong style={{ color: headingColor, fontSize: 14 }}>Join ELITE Nursing & Midwifery CBT!</strong>
-            <p style={{ margin: 0, fontSize: 11, color: secondaryText }}>Create your account to access 20,000+ questions</p>
-          </div>
-          <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: secondaryText }}>✕</button>
-        </div>
-      )}
-      
-      <style>{`
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateX(-50%) translateY(-100px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-          }
-        }
-      `}</style>
-
       <div style={{ maxWidth: 450, width: '100%', background: cardBg, borderRadius: 24, padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
@@ -263,7 +220,7 @@ export const Register = () => {
                 </div>
               </div>
 
-              {/* ===== NEW: Referral Code Input ===== */}
+              {/* ===== Referral Code Input ===== */}
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>
                   Referral Code (optional)

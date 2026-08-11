@@ -67,11 +67,11 @@ router.post('/apply', async (req, res) => {
     newUser.referredBy = referrer._id;
     await newUser.save();
 
-    // Give referrer 3 days of premium
+    // Reward referrer with 1 day of premium 
     let expiry = referrer.premiumExpiry && referrer.premiumExpiry > new Date() 
       ? referrer.premiumExpiry 
       : new Date();
-    expiry.setDate(expiry.getDate() + 3);
+    expiry.setDate(expiry.getDate() + 1); 
     
     referrer.isPremium = true;
     referrer.premiumExpiry = expiry;
@@ -80,13 +80,13 @@ router.post('/apply', async (req, res) => {
     referrer.referralRewards.push({
       rewardedAt: new Date(),
       type: 'premium_days',
-      value: 3
+      value: 1 
     });
     await referrer.save();
 
     res.json({ 
       success: true, 
-      message: 'Referral applied! You got 3 free Premium days.' 
+      message: 'Referral applied! You got 1 free Premium day.' 
     });
   } catch (error) {
     console.error('Referral apply error:', error);

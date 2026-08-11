@@ -117,7 +117,7 @@ export const BadgeAwardModal = ({ badges, onClose, darkMode }) => {
             onMouseEnter={(e) => (e.currentTarget.style.background = '#2a5298')}
             onMouseLeave={(e) => (e.currentTarget.style.background = '#1e3c72')}
           >
-            {isLast ? 'Awesome!' : 'Next →'}
+            {isLast ? 'Awesome!' : 'Next'}
           </button>
         </div>
       </div>

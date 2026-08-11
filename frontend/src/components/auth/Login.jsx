@@ -174,7 +174,7 @@ export const Login = () => {
         }}>
           <span style={{ fontSize: 20 }}>👋</span>
           <div>
-            <strong style={{ color: headingColor, fontSize: 14 }}>Welcome to ELITE Nursing & Midwifery CBT!</strong>
+            <strong style={{ color: headingColor, fontSize: 14 }}>Welcome Back!</strong>
             <p style={{ margin: 0, fontSize: 11, color: secondaryText }}>Sign in to continue your learning journey</p>
           </div>
           <button onClick={() => setShowWelcome(false)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: secondaryText }}>✕</button>

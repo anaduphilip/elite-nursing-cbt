@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from 'react';
+// src/components/referral/ReferralPage.jsx
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { AuthContext } from '../../context/AuthContext';
+import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
 
-export const ReferralPage = ({ token, darkMode, textColor, headingColor, secondaryText, cardBg }) => {
+export const ReferralPage = () => {
+  const { token, darkMode } = useContext(AuthContext);
+  const headingColor = getHeadingColor(darkMode);
+  const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
+
   const [referralCode, setReferralCode] = useState('');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,11 +51,11 @@ export const ReferralPage = ({ token, darkMode, textColor, headingColor, seconda
 
   return (
     <div style={{ padding: 20, maxWidth: 700, margin: '0 auto' }}>
-      <h2 style={{ color: headingColor, marginBottom: 20 }}>👥 Refer & Earn</h2>
+      <h2 style={{ color: headingColor, marginBottom: 20 }}> Refer & Earn</h2>
       
       <div style={{ background: cardBg, borderRadius: 16, padding: 28, marginBottom: 24, boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
         <p style={{ color: textColor, fontSize: 16, marginBottom: 16 }}>
-          Share your referral code with friends. For every friend who signs up, <strong style={{ color: '#ff9800' }}>you get 3 FREE days of Premium!</strong>
+          Share your referral code with friends. For every friend who signs up, <strong style={{ color: '#ff9800' }}>you get 1 FREE day of Premium!</strong>
         </p>
         
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -71,13 +80,13 @@ export const ReferralPage = ({ token, darkMode, textColor, headingColor, seconda
             onClick={copyToClipboard}
             style={{ padding: '12px 24px', background: '#1e3c72', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
           >
-            {copied ? '✅ Copied!' : '📋 Copy'}
+            {copied ? '✅ Copied!' : ' Copy'}
           </button>
           <button
             onClick={shareOnWhatsApp}
             style={{ padding: '12px 24px', background: '#25D366', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
           >
-            💬 Share
+            Share
           </button>
         </div>
       </div>
@@ -88,17 +97,17 @@ export const ReferralPage = ({ token, darkMode, textColor, headingColor, seconda
           <div style={{ color: secondaryText, fontSize: 14 }}>Friends Referred</div>
         </div>
         <div style={{ background: cardBg, borderRadius: 12, padding: 20, textAlign: 'center' }}>
-          <div style={{ fontSize: 36, fontWeight: 'bold', color: '#ff9800' }}>🎁 {stats?.referralRewards?.length || 0}</div>
+          <div style={{ fontSize: 36, fontWeight: 'bold', color: '#ff9800' }}> {stats?.referralRewards?.length || 0}</div>
           <div style={{ color: secondaryText, fontSize: 14 }}>Rewards Earned</div>
         </div>
         <div style={{ background: cardBg, borderRadius: 12, padding: 20, textAlign: 'center' }}>
-          <div style={{ fontSize: 36, fontWeight: 'bold', color: '#ff9800' }}>⭐ {stats?.referralRewards?.reduce((sum, r) => sum + (r.value || 0), 0) || 0}</div>
-          <div style={{ color: secondaryText, fontSize: 14 }}>Free Premium Days</div>
+          <div style={{ fontSize: 36, fontWeight: 'bold', color: '#ff9800' }}> {stats?.referralRewards?.reduce((sum, r) => sum + (r.value || 0), 0) || 0}</div>
+          <div style={{ color: secondaryText, fontSize: 14 }}>Free Premium Day</div>
         </div>
       </div>
 
       <div style={{ background: cardBg, borderRadius: 16, padding: 20 }}>
-        <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>📊 Friends Who Joined</h3>
+        <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Friends Who Joined</h3>
         {stats?.referredUsers?.length === 0 ? (
           <p style={{ color: secondaryText }}>No friends have joined yet. Share your code!</p>
         ) : (

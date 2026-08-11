@@ -51,6 +51,7 @@ import { PreCouncilCategories } from './components/pre-council/PreCouncilCategor
 import { PreCouncilPapers } from './components/pre-council/PreCouncilPapers';
 import { PreCouncilExamList } from './components/pre-council/PreCouncilExamList';
 import { PreCouncilTakeExam } from './components/pre-council/PreCouncilTakeExam';
+import { ReferralPage } from './components/referral/ReferralPage';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -164,6 +165,7 @@ const AppContent = () => {
         <Route path="/pre-council/:categorySlug" element={<PreCouncilPapers />} />
         <Route path="/pre-council/:categorySlug/:paperSlug/exams" element={<PreCouncilExamList />} />
         <Route path="/pre-council/exam/:examId" element={<PreCouncilTakeExam />} />
+        <Route path="/referral" element={<ReferralPage />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <FloatingChatButton />
