@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
-import { getHeadingColor, getSecondaryText } from '../../utils/theme';
+import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { ProgressSnapshot } from './ProgressSnapshot';
 import { getCachedCategories, getCachedQuizzes } from '../../utils/quizHelpers';
@@ -17,6 +17,7 @@ export const HomePage = () => {
   const { darkMode, user, login, token } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
   const navigate = useNavigate();
 
   // ---- TOGGLES FOR EXPANDABLE SECTIONS ----
@@ -190,7 +191,7 @@ export const HomePage = () => {
     fetchReferralDiscount();
   }, [token]);
 
-  // ===== FETCH REFERRAL STATS FOR REWARD NOTIFICATION (NEW) =====
+  // ===== FETCH REFERRAL STATS FOR REWARD NOTIFICATION =====
   useEffect(() => {
     const fetchReferralStats = async () => {
       if (!token) return;
@@ -205,7 +206,7 @@ export const HomePage = () => {
             const rewardTime = new Date(lastReward.rewardedAt);
             const now = new Date();
             const diffSeconds = (now - rewardTime) / 1000;
-            if (diffSeconds < 15) { // within last 15 seconds
+            if (diffSeconds < 15) {
               setReferralRewardMessage(`🎉 You referred a friend and earned 1 free Premium day!`);
               setShowReferralRewardModal(true);
               setTimeout(() => setShowReferralRewardModal(false), 6000);
@@ -307,7 +308,7 @@ export const HomePage = () => {
     fetchPrivateMessages();
   }, [token]);
 
-  // ===== PRELOAD DATA (UPDATED: includes Pre Council categories + exams) =====
+  // ===== PRELOAD DATA =====
   useEffect(() => {
     if (!token) return;
     const preloadData = async () => {
@@ -772,7 +773,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ===== REFERRAL REWARD MODAL (NEW) ===== */}
+        {/* ===== REFERRAL REWARD MODAL ===== */}
         {showReferralRewardModal && (
           <div style={{
             position: 'fixed',
