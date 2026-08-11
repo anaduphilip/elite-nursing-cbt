@@ -7,7 +7,6 @@ import { getHeadingColor, getSecondaryText } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { ProgressSnapshot } from './ProgressSnapshot';
 import { getCachedCategories, getCachedQuizzes } from '../../utils/quizHelpers';
-// 👇 NEW: Import Pre Council cache functions (categories + exams)
 import { 
   getCachedCategories as getCachedPreCouncilCategories,
   getCachedExams as getCachedPreCouncilExams
@@ -54,6 +53,10 @@ export const HomePage = () => {
   const [showOffer, setShowOffer] = useState(false);
   const [offerDismissed, setOfferDismissed] = useState(false);
   const [offerTimeLeft, setOfferTimeLeft] = useState(null);
+
+  // ===== REFERRAL DISCOUNT STATE (NEW) =====
+  const [referralDiscount, setReferralDiscount] = useState(null);
+  const [referralTimeLeft, setReferralTimeLeft] = useState(null);
 
   // ===== PRIVATE MESSAGE STATE =====
   const [privateMessages, setPrivateMessages] = useState([]);
@@ -162,6 +165,27 @@ export const HomePage = () => {
     fetchOffer();
   }, [user?.isPremium]);
 
+  // ===== FETCH REFERRAL DISCOUNT (NEW) =====
+  useEffect(() => {
+    const fetchReferralDiscount = async () => {
+      if (!token) return;
+      try {
+        const res = await axios.get('/api/referral/discount', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success && res.data.active) {
+          setReferralDiscount(res.data);
+        } else {
+          setReferralDiscount(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch referral discount:', error);
+        setReferralDiscount(null);
+      }
+    };
+    fetchReferralDiscount();
+  }, [token]);
+
   // ===== COUNTDOWN TIMER FOR OFFER =====
   useEffect(() => {
     if (!showOffer || !offer?.endDate) {
@@ -192,6 +216,36 @@ export const HomePage = () => {
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [showOffer, offer?.endDate]);
+
+  // ===== COUNTDOWN TIMER FOR REFERRAL DISCOUNT (NEW) =====
+  useEffect(() => {
+    if (!referralDiscount || !referralDiscount.expiresAt) {
+      setReferralTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date();
+      const end = new Date(referralDiscount.expiresAt);
+      const diff = end - now;
+
+      if (diff <= 0) {
+        setReferralTimeLeft(null);
+        setReferralDiscount(null);
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setReferralTimeLeft({ hours, minutes, seconds });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [referralDiscount]);
 
   // ===== FETCH PRIVATE MESSAGES =====
   useEffect(() => {
@@ -628,6 +682,60 @@ export const HomePage = () => {
                 Dismiss
               </button>
             </div>
+          </div>
+        )}
+
+        {/* ===== REFERRAL DISCOUNT BANNER (NEW – NO CANCEL BUTTON) ===== */}
+        {referralDiscount && referralTimeLeft && (
+          <div style={{
+            background: darkMode ? '#1a2e1a' : '#e8f5e9',
+            borderRadius: 12,
+            padding: '16px 24px',
+            marginBottom: 24,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 16,
+            border: `2px solid #43a047`,
+            boxShadow: '0 2px 12px rgba(76, 175, 80, 0.2)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 28 }}>🎉</span>
+              <div>
+                <span style={{ color: darkMode ? '#eee' : '#1b5e20', fontSize: 15, fontWeight: 'bold' }}>
+                  You have a 10% referral discount!
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <span style={{ color: darkMode ? '#4caf50' : '#1b5e20', fontSize: 13, fontWeight: 'bold' }}>
+                    ⏰ Expires in: {String(referralTimeLeft.hours).padStart(2, '0')}h 
+                    {String(referralTimeLeft.minutes).padStart(2, '0')}m 
+                    {String(referralTimeLeft.seconds).padStart(2, '0')}s
+                  </span>
+                  <span style={{ background: '#43a047', color: 'white', padding: '2px 12px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>
+                    10% OFF
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: darkMode ? '#aaa' : '#1b5e20', marginTop: 4 }}>
+                  This discount will be automatically applied at checkout.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/get-premium')}
+              style={{
+                background: '#43a047',
+                color: 'white',
+                padding: '8px 24px',
+                border: 'none',
+                borderRadius: 30,
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)'
+              }}
+            >
+              Claim Discount →
+            </button>
           </div>
         )}
 
