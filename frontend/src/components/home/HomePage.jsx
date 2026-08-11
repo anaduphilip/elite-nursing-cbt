@@ -768,7 +768,7 @@ export const HomePage = () => {
                 boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)'
               }}
             >
-              Claim Discount →
+              Claim Discount
             </button>
           </div>
         )}
