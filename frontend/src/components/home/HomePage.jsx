@@ -54,9 +54,13 @@ export const HomePage = () => {
   const [offerDismissed, setOfferDismissed] = useState(false);
   const [offerTimeLeft, setOfferTimeLeft] = useState(null);
 
-  // ===== REFERRAL DISCOUNT STATE (NEW) =====
+  // ===== REFERRAL DISCOUNT STATE =====
   const [referralDiscount, setReferralDiscount] = useState(null);
   const [referralTimeLeft, setReferralTimeLeft] = useState(null);
+
+  // ===== REFERRAL REWARD MODAL STATE =====
+  const [showReferralRewardModal, setShowReferralRewardModal] = useState(false);
+  const [referralRewardMessage, setReferralRewardMessage] = useState('');
 
   // ===== PRIVATE MESSAGE STATE =====
   const [privateMessages, setPrivateMessages] = useState([]);
@@ -165,7 +169,7 @@ export const HomePage = () => {
     fetchOffer();
   }, [user?.isPremium]);
 
-  // ===== FETCH REFERRAL DISCOUNT (NEW) =====
+  // ===== FETCH REFERRAL DISCOUNT =====
   useEffect(() => {
     const fetchReferralDiscount = async () => {
       if (!token) return;
@@ -184,6 +188,35 @@ export const HomePage = () => {
       }
     };
     fetchReferralDiscount();
+  }, [token]);
+
+  // ===== FETCH REFERRAL STATS FOR REWARD NOTIFICATION (NEW) =====
+  useEffect(() => {
+    const fetchReferralStats = async () => {
+      if (!token) return;
+      try {
+        const res = await axios.get('/api/referral/stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success) {
+          const rewards = res.data.referralRewards || [];
+          if (rewards.length > 0) {
+            const lastReward = rewards[rewards.length - 1];
+            const rewardTime = new Date(lastReward.rewardedAt);
+            const now = new Date();
+            const diffSeconds = (now - rewardTime) / 1000;
+            if (diffSeconds < 15) { // within last 15 seconds
+              setReferralRewardMessage(`🎉 You referred a friend and earned 1 free Premium day!`);
+              setShowReferralRewardModal(true);
+              setTimeout(() => setShowReferralRewardModal(false), 6000);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch referral stats for reward check:', err);
+      }
+    };
+    if (token) fetchReferralStats();
   }, [token]);
 
   // ===== COUNTDOWN TIMER FOR OFFER =====
@@ -217,7 +250,7 @@ export const HomePage = () => {
     return () => clearInterval(interval);
   }, [showOffer, offer?.endDate]);
 
-  // ===== COUNTDOWN TIMER FOR REFERRAL DISCOUNT (NEW) =====
+  // ===== COUNTDOWN TIMER FOR REFERRAL DISCOUNT =====
   useEffect(() => {
     if (!referralDiscount || !referralDiscount.expiresAt) {
       setReferralTimeLeft(null);
@@ -685,7 +718,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ===== REFERRAL DISCOUNT BANNER (NEW – NO CANCEL BUTTON) ===== */}
+        {/* ===== REFERRAL DISCOUNT BANNER ===== */}
         {referralDiscount && referralTimeLeft && (
           <div style={{
             background: darkMode ? '#1a2e1a' : '#e8f5e9',
@@ -736,6 +769,52 @@ export const HomePage = () => {
             >
               Claim Discount →
             </button>
+          </div>
+        )}
+
+        {/* ===== REFERRAL REWARD MODAL (NEW) ===== */}
+        {showReferralRewardModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            backdropFilter: 'blur(4px)'
+          }}>
+            <div style={{
+              background: darkMode ? '#1a1a2e' : 'white',
+              borderRadius: 24,
+              padding: 32,
+              maxWidth: 400,
+              width: '90%',
+              textAlign: 'center',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+              animation: 'popIn 0.5s ease'
+            }}>
+              <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+              <h2 style={{ color: headingColor, marginBottom: 12 }}>You Earned a Bonus!</h2>
+              <p style={{ color: textColor, fontSize: 16, marginBottom: 20 }}>
+                {referralRewardMessage}
+              </p>
+              <button
+                onClick={() => setShowReferralRewardModal(false)}
+                style={{
+                  background: '#ff9800',
+                  color: 'white',
+                  padding: '12px 32px',
+                  border: 'none',
+                  borderRadius: 30,
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: 16
+                }}
+              >
+                Awesome!
+              </button>
+            </div>
           </div>
         )}
 
@@ -792,6 +871,14 @@ export const HomePage = () => {
           </Link>
         </p>
       </div>
+
+      {/* ---- CSS Animation for modal ---- */}
+      <style>{`
+        @keyframes popIn {
+          from { transform: scale(0.8); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 };

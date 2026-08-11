@@ -76,7 +76,7 @@ export const GetPremium = () => {
     fetchOffer();
   }, [user?.isPremium]);
 
-  // ===== FETCH REFERRAL DISCOUNT =====
+  // ===== FETCH REFERRAL DISCOUNT (re‑fetches when user changes) =====
   useEffect(() => {
     const fetchReferralDiscount = async () => {
       if (!token) return;
@@ -95,7 +95,7 @@ export const GetPremium = () => {
       }
     };
     fetchReferralDiscount();
-  }, [token]);
+  }, [token, user?._id]);
 
   // ===== COUNTDOWN TIMER FOR REFERRAL DISCOUNT =====
   useEffect(() => {
