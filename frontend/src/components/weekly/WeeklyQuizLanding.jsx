@@ -1,6 +1,6 @@
 // src/components/weekly/WeeklyQuizLanding.jsx
 import React, { useState, useEffect, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
@@ -18,6 +18,36 @@ export const WeeklyQuizLanding = () => {
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
+  const navigate = useNavigate();
+
+  const goBack = () => {
+    navigate(-1);
+  };
+
+  // Floating Back Button style
+  const backButtonStyle = {
+    position: 'fixed',
+    bottom: '24px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 1000,
+    background: darkMode ? '#2d2d3d' : '#ffffff',
+    color: headingColor,
+    border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+    borderRadius: '30px',
+    padding: '10px 28px',
+    fontSize: '15px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+    backdropFilter: 'blur(4px)',
+    backgroundColor: darkMode ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 255, 255, 0.9)'
+  };
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -58,10 +88,25 @@ export const WeeklyQuizLanding = () => {
   if (!quiz) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
+        <button
+          onClick={goBack}
+          style={backButtonStyle}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+          }}
+          aria-label="Go back"
+        >
+          Back
+        </button>
+
         <div style={{ fontSize: 64, marginBottom: 20 }}></div>
         <h2 style={{ color: headingColor }}>No Active Weekly Quiz</h2>
         <p style={{ color: secondaryText }}>Check back soon for a new quiz!</p>
-        <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
       </div>
     );
   }
@@ -69,6 +114,23 @@ export const WeeklyQuizLanding = () => {
   if (alreadyAttempted) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+        {/* Floating Back Button */}
+        <button
+          onClick={goBack}
+          style={backButtonStyle}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+          }}
+          aria-label="Go back"
+        >
+          Back
+        </button>
+
         <div style={{ maxWidth: 600, margin: '0 auto', background: cardBg, borderRadius: 20, padding: 30, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
           <h2 style={{ color: headingColor }}>You've Already Completed This Week's Quiz!</h2>
@@ -77,17 +139,33 @@ export const WeeklyQuizLanding = () => {
           <p style={{ color: secondaryText, marginTop: 20 }}>Check back next week for a new quiz.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/weekly-leaderboard"><button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏆 View Leaderboard</button></Link>
-            <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
           </div>
         </div>
       </div>
     );
   }
 
-  // ==== UPDATED PREMIUM BLOCK – link to home via Link ====
+  // ==== PREMIUM BLOCK – removed inline "Back" button, kept "Upgrade Now" ====
   if (quiz.isPremium && !user?.isPremium) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        {/* Floating Back Button */}
+        <button
+          onClick={goBack}
+          style={backButtonStyle}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+          }}
+          aria-label="Go back"
+        >
+          Back
+        </button>
+
         <div style={{ background: cardBg, borderRadius: 20, padding: 32, maxWidth: 400, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
           <h2 style={{ color: headingColor, marginBottom: 8 }}>Premium Quiz</h2>
@@ -100,20 +178,31 @@ export const WeeklyQuizLanding = () => {
                 Upgrade Now
               </button>
             </Link>
-            <Link to="/" style={{ flex: 1, minWidth: '120px', textDecoration: 'none' }}>
-              <button style={{ width: '100%', background: '#6c757d', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
-                Back
-              </button>
-            </Link>
           </div>
         </div>
       </div>
     );
   }
 
-  // ===== MAIN LANDING CONTENT (unchanged) =====
+  // ===== MAIN LANDING CONTENT =====
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
+      <button
+        onClick={goBack}
+        style={backButtonStyle}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
+          e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+        }}
+        aria-label="Go back"
+      >
+        Back
+      </button>
+
       {showStartDialog && (
         <div style={{
           position: 'fixed',
@@ -188,9 +277,6 @@ export const WeeklyQuizLanding = () => {
       )}
 
       <div style={{ maxWidth: 700, margin: '0 auto' }}>
-        <Link to="/" style={{ display: 'inline-block', marginBottom: 20, color: headingColor, textDecoration: 'none' }}>
-          ← Back to Home
-        </Link>
 
         <div style={{
           background: `linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)`,

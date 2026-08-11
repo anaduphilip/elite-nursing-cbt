@@ -1,6 +1,6 @@
 // src/components/weekly/WeeklyQuiz.jsx
 import React, { useState, useEffect, useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { AuthContext } from '../../context/AuthContext';
@@ -24,7 +24,6 @@ export const WeeklyQuiz = () => {
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
-  const navigate = useNavigate();
 
   // ===== AI Explanation States =====
   const [explanation, setExplanation] = useState({});
@@ -211,59 +210,15 @@ export const WeeklyQuiz = () => {
     });
   };
 
-  const goBack = () => {
-    navigate(-1);
-  };
-
-  // ---- Floating Back Button style (shared) ----
-  const backButtonStyle = {
-    position: 'fixed',
-    bottom: '24px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    zIndex: 1000,
-    background: darkMode ? '#2d2d3d' : '#ffffff',
-    color: headingColor,
-    border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
-    borderRadius: '30px',
-    padding: '10px 28px',
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-    backdropFilter: 'blur(4px)',
-    backgroundColor: darkMode ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 255, 255, 0.9)'
-  };
-
   if (loading) return <LoadingWithBar message="Loading Weekly Quiz..." />;
 
   if (!quiz) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
-        <button
-          onClick={goBack}
-          style={backButtonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
-            e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
-            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
-          }}
-          aria-label="Go back"
-        >
-          Back
-        </button>
-
         <div style={{ fontSize: 64, marginBottom: 20 }}>📅</div>
         <h2 style={{ color: headingColor }}>No Active Weekly Quiz</h2>
         <p style={{ color: secondaryText }}>Check back next week for a new quiz!</p>
+        <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
       </div>
     );
   }
@@ -271,23 +226,6 @@ export const WeeklyQuiz = () => {
   if (alreadyAttempted) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
-        {/* Floating Back Button */}
-        <button
-          onClick={goBack}
-          style={backButtonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
-            e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
-            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
-          }}
-          aria-label="Go back"
-        >
-          Back
-        </button>
-
         <div style={{ maxWidth: 600, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 30, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
           <h2 style={{ color: headingColor }}>You've Already Completed This Week's Quiz!</h2>
@@ -296,6 +234,7 @@ export const WeeklyQuiz = () => {
           <p style={{ color: secondaryText, marginTop: 20 }}>Check back next week for a new quiz.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/weekly-leaderboard"><button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏆 View Leaderboard</button></Link>
+            <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
           </div>
         </div>
       </div>
@@ -307,22 +246,6 @@ export const WeeklyQuiz = () => {
     const allQuestions = quiz.questions;
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
-        <button
-          onClick={goBack}
-          style={backButtonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
-            e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
-            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
-          }}
-          aria-label="Go back"
-        >
-          Back
-        </button>
-
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
             <h2 style={{ color: headingColor, fontSize: 22 }}>Answer Review</h2>
@@ -483,6 +406,13 @@ export const WeeklyQuiz = () => {
               </div>
             );
           })}
+          <Link to="/"><button style={{ width: '100%', marginTop: 20, background: '#1e3c72', color: 'white', padding: 14, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Home</button></Link>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
         </div>
       </div>
     );
@@ -491,22 +421,6 @@ export const WeeklyQuiz = () => {
   if (submitted && result) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-        <button
-          onClick={goBack}
-          style={backButtonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
-            e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
-            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
-          }}
-          aria-label="Go back"
-        >
-          Back
-        </button>
-
         <div style={{ maxWidth: 500, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
           <h2 style={{ color: headingColor, fontSize: 24 }}>Weekly Quiz Results</h2>
           <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: headingColor }}>{result.score}</strong> / {result.total}</p>
@@ -517,13 +431,14 @@ export const WeeklyQuiz = () => {
           <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => setShowReview(true)} style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Review Answers</button>
             <Link to="/weekly-leaderboard"><button style={{ background: '#ff9800', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>🏆 View Leaderboard</button></Link>
+            <Link to="/"><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Home</button></Link>
           </div>
         </div>
       </div>
     );
   }
 
-  // ===== ACTIVE EXAM (NO BACK BUTTON) =====
+  // ===== ACTIVE EXAM =====
   const currentQuestion = quiz.questions[currentIndex];
   const totalQuestions = quiz.questions.length;
   const answeredCount = Object.keys(answers).length;
