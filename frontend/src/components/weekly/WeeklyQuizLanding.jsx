@@ -180,7 +180,7 @@ export const WeeklyQuizLanding = () => {
                 onClick={handleConfirmStart}
                 style={{ flex: 1, background: '#28a745', color: 'white', padding: '12px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}
               >
-                Start Quiz →
+                Start Quiz
               </button>
             </div>
           </div>

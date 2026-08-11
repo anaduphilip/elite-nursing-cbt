@@ -82,6 +82,7 @@ const UserSchema = new mongoose.Schema({
   lastActivityDate: { type: Date, default: null },
   awardedBadgeIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }],
 
+  // ===== REFERRAL SYSTEM =====
   referralCode: { type: String, unique: true, sparse: true },
   referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   referralCount: { type: Number, default: 0 },
@@ -90,13 +91,14 @@ const UserSchema = new mongoose.Schema({
     type: { type: String, enum: ['premium_days', 'discount'], default: 'premium_days' },
     value: { type: Number, default: 1 }
   }],
-
   referralDiscount: {
     code: { type: String, default: null },
     discountPercent: { type: Number, default: 0 },
     expiresAt: { type: Date, default: null },
     used: { type: Boolean, default: false }
-  }
+  },
+
+  referralBonusClaimed: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model('User', UserSchema);

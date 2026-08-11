@@ -1,6 +1,6 @@
 // src/components/profile/MyHistory.jsx
 import React, { useState, useEffect, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getAllAttempts, clearAllAttempts, getCachedCategories } from '../../utils/quizHelpers';
@@ -16,6 +16,7 @@ export const MyHistory = () => {
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
+  const navigate = useNavigate();
 
   const [categoryNames, setCategoryNames] = useState({
     'general-nursing': 'General Nursing',
@@ -105,22 +106,11 @@ export const MyHistory = () => {
 
   const isUserPremium = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
 
-  if (loading) return <LoadingWithBar message="Loading history..." />;
+  const goBack = () => {
+    navigate(-1);
+  };
 
-  if (attempts.length === 0) {
-    return (
-      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
-        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: headingColor, textDecoration: 'none', fontWeight: 'bold' }}>
-          ← Back to Profile
-        </Link>
-        <div style={{ fontSize: 64, marginBottom: 20 }}>📖</div>
-        <h2 style={{ color: headingColor }}>No Exam History</h2>
-        <p>Complete some exams to see your history here.</p>
-        <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Browse Exams</button></Link>
-      </div>
-    );
-  }
-
+  // ===== GROUP ATTEMPTS BY CATEGORY → TOPIC =====
   const grouped = {};
   attempts.forEach(attempt => {
     const cat = attempt.category || 'general';
@@ -141,13 +131,100 @@ export const MyHistory = () => {
     return categorySlug;
   };
 
+  if (loading) return <LoadingWithBar message="Loading history..." />;
+
+  if (attempts.length === 0) {
+    return (
+      <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
+        {/* ===== FLOATING BACK BUTTON – BOTTOM CENTER ===== */}
+        <button
+          onClick={goBack}
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            background: darkMode ? '#2d2d3d' : '#ffffff',
+            color: headingColor,
+            border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+            borderRadius: '30px',
+            padding: '10px 28px',
+            fontSize: '15px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            backdropFilter: 'blur(4px)',
+            backgroundColor: darkMode ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 255, 255, 0.9)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+          }}
+          aria-label="Go back"
+        >
+          ← Back
+        </button>
+
+        <div style={{ fontSize: 64, marginBottom: 20 }}>📖</div>
+        <h2 style={{ color: headingColor }}>No Exam History</h2>
+        <p>Complete some exams to see your history here.</p>
+        <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Browse Exams</button></Link>
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <Link to="/profile" style={{ display: 'inline-block', marginBottom: 16, color: headingColor, textDecoration: 'none', fontWeight: 'bold' }}>
-          ← Back to Profile
-        </Link>
+      {/* ===== FLOATING BACK BUTTON – BOTTOM CENTER ===== */}
+      <button
+        onClick={goBack}
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          background: darkMode ? '#2d2d3d' : '#ffffff',
+          color: headingColor,
+          border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+          borderRadius: '30px',
+          padding: '10px 28px',
+          fontSize: '15px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+          backdropFilter: 'blur(4px)',
+          backgroundColor: darkMode ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 255, 255, 0.9)'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
+          e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+        }}
+        aria-label="Go back"
+      >
+        Back
+      </button>
 
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <h1 style={{ color: headingColor }}>📚 My Exam History</h1>
           <button

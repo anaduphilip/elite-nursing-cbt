@@ -207,7 +207,7 @@ export const HomePage = () => {
             const now = new Date();
             const diffSeconds = (now - rewardTime) / 1000;
             if (diffSeconds < 15) {
-              setReferralRewardMessage(`🎉 You referred a friend and earned 1 free Premium day!`);
+              setReferralRewardMessage(`🎉 A friend you referred just subscribed to Premium! You earned 1 free Premium day!`);
               setShowReferralRewardModal(true);
               setTimeout(() => setShowReferralRewardModal(false), 6000);
             }

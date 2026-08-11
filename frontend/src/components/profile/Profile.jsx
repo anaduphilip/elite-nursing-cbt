@@ -295,12 +295,16 @@ export const Profile = () => {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
           <Link to="/history" style={{ display: 'flex', alignItems: 'center', gap: 10, background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: headingColor, fontWeight: 'bold' }}>
-            <span style={{ fontSize: 20 }}> </span> My History
+            <span style={{ fontSize: 20 }}>📖</span> My History
           </Link>
 
-          {/* ===== Study Plan Link ===== */}
           <Link to="/study-plan" style={{ display: 'flex', alignItems: 'center', gap: 10, background: darkMode ? '#2d2d3d' : '#e8f5e9', padding: 12, borderRadius: 8, textDecoration: 'none', color: headingColor, fontWeight: 'bold' }}>
             <span style={{ fontSize: 20 }}>📝</span> Review Failed Quizzes
+          </Link>
+
+          {/* ===== NEW: Refer & Earn Link ===== */}
+          <Link to="/referral" style={{ display: 'flex', alignItems: 'center', gap: 10, background: darkMode ? '#2d2d3d' : '#fff3e0', padding: 12, borderRadius: 8, textDecoration: 'none', color: headingColor, fontWeight: 'bold' }}>
+            <span style={{ fontSize: 20 }}>👥</span> Refer & Earn
           </Link>
 
           {/* ===== Gamification Button ===== */}
@@ -316,7 +320,7 @@ export const Profile = () => {
               border: 'none',
               color: headingColor,
               fontWeight: 'bold',
-              fontSize: 18,
+              fontSize: 16,
               cursor: 'pointer',
               width: '100%',
               textAlign: 'left'

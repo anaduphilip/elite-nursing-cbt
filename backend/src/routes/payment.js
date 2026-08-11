@@ -202,6 +202,42 @@ router.post('/verify-payment', async (req, res) => {
       user.purchaseDate = new Date();
       user.transactions[transactionIndex].status = 'completed';
       user.transactions[transactionIndex].flutterwaveId = txData.id;
+
+      // ===== REFERRAL BONUS: Award referrer when referred user purchases =====
+      if (user.referredBy && !user.referralBonusClaimed) {
+        try {
+          const referrer = await User.findById(user.referredBy);
+          if (referrer) {
+            // Give referrer +1 day
+            let referrerExpiry = referrer.premiumExpiry && referrer.premiumExpiry > new Date() 
+              ? referrer.premiumExpiry 
+              : new Date();
+            referrerExpiry.setDate(referrerExpiry.getDate() + 1);
+            
+            referrer.isPremium = true;
+            referrer.premiumExpiry = referrerExpiry;
+            referrer.premiumPlan = 'daily';
+            referrer.referralCount = (referrer.referralCount || 0) + 1;
+            referrer.referralRewards.push({
+              rewardedAt: new Date(),
+              type: 'premium_days',
+              value: 1
+            });
+            await referrer.save();
+            
+            // Mark bonus as claimed for the buyer
+            user.referralBonusClaimed = true;
+            
+            console.log(`🎁 [REFERRAL] Referrer ${referrer.email} awarded +1 day because ${user.email} purchased Premium!`);
+          } else {
+            console.log(`⚠️ [REFERRAL] Referrer not found for user ${user.email} (referredBy: ${user.referredBy})`);
+          }
+        } catch (bonusError) {
+          console.error('❌ [REFERRAL] Failed to award referral bonus:', bonusError);
+          // Do not block the main flow; just log
+        }
+      }
+
       await user.save();
       console.log(`✅ User ${user.email} premium extended to ${expiry.toISOString()}`);
       return res.json({ success: true, isPremium: true, plan: plan, expiry: expiry, user: user });
