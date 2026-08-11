@@ -63,15 +63,15 @@ router.post('/apply', async (req, res) => {
       return res.status(400).json({ error: 'You have already used a referral code' });
     }
 
-    // Apply referral
+    // ---- 1. Link the referral ----
     newUser.referredBy = referrer._id;
     await newUser.save();
 
-    // Reward referrer with 1 day of premium 
+    // ---- 2. Reward referrer with +1 day Premium (instant) ----
     let expiry = referrer.premiumExpiry && referrer.premiumExpiry > new Date() 
       ? referrer.premiumExpiry 
       : new Date();
-    expiry.setDate(expiry.getDate() + 1); 
+    expiry.setDate(expiry.getDate() + 1);
     
     referrer.isPremium = true;
     referrer.premiumExpiry = expiry;
@@ -80,13 +80,25 @@ router.post('/apply', async (req, res) => {
     referrer.referralRewards.push({
       rewardedAt: new Date(),
       type: 'premium_days',
-      value: 1 
+      value: 1
     });
     await referrer.save();
 
+    // ---- 3. Give referred user a 10% discount (valid 24 hours) ----
+    const discountCode = `REF-${newUserId.slice(-6).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    newUser.referralDiscount = {
+      code: discountCode,
+      discountPercent: 10,
+      expiresAt: expiresAt,
+      used: false
+    };
+    await newUser.save();
+
     res.json({ 
       success: true, 
-      message: 'Referral applied! You got 1 free Premium day.' 
+      message: '🎉 Referral applied! You got 1 free Premium day. The referred user also gets 10% off their first purchase (valid 24h).'
     });
   } catch (error) {
     console.error('Referral apply error:', error);
@@ -109,6 +121,36 @@ router.get('/stats', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Referral stats error:', error);
     res.status(500).json({ error: 'Failed to fetch referral stats' });
+  }
+});
+
+// ---- Get active referral discount for the logged-in user ----
+router.get('/discount', authenticate, async (req, res) => {
+  try {
+    const user = req.user;
+    const discount = user.referralDiscount;
+
+    if (!discount || !discount.code || discount.used) {
+      return res.json({ success: true, active: false });
+    }
+
+    if (discount.expiresAt && new Date(discount.expiresAt) < new Date()) {
+      // Expired – mark as used
+      user.referralDiscount = { code: null, discountPercent: 0, expiresAt: null, used: true };
+      await user.save();
+      return res.json({ success: true, active: false });
+    }
+
+    res.json({
+      success: true,
+      active: true,
+      code: discount.code,
+      discountPercent: discount.discountPercent,
+      expiresAt: discount.expiresAt
+    });
+  } catch (error) {
+    console.error('Get referral discount error:', error);
+    res.status(500).json({ error: 'Failed to fetch discount' });
   }
 });
 

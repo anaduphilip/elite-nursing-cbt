@@ -25,6 +25,10 @@ export const GetPremium = () => {
   const [showOffer, setShowOffer] = useState(false);
   const [offerTimeLeft, setOfferTimeLeft] = useState(null);
 
+  // ===== REFERRAL DISCOUNT STATE =====
+  const [referralDiscount, setReferralDiscount] = useState(null);
+  const [referralTimeLeft, setReferralTimeLeft] = useState(null);
+
   // Coupon states
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(null);
@@ -71,6 +75,58 @@ export const GetPremium = () => {
     };
     fetchOffer();
   }, [user?.isPremium]);
+
+  // ===== FETCH REFERRAL DISCOUNT =====
+  useEffect(() => {
+    const fetchReferralDiscount = async () => {
+      if (!token) return;
+      try {
+        const res = await axios.get('/api/referral/discount', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success && res.data.active) {
+          setReferralDiscount(res.data);
+        } else {
+          setReferralDiscount(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch referral discount:', error);
+        setReferralDiscount(null);
+      }
+    };
+    fetchReferralDiscount();
+  }, [token]);
+
+  // ===== COUNTDOWN TIMER FOR REFERRAL DISCOUNT =====
+  useEffect(() => {
+    if (!referralDiscount || !referralDiscount.expiresAt) {
+      setReferralTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date();
+      const end = new Date(referralDiscount.expiresAt);
+      const diff = end - now;
+
+      if (diff <= 0) {
+        setReferralTimeLeft(null);
+        // Remove the discount from state (it's expired)
+        setReferralDiscount(null);
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setReferralTimeLeft({ hours, minutes, seconds });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [referralDiscount]);
 
   // ===== COUNTDOWN TIMER FOR OFFER =====
   useEffect(() => {
@@ -234,17 +290,22 @@ export const GetPremium = () => {
     }
   };
 
-  // ===== Helper: compute final price after offer + coupon (matches backend logic) =====
+  // ===== Helper: compute final price after offer + referral + coupon (matches backend logic) =====
   const computeFinalPrice = (planKey) => {
     const original = plans[planKey].amount;
     let price = original;
 
-    // Apply offer discount if active
+    // 1. Apply offer discount if active
     if (showOffer && offer?.discountPercent) {
       price = Math.round((price * (1 - offer.discountPercent / 100)) * 100) / 100;
     }
 
-    // Apply coupon if applied and for this plan
+    // 2. Apply referral discount if active
+    if (referralDiscount && referralDiscount.discountPercent && referralDiscount.discountPercent > 0) {
+      price = Math.round((price * (1 - referralDiscount.discountPercent / 100)) * 100) / 100;
+    }
+
+    // 3. Apply coupon if applied and for this plan
     if (couponApplied && couponAppliedPlan === planKey) {
       let discount = 0;
       if (couponApplied.discountType === 'percentage') {
@@ -268,15 +329,22 @@ export const GetPremium = () => {
     const offerPrice = showOffer && offer?.discountPercent
       ? Math.round((original * (1 - offer.discountPercent / 100)) * 100) / 100
       : original;
+    const referralPrice = (referralDiscount && referralDiscount.discountPercent)
+      ? Math.round((offerPrice * (1 - referralDiscount.discountPercent / 100)) * 100) / 100
+      : offerPrice;
     const finalPrice = computeFinalPrice(planKey);
+
     const hasOfferDiscount = showOffer && offerPrice < original;
-    const hasCouponDiscount = couponApplied && couponAppliedPlan === planKey && finalPrice < offerPrice;
+    const hasReferralDiscount = referralDiscount && referralDiscount.discountPercent > 0 && referralPrice < offerPrice;
+    const hasCouponDiscount = couponApplied && couponAppliedPlan === planKey && finalPrice < referralPrice;
 
     return {
       original,
       offerPrice,
+      referralPrice,
       finalPrice,
       hasOfferDiscount,
+      hasReferralDiscount,
       hasCouponDiscount
     };
   };
@@ -372,6 +440,40 @@ export const GetPremium = () => {
         >
           ← Back
         </button>
+
+        {/* ===== REFERRAL DISCOUNT BANNER ===== */}
+        {referralDiscount && referralTimeLeft && (
+          <div style={{
+            background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
+            borderRadius: 12,
+            padding: '16px 20px',
+            marginBottom: 16,
+            border: '2px solid #43a047',
+            boxShadow: '0 2px 12px rgba(76, 175, 80, 0.25)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 28 }}>🎉</span>
+              <div>
+                <span style={{ color: '#1b5e20', fontSize: 16, fontWeight: 'bold' }}>
+                  You have a 10% referral discount!
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, justifyContent: 'center' }}>
+                  <span style={{ color: '#1b5e20', fontSize: 14, fontWeight: 'bold' }}>
+                    ⏰ Expires in: {String(referralTimeLeft.hours).padStart(2, '0')}h 
+                    {String(referralTimeLeft.minutes).padStart(2, '0')}m 
+                    {String(referralTimeLeft.seconds).padStart(2, '0')}s
+                  </span>
+                  <span style={{ background: '#43a047', color: 'white', padding: '2px 12px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>
+                    10% OFF
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: '#1b5e20', marginTop: 4 }}>
+                  This discount will be automatically applied at checkout.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ===== LIMITED TIME OFFER BANNER ===== */}
         {showOffer && offer && offerTimeLeft && (
@@ -472,6 +574,7 @@ export const GetPremium = () => {
             {Object.entries(plans).map(([key, plan]) => {
               const info = getPriceInfo(key);
               const showOfferPrice = info.hasOfferDiscount;
+              const showReferralPrice = info.hasReferralDiscount;
               const showCouponPrice = info.hasCouponDiscount;
 
               return (
@@ -509,12 +612,34 @@ export const GetPremium = () => {
                       {offer.discountPercent}% OFF
                     </div>
                   )}
+                  {/* Show referral badge */}
+                  {showReferralPrice && selectedPlan === key && (
+                    <div style={{
+                      position: 'absolute',
+                      top: -10,
+                      left: -10,
+                      background: '#43a047',
+                      color: 'white',
+                      padding: '2px 10px',
+                      borderRadius: 20,
+                      fontSize: 11,
+                      fontWeight: 'bold',
+                      boxShadow: '0 2px 8px rgba(76,175,80,0.3)'
+                    }}>
+                      10% REF
+                    </div>
+                  )}
 
                   <div style={{ fontSize: 24, fontWeight: 'bold', color: headingColor }}>
                     {showCouponPrice ? (
                       <>
                         <span style={{ textDecoration: 'line-through', fontSize: 16, color: secondaryText }}>₦{info.original}</span>
                         <span style={{ color: '#2e7d32', marginLeft: 6 }}>₦{info.finalPrice}</span>
+                      </>
+                    ) : showReferralPrice ? (
+                      <>
+                        <span style={{ textDecoration: 'line-through', fontSize: 16, color: secondaryText }}>₦{info.offerPrice}</span>
+                        <span style={{ color: '#1b5e20', marginLeft: 6 }}>₦{info.referralPrice}</span>
                       </>
                     ) : showOfferPrice ? (
                       <>
@@ -532,6 +657,9 @@ export const GetPremium = () => {
                   )}
                   {showOfferPrice && selectedPlan !== key && (
                     <div style={{ marginTop: 4, fontSize: 11, color: '#e65100', fontWeight: 'bold' }}>🔥 {offer.discountPercent}% off!</div>
+                  )}
+                  {showReferralPrice && selectedPlan !== key && (
+                    <div style={{ marginTop: 4, fontSize: 11, color: '#1b5e20', fontWeight: 'bold' }}>🎉 10% referral discount!</div>
                   )}
                 </div>
               );
@@ -562,7 +690,7 @@ export const GetPremium = () => {
             <div style={{ background: '#e8f5e9', padding: '8px 16px', borderRadius: 8, display: 'inline-block' }}>
               <p style={{ color: '#2e7d32', fontSize: 14, margin: 0 }}>
                 ✅ Coupon applied! You save {couponApplied.discountType === 'percentage' ? `${couponApplied.discountValue}%` : `₦${couponApplied.discountValue}`}.
-                {priceInfo.finalPrice < priceInfo.offerPrice && (
+                {priceInfo.finalPrice < priceInfo.referralPrice && (
                   <span> New total: ₦{priceInfo.finalPrice}</span>
                 )}
               </p>
@@ -578,8 +706,16 @@ export const GetPremium = () => {
               if (priceInfo.hasCouponDiscount) {
                 return (
                   <>
-                    <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{priceInfo.original}</span>
+                    <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{priceInfo.referralPrice}</span>
                     <span style={{ color: '#2e7d32', marginLeft: 8 }}>₦{priceInfo.finalPrice}</span>
+                  </>
+                );
+              } else if (priceInfo.hasReferralDiscount) {
+                return (
+                  <>
+                    <span style={{ textDecoration: 'line-through', color: secondaryText }}>₦{priceInfo.offerPrice}</span>
+                    <span style={{ color: '#1b5e20', marginLeft: 8 }}>₦{priceInfo.referralPrice}</span>
+                    <span style={{ marginLeft: 8, fontSize: 13, color: '#43a047' }}>(10% referral discount)</span>
                   </>
                 );
               } else if (priceInfo.hasOfferDiscount) {
@@ -601,10 +737,29 @@ export const GetPremium = () => {
               {String(offerTimeLeft.hours).padStart(2, '0')}h {String(offerTimeLeft.minutes).padStart(2, '0')}m {String(offerTimeLeft.seconds).padStart(2, '0')}s
             </div>
           )}
+          {referralDiscount && referralTimeLeft && (
+            <div style={{ marginTop: 6, fontSize: 13, color: '#1b5e20', fontWeight: 'bold' }}>
+              🎉 Referral discount expires in {String(referralTimeLeft.hours).padStart(2, '0')}h {String(referralTimeLeft.minutes).padStart(2, '0')}m {String(referralTimeLeft.seconds).padStart(2, '0')}s
+            </div>
+          )}
         </div>
 
         {/* ---- Pay Button with discounted price ---- */}
-        <button onClick={handlePayment} disabled={loading} style={{ background: '#ff9800', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 30, cursor: 'pointer', fontSize: 16, fontWeight: 'bold' }}>
+        <button
+          onClick={handlePayment}
+          disabled={loading}
+          style={{
+            background: '#ff9800',
+            color: 'white',
+            padding: '12px 32px',
+            border: 'none',
+            borderRadius: 30,
+            cursor: 'pointer',
+            fontSize: 16,
+            fontWeight: 'bold',
+            opacity: loading ? 0.7 : 1
+          }}
+        >
           {loading ? 'Processing...' : `Pay ₦${finalAmount} (${plans[selectedPlan].label})`}
         </button>
       </div>

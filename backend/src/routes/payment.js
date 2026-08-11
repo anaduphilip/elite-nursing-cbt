@@ -15,7 +15,11 @@ router.post('/initialize-payment', async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' });
     }
 
-    // Limited offer check
+    // ---- Fetch user early (needed for all discount checks) ----
+    const user = await User.findById(userId);
+    if (!user) return res.status(401).json({ error: 'Your account has been deleted. Please log out and contact support.' });
+
+    // ---- Limited offer check ----
     let finalAmount = amount;
     let appliedDiscount = 0;
     let offerApplied = false;
@@ -44,7 +48,25 @@ router.post('/initialize-payment', async (req, res) => {
       }
     }
 
-    // Coupon validation (applied AFTER offer)
+    // ---- Referral discount (applied after limited offer, before coupon) ----
+    let referralDiscountAmount = 0;
+    if (user.referralDiscount && user.referralDiscount.code && !user.referralDiscount.used) {
+      const discount = user.referralDiscount;
+      if (discount.expiresAt && new Date(discount.expiresAt) > new Date()) {
+        referralDiscountAmount = (finalAmount * discount.discountPercent) / 100;
+        finalAmount = Math.max(0, finalAmount - referralDiscountAmount);
+        // Mark as used so it can't be reused
+        user.referralDiscount.used = true;
+        await user.save();
+        console.log(`🎁 Referral discount applied: ${discount.discountPercent}% off for user ${userId}. Reduced by ${referralDiscountAmount}`);
+      } else {
+        // Expired – mark as used
+        user.referralDiscount.used = true;
+        await user.save();
+      }
+    }
+
+    // ---- Coupon validation (applied AFTER offer and referral) ----
     let appliedCoupon = null;
     let discountAmount = 0;
     if (couponCode) {
@@ -66,11 +88,9 @@ router.post('/initialize-payment', async (req, res) => {
     }
 
     const tx_ref = `ELITE-${Date.now()}-${userId}-${Math.random().toString(36).substring(2, 8)}`;
-    console.log(`💰 INITIALIZING PAYMENT: ${tx_ref} for user ${userId}, original: ${amount}, final: ${finalAmount}, offer: ${offerApplied}, coupon: ${!!appliedCoupon}`);
+    console.log(`💰 INITIALIZING PAYMENT: ${tx_ref} for user ${userId}, original: ${amount}, final: ${finalAmount}, offer: ${offerApplied}, referral: ${referralDiscountAmount > 0}, coupon: ${!!appliedCoupon}`);
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(401).json({ error: 'Your account has been deleted. Please log out and contact support.' });
-
+    // ---- Apply coupon usage (if any) ----
     if (appliedCoupon) {
       appliedCoupon.usedCount += 1;
       await appliedCoupon.save();
@@ -96,15 +116,18 @@ router.post('/initialize-payment', async (req, res) => {
     const flutterwaveId = response.data.data.id;
     console.log(`✅ Payment initialized, Flutterwave ID: ${flutterwaveId}`);
 
+    // ---- Save transaction record ----
     user.transactions.push({
       reference: tx_ref,
       flutterwaveId: flutterwaveId,
       amount: finalAmount,
       originalAmount: amount,
-      discountAmount: discountAmount + (offerApplied ? appliedDiscount : 0),
+      discountAmount: discountAmount + (offerApplied ? appliedDiscount : 0) + referralDiscountAmount,
       couponCode: appliedCoupon?.code || null,
       offerApplied: offerApplied,
       offerDiscount: appliedDiscount,
+      referralDiscountApplied: referralDiscountAmount > 0,
+      referralDiscountAmount: referralDiscountAmount,
       status: 'pending',
       planType: planType || 'premium',
       examId: examId || null,
