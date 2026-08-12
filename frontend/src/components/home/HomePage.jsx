@@ -7,13 +7,16 @@ import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/the
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { ProgressSnapshot } from './ProgressSnapshot';
 import { getCachedCategories, getCachedQuizzes } from '../../utils/quizHelpers';
-import { 
+import {
   getCachedCategories as getCachedPreCouncilCategories,
   getCachedExams as getCachedPreCouncilExams
 } from '../../utils/preCouncilCache';
 
 export const HomePage = () => {
-  const [loading, setLoading] = useState(false);
+  // ---- Check cache immediately ----
+  const hasCache = localStorage.getItem('cached_categories') && localStorage.getItem('cached_quizzes');
+  const [loading, setLoading] = useState(!hasCache);
+
   const { darkMode, user, login, token } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
@@ -23,7 +26,7 @@ export const HomePage = () => {
   // ---- TOGGLES FOR EXPANDABLE SECTIONS ----
   const [showProgress, setShowProgress] = useState(false);
 
-  // ---- HOME PAGE VISIBILITY CONFIG ----
+  // ---- HOME PAGE VISIBILITY CONFIG (defaults: all visible) ----
   const [config, setConfig] = useState({
     showFreeMode: true,
     showPremiumMode: true,
@@ -33,7 +36,6 @@ export const HomePage = () => {
     showGetPremium: true,
     showPreCouncil: true
   });
-  const [configLoading, setConfigLoading] = useState(true);
 
   // ---- ANNOUNCEMENT BANNER STATE ----
   const [announcement, setAnnouncement] = useState(null);
@@ -69,7 +71,7 @@ export const HomePage = () => {
   const [currentPrivateMessage, setCurrentPrivateMessage] = useState(null);
   const [privateMessageDismissed, setPrivateMessageDismissed] = useState({});
 
-  // ---- FETCH CONFIG (includes home page visibility toggles) ----
+  // ---- FETCH CONFIG (background update) ----
   useEffect(() => {
     const fetchConfig = async () => {
       try {
@@ -87,8 +89,6 @@ export const HomePage = () => {
         }
       } catch (error) {
         console.error('Failed to fetch config:', error);
-      } finally {
-        setConfigLoading(false);
       }
     };
     fetchConfig();
@@ -312,16 +312,26 @@ export const HomePage = () => {
   useEffect(() => {
     if (!token) return;
     const preloadData = async () => {
+      const cachedCategories = localStorage.getItem('cached_categories');
+      const cachedQuizzes = localStorage.getItem('cached_quizzes');
+      const hasCache = cachedCategories && cachedQuizzes;
+
+      if (!hasCache) {
+        setLoading(true);
+      }
+
       try {
         await Promise.all([
           getCachedCategories(),
           getCachedQuizzes(token),
-          getCachedPreCouncilCategories(),   
-          getCachedPreCouncilExams()        
+          getCachedPreCouncilCategories(),
+          getCachedPreCouncilExams()
         ]);
         console.log('📚 Preloaded categories, quizzes, and all Pre Council data');
       } catch (error) {
         console.error('Failed to preload data:', error);
+      } finally {
+        setLoading(false);
       }
     };
     preloadData();
@@ -354,7 +364,8 @@ export const HomePage = () => {
     dismissPrivateMessage(message._id);
   };
 
-  if (loading || configLoading) {
+  // ---- Only show loading bar on the very first visit (no cache) ----
+  if (loading) {
     return <LoadingWithBar message="Loading..." />;
   }
 
