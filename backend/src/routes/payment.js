@@ -63,6 +63,7 @@ router.post('/initialize-payment', async (req, res) => {
         // Expired – mark as used
         user.referralDiscount.used = true;
         await user.save();
+        console.log(`⏰ [REFERRAL] Discount expired for ${user.email} – marked as used`);
       }
     }
 
@@ -87,6 +88,12 @@ router.post('/initialize-payment', async (req, res) => {
       }
     }
 
+    // ========== NEW: Ensure amount is positive before calling Flutterwave ==========
+    if (finalAmount <= 0) {
+      console.error('❌ Payment amount is zero or negative');
+      return res.status(400).json({ error: 'Invalid payment amount. Please try again.' });
+    }
+
     const tx_ref = `ELITE-${Date.now()}-${userId}-${Math.random().toString(36).substring(2, 8)}`;
     console.log(`💰 INITIALIZING PAYMENT: ${tx_ref} for user ${userId}, original: ${amount}, final: ${finalAmount}, offer: ${offerApplied}, referral: ${referralDiscountAmount > 0}, coupon: ${!!appliedCoupon}`);
 
@@ -98,6 +105,8 @@ router.post('/initialize-payment', async (req, res) => {
     }
 
     const finalRedirectUrl = redirect_url || `https://elite-nursing-cbt.vercel.app/payment-return?reference=${tx_ref}`;
+
+    // ---- Call Flutterwave ----
     const response = await axios.post('https://api.flutterwave.com/v3/payments', {
       tx_ref,
       amount: finalAmount,
@@ -112,8 +121,24 @@ router.post('/initialize-payment', async (req, res) => {
       headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`, 'Content-Type': 'application/json' }
     });
 
-    const flutterwaveLink = response.data.data.link;
-    const flutterwaveId = response.data.data.id;
+    // ========== NEW: Log full Flutterwave response for debugging ==========
+    console.log('📦 Flutterwave response:', JSON.stringify(response.data, null, 2));
+
+    // ========== NEW: Validate Flutterwave response ==========
+    if (!response.data || response.data.status !== 'success') {
+      const errorMsg = response.data?.message || 'Flutterwave returned an error';
+      console.error('❌ Flutterwave error:', errorMsg);
+      return res.status(400).json({ error: errorMsg });
+    }
+
+    const flutterwaveLink = response.data.data?.link;
+    const flutterwaveId = response.data.data?.id;
+
+    if (!flutterwaveLink) {
+      console.error('❌ Flutterwave did not return a link. Full response:', response.data);
+      return res.status(500).json({ error: 'Payment gateway error – no link returned. Please try again.' });
+    }
+
     console.log(`✅ Payment initialized, Flutterwave ID: ${flutterwaveId}`);
 
     // ---- Save transaction record ----
@@ -140,7 +165,9 @@ router.post('/initialize-payment', async (req, res) => {
     res.json({ authorization_url: flutterwaveLink, reference: tx_ref, flutterwaveId });
   } catch (error) {
     console.error('❌ Payment initialization error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Payment initialization failed' });
+    // ========== NEW: Forward Flutterwave's error message if available ==========
+    const msg = error.response?.data?.message || error.message || 'Payment initialization failed.';
+    res.status(500).json({ error: msg });
   }
 });
 
