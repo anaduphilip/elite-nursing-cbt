@@ -102,17 +102,39 @@ router.post('/apply', async (req, res) => {
   }
 });
 
-// ---- Get referral stats ----
+// ---- Get referral stats (DYNAMIC – counts only active, verified, non‑deleted users) ----
 router.get('/stats', authenticate, async (req, res) => {
   try {
     const user = req.user;
-    const referredUsers = await User.find({ referredBy: user._id }).select('name email createdAt isPremium referralBonusClaimed');
+
+    // All users who signed up using this user's referral code
+    // Exclude soft‑deleted and unverified accounts
+    const referredUsers = await User.find({
+      referredBy: user._id,
+      isDeleted: { $ne: true },        // not soft‑deleted
+      isVerified: true                 // email verified
+    }).select('name email createdAt isPremium referralBonusClaimed');
+
+    const totalReferred = referredUsers.length;
+
+    // Rewards already earned (from referralRewards array)
+    const rewardCount = user.referralRewards?.length || 0;
+    const totalFreeDays = user.referralRewards?.reduce((sum, r) => sum + (r.value || 0), 0) || 0;
+
     res.json({
       success: true,
       referralCode: user.referralCode,
-      referralCount: user.referralCount || 0,
-      referralRewards: user.referralRewards || [],
-      referredUsers: referredUsers || []
+      totalReferred,
+      rewardCount,
+      totalFreeDays,
+      referredUsers: referredUsers.map(u => ({
+        id: u._id,
+        name: u.name,
+        email: u.email,
+        createdAt: u.createdAt,
+        isPremium: u.isPremium,
+        bonusClaimed: u.referralBonusClaimed || false   // 👈 whether the bonus has been given
+      }))
     });
   } catch (error) {
     console.error('❌ [REFERRAL] Stats error:', error);

@@ -191,27 +191,29 @@ export const ReferralPage = () => {
           )}
         </div>
 
+        {/* ===== UPDATED STATS CARDS (using new fields) ===== */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 24 }}>
           <div style={{ background: cardBg, borderRadius: 12, padding: 20, textAlign: 'center' }}>
             <div style={{ fontSize: 36, fontWeight: 'bold', color: '#ff9800' }}>
-              {loading ? '...' : (stats?.referralCount || 0)}
+              {loading ? '...' : (stats?.totalReferred ?? 0)}
             </div>
             <div style={{ color: secondaryText, fontSize: 14 }}>Friends Referred</div>
           </div>
           <div style={{ background: cardBg, borderRadius: 12, padding: 20, textAlign: 'center' }}>
             <div style={{ fontSize: 36, fontWeight: 'bold', color: '#ff9800' }}>
-              {loading ? '...' : ` ${stats?.referralRewards?.length || 0}`}
+              {loading ? '...' : (stats?.rewardCount ?? 0)}
             </div>
             <div style={{ color: secondaryText, fontSize: 14 }}>Rewards Earned</div>
           </div>
           <div style={{ background: cardBg, borderRadius: 12, padding: 20, textAlign: 'center' }}>
             <div style={{ fontSize: 36, fontWeight: 'bold', color: '#ff9800' }}>
-              {loading ? '...' : ` ${stats?.referralRewards?.reduce((sum, r) => sum + (r.value || 0), 0) || 0}`}
+              {loading ? '...' : (stats?.totalFreeDays ?? 0)}
             </div>
             <div style={{ color: secondaryText, fontSize: 14 }}>Free Premium Days</div>
           </div>
         </div>
 
+        {/* ===== FRIENDS LIST WITH BONUS STATUS ===== */}
         <div style={{ background: cardBg, borderRadius: 16, padding: 20 }}>
           <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 12 }}>Friends Who Joined</h3>
           {loading ? (
@@ -221,10 +223,21 @@ export const ReferralPage = () => {
           ) : (
             stats?.referredUsers?.map((user, i) => (
               <div key={i} style={{ padding: '10px 0', borderBottom: `1px solid ${darkMode ? '#333' : '#eee'}` }}>
-                <span style={{ color: textColor }}>{user.name || 'Anonymous'}</span>
+                <span style={{ color: textColor }}>{user.name || user.email || 'Anonymous'}</span>
                 <span style={{ color: secondaryText, fontSize: 12, marginLeft: 12 }}>
                   Joined {new Date(user.createdAt).toLocaleDateString()}
                 </span>
+                <span style={{
+                  marginLeft: 12,
+                  fontSize: 11,
+                  color: user.bonusClaimed ? '#2e7d32' : '#ff9800',
+                  fontWeight: 'bold'
+                }}>
+                  {user.bonusClaimed ? '✅ Bonus claimed' : '⏳ Pending purchase'}
+                </span>
+                {user.isPremium && (
+                  <span style={{ marginLeft: 8, fontSize: 11, color: '#ff9800', fontWeight: 'bold' }}>⭐ Premium</span>
+                )}
               </div>
             ))
           )}
