@@ -15,7 +15,6 @@ router.post('/initialize-payment', async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' });
     }
 
-    // ---- Fetch user early (needed for all discount checks) ----
     const user = await User.findById(userId);
     if (!user) return res.status(401).json({ error: 'Your account has been deleted. Please log out and contact support.' });
 
@@ -48,25 +47,23 @@ router.post('/initialize-payment', async (req, res) => {
       }
     }
 
-    // ---- Referral discount (applied after limited offer, before coupon) ----
+    // ---- Referral discount ----
     let referralDiscountAmount = 0;
     if (user.referralDiscount && user.referralDiscount.code && !user.referralDiscount.used) {
       const discount = user.referralDiscount;
       if (discount.expiresAt && new Date(discount.expiresAt) > new Date()) {
         referralDiscountAmount = (finalAmount * discount.discountPercent) / 100;
         finalAmount = Math.max(0, finalAmount - referralDiscountAmount);
-        // Mark as used so it can't be reused
         user.referralDiscount.used = true;
         await user.save();
         console.log(`🎁 Referral discount applied: ${discount.discountPercent}% off for user ${userId}. Reduced by ${referralDiscountAmount}`);
       } else {
-        // Expired – mark as used
         user.referralDiscount.used = true;
         await user.save();
       }
     }
 
-    // ---- Coupon validation (applied AFTER offer and referral) ----
+    // ---- Coupon validation ----
     let appliedCoupon = null;
     let discountAmount = 0;
     if (couponCode) {
@@ -90,7 +87,6 @@ router.post('/initialize-payment', async (req, res) => {
     const tx_ref = `ELITE-${Date.now()}-${userId}-${Math.random().toString(36).substring(2, 8)}`;
     console.log(`💰 INITIALIZING PAYMENT: ${tx_ref} for user ${userId}, original: ${amount}, final: ${finalAmount}, offer: ${offerApplied}, referral: ${referralDiscountAmount > 0}, coupon: ${!!appliedCoupon}`);
 
-    // ---- Apply coupon usage (if any) ----
     if (appliedCoupon) {
       appliedCoupon.usedCount += 1;
       await appliedCoupon.save();
@@ -116,7 +112,6 @@ router.post('/initialize-payment', async (req, res) => {
     const flutterwaveId = response.data.data.id;
     console.log(`✅ Payment initialized, Flutterwave ID: ${flutterwaveId}`);
 
-    // ---- Save transaction record ----
     user.transactions.push({
       reference: tx_ref,
       flutterwaveId: flutterwaveId,
@@ -203,42 +198,56 @@ router.post('/verify-payment', async (req, res) => {
       user.transactions[transactionIndex].status = 'completed';
       user.transactions[transactionIndex].flutterwaveId = txData.id;
 
-      // ===== REFERRAL BONUS: Award referrer when referred user purchases =====
+      // ===== REFERRAL BONUS – ATOMIC UPDATE =====
       if (user.referredBy && !user.referralBonusClaimed) {
         try {
           const referrer = await User.findById(user.referredBy);
-          if (referrer) {
+          if (!referrer) {
+            console.log(`⚠️ [REFERRAL] Referrer not found for user ${user.email}`);
+          } else {
             console.log(`📌 [REFERRAL] Referrer found: ${referrer.email}, current expiry: ${referrer.premiumExpiry?.toISOString() || 'none'}`);
-            
-            // Give referrer +1 day (stack)
-            let referrerExpiry = referrer.premiumExpiry && referrer.premiumExpiry > new Date() 
-              ? referrer.premiumExpiry 
+
+            // Calculate new expiry (extend existing if active, otherwise start today)
+            let referrerExpiry = referrer.premiumExpiry && referrer.premiumExpiry > new Date()
+              ? referrer.premiumExpiry
               : new Date();
             referrerExpiry.setDate(referrerExpiry.getDate() + 1);
-            
+
             console.log(`📌 [REFERRAL] New referrer expiry: ${referrerExpiry.toISOString()}`);
-            
-            referrer.isPremium = true;
-            referrer.premiumExpiry = referrerExpiry;
-            referrer.premiumPlan = 'daily';
-            referrer.referralCount = (referrer.referralCount || 0) + 1;
-            referrer.referralRewards.push({
-              rewardedAt: new Date(),
-              type: 'premium_days',
-              value: 1
-            });
-            await referrer.save();
-            
-            // Mark bonus as claimed for the buyer
+
+            // ---- ATOMIC UPDATE ----
+            const updated = await User.findOneAndUpdate(
+              { _id: referrer._id },
+              {
+                $set: {
+                  isPremium: true,
+                  premiumExpiry: referrerExpiry,
+                  premiumPlan: 'daily'
+                },
+                $inc: { referralCount: 1 },
+                $push: {
+                  referralRewards: {
+                    rewardedAt: new Date(),
+                    type: 'premium_days',
+                    value: 1
+                  }
+                }
+              },
+              { new: true }
+            );
+
+            if (updated) {
+              console.log(`🎁 [REFERRAL] Referrer ${referrer.email} awarded +1 day. New expiry: ${updated.premiumExpiry.toISOString()}`);
+            } else {
+              console.log(`⚠️ [REFERRAL] Update failed for referrer ${referrer.email}`);
+            }
+
             user.referralBonusClaimed = true;
-            
-            console.log(`🎁 [REFERRAL] Referrer ${referrer.email} awarded +1 day. New expiry: ${referrerExpiry.toISOString()}`);
-          } else {
-            console.log(`⚠️ [REFERRAL] Referrer not found for user ${user.email} (referredBy: ${user.referredBy})`);
+            await user.save();
           }
         } catch (bonusError) {
           console.error('❌ [REFERRAL] Failed to award referral bonus:', bonusError);
-          // Do not block the main flow; just log
+          // Do not block the main flow
         }
       }
 
