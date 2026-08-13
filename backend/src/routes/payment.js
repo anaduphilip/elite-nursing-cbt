@@ -208,11 +208,15 @@ router.post('/verify-payment', async (req, res) => {
         try {
           const referrer = await User.findById(user.referredBy);
           if (referrer) {
-            // Give referrer +1 day
+            console.log(`📌 [REFERRAL] Referrer found: ${referrer.email}, current expiry: ${referrer.premiumExpiry?.toISOString() || 'none'}`);
+            
+            // Give referrer +1 day (stack)
             let referrerExpiry = referrer.premiumExpiry && referrer.premiumExpiry > new Date() 
               ? referrer.premiumExpiry 
               : new Date();
             referrerExpiry.setDate(referrerExpiry.getDate() + 1);
+            
+            console.log(`📌 [REFERRAL] New referrer expiry: ${referrerExpiry.toISOString()}`);
             
             referrer.isPremium = true;
             referrer.premiumExpiry = referrerExpiry;
@@ -228,7 +232,7 @@ router.post('/verify-payment', async (req, res) => {
             // Mark bonus as claimed for the buyer
             user.referralBonusClaimed = true;
             
-            console.log(`🎁 [REFERRAL] Referrer ${referrer.email} awarded +1 day because ${user.email} purchased Premium!`);
+            console.log(`🎁 [REFERRAL] Referrer ${referrer.email} awarded +1 day. New expiry: ${referrerExpiry.toISOString()}`);
           } else {
             console.log(`⚠️ [REFERRAL] Referrer not found for user ${user.email} (referredBy: ${user.referredBy})`);
           }
