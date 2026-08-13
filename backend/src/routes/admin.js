@@ -151,4 +151,115 @@ router.get('/gamification-settings', isAdmin, async (req, res) => {
   }
 });
 
+// ---- Get referral dashboard stats ----
+router.get('/referral/stats', isAdmin, async (req, res) => {
+  try {
+    const totalReferrals = await User.aggregate([
+      { $group: { _id: null, total: { $sum: '$referralCount' } } }
+    ]);
+    const activeReferrers = await User.countDocuments({ referralCount: { $gt: 0 } });
+    const totalPremiumDays = await User.aggregate([
+      { $unwind: { path: '$referralRewards', preserveNullAndEmptyArrays: true } },
+      { $group: { _id: null, total: { $sum: '$referralRewards.value' } } }
+    ]);
+    res.json({
+      success: true,
+      stats: {
+        totalReferrals: totalReferrals[0]?.total || 0,
+        activeReferrers,
+        totalPremiumDays: totalPremiumDays[0]?.total || 0,
+      }
+    });
+  } catch (error) {
+    console.error('Referral stats error:', error);
+    res.status(500).json({ error: 'Failed to fetch referral stats' });
+  }
+});
+
+// ---- Get all users with referral data (with search & sorting) ----
+router.get('/referral/users', isAdmin, async (req, res) => {
+  try {
+    const { search, sortBy, order } = req.query;
+    const sort = {};
+    if (sortBy) {
+      sort[sortBy] = order === 'desc' ? -1 : 1;
+    } else {
+      sort.referralCount = -1;
+    }
+    const query = {};
+    if (search) {
+      query.$or = [
+        { email: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } },
+        { referralCode: { $regex: search, $options: 'i' } }
+      ];
+    }
+    const users = await User.find(query)
+      .select('name email referralCode referralCount referralRewards referredBy premiumExpiry isPremium createdAt')
+      .sort(sort)
+      .limit(100);
+    res.json({ success: true, users });
+  } catch (error) {
+    console.error('Referral users error:', error);
+    res.status(500).json({ error: 'Failed to fetch referral users' });
+  }
+});
+
+// ---- Get detailed referral history for a specific user ----
+router.get('/referral/users/:userId/history', isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .select('name email referralCode referralCount referralRewards');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const referredUsers = await User.find({ referredBy: req.params.userId })
+      .select('name email createdAt');
+    res.json({
+      success: true,
+      user,
+      referredUsers
+    });
+  } catch (error) {
+    console.error('Referral history error:', error);
+    res.status(500).json({ error: 'Failed to fetch referral history' });
+  }
+});
+
+// ---- Manually reward a referrer with premium days ----
+router.post('/referral/users/:userId/reward', isAdmin, async (req, res) => {
+  try {
+    const { days } = req.body;
+    if (!days || days <= 0) {
+      return res.status(400).json({ error: 'Valid days required' });
+    }
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    let expiry = user.premiumExpiry && user.premiumExpiry > new Date()
+      ? user.premiumExpiry
+      : new Date();
+    expiry.setDate(expiry.getDate() + days);
+
+    user.isPremium = true;
+    user.premiumExpiry = expiry;
+    user.premiumPlan = 'daily';
+    user.referralRewards.push({
+      rewardedAt: new Date(),
+      type: 'premium_days',
+      value: days
+    });
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `✅ ${days} premium day(s) added to ${user.email}`,
+      newExpiry: expiry
+    });
+  } catch (error) {
+    console.error('Manual reward error:', error);
+    res.status(500).json({ error: 'Failed to reward user' });
+  }
+});
+
 module.exports = router;
