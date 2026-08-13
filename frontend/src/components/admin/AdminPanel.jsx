@@ -28,8 +28,9 @@ import { StudyNotesTab } from './tabs/StudyNotesTab';
 import { HomePageControlTab } from './tabs/HomePageControlTab';
 import { GamificationTab } from './tabs/GamificationTab';
 import { ForceRefreshTab } from './tabs/ForceRefreshTab';
+
+// ===== NEW: Pre Council Admin Import =====
 import { PreCouncilAdmin } from './tabs/PreCouncilAdmin';
-import { ReferralTab } from './tabs/ReferralTab';
 
 // Import modal components
 import { QuestionModal } from './components/QuestionModal';
@@ -217,14 +218,6 @@ export const AdminPanel = () => {
   const [forceRefreshLoading, setForceRefreshLoading] = useState(false);
   const [forceRefreshResult, setForceRefreshResult] = useState('');
   const [forceRefreshVersion, setForceRefreshVersion] = useState(0);
-
-  // ============================================================
-  // ========== REFERRAL STATES (NEW) ===========================
-  // ============================================================
-  const [referralStats, setReferralStats] = useState(null);
-  const [referralUsers, setReferralUsers] = useState([]);
-  const [referralLoading, setReferralLoading] = useState(false);
-  const [referralSearch, setReferralSearch] = useState('');
 
   // ============================================================
   // ========== ALL ORIGINAL FUNCTIONS ==========================
@@ -1308,6 +1301,7 @@ export const AdminPanel = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success) {
+        // Refresh questions to show updated image
         await fetchQuestions(selectedQuiz);
         alert('✅ Image added successfully!');
         return true;
@@ -1760,41 +1754,6 @@ export const AdminPanel = () => {
   };
 
   // ============================================================
-  // ========== REFERRAL FUNCTIONS (NEW) ========================
-  // ============================================================
-
-  const fetchReferralStats = async () => {
-    setReferralLoading(true);
-    try {
-      const res = await axios.get('/api/admin/referral/stats', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setReferralStats(res.data.stats);
-      }
-    } catch (error) {
-      console.error('Failed to fetch referral stats:', error);
-    } finally {
-      setReferralLoading(false);
-    }
-  };
-
-  const fetchReferralUsers = async (search = '') => {
-    setReferralLoading(true);
-    try {
-      const url = search 
-        ? `/api/admin/referral/users?search=${encodeURIComponent(search)}` 
-        : '/api/admin/referral/users';
-      const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setReferralUsers(res.data.users);
-      }
-    } catch (error) {
-      console.error('Failed to fetch referral users:', error);
-    } finally {
-      setReferralLoading(false);
-    }
-  };
-
-  // ============================================================
   // ========== FETCH ALL DATA ON MOUNT =========================
   // ============================================================
   useEffect(() => {
@@ -1827,9 +1786,7 @@ export const AdminPanel = () => {
           fetchFaqs(),
           fetchQuizzes(),
           fetchCategoryManagerQuizzes(),
-          loadForceRefresh(),
-          fetchReferralStats(),
-          fetchReferralUsers()
+          loadForceRefresh()
         ]);
         setDataLoaded(true);
       } catch (error) {
@@ -1893,15 +1850,17 @@ export const AdminPanel = () => {
             <button onClick={() => setActiveTab('categoryManager')} style={{ background: activeTab === 'categoryManager' ? '#2E7D64' : 'transparent', color: activeTab === 'categoryManager' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'categoryManager' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Category Question Manager</button>
             <button onClick={() => setActiveTab('faq')} style={{ background: activeTab === 'faq' ? '#1e3c72' : 'transparent', color: activeTab === 'faq' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'faq' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> FAQ Tab</button>
             <button onClick={() => setActiveTab('weeklyQuiz')} style={{ background: activeTab === 'weeklyQuiz' ? '#2E7D64' : 'transparent', color: activeTab === 'weeklyQuiz' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'weeklyQuiz' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}> Weekly Quiz ({weeklyQuizzes.length})</button>
+            {/* ===== NEW TABS ===== */}
             <button onClick={() => setActiveTab('studyNotes')} style={{ background: activeTab === 'studyNotes' ? '#2E7D64' : 'transparent', color: activeTab === 'studyNotes' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'studyNotes' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Study Notes</button>
             <button onClick={() => setActiveTab('homePageControl')} style={{ background: activeTab === 'homePageControl' ? '#1e3c72' : 'transparent', color: activeTab === 'homePageControl' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'homePageControl' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Home Page Control</button>
             <button onClick={() => setActiveTab('limitedOffer')} style={{ background: activeTab === 'limitedOffer' ? '#ff9800' : 'transparent', color: activeTab === 'limitedOffer' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'limitedOffer' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Limited Offer</button>
+            {/* ===== NEW GAMIFICATION TAB ===== */}
             <button onClick={() => setActiveTab('gamification')} style={{ background: activeTab === 'gamification' ? '#1e3c72' : 'transparent', color: activeTab === 'gamification' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'gamification' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Gamification</button>
+            {/* ===== NEW FORCE REFRESH TAB ===== */}
             <button onClick={() => setActiveTab('forceRefresh')} style={{ background: activeTab === 'forceRefresh' ? '#dc3545' : 'transparent', color: activeTab === 'forceRefresh' ? 'white' : '#dc3545', padding: '10px 24px', border: activeTab === 'forceRefresh' ? 'none' : '2px solid #dc3545', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Force Refresh</button>
+
+            {/* ===== NEW PRE COUNCIL TAB ===== */}
             <button onClick={() => setActiveTab('preCouncil')} style={{ background: activeTab === 'preCouncil' ? '#1e3c72' : 'transparent', color: activeTab === 'preCouncil' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'preCouncil' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Pre Council</button>
-            
-            {/* ===== NEW: Referral Tab ===== */}
-            <button onClick={() => setActiveTab('referral')} style={{ background: activeTab === 'referral' ? '#43a047' : 'transparent', color: activeTab === 'referral' ? 'white' : '#43a047', padding: '10px 24px', border: activeTab === 'referral' ? 'none' : '2px solid #43a047', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📊 Referrals</button>
           </div>
 
           {/* ===== Render the active tab ===== */}
@@ -1931,6 +1890,7 @@ export const AdminPanel = () => {
               handleDeleteQuestionFromQuiz,
               fetchQuestions,
               openEditQuestionInQuiz,
+              // ===== NEW: Image upload props =====
               updateQuestionImage: handleUpdateQuestionImage,
               removeQuestionImage: handleRemoveQuestionImage,
               ...commonProps 
@@ -1964,6 +1924,7 @@ export const AdminPanel = () => {
           }} />}
           {activeTab === 'faq' && <FaqTab {...{ faqs, faqLoading, faqQuestion, setFaqQuestion, faqAnswer, setFaqAnswer, faqCategory, setFaqCategory, faqOrder, setFaqOrder, faqActive, setFaqActive, editingFaqId, faqResult, handleSaveFaq, handleDeleteFaq, editFaq, ...commonProps }} />}
           {activeTab === 'weeklyQuiz' && <WeeklyQuizTab {...{ weeklyQuizzes, loadingQuizzes, quizTitle, setQuizTitle, quizDescription, setQuizDescription, quizInstructions, setQuizInstructions, quizWeekNumber, setQuizWeekNumber, quizQuestions, quizPassingScore, setQuizPassingScore, quizTimeLimit, setQuizTimeLimit, quizStartDate, setQuizStartDate, quizEndDate, setQuizEndDate, quizIsPremium, setQuizIsPremium, editingQuizId, showQuizForm, setShowQuizForm, qText, setQText, qOptions, setQOptions, qCorrect, setQCorrect, editingQuestionIndex, batchInput, setBatchInput, selectedQuizResults, showResults, setShowResults, handleAddQuestion, handleBatchImport, handleEditQuestion, handleDeleteQuestion, handleSaveQuiz, handlePublishQuiz, handleTogglePublish, handleTogglePremium, handleDeleteQuiz, handleViewResults, editQuiz, resetQuizForm, fetchWeeklyQuizzes, setActiveTab, ...commonProps }} />}
+          {/* ===== NEW TABS ===== */}
           {activeTab === 'studyNotes' && <StudyNotesTab {...commonProps} />}
           {activeTab === 'homePageControl' && <HomePageControlTab {...{ config, setConfig, ...commonProps }} />}
           {activeTab === 'limitedOffer' && <LimitedOfferTab {...{ 
@@ -1974,7 +1935,9 @@ export const AdminPanel = () => {
             handleSaveLimitedOffer,
             ...commonProps 
           }} />}
+          {/* ===== NEW GAMIFICATION TAB ===== */}
           {activeTab === 'gamification' && <GamificationTab {...commonProps} />}
+          {/* ===== NEW FORCE REFRESH TAB ===== */}
           {activeTab === 'forceRefresh' && <ForceRefreshTab {...{ 
             forceRefreshMessage, 
             setForceRefreshMessage,
@@ -1986,19 +1949,8 @@ export const AdminPanel = () => {
             loadForceRefresh,
             ...commonProps 
           }} />}
+          {/* ===== NEW PRE COUNCIL TAB ===== */}
           {activeTab === 'preCouncil' && <PreCouncilAdmin {...commonProps} />}
-
-          {/* ===== NEW: Referral Tab ===== */}
-          {activeTab === 'referral' && <ReferralTab {...{ 
-            referralStats,
-            referralUsers,
-            referralLoading,
-            referralSearch,
-            setReferralSearch,
-            fetchReferralStats,
-            fetchReferralUsers,
-            ...commonProps 
-          }} />}
 
           {/* ===== Modals ===== */}
           <QuestionModal
