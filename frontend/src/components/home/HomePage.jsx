@@ -364,38 +364,6 @@ export const HomePage = () => {
     dismissPrivateMessage(message._id);
   };
 
-  // ===== POLL USER PROFILE TO PICK UP PREMIUM CHANGES (e.g., referral bonuses) =====
-  useEffect(() => {
-    if (!token) return;
-
-    const refreshUser = async () => {
-      try {
-        const res = await axios.get('/api/user/profile', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const freshUser = res.data;
-        // Check if any premium-related fields changed
-        const hasChanged = (
-          user?.isPremium !== freshUser.isPremium ||
-          user?.premiumExpiry !== freshUser.premiumExpiry ||
-          user?.premiumPlan !== freshUser.premiumPlan
-        );
-        if (hasChanged) {
-          login(token, freshUser);
-          console.log('🔄 User profile refreshed (premium status updated)');
-        }
-      } catch (_) {
-        // silent fail – no user impact
-      }
-    };
-
-    // Run once immediately
-    refreshUser();
-    // Then every 30 seconds
-    const interval = setInterval(refreshUser, 30000);
-    return () => clearInterval(interval);
-  }, [token, user?.isPremium, user?.premiumExpiry, user?.premiumPlan, login]);
-
   // ---- Only show loading bar on the very first visit (no cache) ----
   if (loading) {
     return <LoadingWithBar message="Loading..." />;
