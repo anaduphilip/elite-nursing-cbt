@@ -7,6 +7,7 @@ const { sendEmail, generateOTP } = require('../utils');
 const jwt = require('jsonwebtoken');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 const otpStore = require('../utils/otpStore');
+const { checkUserAccess, formatRemainingTime, parseDuration } = require('../utils/rateLimitHelpers');
 
 const router = express.Router();
 
@@ -375,6 +376,111 @@ router.delete('/:userId/badges/:badgeId', isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Remove badge error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ---- Get all manually blocked users ----
+router.get('/blocked-users', isAdmin, async (req, res) => {
+  try {
+    const now = new Date();
+    const blockedUsers = await User.find({
+      manuallyBlocked: true,
+      $or: [
+        { manualBlockExpiry: { $gt: now } },
+        { manualBlockExpiry: null }
+      ]
+    }).select('name email manuallyBlocked manualBlockExpiry manualBlockReason loginAttempts lockedUntil');
+    res.json({ success: true, users: blockedUsers });
+  } catch (error) {
+    console.error('❌ Failed to fetch blocked users:', error);
+    res.status(500).json({ error: 'Failed to fetch blocked users' });
+  }
+});
+
+// ---- Block a user manually ----
+router.post('/block-user', isAdmin, async (req, res) => {
+  try {
+    const { email, duration, reason } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Parse duration (e.g., "1h", "30m", "7d", "forever")
+    const durationMs = parseDuration(duration);
+    let expiry = null;
+    if (durationMs !== null) {
+      expiry = new Date(Date.now() + durationMs);
+    }
+
+    user.manuallyBlocked = true;
+    user.manualBlockExpiry = expiry;
+    user.manualBlockReason = reason || '';
+    // Also clear any temporary lock
+    user.lockedUntil = null;
+    user.loginAttempts = 0;
+    await user.save();
+
+    console.log(`🔒 Admin blocked ${user.email}${expiry ? ` until ${expiry.toISOString()}` : ' permanently'}`);
+    res.json({ success: true, message: `User ${user.email} blocked${expiry ? ` until ${expiry.toISOString()}` : ' permanently'}.` });
+  } catch (error) {
+    console.error('❌ Block user error:', error);
+    res.status(500).json({ error: 'Failed to block user' });
+  }
+});
+
+// ---- Unblock a user ----
+router.post('/unblock-user', isAdmin, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.manuallyBlocked = false;
+    user.manualBlockExpiry = null;
+    user.manualBlockReason = '';
+    await user.save();
+
+    console.log(`🔓 Admin unblocked ${user.email}`);
+    res.json({ success: true, message: `User ${user.email} unblocked.` });
+  } catch (error) {
+    console.error('❌ Unblock user error:', error);
+    res.status(500).json({ error: 'Failed to unblock user' });
+  }
+});
+
+// ---- Get temporarily locked users (due to failed attempts) ----
+router.get('/locked-users', isAdmin, async (req, res) => {
+  try {
+    const now = new Date();
+    const lockedUsers = await User.find({
+      lockedUntil: { $gt: now },
+      loginAttempts: { $gt: 0 }
+    }).select('name email loginAttempts lockedUntil');
+    res.json({ success: true, users: lockedUsers });
+  } catch (error) {
+    console.error('❌ Failed to fetch locked users:', error);
+    res.status(500).json({ error: 'Failed to fetch locked users' });
+  }
+});
+
+// ---- Unlock a temporarily locked user (reset attempts and lock) ----
+router.post('/unlock-user', isAdmin, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.loginAttempts = 0;
+    user.lockedUntil = null;
+    await user.save();
+
+    console.log(`🔓 Admin unlocked ${user.email}`);
+    res.json({ success: true, message: `User ${user.email} unlocked.` });
+  } catch (error) {
+    console.error('❌ Unlock user error:', error);
+    res.status(500).json({ error: 'Failed to unlock user' });
   }
 });
 

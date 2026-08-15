@@ -9,6 +9,14 @@ const UserSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   isBanned: { type: Boolean, default: false },
   isDeleted: { type: Boolean, default: false },
+
+  // ===== NEW RATE‑LIMITING FIELDS =====
+  loginAttempts: { type: Number, default: 0 },
+  lockedUntil: { type: Date, default: null },
+  manuallyBlocked: { type: Boolean, default: false },
+  manualBlockExpiry: { type: Date, default: null },
+  manualBlockReason: { type: String, default: '' },
+
   createdAt: { type: Date, default: Date.now },
   currentSessionToken: { type: String, default: null },
   lastLoginAt: { type: Date, default: null },

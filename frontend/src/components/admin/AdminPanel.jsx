@@ -28,6 +28,7 @@ import { StudyNotesTab } from './tabs/StudyNotesTab';
 import { HomePageControlTab } from './tabs/HomePageControlTab';
 import { GamificationTab } from './tabs/GamificationTab';
 import { ForceRefreshTab } from './tabs/ForceRefreshTab';
+import { UserAccessControlTab } from './tabs/UserAccessControlTab';
 
 // ===== NEW: Pre Council Admin Import =====
 import { PreCouncilAdmin } from './tabs/PreCouncilAdmin';
@@ -1858,9 +1859,10 @@ export const AdminPanel = () => {
             <button onClick={() => setActiveTab('gamification')} style={{ background: activeTab === 'gamification' ? '#1e3c72' : 'transparent', color: activeTab === 'gamification' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'gamification' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Gamification</button>
             {/* ===== NEW FORCE REFRESH TAB ===== */}
             <button onClick={() => setActiveTab('forceRefresh')} style={{ background: activeTab === 'forceRefresh' ? '#dc3545' : 'transparent', color: activeTab === 'forceRefresh' ? 'white' : '#dc3545', padding: '10px 24px', border: activeTab === 'forceRefresh' ? 'none' : '2px solid #dc3545', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Force Refresh</button>
-
             {/* ===== NEW PRE COUNCIL TAB ===== */}
             <button onClick={() => setActiveTab('preCouncil')} style={{ background: activeTab === 'preCouncil' ? '#1e3c72' : 'transparent', color: activeTab === 'preCouncil' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'preCouncil' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Pre Council</button>
+            {/* ===== NEW: Access Control ===== */}
+            <button onClick={() => setActiveTab('accessControl')} style={{ background: activeTab === 'accessControl' ? '#dc3545' : 'transparent', color: activeTab === 'accessControl' ? 'white' : '#dc3545', padding: '10px 24px', border: activeTab === 'accessControl' ? 'none' : '2px solid #dc3545', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Access Control</button>
           </div>
 
           {/* ===== Render the active tab ===== */}
@@ -1951,6 +1953,10 @@ export const AdminPanel = () => {
           }} />}
           {/* ===== NEW PRE COUNCIL TAB ===== */}
           {activeTab === 'preCouncil' && <PreCouncilAdmin {...commonProps} />}
+
+          {/* ===== NEW: User Access Control Tab ===== */}
+          {activeTab === 'accessControl' && <UserAccessControlTab {...commonProps} />}
+
 
           {/* ===== Modals ===== */}
           <QuestionModal

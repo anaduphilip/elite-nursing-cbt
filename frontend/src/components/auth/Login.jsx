@@ -1,3 +1,4 @@
+// src/components/auth/Login.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -13,6 +14,7 @@ export const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showForceLogoutDialog, setShowForceLogoutDialog] = useState(false);
   const [pendingCredentials, setPendingCredentials] = useState(null);
+  const [error, setError] = useState('');
   const { login } = useContext(AuthContext);
   const { darkMode } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
@@ -27,18 +29,26 @@ export const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     setIsLoading(true);
     try {
       const res = await axios.post('/api/login', { email, password });
       login(res.data.token, res.data.user);
     } catch (error) {
+      const status = error.response?.status;
       const errorMsg = error.response?.data?.error || error.message;
-      console.log('Login error:', errorMsg);
-      if (errorMsg.includes('already logged in') || errorMsg.includes('another device')) {
+      console.log('Login error:', status, errorMsg);
+
+      // ===== HANDLE RATE‑LIMIT ERRORS =====
+      if (status === 429) {
+        setError(`🔒 ${errorMsg}`);
+      } else if (status === 403) {
+        setError(`🚫 ${errorMsg}`);
+      } else if (errorMsg.includes('already logged in') || errorMsg.includes('another device')) {
         setPendingCredentials({ email, password });
         setShowForceLogoutDialog(true);
       } else {
-        alert('Login failed: ' + errorMsg);
+        setError(`❌ ${errorMsg}`);
       }
     } finally {
       setIsLoading(false);
@@ -54,7 +64,7 @@ export const Login = () => {
         login(loginRes.data.token, loginRes.data.user);
       }
     } catch (error) {
-      alert('Failed to force logout from other device. Please try again later.');
+      setError('❌ Failed to force logout from other device. Please try again later.');
     } finally {
       setIsLoading(false);
       setShowForceLogoutDialog(false);
@@ -210,6 +220,42 @@ export const Login = () => {
           <h2 style={{ color: textColor, fontSize: 18, marginBottom: 4 }}>Welcome Back</h2>
           <p style={{ color: '#888', fontSize: 12 }}>Sign in to continue your preparation</p>
         </div>
+
+        {/* ===== ERROR DISPLAY ===== */}
+        {error && (
+          <div style={{
+            background: '#ffebee',
+            padding: '12px 16px',
+            borderRadius: 10,
+            marginBottom: 16,
+            border: '1px solid #ef5350'
+          }}>
+            <p style={{ color: '#c62828', margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' }}>
+              {error}
+            </p>
+            {error.includes('blocked by admin') && (
+              <div style={{ marginTop: 8 }}>
+                <a
+                  href="https://wa.me/2349063908476?text=Hello%2C%20my%20account%20has%20been%20blocked.%20Please%20help%20me%20unlock%20it."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    background: '#25D366',
+                    color: 'white',
+                    padding: '6px 16px',
+                    borderRadius: 20,
+                    textDecoration: 'none',
+                    fontWeight: 'bold',
+                    fontSize: 13
+                  }}
+                >
+                  Contact Support
+                </a>
+              </div>
+            )}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ marginBottom: 16, width: '100%' }}>

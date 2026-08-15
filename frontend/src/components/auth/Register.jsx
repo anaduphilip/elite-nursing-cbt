@@ -21,7 +21,6 @@ export const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeChecked, setAgreeChecked] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
-  
   const [referralCode, setReferralCode] = useState('');
 
   const { login } = useContext(AuthContext);
@@ -30,7 +29,6 @@ export const Register = () => {
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
-
 
   useEffect(() => {
     let timer;
@@ -42,6 +40,8 @@ export const Register = () => {
 
   const handleSendVerification = async (e) => {
     e.preventDefault();
+    setError('');
+    setMessage('');
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -57,15 +57,23 @@ export const Register = () => {
     }
 
     setIsLoading(true);
-    setError('');
-    setMessage('');
     try {
       const res = await axios.post('/api/send-verification', { email, name });
       setMessage(res.data.message);
       setStep('verify');
       setResendTimer(60);
     } catch (error) {
-      setError(error.response?.data?.error || 'Failed to send verification code');
+      const status = error.response?.status;
+      const errorMsg = error.response?.data?.error || error.message;
+      console.log('Send verification error:', status, errorMsg);
+
+      // ===== HANDLE RATE‑LIMIT ERRORS =====
+      if (status === 429) {
+        // Too many registration attempts – show lock message
+        setError(`🔒 ${errorMsg}`);
+      } else {
+        setError(`❌ ${errorMsg}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -150,9 +158,37 @@ export const Register = () => {
               <p style={{ color: '#888', fontSize: 12 }}>Sign up to begin your journey</p>
             </div>
 
+            {/* ===== ERROR DISPLAY ===== */}
             {error && (
-              <div style={{ background: '#ffebee', padding: '12px', borderRadius: 10, marginBottom: 16, textAlign: 'center' }}>
-                <p style={{ color: '#c62828', margin: 0, fontSize: 13 }}>{error}</p>
+              <div style={{
+                background: '#ffebee',
+                padding: '12px 16px',
+                borderRadius: 10,
+                marginBottom: 16,
+                border: '1px solid #ef5350'
+              }}>
+                <p style={{ color: '#c62828', margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' }}>{error}</p>
+                {error.includes('Too many registration attempts') && (
+                  <div style={{ marginTop: 8 }}>
+                    <a
+                      href="https://wa.me/2349063908476?text=Hello%2C%20I%20am%20unable%20to%20register.%20Please%20help."
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-block',
+                        background: '#25D366',
+                        color: 'white',
+                        padding: '6px 16px',
+                        borderRadius: 20,
+                        textDecoration: 'none',
+                        fontWeight: 'bold',
+                        fontSize: 13
+                      }}
+                    >
+                      Contact Support
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 
@@ -220,7 +256,7 @@ export const Register = () => {
                 </div>
               </div>
 
-              {/* ===== Referral Code Input ===== */}
+              {/* Referral Code Input */}
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: textColor, fontSize: 13, fontWeight: 500 }}>
                   Referral Code (optional)

@@ -11,6 +11,8 @@ const {
   sendEmail
 } = require('../utils');
 const { JWT_SECRET } = require('../config/constants');
+const { checkUserAccess } = require('../utils/rateLimitHelpers');
+const { getRegistrationLimitInfo, incrementRegistrationAttempts, resetRegistrationAttempts } = require('../utils/registerAttempts');
 
 const router = express.Router();
 
@@ -21,15 +23,29 @@ const otpStore = require('../utils/otpStore');
 router.post('/send-verification', async (req, res) => {
   try {
     const { email, name } = req.body;
+    const ip = req.ip || req.connection.remoteAddress || '0.0.0.0';
+
+    // ---- Check registration rate limits ----
+    const limitInfo = getRegistrationLimitInfo(email, ip);
+    if (limitInfo.blocked) {
+      return res.status(429).json({ error: limitInfo.message });
+    }
+
     const existingUser = await User.findOne({ email });
     if (existingUser && existingUser.isVerified) {
       return res.status(400).json({ error: 'Email already registered' });
     }
+
     const otp = generateOTP();
     otpStore.set(`verify_${email}`, { otp, expires: Date.now() + 10 * 60000, name });
     await sendEmail(email, name || 'User', otp, 'verification');
+
+    // ---- Increment attempts after successful OTP send ----
+    incrementRegistrationAttempts(email, ip);
+
     res.json({ success: true, message: 'Verification code sent' });
   } catch (error) {
+    console.error('❌ Send verification error:', error);
     res.status(500).json({ error: 'Failed to send code' });
   }
 });
@@ -109,6 +125,8 @@ router.post('/force-logout', async (req, res) => {
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, marketingConsent } = req.body;
+    const ip = req.ip || req.connection.remoteAddress || '0.0.0.0';
+
     const verifiedData = otpStore.get(`verified_${email}`);
     if (!verifiedData || !verifiedData.verified) {
       return res.status(400).json({ error: 'Please verify your email first' });
@@ -130,6 +148,10 @@ router.post('/register', async (req, res) => {
       await existingUser.save();
       const token = jwt.sign({ userId: existingUser._id, sessionToken }, JWT_SECRET);
       otpStore.delete(`verified_${email}`);
+
+      // ---- Reset registration attempts on successful registration ----
+      resetRegistrationAttempts(email, ip);
+
       return res.json({ success: true, token, user: { id: existingUser._id, name: existingUser.name, email, isPremium: existingUser.isPremium, marketingConsent: existingUser.marketingConsent } });
     }
     const sessionToken = generateSessionToken();
@@ -145,6 +167,10 @@ router.post('/register', async (req, res) => {
     await user.save();
     otpStore.delete(`verified_${email}`);
     const token = jwt.sign({ userId: user._id, sessionToken }, JWT_SECRET);
+
+    // ---- Reset registration attempts on successful registration ----
+    resetRegistrationAttempts(email, ip);
+
     res.json({ success: true, token, user: { id: user._id, name: user.name, email, isPremium: user.isPremium, marketingConsent: user.marketingConsent } });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -157,6 +183,14 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'User not found' });
+
+    // ---- Check manual block and temporary lock ----
+    const access = checkUserAccess(user);
+    if (!access.allowed) {
+      const statusCode = access.blockType === 'manual' ? 403 : 429;
+      return res.status(statusCode).json({ error: access.reason });
+    }
+
     if (!user.isVerified) return res.status(400).json({ error: 'Email not verified' });
     if (user.isBanned) {
       return res.status(403).json({ error: 'Your account has been banned. Please contact support.' });
@@ -164,8 +198,27 @@ router.post('/login', async (req, res) => {
     if (user.isDeleted) {
       return res.status(403).json({ error: 'Your account has been deactivated.' });
     }
+
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(400).json({ error: 'Invalid password' });
+    if (!valid) {
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
+      const attempts = user.loginAttempts;
+      const duration = require('../utils/rateLimitHelpers').getLockDuration(attempts);
+      if (duration > 0) {
+        user.lockedUntil = new Date(Date.now() + duration);
+      } else {
+        user.lockedUntil = null;
+      }
+      await user.save();
+
+      const lockMessage = require('../utils/rateLimitHelpers').getLockMessage(attempts, user.lockedUntil);
+      return res.status(401).json({ error: lockMessage });
+    }
+
+    // ---- Successful login – reset attempts and lock ----
+    user.loginAttempts = 0;
+    user.lockedUntil = null;
+    await user.save();
 
     const premiumStatus = await checkAndUpdatePremium(user);
 
@@ -189,6 +242,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('❌ Login error:', error);
     res.status(400).json({ error: error.message });
   }
 });
