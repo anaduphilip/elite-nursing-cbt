@@ -285,7 +285,7 @@ export const Login = () => {
             {errorDetails?.locked && error.includes('blocked by admin') && (
               <div style={{ marginTop: 8 }}>
                 <a
-                  href="https://wa.me/2349063908476?text=Hello%2C%20my%20account%20has%20been%20blocked.%20Please%20help%20me%20unlock%20it."
+                  href="https://wa.me/2349063908476?text=Hello%2C%20my%20account%20has%20been%20blocked.%20Please%20help%20me%20unlock%20it.%20My%20Gmail%20is"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
