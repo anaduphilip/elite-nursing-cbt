@@ -1,6 +1,7 @@
 // src/utils/rateLimitHelpers.js
 
 const getLockDuration = (attempts) => {
+  if (attempts < 5) return 0;
   const thresholds = [
     { min: 5, max: 5, duration: 5 * 60 * 1000 },
     { min: 6, max: 6, duration: 15 * 60 * 1000 },
