@@ -34,19 +34,26 @@ const checkUserAccess = (user) => {
     const expiryMsg = user.manualBlockExpiry
       ? ` until ${new Date(user.manualBlockExpiry).toLocaleString()}`
       : ' (permanent)';
+    let remainingSeconds = null;
+    if (user.manualBlockExpiry) {
+      const diff = new Date(user.manualBlockExpiry) - new Date();
+      if (diff > 0) remainingSeconds = Math.floor(diff / 1000);
+    }
     return {
       allowed: false,
       reason: `Account blocked by admin${expiryMsg}.${user.manualBlockReason ? ` Reason: ${user.manualBlockReason}` : ''}`,
-      blockType: 'manual'
+      blockType: 'manual',
+      remainingSeconds: remainingSeconds,
     };
   }
   if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
-    const timeLeft = user.lockedUntil - new Date();
-    const seconds = Math.floor(timeLeft / 1000);
+    const diff = user.lockedUntil - new Date();
+    const remainingSeconds = Math.floor(diff / 1000);
     return {
       allowed: false,
-      reason: `Too many failed attempts. try again in ${formatDuration(seconds)}.`,
-      blockType: 'temporary'
+      reason: `Too many failed attempts. try again in ${formatDuration(remainingSeconds)}.`,
+      blockType: 'temporary',
+      remainingSeconds: remainingSeconds,
     };
   }
   return { allowed: true, reason: '', blockType: 'none' };

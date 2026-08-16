@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
-import { LoadingWithBar } from '../common/LoadingWithBar';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
@@ -39,6 +38,7 @@ export const Login = () => {
           clearInterval(interval);
           setErrorDetails(null);
           setError('');
+          setCountdown('');
           return;
         }
         const days = Math.floor(remaining / 86400);
@@ -76,8 +76,7 @@ export const Login = () => {
       const errorMsg = data.error || error.message;
       console.log('Login error:', status, data);
 
-      if (status === 429) {
-      }
+      // Handle manual block (403) with locked flag
       if (data.locked === true) {
         setErrorDetails({
           locked: true,

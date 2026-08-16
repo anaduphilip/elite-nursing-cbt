@@ -196,7 +196,12 @@ router.post('/login', async (req, res) => {
     const access = checkUserAccess(user);
     if (!access.allowed) {
       const statusCode = access.blockType === 'manual' ? 403 : 429;
-      return res.status(statusCode).json({ error: access.reason });
+      const response = { error: access.reason };
+      if (access.remainingSeconds !== null) {
+        response.locked = true;
+        response.remainingSeconds = access.remainingSeconds;
+      }
+      return res.status(statusCode).json(response);
     }
 
     if (!user.isVerified) return res.status(400).json({ error: 'Email not verified' });
