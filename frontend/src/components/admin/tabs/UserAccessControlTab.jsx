@@ -10,6 +10,13 @@ export const UserAccessControlTab = ({ token, darkMode, headingColor, secondaryT
   const [message, setMessage] = useState('');
   const [activeView, setActiveView] = useState('blocked');
 
+  // ---- Countdown tick ----
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Block Modal states
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockEmail, setBlockEmail] = useState('');
@@ -131,19 +138,23 @@ export const UserAccessControlTab = ({ token, darkMode, headingColor, secondaryT
     });
   };
 
-  const formatRemaining = (date) => {
-    if (!date) return 'Never';
+  // ---- Live remaining time (uses tick to recalc) ----
+  const formatRemaining = (expiryDate) => {
+    if (!expiryDate) return 'Never';
     const now = new Date();
-    const expiry = new Date(date);
+    const expiry = new Date(expiryDate);
     const diff = expiry - now;
     if (diff <= 0) return 'Expired';
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    if (minutes > 0) return `${minutes}m`;
-    return 'less than a minute';
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+    return parts.join(' ');
   };
 
   const getDurationLabel = (value) => {
@@ -274,7 +285,7 @@ export const UserAccessControlTab = ({ token, darkMode, headingColor, secondaryT
   return (
     <div style={{ padding: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <h3 style={{ color: headingColor, margin: 0 }}>🔒 User Access Control</h3>
+        <h3 style={{ color: headingColor, margin: 0 }}>User Access Control</h3>
         <button
           onClick={() => setShowBlockModal(true)}
           style={{
@@ -288,7 +299,7 @@ export const UserAccessControlTab = ({ token, darkMode, headingColor, secondaryT
             fontSize: 14
           }}
         >
-          🚫 Block User
+          Block User
         </button>
       </div>
 
@@ -320,7 +331,7 @@ export const UserAccessControlTab = ({ token, darkMode, headingColor, secondaryT
             borderBottom: activeView === 'blocked' ? `3px solid #1e3c72` : 'none'
           }}
         >
-          🚫 Blocked Users ({blockedUsers.length})
+          Blocked Users ({blockedUsers.length})
         </button>
         <button
           onClick={() => setActiveView('locked')}
@@ -335,7 +346,7 @@ export const UserAccessControlTab = ({ token, darkMode, headingColor, secondaryT
             borderBottom: activeView === 'locked' ? `3px solid #1e3c72` : 'none'
           }}
         >
-          🔒 Locked Users ({lockedUsers.length})
+          Locked Users ({lockedUsers.length})
         </button>
       </div>
 
@@ -367,7 +378,7 @@ export const UserAccessControlTab = ({ token, darkMode, headingColor, secondaryT
             overflowY: 'auto',
             boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
           }}>
-            <h3 style={{ color: headingColor, marginBottom: 20 }}>🚫 Block User</h3>
+            <h3 style={{ color: headingColor, marginBottom: 20 }}>Block User</h3>
 
             <form onSubmit={handleBlock}>
               <div style={{ marginBottom: 16 }}>
@@ -465,7 +476,7 @@ export const UserAccessControlTab = ({ token, darkMode, headingColor, secondaryT
                     opacity: blockLoading ? 0.7 : 1
                   }}
                 >
-                  {blockLoading ? 'Blocking...' : '🚫 Block'}
+                  {blockLoading ? 'Blocking...' : 'Block'}
                 </button>
               </div>
             </form>
