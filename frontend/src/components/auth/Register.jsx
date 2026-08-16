@@ -22,6 +22,9 @@ export const Register = () => {
   const [agreeChecked, setAgreeChecked] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [referralCode, setReferralCode] = useState('');
+  const [errorDetails, setErrorDetails] = useState(null);
+  const [countdown, setCountdown] = useState('');
+  const [attemptsRemaining, setAttemptsRemaining] = useState(null);
 
   const { login } = useContext(AuthContext);
   const { darkMode } = useContext(AuthContext);
@@ -29,6 +32,38 @@ export const Register = () => {
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
+
+  useEffect(() => {
+    let interval;
+    if (errorDetails?.locked && errorDetails.remainingSeconds > 0) {
+      let remaining = errorDetails.remainingSeconds;
+      const updateCountdown = () => {
+        if (remaining <= 0) {
+          clearInterval(interval);
+          setErrorDetails(null);
+          setError('');
+          setCountdown('');
+          return;
+        }
+        const days = Math.floor(remaining / 86400);
+        const hours = Math.floor((remaining % 86400) / 3600);
+        const minutes = Math.floor((remaining % 3600) / 60);
+        const seconds = Math.floor(remaining % 60);
+        const parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0) parts.push(`${minutes}m`);
+        if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+        setCountdown(parts.join(' '));
+        remaining--;
+      };
+      updateCountdown();
+      interval = setInterval(updateCountdown, 1000);
+    } else {
+      setCountdown('');
+    }
+    return () => clearInterval(interval);
+  }, [errorDetails]);
 
   useEffect(() => {
     let timer;
@@ -41,7 +76,9 @@ export const Register = () => {
   const handleSendVerification = async (e) => {
     e.preventDefault();
     setError('');
-    setMessage('');
+    setErrorDetails(null);
+    setCountdown('');
+    setAttemptsRemaining(null);
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -62,15 +99,21 @@ export const Register = () => {
       setMessage(res.data.message);
       setStep('verify');
       setResendTimer(60);
+      if (res.data.attemptsRemaining !== undefined) {
+        setAttemptsRemaining(res.data.attemptsRemaining);
+      }
     } catch (error) {
       const status = error.response?.status;
-      const errorMsg = error.response?.data?.error || error.message;
-      console.log('Send verification error:', status, errorMsg);
+      const data = error.response?.data || {};
+      const errorMsg = data.error || error.message;
+      console.log('Send verification error:', status, data);
 
-      // ===== HANDLE RATE‑LIMIT ERRORS =====
-      if (status === 429) {
-        // Too many registration attempts – show lock message
-        setError(`🔒 ${errorMsg}`);
+      if (data.locked === true) {
+        setErrorDetails({
+          locked: true,
+          remainingSeconds: data.remainingSeconds || 0,
+        });
+        setError(errorMsg);
       } else {
         setError(`❌ ${errorMsg}`);
       }
@@ -130,6 +173,9 @@ export const Register = () => {
       const res = await axios.post('/api/send-verification', { email, name });
       setMessage(res.data.message);
       setResendTimer(60);
+      if (res.data.attemptsRemaining !== undefined) {
+        setAttemptsRemaining(res.data.attemptsRemaining);
+      }
     } catch (error) {
       setError(error.response?.data?.error || 'Failed to resend code');
     } finally {
@@ -158,7 +204,6 @@ export const Register = () => {
               <p style={{ color: '#888', fontSize: 12 }}>Sign up to begin your journey</p>
             </div>
 
-            {/* ===== ERROR DISPLAY ===== */}
             {error && (
               <div style={{
                 background: '#ffebee',
@@ -167,8 +212,15 @@ export const Register = () => {
                 marginBottom: 16,
                 border: '1px solid #ef5350'
               }}>
-                <p style={{ color: '#c62828', margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' }}>{error}</p>
-                {error.includes('Too many registration attempts') && (
+                <p style={{ color: '#c62828', margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' }}>
+                  {error}
+                  {errorDetails?.locked && countdown && (
+                    <span style={{ display: 'block', fontWeight: 'bold', marginTop: 4 }}>
+                      ⏳ {countdown}
+                    </span>
+                  )}
+                </p>
+                {errorDetails?.locked && (
                   <div style={{ marginTop: 8 }}>
                     <a
                       href="https://wa.me/2349063908476?text=Hello%2C%20I%20am%20unable%20to%20register.%20Please%20help."
@@ -188,6 +240,11 @@ export const Register = () => {
                       Contact Support
                     </a>
                   </div>
+                )}
+                {!errorDetails?.locked && attemptsRemaining !== null && attemptsRemaining <= 2 && (
+                  <p style={{ color: '#856404', fontSize: 13, marginTop: 6 }}>
+                    ⚠️ You have {attemptsRemaining} {attemptsRemaining === 1 ? 'attempt' : 'attempts'} remaining before lock.
+                  </p>
                 )}
               </div>
             )}

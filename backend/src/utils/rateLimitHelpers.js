@@ -2,6 +2,7 @@
 
 const getLockDuration = (attempts) => {
   if (attempts < 5) return 0;
+
   const thresholds = [
     { min: 5, max: 5, duration: 5 * 60 * 1000 },
     { min: 6, max: 6, duration: 15 * 60 * 1000 },
@@ -17,17 +18,12 @@ const getLockDuration = (attempts) => {
 };
 
 const getLockMessage = (attempts, lockedUntil) => {
-  if (!lockedUntil) return 'Too many failed attempts. Please try again later.';
+  if (!lockedUntil) return 'Wrong password. Please try again.';
   const now = new Date();
   const remaining = lockedUntil - now;
-  if (remaining <= 0) return 'Your lock has expired. Please try again.';
-  const minutes = Math.floor(remaining / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
-  const timeString = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-  if (attempts >= 10) {
-    return `Account locked for 24 hours. Try again later or contact support. (${timeString} remaining)`;
-  }
-  return `Too many failed attempts. Try again in ${timeString}.`;
+  if (remaining <= 0) return 'Please try again.';
+  const seconds = Math.floor(remaining / 1000);
+  return `Too many failed attempts. Try again in ${formatDuration(seconds)}.`;
 };
 
 const checkUserAccess = (user) => {
@@ -46,12 +42,10 @@ const checkUserAccess = (user) => {
   }
   if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
     const timeLeft = user.lockedUntil - new Date();
-    const minutes = Math.floor(timeLeft / 60000);
-    const seconds = Math.floor((timeLeft % 60000) / 1000);
-    const timeString = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+    const seconds = Math.floor(timeLeft / 1000);
     return {
       allowed: false,
-      reason: `Too many failed attempts. Wait ${timeString} before trying again.`,
+      reason: `Too many failed attempts. try again in ${formatDuration(seconds)}.`,
       blockType: 'temporary'
     };
   }
@@ -96,6 +90,19 @@ const parseDuration = (input) => {
   return value * (multipliers[unit] || multipliers['m']);
 };
 
+const formatDuration = (totalSeconds) => {
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  const parts = [];
+  if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+  if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+  if (minutes > 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+  if (seconds > 0 || parts.length === 0) parts.push(`${seconds} second${seconds !== 1 ? 's' : ''}`);
+  return parts.join(' ');
+};
+
 module.exports = {
   getLockDuration,
   getLockMessage,
@@ -103,4 +110,5 @@ module.exports = {
   formatRemainingTime,
   getDurationLabel,
   parseDuration,
+  formatDuration,
 };

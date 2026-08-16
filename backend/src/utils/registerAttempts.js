@@ -27,6 +27,8 @@ const incrementAttempts = (key) => {
   const duration = getLockDuration(attempts);
   if (duration > 0) {
     entry.lockedUntil = new Date(Date.now() + duration);
+  } else {
+    entry.lockedUntil = null;
   }
   attemptsMap.set(key, entry);
   return { attempts, lockedUntil: entry.lockedUntil };
@@ -40,19 +42,26 @@ const getRegistrationLimitInfo = (email, ip) => {
 
   if (emailStatus.locked || ipStatus.locked) {
     const remaining = emailStatus.locked ? emailStatus.remaining : ipStatus.remaining;
-    const minutes = Math.floor(remaining / 60000);
-    const seconds = Math.floor((remaining % 60000) / 1000);
+    const seconds = Math.floor(remaining / 1000);
     return {
       blocked: true,
-      message: `Too many registration attempts. Try again in ${minutes}m ${seconds}s.`,
-      remaining
+      remainingSeconds: seconds,
+      emailAttempts: emailStatus.attempts || 0,
+      ipAttempts: ipStatus.attempts || 0,
     };
   }
 
+  const emailAttempts = emailStatus.attempts || 0;
+  const ipAttempts = ipStatus.attempts || 0;
+  const emailRemaining = Math.max(0, 5 - emailAttempts);
+  const ipRemaining = Math.max(0, 5 - ipAttempts);
+
   return {
     blocked: false,
-    emailAttempts: emailStatus.attempts || 0,
-    ipAttempts: ipStatus.attempts || 0
+    emailAttempts,
+    ipAttempts,
+    emailRemaining,
+    ipRemaining,
   };
 };
 

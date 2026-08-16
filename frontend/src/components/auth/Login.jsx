@@ -15,6 +15,9 @@ export const Login = () => {
   const [showForceLogoutDialog, setShowForceLogoutDialog] = useState(false);
   const [pendingCredentials, setPendingCredentials] = useState(null);
   const [error, setError] = useState('');
+  const [errorDetails, setErrorDetails] = useState(null);
+  const [countdown, setCountdown] = useState('');
+
   const { login } = useContext(AuthContext);
   const { darkMode } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
@@ -27,23 +30,66 @@ export const Login = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    let interval;
+    if (errorDetails?.locked && errorDetails.remainingSeconds > 0) {
+      let remaining = errorDetails.remainingSeconds;
+      const updateCountdown = () => {
+        if (remaining <= 0) {
+          clearInterval(interval);
+          setErrorDetails(null);
+          setError('');
+          return;
+        }
+        const days = Math.floor(remaining / 86400);
+        const hours = Math.floor((remaining % 86400) / 3600);
+        const minutes = Math.floor((remaining % 3600) / 60);
+        const seconds = Math.floor(remaining % 60);
+        const parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0) parts.push(`${minutes}m`);
+        if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+        setCountdown(parts.join(' '));
+        remaining--;
+      };
+      updateCountdown();
+      interval = setInterval(updateCountdown, 1000);
+    } else {
+      setCountdown('');
+    }
+    return () => clearInterval(interval);
+  }, [errorDetails]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setErrorDetails(null);
+    setCountdown('');
     setIsLoading(true);
     try {
       const res = await axios.post('/api/login', { email, password });
       login(res.data.token, res.data.user);
     } catch (error) {
       const status = error.response?.status;
-      const errorMsg = error.response?.data?.error || error.message;
-      console.log('Login error:', status, errorMsg);
+      const data = error.response?.data || {};
+      const errorMsg = data.error || error.message;
+      console.log('Login error:', status, data);
 
-      // ===== HANDLE RATE‑LIMIT ERRORS =====
       if (status === 429) {
-        setError(`🔒 ${errorMsg}`);
-      } else if (status === 403) {
-        setError(`🚫 ${errorMsg}`);
+      }
+      if (data.locked === true) {
+        setErrorDetails({
+          locked: true,
+          remainingSeconds: data.remainingSeconds || 0,
+          lockedUntil: data.lockedUntil,
+        });
+        setError(errorMsg);
+      } else if (data.attemptsRemaining !== undefined) {
+        setError(errorMsg);
+        setErrorDetails({ locked: false, attemptsRemaining: data.attemptsRemaining });
+      } else if (status === 429 || status === 403) {
+        setError(errorMsg);
       } else if (errorMsg.includes('already logged in') || errorMsg.includes('another device')) {
         setPendingCredentials({ email, password });
         setShowForceLogoutDialog(true);
@@ -221,7 +267,6 @@ export const Login = () => {
           <p style={{ color: '#888', fontSize: 12 }}>Sign in to continue your preparation</p>
         </div>
 
-        {/* ===== ERROR DISPLAY ===== */}
         {error && (
           <div style={{
             background: '#ffebee',
@@ -232,8 +277,13 @@ export const Login = () => {
           }}>
             <p style={{ color: '#c62828', margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' }}>
               {error}
+              {errorDetails?.locked && countdown && (
+                <span style={{ display: 'block', fontWeight: 'bold', marginTop: 4 }}>
+                  ⏳ {countdown}
+                </span>
+              )}
             </p>
-            {error.includes('blocked by admin') && (
+            {errorDetails?.locked && error.includes('blocked by admin') && (
               <div style={{ marginTop: 8 }}>
                 <a
                   href="https://wa.me/2349063908476?text=Hello%2C%20my%20account%20has%20been%20blocked.%20Please%20help%20me%20unlock%20it."

@@ -11,7 +11,7 @@ const {
   sendEmail
 } = require('../utils');
 const { JWT_SECRET } = require('../config/constants');
-const { checkUserAccess } = require('../utils/rateLimitHelpers');
+const { checkUserAccess, getLockDuration, getLockMessage, formatDuration } = require('../utils/rateLimitHelpers');
 const { getRegistrationLimitInfo, incrementRegistrationAttempts, resetRegistrationAttempts } = require('../utils/registerAttempts');
 
 const router = express.Router();
@@ -28,7 +28,14 @@ router.post('/send-verification', async (req, res) => {
     // ---- Check registration rate limits ----
     const limitInfo = getRegistrationLimitInfo(email, ip);
     if (limitInfo.blocked) {
-      return res.status(429).json({ error: limitInfo.message });
+      const seconds = limitInfo.remainingSeconds;
+      return res.status(429).json({
+        error: `Too many registration attempts. Try again in ${formatDuration(seconds)}.`,
+        locked: true,
+        remainingSeconds: seconds,
+        emailAttempts: limitInfo.emailAttempts,
+        ipAttempts: limitInfo.ipAttempts,
+      });
     }
 
     const existingUser = await User.findOne({ email });
@@ -43,7 +50,15 @@ router.post('/send-verification', async (req, res) => {
     // ---- Increment attempts after successful OTP send ----
     incrementRegistrationAttempts(email, ip);
 
-    res.json({ success: true, message: 'Verification code sent' });
+    // Get updated info to show attempts remaining
+    const updatedInfo = getRegistrationLimitInfo(email, ip);
+    const minRemaining = Math.min(updatedInfo.emailRemaining, updatedInfo.ipRemaining);
+
+    res.json({
+      success: true,
+      message: 'Verification code sent',
+      attemptsRemaining: minRemaining,
+    });
   } catch (error) {
     console.error('❌ Send verification error:', error);
     res.status(500).json({ error: 'Failed to send code' });
@@ -58,7 +73,6 @@ router.post('/verify-email', async (req, res) => {
     if (Date.now() > stored.expires) return res.status(400).json({ error: 'Code expired' });
     if (stored.otp !== otp) return res.status(400).json({ error: 'Invalid code' });
 
-    // ===== Update user's isVerified in the database =====
     const user = await User.findOne({ email });
     if (user) {
       user.isVerified = true;
@@ -148,10 +162,7 @@ router.post('/register', async (req, res) => {
       await existingUser.save();
       const token = jwt.sign({ userId: existingUser._id, sessionToken }, JWT_SECRET);
       otpStore.delete(`verified_${email}`);
-
-      // ---- Reset registration attempts on successful registration ----
       resetRegistrationAttempts(email, ip);
-
       return res.json({ success: true, token, user: { id: existingUser._id, name: existingUser.name, email, isPremium: existingUser.isPremium, marketingConsent: existingUser.marketingConsent } });
     }
     const sessionToken = generateSessionToken();
@@ -167,10 +178,7 @@ router.post('/register', async (req, res) => {
     await user.save();
     otpStore.delete(`verified_${email}`);
     const token = jwt.sign({ userId: user._id, sessionToken }, JWT_SECRET);
-
-    // ---- Reset registration attempts on successful registration ----
     resetRegistrationAttempts(email, ip);
-
     res.json({ success: true, token, user: { id: user._id, name: user.name, email, isPremium: user.isPremium, marketingConsent: user.marketingConsent } });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -203,16 +211,35 @@ router.post('/login', async (req, res) => {
     if (!valid) {
       user.loginAttempts = (user.loginAttempts || 0) + 1;
       const attempts = user.loginAttempts;
-      const duration = require('../utils/rateLimitHelpers').getLockDuration(attempts);
+      const duration = getLockDuration(attempts);
+      let locked = false;
+      let lockedUntil = null;
       if (duration > 0) {
-        user.lockedUntil = new Date(Date.now() + duration);
+        locked = true;
+        lockedUntil = new Date(Date.now() + duration);
+        user.lockedUntil = lockedUntil;
       } else {
         user.lockedUntil = null;
       }
       await user.save();
 
-      const lockMessage = require('../utils/rateLimitHelpers').getLockMessage(attempts, user.lockedUntil);
-      return res.status(401).json({ error: lockMessage });
+      const attemptsRemaining = Math.max(0, 5 - attempts);
+      if (locked) {
+        const remainingSeconds = Math.floor(duration / 1000);
+        return res.status(401).json({
+          error: `Too many failed attempts. Try again in ${formatDuration(remainingSeconds)}.`,
+          locked: true,
+          lockedUntil: lockedUntil.toISOString(),
+          remainingSeconds: remainingSeconds,
+          attemptsRemaining: 0,
+        });
+      } else {
+        return res.status(401).json({
+          error: `Wrong password. You have ${attemptsRemaining} ${attemptsRemaining === 1 ? 'attempt' : 'attempts'} remaining.`,
+          locked: false,
+          attemptsRemaining: attemptsRemaining,
+        });
+      }
     }
 
     // ---- Successful login – reset attempts and lock ----
