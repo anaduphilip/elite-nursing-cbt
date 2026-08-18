@@ -83,7 +83,7 @@ router.post('/generate', authenticate, async (req, res) => {
     const passedKeys = new Set();
     if (user.reviewedQuestions && user.reviewedQuestions.length > 0) {
       user.reviewedQuestions.forEach(r => {
-        if (r.passed) {
+        if (r.passed && r.quizId && r.questionIndex !== undefined) {
           passedKeys.add(`${r.quizId}|${r.questionIndex}`);
         }
       });
@@ -103,8 +103,10 @@ router.post('/generate', authenticate, async (req, res) => {
 
       for (let i = 0; i < examQuestions.length; i++) {
         const q = examQuestions[i];
+        // If user answered and got it wrong
         if (userAnswers[i] !== undefined && userAnswers[i] !== q.correctAnswer) {
           const key = `${quizId}|${i}`;
+          // Exclude only if it has been PASSED before
           if (!passedKeys.has(key)) {
             allWrongQuestions.push({
               ...(q.toObject ? q.toObject() : q),
@@ -150,7 +152,7 @@ router.post('/generate', authenticate, async (req, res) => {
   }
 });
 
-// ===== POST /api/study-plan/submit =====
+// ===== POST /api/study-plan/submit (FIXED) =====
 router.post('/submit', authenticate, async (req, res) => {
   try {
     const user = req.user;
@@ -167,11 +169,10 @@ router.post('/submit', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Please answer all questions.' });
     }
 
-    // ---- Grade the plan & track feedback ----
     let score = 0;
-    const reviewed = user.reviewedQuestions || [];
+    let reviewed = (user.reviewedQuestions || []).filter(r => r.quizId && r.questionIndex !== undefined && r.questionIndex !== null);
 
-    // ---- Category breakdown ----
+    // ---- Category stats and question details for feedback ----
     const categoryStats = {};
     const questionDetails = [];
 
@@ -186,26 +187,31 @@ router.post('/submit', authenticate, async (req, res) => {
 
       if (isCorrect) {
         score++;
-        // Mark as passed
-        const existingIndex = reviewed.findIndex(r => r.quizId === q.quizId && r.questionIndex === q.questionIndex);
-        if (existingIndex !== -1) {
-          reviewed[existingIndex].passed = true;
-        } else {
-          reviewed.push({
-            quizId: q.quizId,
-            questionIndex: q.questionIndex,
-            passed: true
-          });
+        // If we have a valid questionIndex, update reviewedQuestions
+        if (q.quizId && q.questionIndex !== undefined && q.questionIndex !== null) {
+          const existingIndex = reviewed.findIndex(r => r.quizId === q.quizId && r.questionIndex === q.questionIndex);
+          if (existingIndex !== -1) {
+            reviewed[existingIndex].passed = true;
+          } else {
+            reviewed.push({
+              quizId: q.quizId,
+              questionIndex: q.questionIndex,
+              passed: true
+            });
+          }
         }
+        // If no questionIndex, we cannot track it – just ignore.
       } else {
-        // Remove passed flag if it existed
-        const existingIndex = reviewed.findIndex(r => r.quizId === q.quizId && r.questionIndex === q.questionIndex);
-        if (existingIndex !== -1) {
-          reviewed.splice(existingIndex, 1);
+        // If incorrect, remove any existing entry for this question (if we have the index)
+        if (q.quizId && q.questionIndex !== undefined && q.questionIndex !== null) {
+          const existingIndex = reviewed.findIndex(r => r.quizId === q.quizId && r.questionIndex === q.questionIndex);
+          if (existingIndex !== -1) {
+            reviewed.splice(existingIndex, 1);
+          }
         }
       }
 
-      // ---- Track category stats ----
+      // Track category stats (only if question has a category)
       const category = q.category || 'General';
       if (!categoryStats[category]) {
         categoryStats[category] = { correct: 0, total: 0 };
@@ -227,7 +233,7 @@ router.post('/submit', authenticate, async (req, res) => {
     user.reviewedQuestions = reviewed;
     await user.save();
 
-    // ---- Build feedback message ----
+    // ---- Build feedback ----
     const percentage = (score / questions.length) * 100;
     const passed = percentage >= 70;
 
@@ -245,7 +251,7 @@ router.post('/submit', authenticate, async (req, res) => {
       overallMessage = '💡 Rome wasn\'t built in a day. Take your time to review the material thoroughly, then try again. You can do this!';
     }
 
-    // ---- Category feedback ----
+    // Category feedback
     const categoryFeedback = {};
     for (const [cat, stats] of Object.entries(categoryStats)) {
       const catPct = (stats.correct / stats.total) * 100;
@@ -267,21 +273,14 @@ router.post('/submit', authenticate, async (req, res) => {
       };
     }
 
-    // ---- Identify weakest areas ----
+    // Weakest/strongest
     const sortedCategories = Object.entries(categoryStats)
       .sort((a, b) => (a[1].correct / a[1].total) - (b[1].correct / b[1].total));
-    
     const weakestCategory = sortedCategories.length > 0 ? sortedCategories[0][0] : null;
-    const strongestCategory = sortedCategories.length > 0 ? sortedCategories[sortedCategories.length - 1][0] : null;
+    const suggestion = weakestCategory
+      ? `🎯 Focus on improving in **${weakestCategory}** – that's your biggest opportunity for growth.`
+      : '🎯 Keep practicing to maintain your skills!';
 
-    let suggestion = '';
-    if (weakestCategory) {
-      suggestion = `🎯 Focus on improving in **${weakestCategory}** – that's your biggest opportunity for growth.`;
-    } else {
-      suggestion = '🎯 Keep practicing to maintain your skills!';
-    }
-
-    // ---- Final response ----
     res.json({
       success: true,
       score,
@@ -292,7 +291,7 @@ router.post('/submit', authenticate, async (req, res) => {
         overallMessage,
         categoryFeedback,
         suggestion,
-        strongestCategory,
+        strongestCategory: sortedCategories.length > 0 ? sortedCategories[sortedCategories.length - 1][0] : null,
         weakestCategory,
         questionDetails: questionDetails.slice(0, 10)
       }
@@ -300,6 +299,9 @@ router.post('/submit', authenticate, async (req, res) => {
 
   } catch (error) {
     console.error('Submit study plan error:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: 'Invalid data submitted. Please generate a new study plan and try again.' });
+    }
     res.status(500).json({ error: error.message });
   }
 });

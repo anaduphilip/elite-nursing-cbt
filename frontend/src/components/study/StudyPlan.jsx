@@ -143,7 +143,12 @@ export const StudyPlan = () => {
         alert(`You scored ${res.data.score}/${res.data.total} (${res.data.percentage}%)`);
       }
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to submit study plan.');
+      const msg = error.response?.data?.error || 'Failed to submit study plan.';
+      if (msg.includes('Invalid data')) {
+        alert('There was a problem with your submitted answers. Please generate a new study plan and try again.');
+      } else {
+        alert(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -437,7 +442,7 @@ export const StudyPlan = () => {
       );
     }
 
-    // Active plan - show questions (unchanged)
+    // Active plan - show questions
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
