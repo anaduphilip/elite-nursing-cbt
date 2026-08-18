@@ -23,11 +23,40 @@ export const StudyPlan = () => {
   const [result, setResult] = useState(null);
   const [showReview, setShowReview] = useState(false);
 
-  // ===== AI Explanation States =====
   const [explanation, setExplanation] = useState({});
   const [loadingExplanation, setLoadingExplanation] = useState({});
   const [explanationRemaining, setExplanationRemaining] = useState(null);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
+
+  // ===== Helper: Extract user-friendly error message =====
+  const getFriendlyErrorMessage = (error) => {
+    if (!error) return 'An unexpected error occurred. Please try again.';
+    
+    if (error.response) {
+      const data = error.response.data;
+      const status = error.response.status;
+      
+      if (data && typeof data.error === 'string' && data.error.length < 200) {
+        return data.error;
+      }
+      
+      if (status === 400 || status === 500) {
+        if (data.error && data.error.includes('Cast to ObjectId failed')) {
+          return 'There was a problem with your study plan data. Please generate a new plan.';
+        }
+        if (data.error && data.error.includes('validation failed')) {
+          return 'Invalid data submitted. Please generate a new study plan and try again.';
+        }
+        if (data.error && data.error.includes('BSONError')) {
+          return 'There was a problem with your study plan. Please generate a new plan.';
+        }
+      }
+      
+      return 'Failed to process your request. Please try again later.';
+    }
+    
+    return 'Network error. Please check your connection and try again.';
+  };
 
   // ===== Fetch status and plan =====
   const fetchStatus = async () => {
@@ -107,13 +136,7 @@ export const StudyPlan = () => {
         alert('✅ Study plan generated successfully!');
       }
     } catch (error) {
-      let userMessage = 'Failed to generate study plan. Please try again later.';
-      if (error.response) {
-        const backendMsg = error.response.data?.error;
-        if (backendMsg && typeof backendMsg === 'string' && !backendMsg.includes('ValidationError')) {
-          userMessage = backendMsg;
-        }
-      }
+      const userMessage = getFriendlyErrorMessage(error);
       alert('❌ ' + userMessage);
     } finally {
       setGenerating(false);
@@ -147,13 +170,7 @@ export const StudyPlan = () => {
         alert(`✅ You scored ${res.data.score}/${res.data.total} (${res.data.percentage}%)`);
       }
     } catch (error) {
-      let userMessage = 'Failed to submit study plan. Please try again later.';
-      if (error.response) {
-        const backendMsg = error.response.data?.error;
-        if (backendMsg && typeof backendMsg === 'string' && !backendMsg.includes('ValidationError')) {
-          userMessage = backendMsg;
-        }
-      }
+      const userMessage = getFriendlyErrorMessage(error);
       alert('❌ ' + userMessage);
     } finally {
       setSubmitting(false);
@@ -299,7 +316,6 @@ export const StudyPlan = () => {
               </div>
             </div>
 
-            {/* ===== Remaining counter ===== */}
             {!isPremiumUser && explanationRemaining !== null && (
               <div style={{
                 textAlign: 'center',
@@ -331,7 +347,6 @@ export const StudyPlan = () => {
                         </div>
                       ))}
 
-                      {/* ===== AI Explanation Button ===== */}
                       <button
                         onClick={() => getExplanation(idx)}
                         disabled={loadingExplanation[idx]}
@@ -360,7 +375,6 @@ export const StudyPlan = () => {
                         )}
                       </button>
 
-                      {/* ===== AI Explanation Display ===== */}
                       {explanation[idx] && (
                         <div style={{
                           marginTop: 12,
