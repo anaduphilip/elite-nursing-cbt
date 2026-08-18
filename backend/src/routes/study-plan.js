@@ -329,7 +329,7 @@ router.post('/submit', authenticate, async (req, res) => {
       .sort((a, b) => (a[1].correct / a[1].total) - (b[1].correct / b[1].total));
     const weakestCategory = sortedCategories.length > 0 ? sortedCategories[0][0] : null;
     const suggestion = weakestCategory
-      ? `🎯 Focus on improving in **${weakestCategory}** – that's your biggest opportunity for growth.`
+      ? `🎯 Focus on improving in "${weakestCategory}" – that's your biggest opportunity for growth.`
       : '🎯 Keep practicing to maintain your skills!';
 
     res.json({
