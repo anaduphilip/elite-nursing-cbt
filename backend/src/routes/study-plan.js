@@ -1,31 +1,26 @@
 // src/routes/study-plan.js
 const express = require('express');
+const mongoose = require('mongoose');
 const { authenticate } = require('../middleware');
-const { User, Quiz } = require('../models');
+const { User, Quiz, PreCouncilExam } = require('../models');
 
 const router = express.Router();
 
-// Helper: get user quiz averages
-const getUserQuizAverages = async (userId) => {
-  const user = await User.findById(userId).populate('quizResults.quizId');
-  if (!user) return {};
-  const quizScores = {};
-  for (const result of user.quizResults) {
-    const quizId = result.quizId?.toString();
-    if (!quizId) continue;
-    if (!quizScores[quizId]) quizScores[quizId] = { scores: [], total: 0, count: 0 };
-    quizScores[quizId].scores.push(result.percentage);
-    quizScores[quizId].total += result.percentage;
-    quizScores[quizId].count++;
+// ===== Helper: Fetch questions from a quiz/exam by its ID =====
+const fetchQuestions = async (id) => {
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    const quiz = await Quiz.findById(id);
+    return quiz ? quiz.questions : [];
   }
-  const averages = {};
-  for (const [quizId, data] of Object.entries(quizScores)) {
-    averages[quizId] = data.total / data.count;
+  if (typeof id === 'string' && id.startsWith('precouncil_')) {
+    const examId = id.replace('precouncil_', '');
+    const exam = await PreCouncilExam.findById(examId);
+    return exam ? exam.questions : [];
   }
-  return averages;
+  return [];
 };
 
-// GET /api/study-plan/status
+// ===== GET /api/study-plan/status =====
 router.get('/status', authenticate, async (req, res) => {
   try {
     const user = req.user;
@@ -50,7 +45,7 @@ router.get('/status', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/study-plan/current
+// ===== GET /api/study-plan/current =====
 router.get('/current', authenticate, async (req, res) => {
   try {
     const user = req.user;
@@ -63,11 +58,13 @@ router.get('/current', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/study-plan/generate
+// ===== POST /api/study-plan/generate =====
 router.post('/generate', authenticate, async (req, res) => {
   try {
     const user = req.user;
     const isPremium = user.isPremium;
+
+    // Free users: one plan per week
     const lastGenerated = user.lastStudyPlanGenerated;
     if (!isPremium && lastGenerated) {
       const oneWeek = 7 * 24 * 60 * 60 * 1000;
@@ -77,54 +74,49 @@ router.post('/generate', authenticate, async (req, res) => {
       }
     }
 
-    const averages = await getUserQuizAverages(user._id);
-    if (Object.keys(averages).length === 0) {
-      return res.status(400).json({ error: 'You haven\'t taken enough quizzes to generate a study plan. Take more exams first.' });
+    // Check if user has taken any exams
+    if (!user.quizResults || user.quizResults.length === 0) {
+      return res.status(400).json({ error: 'You haven\'t taken any exams yet. Take some exams first to generate a study plan.' });
     }
 
-    const sortedQuizzes = Object.entries(averages).sort((a, b) => a[1] - b[1]);
-    const weakQuizIds = sortedQuizzes.slice(0, Math.min(3, sortedQuizzes.length)).map(([id]) => id);
-    const quizzes = await Quiz.find({ _id: { $in: weakQuizIds } });
-    if (quizzes.length === 0) {
-      return res.status(400).json({ error: 'No quizzes found for your weak areas.' });
-    }
+    // ----- COLLECT ALL WRONG QUESTIONS FROM ALL EXAMS -----
+    let allWrongQuestions = [];
 
-    const totalQuestions = isPremium ? 25 : 10;
-    const questionsPerQuiz = Math.floor(totalQuestions / quizzes.length);
-    const extra = totalQuestions % quizzes.length;
+    for (const result of user.quizResults) {
+      const quizId = result.quizId?.toString();
+      if (!quizId) continue;
 
-    let selectedQuestions = [];
-    for (let i = 0; i < quizzes.length; i++) {
-      const quiz = quizzes[i];
-      const qCount = questionsPerQuiz + (i < extra ? 1 : 0);
-      const shuffled = quiz.questions.sort(() => 0.5 - Math.random());
-      const picked = shuffled.slice(0, Math.min(qCount, shuffled.length));
-      picked.forEach(q => {
-        selectedQuestions.push({
-          ...q.toObject(),
-          quizId: quiz._id,
-          userAnswer: null
-        });
-      });
-    }
+      // Fetch the exam questions (from Quiz or PreCouncil)
+      const examQuestions = await fetchQuestions(quizId);
+      if (!examQuestions || examQuestions.length === 0) continue;
 
-    if (selectedQuestions.length < totalQuestions) {
-      const strongQuizIds = sortedQuizzes.slice(Math.min(3, sortedQuizzes.length)).map(([id]) => id);
-      if (strongQuizIds.length) {
-        const strongQuizzes = await Quiz.find({ _id: { $in: strongQuizIds } });
-        const remaining = totalQuestions - selectedQuestions.length;
-        const allQuestions = [];
-        strongQuizzes.forEach(q => {
-          q.questions.forEach(qq => {
-            allQuestions.push({ ...qq.toObject(), quizId: q._id });
+      // Get user's answers for this exam
+      const userAnswers = result.answers || {};
+
+      // Compare each question with user's answer
+      for (let i = 0; i < examQuestions.length; i++) {
+        const q = examQuestions[i];
+        // If the user answered this question AND it's wrong
+        if (userAnswers[i] !== undefined && userAnswers[i] !== q.correctAnswer) {
+          allWrongQuestions.push({
+            ...(q.toObject ? q.toObject() : q),
+            quizId: quizId,
+            userAnswer: userAnswers[i] || null
           });
-        });
-        const shuffledStrong = allQuestions.sort(() => 0.5 - Math.random());
-        const pickedStrong = shuffledStrong.slice(0, remaining);
-        selectedQuestions = selectedQuestions.concat(pickedStrong);
+        }
       }
     }
 
+    if (allWrongQuestions.length === 0) {
+      return res.status(400).json({ error: 'You have no wrong answers yet! Keep studying and take more exams.' });
+    }
+
+    // Shuffle and limit to max questions
+    const shuffled = allWrongQuestions.sort(() => 0.5 - Math.random());
+    const maxQuestions = isPremium ? 25 : 10;
+    const selectedQuestions = shuffled.slice(0, Math.min(maxQuestions, shuffled.length));
+
+    // Save the study plan
     user.studyPlan = {
       generatedAt: new Date(),
       questions: selectedQuestions,
@@ -138,7 +130,7 @@ router.post('/generate', authenticate, async (req, res) => {
     res.json({
       success: true,
       plan: user.studyPlan,
-      message: `Study plan generated with ${selectedQuestions.length} questions.`
+      message: `Study plan generated with ${selectedQuestions.length} questions (all from your wrong answers).`
     });
   } catch (error) {
     console.error('Study plan generation error:', error);
@@ -146,7 +138,7 @@ router.post('/generate', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/study-plan/submit
+// ===== POST /api/study-plan/submit =====
 router.post('/submit', authenticate, async (req, res) => {
   try {
     const user = req.user;
