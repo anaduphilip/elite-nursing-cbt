@@ -20,6 +20,23 @@ const fetchQuestions = async (id) => {
   return [];
 };
 
+// ===== Helper: Get category and topic for a quiz/exam ID =====
+const getQuizCategoryAndTopic = async (quizId) => {
+  try {
+    if (mongoose.Types.ObjectId.isValid(quizId)) {
+      const quiz = await Quiz.findById(quizId).select('category topic');
+      if (quiz) return { category: quiz.category || 'General', topic: quiz.topic || '' };
+    } else if (typeof quizId === 'string' && quizId.startsWith('precouncil_')) {
+      const examId = quizId.replace('precouncil_', '');
+      const exam = await PreCouncilExam.findById(examId).select('category topic');
+      if (exam) return { category: exam.category || 'General', topic: exam.topic || '' };
+    }
+    return { category: 'General', topic: '' };
+  } catch (err) {
+    return { category: 'General', topic: '' };
+  }
+};
+
 // ===== GET /api/study-plan/status =====
 router.get('/status', authenticate, async (req, res) => {
   try {
@@ -58,7 +75,7 @@ router.get('/current', authenticate, async (req, res) => {
   }
 });
 
-// ===== POST /api/study-plan/generate =====
+// ===== POST /api/study-plan/generate (FIXED: includes category fallback) =====
 router.post('/generate', authenticate, async (req, res) => {
   try {
     const user = req.user;
@@ -98,9 +115,16 @@ router.post('/generate', authenticate, async (req, res) => {
 
       const userAnswers = result.answers || {};
       
-      const baseCategory = result.category || 'General';
-      const topic = result.topic || '';
-      const displayCategory = topic ? `${baseCategory} – ${topic}` : baseCategory;
+      let category = result.category || '';
+      let topic = result.topic || '';
+      
+      if (!category || category === 'General') {
+        const quizData = await getQuizCategoryAndTopic(quizId);
+        category = quizData.category || 'General';
+        topic = quizData.topic || '';
+      }
+      
+      const displayCategory = topic ? `${category} – ${topic}` : category;
 
       for (let i = 0; i < examQuestions.length; i++) {
         const q = examQuestions[i];
@@ -226,7 +250,6 @@ router.post('/submit', authenticate, async (req, res) => {
     user.reviewedQuestions = reviewed;
     await user.save();
 
-    // ---- Build feedback ----
     const percentage = (score / questions.length) * 100;
     const passed = percentage >= 70;
 
