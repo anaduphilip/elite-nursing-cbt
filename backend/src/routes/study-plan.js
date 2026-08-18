@@ -28,7 +28,7 @@ const getQuizCategoryAndTopic = async (quizId) => {
       if (quiz) {
         let cat = quiz.category || 'General';
         let top = quiz.topic || '';
-        if (cat === 'General' && !top && quiz.title) {
+        if ((cat === 'General' && !top) && quiz.title) {
           cat = quiz.title;
         }
         return { category: cat, topic: top };
@@ -39,7 +39,7 @@ const getQuizCategoryAndTopic = async (quizId) => {
       if (exam) {
         let cat = exam.category || 'General';
         let top = exam.topic || '';
-        if (cat === 'General' && !top && exam.title) {
+        if ((cat === 'General' && !top) && exam.title) {
           cat = exam.title;
         }
         return { category: cat, topic: top };
@@ -128,16 +128,10 @@ router.post('/generate', authenticate, async (req, res) => {
 
       const userAnswers = result.answers || {};
       
-      // Try to get category from result, then fallback to quiz data (with title fallback)
-      let category = result.category || '';
-      let topic = result.topic || '';
-
-      if (!category || category === 'General' || !topic) {
-        const quizData = await getQuizCategoryAndTopic(quizId);
-        category = quizData.category || 'General';
-        topic = quizData.topic || '';
-      }
-
+      // Get category/topic from quiz (fallback to title)
+      const quizData = await getQuizCategoryAndTopic(quizId);
+      let category = quizData.category || 'General';
+      let topic = quizData.topic || '';
       const displayCategory = topic ? `${category} – ${topic}` : category;
 
       for (let i = 0; i < examQuestions.length; i++) {
@@ -220,6 +214,20 @@ router.post('/submit', authenticate, async (req, res) => {
       q.userAnswer = userAns;
       const isCorrect = (userAns === q.correctAnswer);
 
+      // ---- DYNAMIC CATEGORY LOOKUP ----
+      let category = q.category || 'General';
+      // If category is 'General' and we have a quizId, try to fetch the real one
+      if ((category === 'General' || category === '') && q.quizId) {
+        const quizData = await getQuizCategoryAndTopic(q.quizId);
+        if (quizData.category && quizData.category !== 'General') {
+          category = quizData.topic ? `${quizData.category} – ${quizData.topic}` : quizData.category;
+        } else if (quizData.topic) {
+          category = quizData.topic;
+        } else if (quizData.category) {
+          category = quizData.category;
+        }
+      }
+
       if (isCorrect) {
         score++;
         if (q.quizId && q.questionIndex !== undefined && q.questionIndex !== null) {
@@ -243,7 +251,6 @@ router.post('/submit', authenticate, async (req, res) => {
         }
       }
 
-      const category = q.category || 'General';
       if (!categoryStats[category]) {
         categoryStats[category] = { correct: 0, total: 0 };
       }
