@@ -44,7 +44,6 @@ export const StudyPlan = () => {
         const loadedPlan = planRes.data.plan;
         setPlan(loadedPlan);
 
-        // Populate answers from stored userAnswer
         if (loadedPlan && loadedPlan.questions) {
           const savedAnswers = {};
           loadedPlan.questions.forEach((q, idx) => {
@@ -55,7 +54,6 @@ export const StudyPlan = () => {
           setAnswers(savedAnswers);
         }
 
-        // If plan is completed, set result (including feedback)
         if (loadedPlan?.completed) {
           const perc = loadedPlan.total > 0 ? (loadedPlan.score / loadedPlan.total) * 100 : 0;
           setResult({
@@ -258,28 +256,29 @@ export const StudyPlan = () => {
                 </div>
               )}
 
-              {/* ===== Category Breakdown ===== */}
+              {/* ===== Category Breakdown (UPDATED LAYOUT) ===== */}
               {feedback.categoryFeedback && Object.keys(feedback.categoryFeedback).length > 0 && (
                 <div style={{ marginTop: 16, textAlign: 'left' }}>
-                  <h4 style={{ color: headingColor, marginBottom: 8 }}>Category Breakdown</h4>
+                  <h4 style={{ color: headingColor, marginBottom: 8 }}>📊 Category Breakdown</h4>
                   {Object.entries(feedback.categoryFeedback).map(([cat, data]) => (
                     <div key={cat} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
+                      marginBottom: 8,
                       padding: '8px 12px',
-                      marginBottom: 6,
                       background: darkMode ? '#2d2d3d' : '#f8f9fa',
                       borderRadius: 8,
                       borderLeft: `4px solid ${data.percentage >= 70 ? '#4caf50' : data.percentage >= 40 ? '#ff9800' : '#f44336'}`
                     }}>
-                      <span style={{ color: textColor, fontWeight: 'bold' }}>{cat}</span>
-                      <span style={{ color: secondaryText }}>
-                        {data.correct}/{data.total} ({data.percentage}%)
-                      </span>
-                      <span style={{ fontSize: 13, color: data.percentage >= 70 ? '#4caf50' : data.percentage >= 40 ? '#ff9800' : '#f44336' }}>
+                      {/* First line: Category + Score */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: textColor, fontWeight: 'bold' }}>{cat}</span>
+                        <span style={{ color: secondaryText, fontWeight: 'bold' }}>
+                          {data.correct}/{data.total} ({data.percentage}%)
+                        </span>
+                      </div>
+                      {/* Second line: Message */}
+                      <div style={{ marginTop: 4, fontSize: 13, color: data.percentage >= 70 ? '#4caf50' : data.percentage >= 40 ? '#ff9800' : '#f44336' }}>
                         {data.message}
-                      </span>
+                      </div>
                     </div>
                   ))}
                 </div>
