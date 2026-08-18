@@ -2,18 +2,16 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const { authenticate } = require('../middleware');
-const { User, Quiz, PreCouncilExam } = require('../models');
+const { User, Quiz, PreCouncilExam, PreCouncilPaper, PreCouncilCategory } = require('../models');
 
 const router = express.Router();
 
 // ===== Helper: Fetch questions from a quiz/exam by its ID =====
 const fetchQuestions = async (id) => {
-  // If it's a valid ObjectId, treat as regular Quiz
   if (mongoose.Types.ObjectId.isValid(id)) {
     const quiz = await Quiz.findById(id);
     return quiz ? quiz.questions : [];
   }
-  // If it starts with "precouncil_", treat as PreCouncil exam
   if (typeof id === 'string' && id.startsWith('precouncil_')) {
     const examId = id.replace('precouncil_', '');
     const exam = await PreCouncilExam.findById(examId);
@@ -22,9 +20,10 @@ const fetchQuestions = async (id) => {
   return [];
 };
 
-// ===== Helper: Get category/topic (prefer topic, fallback to category/title) =====
+// ===== Helper: Get descriptive category/topic (supports PreCouncil papers) =====
 const getQuizCategoryAndTopic = async (quizId) => {
   try {
+    // 1. Regular Quiz
     if (mongoose.Types.ObjectId.isValid(quizId)) {
       const quiz = await Quiz.findById(quizId).select('category topic title');
       if (quiz) {
@@ -33,16 +32,44 @@ const getQuizCategoryAndTopic = async (quizId) => {
         if (!top && quiz.title) top = quiz.title;
         return { category: cat, topic: top };
       }
-    } else if (typeof quizId === 'string' && quizId.startsWith('precouncil_')) {
+    }
+
+    // 2. PreCouncil Exam
+    if (typeof quizId === 'string' && quizId.startsWith('precouncil_')) {
       const examId = quizId.replace('precouncil_', '');
-      const exam = await PreCouncilExam.findById(examId).select('category topic title');
+      const exam = await PreCouncilExam.findById(examId)
+        .populate({
+          path: 'paperId',
+          populate: { path: 'categoryId' }
+        });
+
       if (exam) {
-        let cat = exam.category || 'General';
-        let top = exam.topic || '';
-        if (!top && exam.title) top = exam.title;
+        let cat = '';
+        let top = '';
+
+        if (exam.paperId) {
+          const paper = exam.paperId;
+          const category = paper.categoryId;
+          const categoryName = category ? category.name : 'PreCouncil';
+          const paperName = paper.name || '';
+          const examTitle = exam.title || 'Exam';
+
+          if (paperName) {
+            cat = `${categoryName} ${paperName}`;
+            top = examTitle;
+          } else {
+            cat = categoryName;
+            top = examTitle;
+          }
+        } else {
+          cat = exam.category || 'PreCouncil';
+          top = exam.topic || exam.title || 'Exam';
+        }
+
         return { category: cat, topic: top };
       }
     }
+
     return { category: 'General', topic: '' };
   } catch (err) {
     return { category: 'General', topic: '' };
@@ -106,7 +133,6 @@ router.post('/generate', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'You haven\'t taken any exams yet. Take some exams first to generate a study plan.' });
     }
 
-    // Build set of passed questions (using string keys)
     const passedKeys = new Set();
     if (user.reviewedQuestions && user.reviewedQuestions.length > 0) {
       user.reviewedQuestions.forEach(r => {
@@ -122,15 +148,15 @@ router.post('/generate', authenticate, async (req, res) => {
       const quizId = result.quizId?.toString();
       if (!quizId) continue;
 
-      // Fetch exam questions (works for both regular and PreCouncil)
       const examQuestions = await fetchQuestions(quizId);
       if (!examQuestions || examQuestions.length === 0) continue;
 
       const userAnswers = result.answers || {};
       
-      // Get category/topic (or use title as fallback)
+      // Get descriptive category
       const quizData = await getQuizCategoryAndTopic(quizId);
-      const displayCategory = quizData.topic ? quizData.topic : (quizData.category || 'General');
+      // Build display string: if topic exists, show "Category – Topic", else just category
+      const displayCategory = quizData.topic ? `${quizData.category} – ${quizData.topic}` : quizData.category;
 
       for (let i = 0; i < examQuestions.length; i++) {
         const q = examQuestions[i];
@@ -176,7 +202,6 @@ router.post('/generate', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Study plan generation error:', error);
-    // Return a clean error message – our frontend will show a friendly version
     res.status(500).json({ error: 'Failed to generate study plan. Please try again later.' });
   }
 });
@@ -199,7 +224,6 @@ router.post('/submit', authenticate, async (req, res) => {
     }
 
     let score = 0;
-    // Clean up invalid entries in reviewedQuestions
     let reviewed = (user.reviewedQuestions || []).filter(r => r.quizId && r.questionIndex !== undefined && r.questionIndex !== null);
 
     const categoryStats = {};
@@ -214,11 +238,11 @@ router.post('/submit', authenticate, async (req, res) => {
       q.userAnswer = userAns;
       const isCorrect = (userAns === q.correctAnswer);
 
-      // Try to get a real category – if q.category is 'General' or empty, fetch from database
+      // Try to get descriptive category; fallback to q.category if present
       let category = q.category || 'General';
       if ((category === 'General' || category === '') && q.quizId) {
         const quizData = await getQuizCategoryAndTopic(q.quizId);
-        category = quizData.topic ? quizData.topic : (quizData.category || 'General');
+        category = quizData.topic ? `${quizData.category} – ${quizData.topic}` : quizData.category;
       }
 
       if (isCorrect) {
