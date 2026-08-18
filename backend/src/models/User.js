@@ -74,7 +74,7 @@ const UserSchema = new mongoose.Schema({
       questionText: { type: String },
       options: [{ type: String }],
       correctAnswer: { type: Number },
-      quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' },
+      quizId: { type: String },
       userAnswer: { type: Number, default: null }
     }],
     completed: { type: Boolean, default: false },

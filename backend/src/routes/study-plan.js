@@ -8,10 +8,12 @@ const router = express.Router();
 
 // ===== Helper: Fetch questions from a quiz/exam by its ID =====
 const fetchQuestions = async (id) => {
+  // If it's a valid ObjectId, treat as regular Quiz
   if (mongoose.Types.ObjectId.isValid(id)) {
     const quiz = await Quiz.findById(id);
     return quiz ? quiz.questions : [];
   }
+  // If it starts with "precouncil_", treat as PreCouncil exam
   if (typeof id === 'string' && id.startsWith('precouncil_')) {
     const examId = id.replace('precouncil_', '');
     const exam = await PreCouncilExam.findById(examId);
@@ -20,7 +22,7 @@ const fetchQuestions = async (id) => {
   return [];
 };
 
-// ===== Helper: Get category, topic, and title for a quiz/exam =====
+// ===== Helper: Get category/topic (prefer topic, fallback to category/title) =====
 const getQuizCategoryAndTopic = async (quizId) => {
   try {
     if (mongoose.Types.ObjectId.isValid(quizId)) {
@@ -104,6 +106,7 @@ router.post('/generate', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'You haven\'t taken any exams yet. Take some exams first to generate a study plan.' });
     }
 
+    // Build set of passed questions (using string keys)
     const passedKeys = new Set();
     if (user.reviewedQuestions && user.reviewedQuestions.length > 0) {
       user.reviewedQuestions.forEach(r => {
@@ -119,12 +122,13 @@ router.post('/generate', authenticate, async (req, res) => {
       const quizId = result.quizId?.toString();
       if (!quizId) continue;
 
+      // Fetch exam questions (works for both regular and PreCouncil)
       const examQuestions = await fetchQuestions(quizId);
       if (!examQuestions || examQuestions.length === 0) continue;
 
       const userAnswers = result.answers || {};
       
-      // Get category/topic from quiz (prefer topic, fallback to category, then title)
+      // Get category/topic (or use title as fallback)
       const quizData = await getQuizCategoryAndTopic(quizId);
       const displayCategory = quizData.topic ? quizData.topic : (quizData.category || 'General');
 
@@ -172,7 +176,8 @@ router.post('/generate', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Study plan generation error:', error);
-    res.status(500).json({ error: error.message });
+    // Return a clean error message – our frontend will show a friendly version
+    res.status(500).json({ error: 'Failed to generate study plan. Please try again later.' });
   }
 });
 
@@ -194,6 +199,7 @@ router.post('/submit', authenticate, async (req, res) => {
     }
 
     let score = 0;
+    // Clean up invalid entries in reviewedQuestions
     let reviewed = (user.reviewedQuestions || []).filter(r => r.quizId && r.questionIndex !== undefined && r.questionIndex !== null);
 
     const categoryStats = {};
@@ -208,7 +214,7 @@ router.post('/submit', authenticate, async (req, res) => {
       q.userAnswer = userAns;
       const isCorrect = (userAns === q.correctAnswer);
 
-      // ---- DYNAMIC CATEGORY LOOKUP (prefer topic) ----
+      // Try to get a real category – if q.category is 'General' or empty, fetch from database
       let category = q.category || 'General';
       if ((category === 'General' || category === '') && q.quizId) {
         const quizData = await getQuizCategoryAndTopic(q.quizId);
@@ -323,7 +329,7 @@ router.post('/submit', authenticate, async (req, res) => {
     if (error.name === 'ValidationError') {
       return res.status(400).json({ error: 'Invalid data submitted. Please generate a new study plan and try again.' });
     }
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Failed to submit study plan. Please try again later.' });
   }
 });
 
