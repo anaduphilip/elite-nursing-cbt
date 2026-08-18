@@ -106,7 +106,14 @@ const UserSchema = new mongoose.Schema({
     used: { type: Boolean, default: false }
   },
 
-  referralBonusClaimed: { type: Boolean, default: false }
+  referralBonusClaimed: { type: Boolean, default: false },
+
+  // ===== STUDY PLAN REVIEW TRACKING =====
+  reviewedQuestions: [{
+    quizId: { type: String, required: true },
+    questionIndex: { type: Number, required: true },
+    passed: { type: Boolean, default: false }
+  }]
 });
 
 module.exports = mongoose.model('User', UserSchema);

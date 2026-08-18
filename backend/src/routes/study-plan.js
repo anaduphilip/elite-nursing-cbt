@@ -79,39 +79,50 @@ router.post('/generate', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'You haven\'t taken any exams yet. Take some exams first to generate a study plan.' });
     }
 
-    // ----- COLLECT ALL WRONG QUESTIONS FROM ALL EXAMS -----
+    // Build a set of questions that have been PASSED in previous plans
+    const passedKeys = new Set();
+    if (user.reviewedQuestions && user.reviewedQuestions.length > 0) {
+      user.reviewedQuestions.forEach(r => {
+        if (r.passed) {
+          passedKeys.add(`${r.quizId}|${r.questionIndex}`);
+        }
+      });
+    }
+
     let allWrongQuestions = [];
 
     for (const result of user.quizResults) {
       const quizId = result.quizId?.toString();
       if (!quizId) continue;
 
-      // Fetch the exam questions (from Quiz or PreCouncil)
       const examQuestions = await fetchQuestions(quizId);
       if (!examQuestions || examQuestions.length === 0) continue;
 
-      // Get user's answers for this exam
       const userAnswers = result.answers || {};
 
-      // Compare each question with user's answer
       for (let i = 0; i < examQuestions.length; i++) {
         const q = examQuestions[i];
-        // If the user answered this question AND it's wrong
         if (userAnswers[i] !== undefined && userAnswers[i] !== q.correctAnswer) {
-          allWrongQuestions.push({
-            ...(q.toObject ? q.toObject() : q),
-            quizId: quizId,
-            userAnswer: userAnswers[i] || null
-          });
+          const key = `${quizId}|${i}`;
+          if (!passedKeys.has(key)) {
+            allWrongQuestions.push({
+              ...(q.toObject ? q.toObject() : q),
+              quizId: quizId,
+              userAnswer: null,
+              questionIndex: i
+            });
+          }
         }
       }
     }
 
     if (allWrongQuestions.length === 0) {
-      return res.status(400).json({ error: 'You have no wrong answers yet! Keep studying and take more exams.' });
+      return res.status(400).json({
+        error: 'No new wrong questions to review. You\'ve passed all your previously wrong questions – keep practicing new exams!'
+      });
     }
 
-    // Shuffle and limit to max questions
+    // Shuffle and limit
     const shuffled = allWrongQuestions.sort(() => 0.5 - Math.random());
     const maxQuestions = isPremium ? 25 : 10;
     const selectedQuestions = shuffled.slice(0, Math.min(maxQuestions, shuffled.length));
@@ -130,7 +141,7 @@ router.post('/generate', authenticate, async (req, res) => {
     res.json({
       success: true,
       plan: user.studyPlan,
-      message: `Study plan generated with ${selectedQuestions.length} questions (all from your wrong answers).`
+      message: `Study plan generated with ${selectedQuestions.length} questions (only unpassed wrong answers).`
     });
   } catch (error) {
     console.error('Study plan generation error:', error);
@@ -154,7 +165,10 @@ router.post('/submit', authenticate, async (req, res) => {
     if (answers.length !== questions.length) {
       return res.status(400).json({ error: 'Please answer all questions.' });
     }
+
     let score = 0;
+    const reviewed = user.reviewedQuestions || [];
+
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const userAns = answers[i];
@@ -162,13 +176,35 @@ router.post('/submit', authenticate, async (req, res) => {
         return res.status(400).json({ error: 'Please answer all questions.' });
       }
       q.userAnswer = userAns;
-      if (userAns === q.correctAnswer) {
+      const isCorrect = (userAns === q.correctAnswer);
+
+      if (isCorrect) {
         score++;
+        const existingIndex = reviewed.findIndex(r => r.quizId === q.quizId && r.questionIndex === q.questionIndex);
+        if (existingIndex !== -1) {
+          reviewed[existingIndex].passed = true;
+        } else {
+          reviewed.push({
+            quizId: q.quizId,
+            questionIndex: q.questionIndex,
+            passed: true
+          });
+        }
+      } else {
+        const existingIndex = reviewed.findIndex(r => r.quizId === q.quizId && r.questionIndex === q.questionIndex);
+        if (existingIndex !== -1) {
+          reviewed.splice(existingIndex, 1);
+        }
       }
     }
+
     plan.completed = true;
     plan.score = score;
+
+    // Save reviewedQuestions and plan
+    user.reviewedQuestions = reviewed;
     await user.save();
+
     res.json({
       success: true,
       score,
