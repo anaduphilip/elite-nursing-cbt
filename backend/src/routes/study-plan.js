@@ -28,9 +28,7 @@ const getQuizCategoryAndTopic = async (quizId) => {
       if (quiz) {
         let cat = quiz.category || 'General';
         let top = quiz.topic || '';
-        if ((cat === 'General' && !top) && quiz.title) {
-          cat = quiz.title;
-        }
+        if (!top && quiz.title) top = quiz.title;
         return { category: cat, topic: top };
       }
     } else if (typeof quizId === 'string' && quizId.startsWith('precouncil_')) {
@@ -39,9 +37,7 @@ const getQuizCategoryAndTopic = async (quizId) => {
       if (exam) {
         let cat = exam.category || 'General';
         let top = exam.topic || '';
-        if ((cat === 'General' && !top) && exam.title) {
-          cat = exam.title;
-        }
+        if (!top && exam.title) top = exam.title;
         return { category: cat, topic: top };
       }
     }
@@ -128,11 +124,9 @@ router.post('/generate', authenticate, async (req, res) => {
 
       const userAnswers = result.answers || {};
       
-      // Get category/topic from quiz (fallback to title)
+      // Get category/topic from quiz (prefer topic, fallback to category, then title)
       const quizData = await getQuizCategoryAndTopic(quizId);
-      let category = quizData.category || 'General';
-      let topic = quizData.topic || '';
-      const displayCategory = topic ? `${category} – ${topic}` : category;
+      const displayCategory = quizData.topic ? quizData.topic : (quizData.category || 'General');
 
       for (let i = 0; i < examQuestions.length; i++) {
         const q = examQuestions[i];
@@ -214,18 +208,11 @@ router.post('/submit', authenticate, async (req, res) => {
       q.userAnswer = userAns;
       const isCorrect = (userAns === q.correctAnswer);
 
-      // ---- DYNAMIC CATEGORY LOOKUP ----
+      // ---- DYNAMIC CATEGORY LOOKUP (prefer topic) ----
       let category = q.category || 'General';
-      // If category is 'General' and we have a quizId, try to fetch the real one
       if ((category === 'General' || category === '') && q.quizId) {
         const quizData = await getQuizCategoryAndTopic(q.quizId);
-        if (quizData.category && quizData.category !== 'General') {
-          category = quizData.topic ? `${quizData.category} – ${quizData.topic}` : quizData.category;
-        } else if (quizData.topic) {
-          category = quizData.topic;
-        } else if (quizData.category) {
-          category = quizData.category;
-        }
+        category = quizData.topic ? quizData.topic : (quizData.category || 'General');
       }
 
       if (isCorrect) {
