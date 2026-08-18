@@ -20,16 +20,30 @@ const fetchQuestions = async (id) => {
   return [];
 };
 
-// ===== Helper: Get category and topic for a quiz/exam ID =====
+// ===== Helper: Get category, topic, and title for a quiz/exam =====
 const getQuizCategoryAndTopic = async (quizId) => {
   try {
     if (mongoose.Types.ObjectId.isValid(quizId)) {
-      const quiz = await Quiz.findById(quizId).select('category topic');
-      if (quiz) return { category: quiz.category || 'General', topic: quiz.topic || '' };
+      const quiz = await Quiz.findById(quizId).select('category topic title');
+      if (quiz) {
+        let cat = quiz.category || 'General';
+        let top = quiz.topic || '';
+        if (cat === 'General' && !top && quiz.title) {
+          cat = quiz.title;
+        }
+        return { category: cat, topic: top };
+      }
     } else if (typeof quizId === 'string' && quizId.startsWith('precouncil_')) {
       const examId = quizId.replace('precouncil_', '');
-      const exam = await PreCouncilExam.findById(examId).select('category topic');
-      if (exam) return { category: exam.category || 'General', topic: exam.topic || '' };
+      const exam = await PreCouncilExam.findById(examId).select('category topic title');
+      if (exam) {
+        let cat = exam.category || 'General';
+        let top = exam.topic || '';
+        if (cat === 'General' && !top && exam.title) {
+          cat = exam.title;
+        }
+        return { category: cat, topic: top };
+      }
     }
     return { category: 'General', topic: '' };
   } catch (err) {
@@ -75,13 +89,12 @@ router.get('/current', authenticate, async (req, res) => {
   }
 });
 
-// ===== POST /api/study-plan/generate (FIXED: includes category fallback) =====
+// ===== POST /api/study-plan/generate =====
 router.post('/generate', authenticate, async (req, res) => {
   try {
     const user = req.user;
     const isPremium = user.isPremium;
 
-    // Free users: one plan per week
     const lastGenerated = user.lastStudyPlanGenerated;
     if (!isPremium && lastGenerated) {
       const oneWeek = 7 * 24 * 60 * 60 * 1000;
@@ -115,15 +128,16 @@ router.post('/generate', authenticate, async (req, res) => {
 
       const userAnswers = result.answers || {};
       
+      // Try to get category from result, then fallback to quiz data (with title fallback)
       let category = result.category || '';
       let topic = result.topic || '';
-      
-      if (!category || category === 'General') {
+
+      if (!category || category === 'General' || !topic) {
         const quizData = await getQuizCategoryAndTopic(quizId);
         category = quizData.category || 'General';
         topic = quizData.topic || '';
       }
-      
+
       const displayCategory = topic ? `${category} – ${topic}` : category;
 
       for (let i = 0; i < examQuestions.length; i++) {
