@@ -89,6 +89,7 @@ router.post('/generate', authenticate, async (req, res) => {
       });
     }
 
+    // ----- COLLECT ALL UNPASSED WRONG QUESTIONS FROM ALL EXAMS -----
     let allWrongQuestions = [];
 
     for (const result of user.quizResults) {
@@ -166,8 +167,13 @@ router.post('/submit', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Please answer all questions.' });
     }
 
+    // ---- Grade the plan & track feedback ----
     let score = 0;
     const reviewed = user.reviewedQuestions || [];
+
+    // ---- Category breakdown ----
+    const categoryStats = {};
+    const questionDetails = [];
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
@@ -180,6 +186,7 @@ router.post('/submit', authenticate, async (req, res) => {
 
       if (isCorrect) {
         score++;
+        // Mark as passed
         const existingIndex = reviewed.findIndex(r => r.quizId === q.quizId && r.questionIndex === q.questionIndex);
         if (existingIndex !== -1) {
           reviewed[existingIndex].passed = true;
@@ -191,27 +198,106 @@ router.post('/submit', authenticate, async (req, res) => {
           });
         }
       } else {
+        // Remove passed flag if it existed
         const existingIndex = reviewed.findIndex(r => r.quizId === q.quizId && r.questionIndex === q.questionIndex);
         if (existingIndex !== -1) {
           reviewed.splice(existingIndex, 1);
         }
       }
+
+      // ---- Track category stats ----
+      const category = q.category || 'General';
+      if (!categoryStats[category]) {
+        categoryStats[category] = { correct: 0, total: 0 };
+      }
+      categoryStats[category].total++;
+      if (isCorrect) {
+        categoryStats[category].correct++;
+      }
+
+      questionDetails.push({
+        questionText: q.questionText,
+        isCorrect,
+        category
+      });
     }
 
     plan.completed = true;
     plan.score = score;
-
-    // Save reviewedQuestions and plan
     user.reviewedQuestions = reviewed;
     await user.save();
 
+    // ---- Build feedback message ----
+    const percentage = (score / questions.length) * 100;
+    const passed = percentage >= 70;
+
+    // Overall message
+    let overallMessage = '';
+    if (percentage >= 90) {
+      overallMessage = '🌟 Excellent work! You\'re mastering these topics brilliantly. Keep up the great momentum!';
+    } else if (percentage >= 70) {
+      overallMessage = '💪 Great job! You\'ve shown solid understanding. With a bit more focus, you\'ll ace the rest!';
+    } else if (percentage >= 50) {
+      overallMessage = '📚 You\'re on the right track! Review the questions you missed and try again. You\'ve got this!';
+    } else if (percentage >= 30) {
+      overallMessage = '🧠 Don\'t give up! Every mistake is a learning opportunity. Focus on understanding the concepts better.';
+    } else {
+      overallMessage = '💡 Rome wasn\'t built in a day. Take your time to review the material thoroughly, then try again. You can do this!';
+    }
+
+    // ---- Category feedback ----
+    const categoryFeedback = {};
+    for (const [cat, stats] of Object.entries(categoryStats)) {
+      const catPct = (stats.correct / stats.total) * 100;
+      let catMessage = '';
+      if (catPct >= 80) {
+        catMessage = `✅ You're strong in ${cat}! Keep it up.`;
+      } else if (catPct >= 60) {
+        catMessage = `📖 You have a good grasp of ${cat}. Review the ones you missed for extra confidence.`;
+      } else if (catPct >= 40) {
+        catMessage = `⚠️ ${cat} needs more attention. Spend some extra time reviewing these concepts.`;
+      } else {
+        catMessage = `🔴 ${cat} is your weak spot. Focus on studying this topic more thoroughly.`;
+      }
+      categoryFeedback[cat] = {
+        correct: stats.correct,
+        total: stats.total,
+        percentage: catPct.toFixed(0),
+        message: catMessage
+      };
+    }
+
+    // ---- Identify weakest areas ----
+    const sortedCategories = Object.entries(categoryStats)
+      .sort((a, b) => (a[1].correct / a[1].total) - (b[1].correct / b[1].total));
+    
+    const weakestCategory = sortedCategories.length > 0 ? sortedCategories[0][0] : null;
+    const strongestCategory = sortedCategories.length > 0 ? sortedCategories[sortedCategories.length - 1][0] : null;
+
+    let suggestion = '';
+    if (weakestCategory) {
+      suggestion = `🎯 Focus on improving in **${weakestCategory}** – that's your biggest opportunity for growth.`;
+    } else {
+      suggestion = '🎯 Keep practicing to maintain your skills!';
+    }
+
+    // ---- Final response ----
     res.json({
       success: true,
       score,
       total: questions.length,
-      percentage: ((score / questions.length) * 100).toFixed(1),
-      passed: score / questions.length >= 0.7
+      percentage: percentage.toFixed(1),
+      passed,
+      feedback: {
+        overallMessage,
+        categoryFeedback,
+        suggestion,
+        strongestCategory,
+        weakestCategory,
+        questionDetails: questionDetails.slice(0, 10)
+      }
     });
+
   } catch (error) {
     console.error('Submit study plan error:', error);
     res.status(500).json({ error: error.message });

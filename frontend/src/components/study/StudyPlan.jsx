@@ -55,20 +55,20 @@ export const StudyPlan = () => {
           setAnswers(savedAnswers);
         }
 
-        // ✅ Compute percentage if plan is completed
+        // If plan is completed, set result (including feedback)
         if (loadedPlan?.completed) {
           const perc = loadedPlan.total > 0 ? (loadedPlan.score / loadedPlan.total) * 100 : 0;
           setResult({
             score: loadedPlan.score,
             total: loadedPlan.total,
             percentage: perc.toFixed(1),
-            passed: perc >= 70
+            passed: perc >= 70,
           });
         }
       }
     } catch (error) {
-      console.error('Error fetching Review quiz status:', error);
-      alert('Failed to load Review quiz status.');
+      console.error('Error fetching study plan status:', error);
+      alert('Failed to load study plan status.');
     } finally {
       setLoading(false);
     }
@@ -106,10 +106,10 @@ export const StudyPlan = () => {
         setAnswers({});
         setResult(null);
         setShowReview(false);
-        alert('Review quizzes generated successfully!');
+        alert('Study plan generated successfully!');
       }
     } catch (error) {
-      const msg = error.response?.data?.error || 'Failed to generate  Review.';
+      const msg = error.response?.data?.error || 'Failed to generate study plan.';
       alert(msg);
     } finally {
       setGenerating(false);
@@ -135,7 +135,6 @@ export const StudyPlan = () => {
       });
       if (res.data.success) {
         setResult(res.data);
-        // ✅ Update plan with answers so they persist immediately
         const updatedQuestions = plan.questions.map((q, idx) => ({
           ...q,
           userAnswer: answers[idx] !== undefined ? answers[idx] : null
@@ -144,7 +143,7 @@ export const StudyPlan = () => {
         alert(`You scored ${res.data.score}/${res.data.total} (${res.data.percentage}%)`);
       }
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to submit review quizzes.');
+      alert(error.response?.data?.error || 'Failed to submit study plan.');
     } finally {
       setSubmitting(false);
     }
@@ -160,7 +159,6 @@ export const StudyPlan = () => {
     setLoadingExplanation({ ...loadingExplanation, [idx]: true });
     try {
       const question = plan.questions[idx];
-      // Use stored userAnswer from the plan, fallback to answers state
       const userAnswer = question.userAnswer !== undefined && question.userAnswer !== null
         ? question.userAnswer
         : answers[idx];
@@ -201,7 +199,7 @@ export const StudyPlan = () => {
     });
   };
 
-  if (loading) return <LoadingWithBar message="Loading review quiz" />;
+  if (loading) return <LoadingWithBar message="Loading study plan" />;
 
   // If no plan and cannot generate
   if (!status?.hasPlan && !status?.canGenerate) {
@@ -209,7 +207,7 @@ export const StudyPlan = () => {
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: 600, margin: '0 auto', background: cardBg, borderRadius: 20, padding: 30, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📅</div>
-          <h2 style={{ color: headingColor }}>Review quizzes Not Available</h2>
+          <h2 style={{ color: headingColor }}>Study Plan Not Available</h2>
           <p style={{ color: secondaryText }}>{status?.message || 'You have reached your free limit. Upgrade to Premium for unlimited access.'}</p>
           {!status?.isPremium && (
             <Link to="/get-premium">
@@ -231,23 +229,66 @@ export const StudyPlan = () => {
     if (plan.completed && result) {
       const percentage = parseFloat(result.percentage);
       const passed = result.passed !== undefined ? result.passed : percentage >= 70;
+      const feedback = result.feedback || {};
 
       return (
         <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
           <div style={{ maxWidth: 800, margin: '0 auto' }}>
             <div style={{ background: cardBg, borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
-              <h2 style={{ color: headingColor }}>Review Quiz Results</h2>
+              <h2 style={{ color: headingColor }}>Study Plan Results</h2>
               <p>Score: <strong>{result.score}</strong> / {result.total} ({result.percentage}%)</p>
               <p style={{ fontSize: 24, color: passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
                 {passed ? '✓ PASSED' : '✗ Needs Improvement'}
               </p>
-              <button onClick={() => setShowReview(!showReview)} style={{ background: '#1e3c72', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', marginTop: 10 }}>
-                {showReview ? 'Hide Review' : 'Show Review'}
-              </button>
-              <button onClick={generatePlan} disabled={generating} style={{ marginLeft: 10, background: '#ff9800', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-                {generating ? 'Generating...' : 'Generate New Plan'}
-              </button>
-              <Link to="/profile"><button style={{ marginLeft: 10, background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Back to Profile</button></Link>
+
+              {/* ===== Feedback Section ===== */}
+              {feedback.overallMessage && (
+                <div style={{ marginTop: 16, padding: 16, background: darkMode ? '#2d2d3d' : '#f0f7f4', borderRadius: 12, textAlign: 'left' }}>
+                  <p style={{ fontSize: 16, color: textColor, lineHeight: 1.6, fontWeight: 'bold' }}>{feedback.overallMessage}</p>
+                  {feedback.suggestion && (
+                    <p style={{ marginTop: 8, fontSize: 14, color: '#ff9800', fontWeight: 'bold' }}>
+                      {feedback.suggestion}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ===== Category Breakdown ===== */}
+              {feedback.categoryFeedback && Object.keys(feedback.categoryFeedback).length > 0 && (
+                <div style={{ marginTop: 16, textAlign: 'left' }}>
+                  <h4 style={{ color: headingColor, marginBottom: 8 }}>Category Breakdown</h4>
+                  {Object.entries(feedback.categoryFeedback).map(([cat, data]) => (
+                    <div key={cat} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 12px',
+                      marginBottom: 6,
+                      background: darkMode ? '#2d2d3d' : '#f8f9fa',
+                      borderRadius: 8,
+                      borderLeft: `4px solid ${data.percentage >= 70 ? '#4caf50' : data.percentage >= 40 ? '#ff9800' : '#f44336'}`
+                    }}>
+                      <span style={{ color: textColor, fontWeight: 'bold' }}>{cat}</span>
+                      <span style={{ color: secondaryText }}>
+                        {data.correct}/{data.total} ({data.percentage}%)
+                      </span>
+                      <span style={{ fontSize: 13, color: data.percentage >= 70 ? '#4caf50' : data.percentage >= 40 ? '#ff9800' : '#f44336' }}>
+                        {data.message}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginTop: 16, display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button onClick={() => setShowReview(!showReview)} style={{ background: '#1e3c72', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+                  {showReview ? 'Hide Review' : 'Show Review'}
+                </button>
+                <button onClick={generatePlan} disabled={generating} style={{ background: '#ff9800', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+                  {generating ? 'Generating...' : 'Generate New Plan'}
+                </button>
+                <Link to="/profile"><button style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Back to Profile</button></Link>
+              </div>
             </div>
 
             {/* ===== Remaining counter ===== */}
@@ -401,7 +442,7 @@ export const StudyPlan = () => {
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <div style={{ background: cardBg, borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
-            <h2 style={{ color: headingColor }}>Your review</h2>
+            <h2 style={{ color: headingColor }}>Your Study Plan</h2>
             <p style={{ color: secondaryText }}>Answer all {total} questions to get feedback.</p>
             <p style={{ color: secondaryText, fontSize: 13 }}>Answered: {answered}/{total}</p>
             <button onClick={generatePlan} disabled={generating} style={{ marginTop: 10, background: '#ff9800', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
@@ -449,7 +490,7 @@ export const StudyPlan = () => {
             marginBottom: 30,
             opacity: answered === total ? 1 : 0.7
           }}>
-            {submitting ? 'Submitting...' : (answered === total ? 'Submit Review quiz' : `Please answer all questions (${answered}/${total})`)}
+            {submitting ? 'Submitting...' : (answered === total ? 'Submit Study Plan' : `Please answer all questions (${answered}/${total})`)}
           </button>
         </div>
       </div>
@@ -461,9 +502,9 @@ export const StudyPlan = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 600, margin: '0 auto', background: cardBg, borderRadius: 20, padding: 30, textAlign: 'center' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
-        <h2 style={{ color: headingColor }}>Personalized Review Plan</h2>
+        <h2 style={{ color: headingColor }}>Personalized Study Plan</h2>
         <p style={{ color: secondaryText }}>
-          {status?.isPremium ? 'Generate a custom review quizzes based on your weak areas.' : 'Free users can generate one plan per week. Upgrade to Premium for unlimited.'}
+          {status?.isPremium ? 'Generate a custom study plan based on your weak areas.' : 'Free users can generate one plan per week. Upgrade to Premium for unlimited.'}
         </p>
         <p style={{ color: secondaryText, fontSize: 14, marginTop: 10 }}>{status?.message}</p>
         <button onClick={generatePlan} disabled={generating || !status?.canGenerate} style={{
@@ -477,7 +518,7 @@ export const StudyPlan = () => {
           fontWeight: 'bold',
           fontSize: 16
         }}>
-          {generating ? 'Generating...' : 'Generate Review quiz'}
+          {generating ? 'Generating...' : 'Generate Study Plan'}
         </button>
         <div style={{ marginTop: 20 }}>
           <Link to="/profile"><button style={{ background: '#6c757d', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Back to Profile</button></Link>
