@@ -153,9 +153,7 @@ router.post('/generate', authenticate, async (req, res) => {
 
       const userAnswers = result.answers || {};
       
-      // Get descriptive category
       const quizData = await getQuizCategoryAndTopic(quizId);
-      // Build display string: if topic exists, show "Category – Topic", else just category
       const displayCategory = quizData.topic ? `${quizData.category} – ${quizData.topic}` : quizData.category;
 
       for (let i = 0; i < examQuestions.length; i++) {
@@ -238,7 +236,6 @@ router.post('/submit', authenticate, async (req, res) => {
       q.userAnswer = userAns;
       const isCorrect = (userAns === q.correctAnswer);
 
-      // Try to get descriptive category; fallback to q.category if present
       let category = q.category || 'General';
       if ((category === 'General' || category === '') && q.quizId) {
         const quizData = await getQuizCategoryAndTopic(q.quizId);
@@ -325,12 +322,26 @@ router.post('/submit', authenticate, async (req, res) => {
       };
     }
 
+    // ===== SMARTER SUGGESTION LOGIC =====
     const sortedCategories = Object.entries(categoryStats)
       .sort((a, b) => (a[1].correct / a[1].total) - (b[1].correct / b[1].total));
+
     const weakestCategory = sortedCategories.length > 0 ? sortedCategories[0][0] : null;
-    const suggestion = weakestCategory
-      ? `🎯 Focus on improving in "${weakestCategory}" – that's your biggest opportunity for growth.`
-      : '🎯 Keep practicing to maintain your skills!';
+    const weakestScore = weakestCategory ? (categoryStats[weakestCategory].correct / categoryStats[weakestCategory].total) * 100 : 100;
+
+    let suggestion = '';
+
+    if (percentage >= 80) {
+      suggestion = '🌟 Outstanding work! You\'re mastering these topics. Keep up the great momentum!';
+    } else if (percentage >= 60 && weakestScore < 70) {
+      suggestion = `📈 You're doing well overall. Focus on "${weakestCategory}" to turn your good performance into excellence!`;
+    } else if (weakestScore <= 60 && weakestCategory) {
+      suggestion = `🎯 Focus on improving in "${weakestCategory}" – that's your biggest opportunity for growth.`;
+    } else if (sortedCategories.length === 1) {
+      suggestion = '📖 Review the questions you missed to strengthen your understanding even further.';
+    } else {
+      suggestion = '🎯 Keep practicing to maintain your skills and continue improving!';
+    }
 
     res.json({
       success: true,
