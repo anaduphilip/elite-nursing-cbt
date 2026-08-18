@@ -66,7 +66,7 @@ export const StudyPlan = () => {
       }
     } catch (error) {
       console.error('Error fetching study plan status:', error);
-      alert('Failed to load study plan status.');
+      alert('Unable to load your study plan. Please refresh the page and try again.');
     } finally {
       setLoading(false);
     }
@@ -104,11 +104,17 @@ export const StudyPlan = () => {
         setAnswers({});
         setResult(null);
         setShowReview(false);
-        alert('Study plan generated successfully!');
+        alert('✅ Study plan generated successfully!');
       }
     } catch (error) {
-      const msg = error.response?.data?.error || 'Failed to generate study plan.';
-      alert(msg);
+      let userMessage = 'Failed to generate study plan. Please try again later.';
+      if (error.response) {
+        const backendMsg = error.response.data?.error;
+        if (backendMsg && typeof backendMsg === 'string' && !backendMsg.includes('ValidationError')) {
+          userMessage = backendMsg;
+        }
+      }
+      alert('❌ ' + userMessage);
     } finally {
       setGenerating(false);
     }
@@ -138,15 +144,17 @@ export const StudyPlan = () => {
           userAnswer: answers[idx] !== undefined ? answers[idx] : null
         }));
         setPlan({ ...plan, questions: updatedQuestions, completed: true, score: res.data.score, total: res.data.total });
-        alert(`You scored ${res.data.score}/${res.data.total} (${res.data.percentage}%)`);
+        alert(`✅ You scored ${res.data.score}/${res.data.total} (${res.data.percentage}%)`);
       }
     } catch (error) {
-      const msg = error.response?.data?.error || 'Failed to submit study plan.';
-      if (msg.includes('Invalid data')) {
-        alert('There was a problem with your submitted answers. Please generate a new study plan and try again.');
-      } else {
-        alert(msg);
+      let userMessage = 'Failed to submit study plan. Please try again later.';
+      if (error.response) {
+        const backendMsg = error.response.data?.error;
+        if (backendMsg && typeof backendMsg === 'string' && !backendMsg.includes('ValidationError')) {
+          userMessage = backendMsg;
+        }
       }
+      alert('❌ ' + userMessage);
     } finally {
       setSubmitting(false);
     }
@@ -187,7 +195,7 @@ export const StudyPlan = () => {
       if (error.response?.status === 403 && error.response?.data?.limitReached) {
         alert('Daily explanation limit reached (10/day). Upgrade to Premium for unlimited!');
       } else {
-        alert(error.response?.data?.error || 'Failed to generate explanation. Please try again.');
+        alert('Failed to generate explanation. Please try again later.');
       }
     } finally {
       setLoadingExplanation({ ...loadingExplanation, [idx]: false });
@@ -244,7 +252,6 @@ export const StudyPlan = () => {
                 {passed ? '✓ PASSED' : '✗ Needs Improvement'}
               </p>
 
-              {/* ===== Feedback Section ===== */}
               {feedback.overallMessage && (
                 <div style={{ marginTop: 16, padding: 16, background: darkMode ? '#2d2d3d' : '#f0f7f4', borderRadius: 12, textAlign: 'left' }}>
                   <p style={{ fontSize: 16, color: textColor, lineHeight: 1.6, fontWeight: 'bold' }}>{feedback.overallMessage}</p>
@@ -256,7 +263,6 @@ export const StudyPlan = () => {
                 </div>
               )}
 
-              {/* ===== Category Breakdown (UPDATED LAYOUT) ===== */}
               {feedback.categoryFeedback && Object.keys(feedback.categoryFeedback).length > 0 && (
                 <div style={{ marginTop: 16, textAlign: 'left' }}>
                   <h4 style={{ color: headingColor, marginBottom: 8 }}>📊 Category Breakdown</h4>
@@ -268,14 +274,12 @@ export const StudyPlan = () => {
                       borderRadius: 8,
                       borderLeft: `4px solid ${data.percentage >= 70 ? '#4caf50' : data.percentage >= 40 ? '#ff9800' : '#f44336'}`
                     }}>
-                      {/* First line: Category + Score */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ color: textColor, fontWeight: 'bold' }}>{cat}</span>
                         <span style={{ color: secondaryText, fontWeight: 'bold' }}>
                           {data.correct}/{data.total} ({data.percentage}%)
                         </span>
                       </div>
-                      {/* Second line: Message */}
                       <div style={{ marginTop: 4, fontSize: 13, color: data.percentage >= 70 ? '#4caf50' : data.percentage >= 40 ? '#ff9800' : '#f44336' }}>
                         {data.message}
                       </div>
