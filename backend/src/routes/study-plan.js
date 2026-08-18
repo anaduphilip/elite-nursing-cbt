@@ -74,12 +74,10 @@ router.post('/generate', authenticate, async (req, res) => {
       }
     }
 
-    // Check if user has taken any exams
     if (!user.quizResults || user.quizResults.length === 0) {
       return res.status(400).json({ error: 'You haven\'t taken any exams yet. Take some exams first to generate a study plan.' });
     }
 
-    // Build a set of questions that have been PASSED in previous plans
     const passedKeys = new Set();
     if (user.reviewedQuestions && user.reviewedQuestions.length > 0) {
       user.reviewedQuestions.forEach(r => {
@@ -89,7 +87,6 @@ router.post('/generate', authenticate, async (req, res) => {
       });
     }
 
-    // ----- COLLECT ALL UNPASSED WRONG QUESTIONS FROM ALL EXAMS -----
     let allWrongQuestions = [];
 
     for (const result of user.quizResults) {
@@ -100,19 +97,22 @@ router.post('/generate', authenticate, async (req, res) => {
       if (!examQuestions || examQuestions.length === 0) continue;
 
       const userAnswers = result.answers || {};
+      
+      const baseCategory = result.category || 'General';
+      const topic = result.topic || '';
+      const displayCategory = topic ? `${baseCategory} – ${topic}` : baseCategory;
 
       for (let i = 0; i < examQuestions.length; i++) {
         const q = examQuestions[i];
-        // If user answered and got it wrong
         if (userAnswers[i] !== undefined && userAnswers[i] !== q.correctAnswer) {
           const key = `${quizId}|${i}`;
-          // Exclude only if it has been PASSED before
           if (!passedKeys.has(key)) {
             allWrongQuestions.push({
               ...(q.toObject ? q.toObject() : q),
               quizId: quizId,
               userAnswer: null,
-              questionIndex: i
+              questionIndex: i,
+              category: displayCategory
             });
           }
         }
@@ -125,12 +125,10 @@ router.post('/generate', authenticate, async (req, res) => {
       });
     }
 
-    // Shuffle and limit
     const shuffled = allWrongQuestions.sort(() => 0.5 - Math.random());
     const maxQuestions = isPremium ? 25 : 10;
     const selectedQuestions = shuffled.slice(0, Math.min(maxQuestions, shuffled.length));
 
-    // Save the study plan
     user.studyPlan = {
       generatedAt: new Date(),
       questions: selectedQuestions,
@@ -152,7 +150,7 @@ router.post('/generate', authenticate, async (req, res) => {
   }
 });
 
-// ===== POST /api/study-plan/submit (FIXED) =====
+// ===== POST /api/study-plan/submit =====
 router.post('/submit', authenticate, async (req, res) => {
   try {
     const user = req.user;
@@ -172,7 +170,6 @@ router.post('/submit', authenticate, async (req, res) => {
     let score = 0;
     let reviewed = (user.reviewedQuestions || []).filter(r => r.quizId && r.questionIndex !== undefined && r.questionIndex !== null);
 
-    // ---- Category stats and question details for feedback ----
     const categoryStats = {};
     const questionDetails = [];
 
@@ -187,7 +184,6 @@ router.post('/submit', authenticate, async (req, res) => {
 
       if (isCorrect) {
         score++;
-        // If we have a valid questionIndex, update reviewedQuestions
         if (q.quizId && q.questionIndex !== undefined && q.questionIndex !== null) {
           const existingIndex = reviewed.findIndex(r => r.quizId === q.quizId && r.questionIndex === q.questionIndex);
           if (existingIndex !== -1) {
@@ -200,9 +196,7 @@ router.post('/submit', authenticate, async (req, res) => {
             });
           }
         }
-        // If no questionIndex, we cannot track it – just ignore.
       } else {
-        // If incorrect, remove any existing entry for this question (if we have the index)
         if (q.quizId && q.questionIndex !== undefined && q.questionIndex !== null) {
           const existingIndex = reviewed.findIndex(r => r.quizId === q.quizId && r.questionIndex === q.questionIndex);
           if (existingIndex !== -1) {
@@ -211,7 +205,6 @@ router.post('/submit', authenticate, async (req, res) => {
         }
       }
 
-      // Track category stats (only if question has a category)
       const category = q.category || 'General';
       if (!categoryStats[category]) {
         categoryStats[category] = { correct: 0, total: 0 };
@@ -237,7 +230,6 @@ router.post('/submit', authenticate, async (req, res) => {
     const percentage = (score / questions.length) * 100;
     const passed = percentage >= 70;
 
-    // Overall message
     let overallMessage = '';
     if (percentage >= 90) {
       overallMessage = '🌟 Excellent work! You\'re mastering these topics brilliantly. Keep up the great momentum!';
@@ -251,7 +243,6 @@ router.post('/submit', authenticate, async (req, res) => {
       overallMessage = '💡 Rome wasn\'t built in a day. Take your time to review the material thoroughly, then try again. You can do this!';
     }
 
-    // Category feedback
     const categoryFeedback = {};
     for (const [cat, stats] of Object.entries(categoryStats)) {
       const catPct = (stats.correct / stats.total) * 100;
@@ -273,7 +264,6 @@ router.post('/submit', authenticate, async (req, res) => {
       };
     }
 
-    // Weakest/strongest
     const sortedCategories = Object.entries(categoryStats)
       .sort((a, b) => (a[1].correct / a[1].total) - (b[1].correct / b[1].total));
     const weakestCategory = sortedCategories.length > 0 ? sortedCategories[0][0] : null;
