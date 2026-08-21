@@ -11,6 +11,7 @@ const StudyNote = require('./StudyNote');
 const PrivateMessage = require('./PrivateMessage');
 const MarketingConsent = require('./MarketingConsent');
 const Announcement = require('./Announcement');
+const ScheduledNotification = require('./ScheduledNotification');
 
 // WeeklyQuiz and WeeklyQuizAttempt are in the same file
 const WeeklyQuizModule = require('./WeeklyQuiz');
@@ -31,6 +32,7 @@ module.exports = {
   PrivateMessage,
   MarketingConsent,
   Announcement,
+  ScheduledNotification,
   WeeklyQuiz: WeeklyQuizModule.WeeklyQuiz,
   WeeklyQuizAttempt: WeeklyQuizModule.WeeklyQuizAttempt,
   PreCouncilCategory: PreCouncilModule.PreCouncilCategory,
