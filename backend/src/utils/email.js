@@ -90,7 +90,7 @@ const getMarketingEmailTemplate = (name, templateType, customMessage = null) => 
         <p>Imagine what you could achieve with <strong>full, unlimited access</strong> to all our premium content.</p>
         <p><strong>Upgrade to Premium today and get:</strong></p>
         <ul>
-          <li>✅ Unlimited access to all <strong>20,000+ questions</strong></li>
+          <li>✅ Unlimited access to all <strong>30,000+ questions</strong></li>
           <li>✅ Retake any exam as many times as you want</li>
           <li>✅ Weekly premium quizzes with leaderboard</li>
           <li>✅ Detailed answer explanations</li>
