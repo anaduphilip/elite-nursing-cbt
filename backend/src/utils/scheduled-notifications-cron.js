@@ -7,9 +7,15 @@ const processScheduledNotifications = async () => {
   console.log('⏰ Checking for scheduled notifications...');
   
   const now = new Date();
+  const oneMinuteAgo = new Date(now - 60000);
+
   const dueNotifications = await ScheduledNotification.find({
     scheduledFor: { $lte: now },
-    status: 'pending'
+    status: 'pending',
+    $or: [
+      { lastSentAt: null },
+      { lastSentAt: { $lt: oneMinuteAgo } }
+    ]
   });
 
   for (const notification of dueNotifications) {
@@ -22,12 +28,10 @@ const processScheduledNotifications = async () => {
       } else if (notification.targetAudience === 'free') {
         userQuery.isPremium = false;
       } else if (notification.targetAudience === 'inactive') {
-        // Users who haven't logged in for 7+ days
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         userQuery.lastLoginAt = { $lt: sevenDaysAgo };
       }
-      // 'all' – no additional filters
 
       const users = await User.find(userQuery);
       const tokens = users.flatMap(user => user.deviceTokens);
@@ -46,9 +50,27 @@ const processScheduledNotifications = async () => {
         console.log(`⚠️ No device tokens for notification: ${notification.title}`);
       }
 
-      notification.status = 'sent';
-      notification.sentAt = new Date();
-      await notification.save();
+      // Handle daily repeat
+      if (notification.repeatType === 'daily') {
+        const nextDate = new Date(notification.scheduledFor);
+        nextDate.setDate(nextDate.getDate() + 1);
+        
+        notification.scheduledFor = nextDate;
+        notification.status = 'pending';
+        notification.sentAt = null;
+        notification.lastSentAt = new Date();
+        notification.sentCount = (notification.sentCount || 0) + 1;
+        
+        await notification.save();
+        console.log(`🔄 Daily notification rescheduled to ${nextDate.toISOString()}`);
+        console.log(`   Total sends: ${notification.sentCount}`);
+      } else {
+        // Once-off notification
+        notification.status = 'sent';
+        notification.sentAt = new Date();
+        notification.lastSentAt = new Date();
+        await notification.save();
+      }
 
     } catch (error) {
       console.error(`❌ Failed to send scheduled notification: ${error.message}`);

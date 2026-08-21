@@ -6,6 +6,7 @@ const ScheduledNotificationSchema = new mongoose.Schema({
   message: { type: String, required: true },
   scheduledFor: { type: Date, required: true },
   sentAt: { type: Date, default: null },
+  lastSentAt: { type: Date, default: null },
   status: { 
     type: String, 
     enum: ['pending', 'sent', 'cancelled'], 
@@ -16,6 +17,12 @@ const ScheduledNotificationSchema = new mongoose.Schema({
     enum: ['all', 'free', 'premium', 'inactive'],
     default: 'all'
   },
+  repeatType: {
+    type: String,
+    enum: ['once', 'daily'],
+    default: 'once'
+  },
+  sentCount: { type: Number, default: 0 },      // ← NEW
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now }
 });
