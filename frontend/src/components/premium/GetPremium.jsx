@@ -421,9 +421,8 @@ export const GetPremium = () => {
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-        {/* ===== DYNAMIC BACK BUTTON ===== */}
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/')}
           style={{
             display: 'inline-block',
             marginBottom: 16,
@@ -438,7 +437,7 @@ export const GetPremium = () => {
             padding: 0
           }}
         >
-          ← Back
+          Back to Home
         </button>
 
         {/* ===== REFERRAL DISCOUNT BANNER ===== */}

@@ -64,7 +64,7 @@ export const ReferralPage = () => {
   };
 
   const goBack = () => {
-    navigate(-1);
+    navigate('/profile');
   };
 
   return (
@@ -107,7 +107,7 @@ export const ReferralPage = () => {
           e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
           e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
         }}
-        aria-label="Go back"
+        aria-label="Go back to profile"
       >
         Back
       </button>
@@ -191,7 +191,7 @@ export const ReferralPage = () => {
           )}
         </div>
 
-        {/* ===== UPDATED STATS CARDS (using new fields) ===== */}
+        {/* ===== STATS CARDS ===== */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 24 }}>
           <div style={{ background: cardBg, borderRadius: 12, padding: 20, textAlign: 'center' }}>
             <div style={{ fontSize: 36, fontWeight: 'bold', color: '#ff9800' }}>

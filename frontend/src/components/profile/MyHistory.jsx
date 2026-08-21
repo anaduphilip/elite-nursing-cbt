@@ -107,7 +107,7 @@ export const MyHistory = () => {
   const isUserPremium = user?.isPremium && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
 
   const goBack = () => {
-    navigate(-1);
+    navigate('/profile');
   };
 
   // ===== GROUP ATTEMPTS BY CATEGORY → TOPIC =====
@@ -136,7 +136,6 @@ export const MyHistory = () => {
   if (attempts.length === 0) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
-        {/* ===== FLOATING BACK BUTTON – BOTTOM CENTER ===== */}
         <button
           onClick={goBack}
           style={{
@@ -170,9 +169,9 @@ export const MyHistory = () => {
             e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
             e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
           }}
-          aria-label="Go back"
+          aria-label="Go back to profile"
         >
-          ← Back
+          Back 
         </button>
 
         <div style={{ fontSize: 64, marginBottom: 20 }}>📖</div>
@@ -185,7 +184,6 @@ export const MyHistory = () => {
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
-      {/* ===== FLOATING BACK BUTTON – BOTTOM CENTER ===== */}
       <button
         onClick={goBack}
         style={{
@@ -219,7 +217,7 @@ export const MyHistory = () => {
           e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
           e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
         }}
-        aria-label="Go back"
+        aria-label="Go back to profile"
       >
         Back
       </button>
