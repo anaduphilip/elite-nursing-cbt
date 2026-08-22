@@ -25,7 +25,11 @@ export const WeeklyQuiz = () => {
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
 
-  // AI Explanation States
+  const formatPercentage = (value) => {
+    if (value === null || value === undefined) return '0';
+    return Number(value).toFixed(1);
+  };
+
   const [explanation, setExplanation] = useState({});
   const [loadingExplanation, setLoadingExplanation] = useState({});
   const [explanationRemaining, setExplanationRemaining] = useState(null);
@@ -34,7 +38,7 @@ export const WeeklyQuiz = () => {
   let weeklyQuizCache = null;
   let weeklyQuizPromise = null;
 
-  // Fetch current weekly quiz
+  // ===== Fetch current weekly quiz =====
   useEffect(() => {
     const fetchQuiz = async () => {
       setLoading(true);
@@ -104,7 +108,7 @@ export const WeeklyQuiz = () => {
     fetchQuiz();
   }, [token]);
 
-  // Fetch remaining explanations
+  // ===== Fetch remaining explanations =====
   useEffect(() => {
     const fetchRemaining = async () => {
       try {
@@ -120,7 +124,7 @@ export const WeeklyQuiz = () => {
     if (token) fetchRemaining();
   }, [token]);
 
-  // Timer logic
+  // ===== Timer logic =====
   useEffect(() => {
     if (!timeLeft || timeLeft <= 0 || submitted) return;
     const timer = setInterval(() => {
@@ -171,7 +175,7 @@ export const WeeklyQuiz = () => {
     }
   };
 
-  // Get AI explanation (reusable)
+  // ===== Get AI explanation (reusable) =====
   const getExplanation = async (idx, questionsArray, answersObject) => {
     if (!isPremium && explanationRemaining <= 0) {
       alert('You have used all your free explanations for today (10/day). Upgrade to Premium for unlimited!');
@@ -232,7 +236,7 @@ export const WeeklyQuiz = () => {
           <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
           <h2 style={{ color: headingColor }}>You've Already Completed This Week's Quiz!</h2>
           <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Your Score: <strong>{attemptScore}</strong></p>
-          <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Percentage: <strong>{attemptPercentage}%</strong></p>
+          <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Percentage: <strong>{formatPercentage(attemptPercentage)}%</strong></p>
           <p style={{ color: secondaryText, marginTop: 20 }}>Go back to the landing page to review your answers.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/weekly-quiz">
@@ -260,7 +264,7 @@ export const WeeklyQuiz = () => {
           )}
           <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
             <h2 style={{ color: headingColor, fontSize: 22 }}>Answer Review</h2>
-            <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
+            <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({formatPercentage(result.percentage)}%)</p>
             <button onClick={() => setShowReview(false)} style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Results</button>
           </div>
           {allQuestions.map((q, idx) => {
@@ -304,7 +308,7 @@ export const WeeklyQuiz = () => {
         <div style={{ maxWidth: 500, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
           <h2 style={{ color: headingColor, fontSize: 24 }}>Weekly Quiz Results</h2>
           <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: headingColor }}>{result.score}</strong> / {result.total}</p>
-          <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{result.percentage}%</strong></p>
+          <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{formatPercentage(result.percentage)}%</strong></p>
           <p style={{ fontSize: 24, color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>{result.passed ? '✓ PASSED!' : '✗ Failed'}</p>
           <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => setShowReview(true)} style={{ background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold' }}>Review Answers</button>

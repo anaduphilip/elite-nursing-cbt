@@ -14,7 +14,7 @@ export const WeeklyQuizLanding = () => {
   const [alreadyAttempted, setAlreadyAttempted] = useState(false);
   const [attemptScore, setAttemptScore] = useState(null);
   const [attemptPercentage, setAttemptPercentage] = useState(null);
-  const [attemptId, setAttemptId] = useState(null);        // NEW: store attempt ID
+  const [attemptId, setAttemptId] = useState(null);
 
   // ===== Past Review States =====
   const [showPastReview, setShowPastReview] = useState(false);
@@ -33,6 +33,11 @@ export const WeeklyQuizLanding = () => {
   const textColor = getTextColor(darkMode);
   const cardBg = getCardBg(darkMode);
   const navigate = useNavigate();
+
+  const formatPercentage = (value) => {
+    if (value === null || value === undefined) return '0';
+    return Number(value).toFixed(1);
+  };
 
   const goBack = () => navigate(-1);
 
@@ -75,7 +80,7 @@ export const WeeklyQuizLanding = () => {
           if (res.data.alreadyAttempted) {
             setAttemptScore(res.data.quiz.attemptScore);
             setAttemptPercentage(res.data.quiz.attemptPercentage);
-            setAttemptId(res.data.quiz.attemptId || null); // ← capture attemptId
+            setAttemptId(res.data.quiz.attemptId || null);
           }
         }
       } catch (error) {
@@ -194,15 +199,12 @@ export const WeeklyQuizLanding = () => {
           <div style={{ maxWidth: 800, margin: '0 auto' }}>
             {!isPremium && explanationRemaining !== null && (
               <div style={{ textAlign: 'center', padding: 8, background: darkMode ? '#2d2d3d' : '#fff3e0', borderRadius: 8, marginBottom: 16 }}>
-                <span style={{ color: '#ff9800' }}>
-                  🎯 {explanationRemaining} AI explanation{explanationRemaining !== 1 ? 's' : ''} remaining today
-                  {explanationRemaining === 0 && ' – Upgrade to Premium for unlimited!'}
-                </span>
+                <span style={{ color: '#ff9800' }}>🎯 {explanationRemaining} AI explanation{explanationRemaining !== 1 ? 's' : ''} remaining today{explanationRemaining === 0 && ' – Upgrade to Premium for unlimited!'}</span>
               </div>
             )}
             <div style={{ background: cardBg, borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
               <h2 style={{ color: headingColor, fontSize: 22 }}>Past Quiz Review</h2>
-              <p style={{ fontSize: 14 }}>Score: {score}/{total} ({percentage}%)</p>
+              <p style={{ fontSize: 14 }}>Score: {score}/{total} ({formatPercentage(percentage)}%)</p>
               <button
                 onClick={() => setShowPastReview(false)}
                 style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}
@@ -270,11 +272,10 @@ export const WeeklyQuizLanding = () => {
           <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
           <h2 style={{ color: headingColor }}>You've Already Completed This Week's Quiz!</h2>
           <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Your Score: <strong>{attemptScore}</strong></p>
-          <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Percentage: <strong>{attemptPercentage}%</strong></p>
+          <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Percentage: <strong>{formatPercentage(attemptPercentage)}%</strong></p>
           <p style={{ color: secondaryText, marginTop: 20 }}>Check back next week for a new quiz.</p>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {/* === NEW: Review Answers button === */}
             <button
               onClick={fetchPastAttempt}
               disabled={loadingPast}
