@@ -56,7 +56,7 @@ export const NotificationsTab = ({
     if (token) fetchScheduledNotifications();
   }, [token]);
 
-  // ===== Schedule notification (UPDATED) =====
+  // ===== Schedule notification =====
   const handleScheduleNotification = async () => {
     if (!scheduledTitle.trim() || !scheduledMessage.trim() || !scheduledDateTime) {
       alert('Please fill in all fields');
@@ -80,7 +80,7 @@ export const NotificationsTab = ({
       );
 
       if (res.data.success) {
-        setScheduleStatus('✅ Notification scheduled successfully!');
+        setScheduleStatus('Notification scheduled successfully!');
         setScheduledTitle('');
         setScheduledMessage('');
         setScheduledDateTime('');
@@ -89,13 +89,13 @@ export const NotificationsTab = ({
         fetchScheduledNotifications();
       }
     } catch (err) {
-      setScheduleStatus('❌ Failed to schedule: ' + (err.response?.data?.error || err.message));
+      setScheduleStatus('Failed to schedule: ' + (err.response?.data?.error || err.message));
     } finally {
       setScheduleLoading(false);
     }
   };
 
-  // ===== Cancel scheduled notification (UNCHANGED) =====
+  // ===== Cancel scheduled notification =====
   const handleCancelScheduled = async (id) => {
     if (!window.confirm('Cancel this scheduled notification?')) return;
     try {
@@ -108,7 +108,7 @@ export const NotificationsTab = ({
     }
   };
 
-  // ===== Start editing (UPDATED) =====
+  // ===== Start editing =====
   const startEditing = (notification) => {
     setEditingId(notification._id);
     setEditTitle(notification.title);
@@ -120,7 +120,7 @@ export const NotificationsTab = ({
     setEditRepeat(notification.repeatType || 'once');
   };
 
-  // ===== Cancel editing (UNCHANGED) =====
+  // ===== Cancel editing =====
   const cancelEditing = () => {
     setEditingId(null);
     setEditTitle('');
@@ -130,7 +130,7 @@ export const NotificationsTab = ({
     setEditRepeat('once');
   };
 
-  // ===== Save edited notification (UPDATED) =====
+  // ===== Save edited notification =====
   const saveEdit = async (id) => {
     if (!editTitle.trim() || !editMessage.trim() || !editDateTime) {
       alert('Please fill in all fields');
@@ -156,16 +156,16 @@ export const NotificationsTab = ({
           prev.map(n => n._id === id ? res.data.notification : n)
         );
         cancelEditing();
-        alert('✅ Notification updated successfully!');
+        alert('Notification updated successfully!');
       }
     } catch (err) {
-      alert('❌ Failed to update: ' + (err.response?.data?.error || err.message));
+      alert('Failed to update: ' + (err.response?.data?.error || err.message));
     } finally {
       setEditLoading(false);
     }
   };
 
-  // ===== Format scheduled time for display (UNCHANGED) =====
+  // ===== Format scheduled time for display =====
   const formatScheduledTime = (date) => {
     return new Date(date).toLocaleString('en-US', {
       weekday: 'short',
@@ -176,7 +176,7 @@ export const NotificationsTab = ({
     });
   };
 
-  // ===== Get audience label (UNCHANGED) =====
+  // ===== Get audience label =====
   const getAudienceLabel = (audience) => {
     const labels = {
       all: 'All Users',
@@ -187,165 +187,179 @@ export const NotificationsTab = ({
     return labels[audience] || audience;
   };
 
-  // ===== Get status color (UNCHANGED) =====
-  const getStatusColor = (status) => {
-    if (status === 'sent') return '#2e7d32';
-    if (status === 'pending') return '#ff9800';
-    if (status === 'cancelled') return '#dc3545';
-    return '#6c757d';
+  // ===== Get status badge =====
+  const getStatusBadge = (status) => {
+    const styles = {
+      sent: { background: '#d4edda', color: '#155724', label: 'Sent' },
+      pending: { background: '#fff3cd', color: '#856404', label: 'Pending' },
+      cancelled: { background: '#f8d7da', color: '#721c24', label: 'Cancelled' }
+    };
+    const s = styles[status] || styles.pending;
+    return (
+      <span style={{ background: s.background, color: s.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 'bold' }}>
+        {s.label}
+      </span>
+    );
   };
 
   // ===== Get repeat label =====
   const getRepeatLabel = (repeatType) => {
-    if (repeatType === 'daily') return 'Daily';
-    return 'Once';
+    if (repeatType === 'daily') {
+      return <span style={{ background: '#cce5ff', color: '#004085', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 'bold' }}>Daily</span>;
+    }
+    return <span style={{ background: '#e9ecef', color: '#495057', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 'bold' }}>Once</span>;
+  };
+
+  // ===== Input style =====
+  const inputStyle = {
+    width: '100%',
+    padding: '12px 16px',
+    border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+    borderRadius: 8,
+    fontSize: 14,
+    boxSizing: 'border-box',
+    background: darkMode ? '#1a1a2e' : '#f8f9fa',
+    color: textColor,
+    outline: 'none',
+    transition: 'border-color 0.2s ease'
+  };
+
+  const labelStyle = {
+    display: 'block',
+    marginBottom: 6,
+    fontWeight: '600',
+    fontSize: 14,
+    color: secondaryText
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      {/* ===== INSTANT NOTIFICATION (EXISTING - UNCHANGED) ===== */}
-      <h3 style={{ color: headingColor, marginBottom: 20 }}>Send Push Notification to All Users</h3>
-      <div style={{ marginBottom: 16 }}>
-        <input
-          type="text"
-          placeholder="Notification Title"
-          value={notificationTitle}
-          onChange={(e) => setNotificationTitle(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '14px 18px',
-            border: '1px solid #ccc',
-            borderRadius: 8,
-            fontSize: 14,
-            boxSizing: 'border-box',
-            background: darkMode ? '#1a1a2e' : '#f8f9fa',
-            color: textColor
-          }}
-        />
-      </div>
-      <div style={{ marginBottom: 16 }}>
-        <textarea
-          placeholder="Notification Message"
-          value={notificationMessage}
-          onChange={(e) => setNotificationMessage(e.target.value)}
-          rows="4"
-          style={{
-            width: '100%',
-            padding: '14px 18px',
-            border: '1px solid #ccc',
-            borderRadius: 8,
-            fontSize: 14,
-            resize: 'vertical',
-            boxSizing: 'border-box',
-            background: darkMode ? '#1a1a2e' : '#f8f9fa',
-            color: textColor
-          }}
-        />
-      </div>
-      <button
-        onClick={sendNotification}
-        disabled={sendingNotification}
-        style={{
-          background: '#ff9800',
-          color: 'white',
-          padding: '12px 24px',
-          border: 'none',
-          borderRadius: 8,
-          cursor: 'pointer',
-          fontWeight: 'bold'
-        }}
-      >
-        {sendingNotification ? 'Sending...' : 'Send Notification'}
-      </button>
-      {notificationStatus && <p style={{ marginTop: 16, color: '#2e7d32' }}>{notificationStatus}</p>}
-
-      {/* ===== SCHEDULED NOTIFICATIONS SECTION ===== */}
-      <div style={{
-        marginTop: 40,
-        borderTop: `2px solid ${darkMode ? '#444' : '#ddd'}`,
-        paddingTop: 30
-      }}>
-        <h3 style={{ color: headingColor, marginBottom: 20 }}>Schedule Notification</h3>
-        <p style={{ color: secondaryText, marginBottom: 16 }}>
-          Schedule notifications to be sent at optimal times. Choose "Daily" to repeat at the same time.
+    <div style={{ padding: 24, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+      
+      {/* ============================================================ */}
+      {/* INSTANT NOTIFICATION SECTION */}
+      {/* ============================================================ */}
+      <div style={{ marginBottom: 40, width: '100%' }}>
+        <h3 style={{ color: headingColor, fontSize: 20, fontWeight: '600', marginBottom: 4 }}>
+          Instant Notification
+        </h3>
+        <p style={{ color: secondaryText, fontSize: 14, marginBottom: 20 }}>
+          Send an immediate push notification to all active users.
         </p>
 
-        <div style={{ display: 'grid', gap: 16, maxWidth: 500 }}>
-          <input
-            type="text"
-            placeholder="Notification Title"
-            value={scheduledTitle}
-            onChange={(e) => setScheduledTitle(e.target.value)}
+        <div style={{ width: '100%' }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Title</label>
+            <input
+              type="text"
+              placeholder="Enter notification title"
+              value={notificationTitle}
+              onChange={(e) => setNotificationTitle(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Message</label>
+            <textarea
+              placeholder="Enter notification message"
+              value={notificationMessage}
+              onChange={(e) => setNotificationMessage(e.target.value)}
+              rows="3"
+              style={{ ...inputStyle, resize: 'vertical' }}
+            />
+          </div>
+          <button
+            onClick={sendNotification}
+            disabled={sendingNotification}
             style={{
-              padding: '14px 18px',
-              border: '1px solid #ccc',
+              background: '#ff9800',
+              color: 'white',
+              padding: '12px 28px',
+              border: 'none',
               borderRadius: 8,
-              fontSize: 14,
-              background: darkMode ? '#1a1a2e' : '#f8f9fa',
-              color: textColor
-            }}
-          />
-          <textarea
-            placeholder="Notification Message"
-            value={scheduledMessage}
-            onChange={(e) => setScheduledMessage(e.target.value)}
-            rows="3"
-            style={{
-              padding: '14px 18px',
-              border: '1px solid #ccc',
-              borderRadius: 8,
-              fontSize: 14,
-              resize: 'vertical',
-              background: darkMode ? '#1a1a2e' : '#f8f9fa',
-              color: textColor
-            }}
-          />
-          <input
-            type="datetime-local"
-            value={scheduledDateTime}
-            onChange={(e) => setScheduledDateTime(e.target.value)}
-            style={{
-              padding: '14px 18px',
-              border: '1px solid #ccc',
-              borderRadius: 8,
-              fontSize: 14,
-              background: darkMode ? '#1a1a2e' : '#f8f9fa',
-              color: textColor
-            }}
-          />
-          <select
-            value={scheduledAudience}
-            onChange={(e) => setScheduledAudience(e.target.value)}
-            style={{
-              padding: '14px 18px',
-              border: '1px solid #ccc',
-              borderRadius: 8,
-              fontSize: 14,
-              background: darkMode ? '#1a1a2e' : '#f8f9fa',
-              color: textColor
+              cursor: sendingNotification ? 'not-allowed' : 'pointer',
+              fontWeight: '600',
+              fontSize: 15,
+              opacity: sendingNotification ? 0.6 : 1,
+              transition: 'opacity 0.2s ease'
             }}
           >
-            <option value="all">All Users</option>
-            <option value="premium">Premium Users</option>
-            <option value="free">Free Users</option>
-            <option value="inactive">Inactive Users (7+ days)</option>
-          </select>
-          {/* ===== NEW: Repeat dropdown ===== */}
-          <select
-            value={scheduledRepeat}
-            onChange={(e) => setScheduledRepeat(e.target.value)}
-            style={{
-              padding: '14px 18px',
-              border: '1px solid #ccc',
-              borderRadius: 8,
-              fontSize: 14,
-              background: darkMode ? '#1a1a2e' : '#f8f9fa',
-              color: textColor
-            }}
-          >
-            <option value="once">Once</option>
-            <option value="daily">Daily (repeat every day)</option>
-          </select>
+            {sendingNotification ? 'Sending...' : 'Send Notification'}
+          </button>
+          {notificationStatus && (
+            <p style={{ marginTop: 12, color: '#28a745', fontSize: 14 }}>{notificationStatus}</p>
+          )}
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* SCHEDULED NOTIFICATIONS SECTION */}
+      {/* ============================================================ */}
+      <div style={{
+        borderTop: `2px solid ${darkMode ? '#444' : '#e9ecef'}`,
+        paddingTop: 32,
+        width: '100%'
+      }}>
+        <h3 style={{ color: headingColor, fontSize: 20, fontWeight: '600', marginBottom: 4 }}>
+          Schedule Notification
+        </h3>
+        <p style={{ color: secondaryText, fontSize: 14, marginBottom: 20 }}>
+          Schedule a notification to be sent at a specific time. Choose "Daily" to repeat.
+        </p>
+
+        <div style={{ display: 'grid', gap: 16, width: '100%' }}>
+          <div>
+            <label style={labelStyle}>Title</label>
+            <input
+              type="text"
+              placeholder="Enter notification title"
+              value={scheduledTitle}
+              onChange={(e) => setScheduledTitle(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Message</label>
+            <textarea
+              placeholder="Enter notification message"
+              value={scheduledMessage}
+              onChange={(e) => setScheduledMessage(e.target.value)}
+              rows="3"
+              style={{ ...inputStyle, resize: 'vertical' }}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Scheduled Date & Time</label>
+            <input
+              type="datetime-local"
+              value={scheduledDateTime}
+              onChange={(e) => setScheduledDateTime(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Target Audience</label>
+            <select
+              value={scheduledAudience}
+              onChange={(e) => setScheduledAudience(e.target.value)}
+              style={inputStyle}
+            >
+              <option value="all">All Users</option>
+              <option value="premium">Premium Users</option>
+              <option value="free">Free Users</option>
+              <option value="inactive">Inactive Users (7+ days)</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Repeat</label>
+            <select
+              value={scheduledRepeat}
+              onChange={(e) => setScheduledRepeat(e.target.value)}
+              style={inputStyle}
+            >
+              <option value="once">Once</option>
+              <option value="daily">Daily (repeat every day)</option>
+            </select>
+          </div>
 
           <button
             onClick={handleScheduleNotification}
@@ -357,33 +371,30 @@ export const NotificationsTab = ({
               border: 'none',
               borderRadius: 8,
               cursor: scheduleLoading ? 'not-allowed' : 'pointer',
-              fontWeight: 'bold',
+              fontWeight: '600',
               fontSize: 16,
-              opacity: scheduleLoading ? 0.7 : 1
+              opacity: scheduleLoading ? 0.6 : 1,
+              transition: 'opacity 0.2s ease'
             }}
           >
             {scheduleLoading ? 'Scheduling...' : 'Schedule Notification'}
           </button>
           {scheduleStatus && (
-            <p style={{
-              marginTop: 8,
-              color: scheduleStatus.includes('✅') ? '#2e7d32' : '#dc3545',
-              fontSize: 14
-            }}>
+            <p style={{ marginTop: 4, color: scheduleStatus.includes('✅') ? '#28a745' : '#dc3545', fontSize: 14 }}>
               {scheduleStatus}
             </p>
           )}
         </div>
 
         {/* ===== LIST SCHEDULED NOTIFICATIONS ===== */}
-        <div style={{ marginTop: 24 }}>
-          <h4 style={{ color: headingColor, marginBottom: 12 }}>
+        <div style={{ marginTop: 32, width: '100%' }}>
+          <h4 style={{ color: headingColor, fontSize: 16, fontWeight: '600', marginBottom: 16 }}>
             Scheduled Notifications
             {loadingScheduled && <span style={{ marginLeft: 8, fontSize: 14, color: secondaryText }}>Loading...</span>}
           </h4>
 
           {scheduledNotifications.length === 0 ? (
-            <p style={{ color: secondaryText }}>No scheduled notifications.</p>
+            <p style={{ color: secondaryText, fontSize: 14 }}>No scheduled notifications found.</p>
           ) : (
             scheduledNotifications.map((n) => {
               const isEditing = editingId === n._id;
@@ -391,55 +402,100 @@ export const NotificationsTab = ({
                 <div
                   key={n._id}
                   style={{
-                    padding: 16,
-                    border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
-                    borderRadius: 8,
-                    marginBottom: 12,
                     background: cardBg,
-                    display: 'flex',
-                    flexDirection: isEditing ? 'column' : 'row',
-                    justifyContent: 'space-between',
-                    alignItems: isEditing ? 'stretch' : 'center',
-                    flexWrap: 'wrap',
-                    gap: isEditing ? 12 : 0
+                    border: `1px solid ${darkMode ? '#444' : '#e9ecef'}`,
+                    borderRadius: 12,
+                    padding: 18,
+                    marginBottom: 14,
+                    boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.05)',
+                    transition: 'box-shadow 0.2s ease',
+                    width: '100%',
+                    boxSizing: 'border-box'
                   }}
                 >
                   {!isEditing ? (
-                    // ===== VIEW MODE (existing) =====
-                    <>
-                      <div style={{ flex: 1, minWidth: 200 }}>
-                        <strong style={{ color: headingColor }}>{n.title}</strong>
-                        <p style={{ fontSize: 14, color: textColor, marginTop: 4 }}>{n.message}</p>
-                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 4 }}>
-                          <small style={{ color: secondaryText }}>
-                             {formatScheduledTime(n.scheduledFor)}
-                          </small>
-                          <small style={{ color: secondaryText }}>
-                             {getAudienceLabel(n.targetAudience)}
-                          </small>
-                          <small style={{ color: getStatusColor(n.status) }}>
-                            Status: {n.status.charAt(0).toUpperCase() + n.status.slice(1)}
-                          </small>
-                          {/* ===== NEW: Show repeat type ===== */}
-                          <small style={{ color: secondaryText }}>
-                            {getRepeatLabel(n.repeatType)}
-                          </small>
+                    // ===== VIEW MODE =====
+                    <div>
+                      {/* Title & Status */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                        <strong style={{ color: headingColor, fontSize: 16 }}>{n.title}</strong>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {getStatusBadge(n.status)}
+                          {getRepeatLabel(n.repeatType)}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+
+                      {/* Message */}
+                      <p style={{ fontSize: 14, color: textColor, marginTop: 6, marginBottom: 8 }}>{n.message}</p>
+
+                      {/* Meta Info */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 10 }}>
+                        <small style={{ color: secondaryText, fontSize: 13 }}>
+                          Scheduled: {formatScheduledTime(n.scheduledFor)}
+                        </small>
+                        <small style={{ color: secondaryText, fontSize: 13 }}>
+                          Audience: {getAudienceLabel(n.targetAudience)}
+                        </small>
+                      </div>
+
+                      {/* ===== STATISTICS BREAKDOWN ===== */}
+                      {(n.status === 'sent' || n.repeatType === 'daily') && (
+                        <div style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 16,
+                          padding: '10px 14px',
+                          background: darkMode ? 'rgba(255,255,255,0.04)' : '#f8f9fa',
+                          borderRadius: 8,
+                          marginBottom: 12,
+                          width: '100%',
+                          boxSizing: 'border-box'
+                        }}>
+                          {n.status === 'sent' && (
+                            <>
+                              <small style={{ color: '#2e7d32', fontSize: 13 }}>
+                                Sent: {new Date(n.sentAt).toLocaleString()}
+                              </small>
+                              {n.successCount !== undefined && n.failureCount !== undefined && (
+                                <>
+                                  <small style={{ color: '#2e7d32', fontSize: 13 }}>
+                                    <span style={{ fontWeight: '600' }}>Success:</span> {n.successCount}
+                                  </small>
+                                  <small style={{ color: '#dc3545', fontSize: 13 }}>
+                                    <span style={{ fontWeight: '600' }}>Failures:</span> {n.failureCount}
+                                  </small>
+                                </>
+                              )}
+                            </>
+                          )}
+                          {n.repeatType === 'daily' && (
+                            <small style={{ color: '#6c757d', fontSize: 13 }}>
+                              Next: {formatScheduledTime(n.scheduledFor)}
+                            </small>
+                          )}
+                          {n.sentCount > 1 && (
+                            <small style={{ color: '#6c757d', fontSize: 13 }}>
+                              Total sends: {n.sentCount}
+                            </small>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                         {n.status === 'pending' && (
                           <>
                             <button
                               onClick={() => startEditing(n)}
                               style={{
-                                padding: '8px 16px',
+                                padding: '6px 16px',
                                 background: '#ffc107',
                                 color: '#333',
                                 border: 'none',
                                 borderRadius: 6,
                                 cursor: 'pointer',
-                                fontWeight: 'bold',
-                                fontSize: 13
+                                fontSize: 13,
+                                fontWeight: '600'
                               }}
                             >
                               Edit
@@ -447,14 +503,14 @@ export const NotificationsTab = ({
                             <button
                               onClick={() => handleCancelScheduled(n._id)}
                               style={{
-                                padding: '8px 16px',
+                                padding: '6px 16px',
                                 background: '#dc3545',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: 6,
                                 cursor: 'pointer',
-                                fontWeight: 'bold',
-                                fontSize: 13
+                                fontSize: 13,
+                                fontWeight: '600'
                               }}
                             >
                               Cancel
@@ -462,131 +518,94 @@ export const NotificationsTab = ({
                           </>
                         )}
                         {n.status === 'sent' && (
-                          <span style={{ color: '#2e7d32', fontSize: 13, fontWeight: 'bold' }}>
-                            ✅ Sent at {new Date(n.sentAt).toLocaleString()}
+                          <span style={{ color: '#2e7d32', fontSize: 13, fontWeight: '600' }}>
+                            ✓ Sent
                           </span>
                         )}
                         {n.status === 'cancelled' && (
-                          <span style={{ color: '#dc3545', fontSize: 13, fontWeight: 'bold' }}>
-                            Cancelled
+                          <span style={{ color: '#dc3545', fontSize: 13, fontWeight: '600' }}>
+                            ✗ Cancelled
                           </span>
                         )}
                       </div>
-                    </>
+                    </div>
                   ) : (
-                    // ===== EDIT MODE (UPDATED with repeat) =====
-                    <div style={{ width: '100%' }}>
-                      <div style={{ display: 'grid', gap: 12 }}>
+                    // ===== EDIT MODE =====
+                    <div>
+                      <h5 style={{ color: headingColor, marginBottom: 12, fontSize: 15 }}>Edit Notification</h5>
+                      <div style={{ display: 'grid', gap: 12, width: '100%' }}>
                         <input
                           type="text"
                           placeholder="Title"
                           value={editTitle}
                           onChange={(e) => setEditTitle(e.target.value)}
-                          style={{
-                            padding: '10px 14px',
-                            border: '1px solid #ccc',
-                            borderRadius: 6,
-                            fontSize: 14,
-                            background: darkMode ? '#1a1a2e' : '#f8f9fa',
-                            color: textColor
-                          }}
+                          style={inputStyle}
                         />
                         <textarea
                           placeholder="Message"
                           value={editMessage}
                           onChange={(e) => setEditMessage(e.target.value)}
                           rows="2"
-                          style={{
-                            padding: '10px 14px',
-                            border: '1px solid #ccc',
-                            borderRadius: 6,
-                            fontSize: 14,
-                            resize: 'vertical',
-                            background: darkMode ? '#1a1a2e' : '#f8f9fa',
-                            color: textColor
-                          }}
+                          style={{ ...inputStyle, resize: 'vertical' }}
                         />
                         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                           <input
                             type="datetime-local"
                             value={editDateTime}
                             onChange={(e) => setEditDateTime(e.target.value)}
-                            style={{
-                              flex: 1,
-                              padding: '10px 14px',
-                              border: '1px solid #ccc',
-                              borderRadius: 6,
-                              fontSize: 14,
-                              background: darkMode ? '#1a1a2e' : '#f8f9fa',
-                              color: textColor
-                            }}
+                            style={{ ...inputStyle, flex: '1 1 200px' }}
                           />
                           <select
                             value={editAudience}
                             onChange={(e) => setEditAudience(e.target.value)}
-                            style={{
-                              padding: '10px 14px',
-                              border: '1px solid #ccc',
-                              borderRadius: 6,
-                              fontSize: 14,
-                              background: darkMode ? '#1a1a2e' : '#f8f9fa',
-                              color: textColor
-                            }}
+                            style={{ ...inputStyle, flex: '1 1 160px' }}
                           >
-                            <option value="all"> All</option>
+                            <option value="all">All Users</option>
                             <option value="premium">Premium</option>
                             <option value="free">Free</option>
                             <option value="inactive">Inactive</option>
                           </select>
                         </div>
-                        {/* ===== NEW: Edit repeat dropdown ===== */}
                         <select
                           value={editRepeat}
                           onChange={(e) => setEditRepeat(e.target.value)}
-                          style={{
-                            padding: '10px 14px',
-                            border: '1px solid #ccc',
-                            borderRadius: 6,
-                            fontSize: 14,
-                            background: darkMode ? '#1a1a2e' : '#f8f9fa',
-                            color: textColor
-                          }}
+                          style={inputStyle}
                         >
-                          <option value="once"> Once</option>
-                          <option value="daily"> Daily</option>
+                          <option value="once">Once</option>
+                          <option value="daily">Daily</option>
                         </select>
                         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                           <button
                             onClick={() => saveEdit(n._id)}
                             disabled={editLoading}
                             style={{
-                              padding: '10px 20px',
+                              padding: '10px 24px',
                               background: '#28a745',
                               color: 'white',
                               border: 'none',
                               borderRadius: 6,
                               cursor: editLoading ? 'not-allowed' : 'pointer',
-                              fontWeight: 'bold',
+                              fontWeight: '600',
                               fontSize: 14,
-                              opacity: editLoading ? 0.7 : 1
+                              opacity: editLoading ? 0.6 : 1
                             }}
                           >
-                            {editLoading ? 'Saving...' : ' Save'}
+                            {editLoading ? 'Saving...' : 'Save Changes'}
                           </button>
                           <button
                             onClick={cancelEditing}
                             style={{
-                              padding: '10px 20px',
+                              padding: '10px 24px',
                               background: '#6c757d',
                               color: 'white',
                               border: 'none',
                               borderRadius: 6,
                               cursor: 'pointer',
-                              fontWeight: 'bold',
+                              fontWeight: '600',
                               fontSize: 14
                             }}
                           >
-                             Cancel
+                            Cancel
                           </button>
                         </div>
                       </div>

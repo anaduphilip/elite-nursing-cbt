@@ -20,9 +20,8 @@ const processScheduledNotifications = async () => {
 
   for (const notification of dueNotifications) {
     try {
-      // Build user query based on targetAudience
+      // Build user query
       let userQuery = { deviceTokens: { $exists: true, $ne: [] } };
-      
       if (notification.targetAudience === 'premium') {
         userQuery.isPremium = true;
       } else if (notification.targetAudience === 'free') {
@@ -36,6 +35,9 @@ const processScheduledNotifications = async () => {
       const users = await User.find(userQuery);
       const tokens = users.flatMap(user => user.deviceTokens);
 
+      let successCount = 0;
+      let failureCount = 0;
+
       if (tokens.length > 0) {
         const response = await admin.messaging().sendEachForMulticast({
           tokens: tokens,
@@ -44,10 +46,15 @@ const processScheduledNotifications = async () => {
             body: notification.message
           }
         });
+        successCount = response.successCount || 0;
+        failureCount = response.failureCount || 0;
+
         console.log(`✅ Scheduled notification sent: ${notification.title}`);
-        console.log(`   Success: ${response.successCount}, Failures: ${response.failureCount}`);
+        console.log(`   Success: ${successCount}, Failures: ${failureCount}`);
       } else {
         console.log(`⚠️ No device tokens for notification: ${notification.title}`);
+        failureCount = 0;
+        successCount = 0;
       }
 
       // Handle daily repeat
@@ -60,6 +67,8 @@ const processScheduledNotifications = async () => {
         notification.sentAt = null;
         notification.lastSentAt = new Date();
         notification.sentCount = (notification.sentCount || 0) + 1;
+        notification.successCount = successCount;
+        notification.failureCount = failureCount;
         
         await notification.save();
         console.log(`🔄 Daily notification rescheduled to ${nextDate.toISOString()}`);
@@ -69,6 +78,8 @@ const processScheduledNotifications = async () => {
         notification.status = 'sent';
         notification.sentAt = new Date();
         notification.lastSentAt = new Date();
+        notification.successCount = successCount;
+        notification.failureCount = failureCount;
         await notification.save();
       }
 
@@ -80,8 +91,8 @@ const processScheduledNotifications = async () => {
 
 // Run every minute
 const startScheduledNotificationsCron = () => {
-  cron.schedule('* * * * *', processScheduledNotifications);
-  console.log('🕐 Scheduled notifications cron started (runs every minute)');
+  cron.schedule('0 * * * *', processScheduledNotifications);
+  console.log('🕐 Scheduled notifications cron started (runs every hour)');
 };
 
 module.exports = {

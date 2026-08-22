@@ -22,7 +22,9 @@ const ScheduledNotificationSchema = new mongoose.Schema({
     enum: ['once', 'daily'],
     default: 'once'
   },
-  sentCount: { type: Number, default: 0 },      // ← NEW
+  sentCount: { type: Number, default: 0 },
+  successCount: { type: Number, default: 0 },
+  failureCount: { type: Number, default: 0 },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now }
 });
