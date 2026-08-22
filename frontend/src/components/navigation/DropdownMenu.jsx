@@ -76,7 +76,7 @@ export const DropdownMenu = () => {
     top: 'calc(100% + 6px)',
     right: 0,
     minWidth: '200px',
-    maxWidth: 'calc(100vw - 32px)',  // prevent overflow on small screens
+    maxWidth: 'calc(100vw - 32px)',
     width: 'auto',
     background: darkMode ? '#1a1a2e' : 'white',
     borderRadius: '14px',
@@ -86,7 +86,7 @@ export const DropdownMenu = () => {
     border: `1px solid ${darkMode ? '#333' : '#eaeaea'}`,
     backdropFilter: 'blur(8px)',
     backgroundColor: darkMode ? 'rgba(26, 26, 46, 0.95)' : 'rgba(255, 255, 255, 0.98)',
-    maxHeight: 'calc(100vh - 100px)',  // ensure it fits on screen
+    maxHeight: 'calc(100vh - 100px)',
     overflowY: 'auto',
   };
 
@@ -169,7 +169,7 @@ export const DropdownMenu = () => {
     borderBottom: `1px solid ${darkMode ? '#2a2a3e' : '#f0f0f0'}`,
   };
 
-  // ---- Render a menu item (helper) ----
+  // ---- Render a menu item (no icons, only label) ----
   const renderMenuItem = (item, isSub = false, isHighlight = false) => {
     const baseStyle = isSub ? subItemStyle : (isHighlight ? highlightItemStyle : itemStyle);
     return (
@@ -187,9 +187,6 @@ export const DropdownMenu = () => {
           e.currentTarget.style.background = 'transparent';
         }}
       >
-        <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>
-          {item.icon}
-        </span>
         {item.label}
       </Link>
     );
@@ -245,7 +242,7 @@ export const DropdownMenu = () => {
                   e.currentTarget.style.background = 'transparent';
                 }}
               >
-                <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>
+                <span style={{ fontSize: '14px', width: '22px', textAlign: 'center', display: 'inline-block' }}>
                   {supportExpanded ? '▼' : '▶'}
                 </span>
                 Support
