@@ -22,6 +22,11 @@ export const ExamList = () => {
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
 
+  const formatPercentage = (value) => {
+    if (value === null || value === undefined) return '0';
+    return Number(value).toFixed(1);
+  };
+
   useEffect(() => {
     const fetchQuiz = async () => {
       setLoading(true);
@@ -160,7 +165,7 @@ export const ExamList = () => {
                   <div>
                     <h3 style={{ color: headingColor, margin: 0, fontSize: 18 }}>Examination 1</h3>
                     <p style={{ fontSize: 14, marginTop: 4 }}>{sections[0].count} Questions | ⏰ {sections[0].timeMinutes} minutes</p>
-                    {lastScores[1] && <p style={{ color: '#ff9800', fontSize: 13, marginTop: 4 }}>📊 Your Last Score: {lastScores[1].score}/{lastScores[1].total} ({lastScores[1].percentage}%)</p>}
+                    {lastScores[1] && <p style={{ color: '#ff9800', fontSize: 13, marginTop: 4 }}>📊 Your Last Score: {lastScores[1].score}/{lastScores[1].total} ({formatPercentage(lastScores[1].percentage)}%)</p>}
                   </div>
                   <button onClick={() => handleStartExam(sections[0])} style={{ background: hasTakenExam1 ? '#ff9800' : '#4caf50', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
                     {hasTakenExam1 ? '⭐ Upgrade to Retake' : 'Start Free Exam →'}
@@ -187,7 +192,7 @@ export const ExamList = () => {
                     <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 8 }}>{section.number === 1 ? '🎯' : '⭐'}</div>
                     <h3 style={{ color: darkMode ? headingColor : (section.number === 1 ? '#1e3c72' : '#ff9800'), textAlign: 'center', fontSize: 18, marginBottom: 6 }}>Examination {section.number}</h3>
                     <p style={{ textAlign: 'center', fontSize: 14 }}>{section.count} Questions | ⏰ {section.timeMinutes} minutes</p>
-                    {lastScores[section.number] && <p style={{ color: '#ff9800', textAlign: 'center', fontSize: 13, marginTop: 4 }}>📊 Score: {lastScores[section.number].score}/{lastScores[section.number].total}</p>}
+                    {lastScores[section.number] && <p style={{ color: '#ff9800', textAlign: 'center', fontSize: 13, marginTop: 4 }}>📊 Score: {lastScores[section.number].score}/{lastScores[section.number].total} ({formatPercentage(lastScores[section.number].percentage)}%)</p>}
                     <button onClick={() => handleStartExam(section)} style={{ width: '100%', marginTop: 14, background: canAccess ? '#ff9800' : '#ccc', color: 'white', padding: '10px', border: 'none', borderRadius: 10, cursor: canAccess ? 'pointer' : 'not-allowed', fontWeight: 'bold', fontSize: 14 }}>
                       {canAccess ? 'Start Exam →' : '🔒 Premium Required'}
                     </button>

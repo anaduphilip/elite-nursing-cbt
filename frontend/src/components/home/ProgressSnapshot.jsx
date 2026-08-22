@@ -16,6 +16,12 @@ export const ProgressSnapshot = () => {
     recentScores: []
   });
 
+
+  const formatPercentage = (value) => {
+    if (value === null || value === undefined) return '0';
+    return Number(value).toFixed(1);
+  };
+
   useEffect(() => {
     const attempts = getAllAttempts();
     const list = Object.values(attempts);
@@ -102,7 +108,7 @@ export const ProgressSnapshot = () => {
                 color: attempt.percentage >= 70 ? '#2e7d32' : '#c62828',
                 fontWeight: 'bold'
               }}>
-                {attempt.title?.substring(0, 20) || 'Exam'} – {attempt.percentage}%
+                {attempt.title?.substring(0, 20) || 'Exam'} – {formatPercentage(attempt.percentage)}%
               </span>
             ))}
           </div>

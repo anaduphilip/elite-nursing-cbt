@@ -29,6 +29,11 @@ export const StudyPlan = () => {
   const [explanationRemaining, setExplanationRemaining] = useState(null);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
 
+  const formatPercentage = (value) => {
+    if (value === null || value === undefined) return '0';
+    return Number(value).toFixed(1);
+  };
+
   // ===== Helper: Extract user‑friendly error message =====
   const getFriendlyErrorMessage = (error) => {
     if (!error) return 'An unexpected error occurred. Please try again.';
@@ -168,7 +173,7 @@ export const StudyPlan = () => {
           userAnswer: answers[idx] !== undefined ? answers[idx] : null
         }));
         setPlan({ ...plan, questions: updatedQuestions, completed: true, score: res.data.score, total: res.data.total });
-        alert(`✅ You scored ${res.data.score}/${res.data.total} (${res.data.percentage}%)`);
+        alert(`✅ You scored ${res.data.score}/${res.data.total} (${formatPercentage(res.data.percentage)}%)`);
       }
     } catch (error) {
       const userMessage = getFriendlyErrorMessage(error);
@@ -259,7 +264,7 @@ export const StudyPlan = () => {
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <div style={{ background: cardBg, borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
             <h2 style={{ color: headingColor }}>Study Plan Results</h2>
-            <p>Score: <strong>{result.score}</strong> / {result.total} ({result.percentage}%)</p>
+            <p>Score: <strong>{result.score}</strong> / {result.total} ({formatPercentage(result.percentage)}%)</p>
             <p style={{ fontSize: 24, color: passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
               {passed ? '✓ PASSED' : '✗ Needs Improvement'}
             </p>
@@ -289,7 +294,7 @@ export const StudyPlan = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: textColor, fontWeight: 'bold' }}>{cat}</span>
                       <span style={{ color: secondaryText, fontWeight: 'bold' }}>
-                        {data.correct}/{data.total} ({data.percentage}%)
+                        {data.correct}/{data.total} ({formatPercentage(data.percentage)}%)
                       </span>
                     </div>
                     <div style={{ marginTop: 4, fontSize: 13, color: data.percentage >= 70 ? '#4caf50' : data.percentage >= 40 ? '#ff9800' : '#f44336' }}>

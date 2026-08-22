@@ -27,6 +27,11 @@ export const PreCouncilTakeExam = () => {
   const textColor = getTextColor(darkMode);
   const navigate = useNavigate();
 
+  const formatPercentage = (value) => {
+    if (value === null || value === undefined) return '0';
+    return Number(value).toFixed(1);
+  };
+
   // ===== AI Explanation States =====
   const [explanation, setExplanation] = useState({});
   const [loadingExplanation, setLoadingExplanation] = useState({});
@@ -243,7 +248,7 @@ export const PreCouncilTakeExam = () => {
         <div style={{ maxWidth: 450, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
           <h2 style={{ color: headingColor, fontSize: 24 }}>Exam Results</h2>
           <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: headingColor }}>{result.score}</strong> / {result.total}</p>
-          <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{result.percentage}%</strong></p>
+          <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{formatPercentage(result.percentage)}%</strong></p>
           <p style={{ fontSize: 24, color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
             {result.passed ? '✓ PASSED!' : '✗ Failed'}
           </p>
@@ -283,7 +288,7 @@ export const PreCouncilTakeExam = () => {
 
           <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
             <h2 style={{ color: headingColor, fontSize: 22 }}>Answer Review</h2>
-            <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
+            <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({formatPercentage(result.percentage)}%)</p>
             <button onClick={() => navigate('/pre-council')} style={{ background: '#6c757d', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>
               Back to Pre Council
             </button>
@@ -429,7 +434,6 @@ export const PreCouncilTakeExam = () => {
           <p style={{ fontSize: 13, color: secondaryText }}>Answered: {answeredCount}/{totalQuestions}</p>
         </div>
 
-        {/* Question */}
         <div style={{ background: '#1e3c72', borderRadius: 16, padding: 20, marginBottom: 20 }}>
           <h4 style={{ color: 'white', marginBottom: 16, fontSize: 16 }}>Question {currentIndex+1}: {currentQuestion.questionText}</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -447,7 +451,6 @@ export const PreCouncilTakeExam = () => {
           </div>
         </div>
 
-        {/* Navigation */}
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 30 }}>
           {currentIndex > 0 && (
             <button
@@ -485,7 +488,6 @@ export const PreCouncilTakeExam = () => {
           </div>
         </div>
 
-        {/* Question Palette */}
         <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20 }}>
           <p style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 12, color: darkMode ? '#fff' : '#333' }}>Question Palette</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
@@ -519,7 +521,6 @@ export const PreCouncilTakeExam = () => {
         }
       `}</style>
 
-      {/* ===== Badge Award Modal ===== */}
       {showBadgeModal && (
         <BadgeAwardModal
           badges={awardedBadges}

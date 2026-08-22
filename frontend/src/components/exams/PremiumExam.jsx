@@ -28,6 +28,11 @@ export const PremiumExam = () => {
   const textColor = getTextColor(darkMode);
   const navigate = useNavigate();
 
+  const formatPercentage = (value) => {
+    if (value === null || value === undefined) return '0';
+    return Number(value).toFixed(1);
+  };
+
   // ===== Badge award state =====
   const [awardedBadges, setAwardedBadges] = useState([]);
   const [showBadgeModal, setShowBadgeModal] = useState(false);
@@ -230,7 +235,7 @@ export const PremiumExam = () => {
         <div style={{ maxWidth: 450, width: '100%', background: darkMode ? '#16213e' : 'white', borderRadius: 20, padding: 32, textAlign: 'center' }}>
           <h2 style={{ color: headingColor, fontSize: 24 }}>Exam Results</h2>
           <p style={{ fontSize: 36, margin: '20px 0' }}>Score: <strong style={{ color: headingColor }}>{result.score}</strong> / {result.total}</p>
-          <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{result.percentage}%</strong></p>
+          <p style={{ fontSize: 24, marginBottom: 20 }}>Percentage: <strong>{formatPercentage(result.percentage)}%</strong></p>
           <p style={{ fontSize: 24, color: result.passed ? '#2e7d32' : '#dc3545', fontWeight: 'bold' }}>
             {result.passed ? '✓ PASSED!' : '✗ Failed'}
           </p>
@@ -250,7 +255,7 @@ export const PremiumExam = () => {
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
             <h2 style={{ color: headingColor, fontSize: 22 }}>Answer Review</h2>
-            <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
+            <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({formatPercentage(result.percentage)}%)</p>
             <Link to={`/courses/${categoryName}/${mode}`}><button style={{ background: '#1e3c72', color: 'white', padding: '8px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Topics</button></Link>
           </div>
           {questions.map((q, idx) => {

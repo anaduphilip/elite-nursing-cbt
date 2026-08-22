@@ -38,10 +38,12 @@ router.delete('/users/:userId', isAdmin, async (req, res) => {
   }
 });
 
-// Reply to contact message
+// ===== Reply to contact message (UPDATED: saves reply in DB) =====
 router.post('/reply-message', isAdmin, async (req, res) => {
   try {
-    const { to, name, originalMessage, reply } = req.body;
+    const { to, name, originalMessage, reply, contactId } = req.body;
+
+    // 1. Send the email
     const htmlContent = getReplyEmailTemplate(name, originalMessage, reply);
     const textContent = `Response to your message:\n\n${reply}\n\nOriginal message: ${originalMessage}`;
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
@@ -51,11 +53,31 @@ router.post('/reply-message', isAdmin, async (req, res) => {
     sendSmtpEmail.textContent = textContent;
     sendSmtpEmail.htmlContent = htmlContent;
     await new SibApiV3Sdk.TransactionalEmailsApi().sendTransacEmail(sendSmtpEmail);
-    console.log(`✅ Reply sent to ${to}`);
+
+    // 2. Save the reply on the contact document
+    if (contactId) {
+      await Contact.findByIdAndUpdate(contactId, {
+        adminReply: reply,
+        adminReplyDate: new Date(),
+        status: 'replied'
+      });
+    }
+
+    console.log(`✅ Reply sent to ${to} and saved to database`);
     res.json({ success: true, message: 'Reply sent successfully' });
   } catch (error) {
     console.error('Reply error:', error);
     res.status(500).json({ error: 'Failed to send reply' });
+  }
+});
+
+// ===== DELETE a contact message =====
+router.delete('/contacts/:contactId', isAdmin, async (req, res) => {
+  try {
+    await Contact.findByIdAndDelete(req.params.contactId);
+    res.json({ success: true, message: 'Message deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete message' });
   }
 });
 
@@ -81,7 +103,7 @@ router.post('/generate-reset-code', isAdmin, async (req, res) => {
   res.json({ otp, message: 'Reset code generated successfully' });
 });
 
-// ===== NEW: Broadcast email to free users =====
+// ===== Broadcast email to free users =====
 router.post('/broadcast-email', isAdmin, async (req, res) => {
   try {
     const { subject, message, templateType } = req.body;
@@ -130,7 +152,7 @@ router.post('/broadcast-email', isAdmin, async (req, res) => {
   }
 });
 
-// ===== NEW: Get gamification settings =====
+// ===== Get gamification settings =====
 router.get('/gamification-settings', isAdmin, async (req, res) => {
   try {
     const { Config } = require('../models');
@@ -151,9 +173,8 @@ router.get('/gamification-settings', isAdmin, async (req, res) => {
   }
 });
 
-// ========== NEW: ADMIN BLOCK / UNLOCK ENDPOINTS ==========
+// ===== ADMIN BLOCK / UNLOCK ENDPOINTS =====
 
-// ---- Get all manually blocked users ----
 router.get('/blocked-users', isAdmin, async (req, res) => {
   try {
     const now = new Date();
@@ -171,7 +192,6 @@ router.get('/blocked-users', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Block a user manually ----
 router.post('/block-user', isAdmin, async (req, res) => {
   try {
     const { email, duration, reason } = req.body;
@@ -201,7 +221,6 @@ router.post('/block-user', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Unblock a user ----
 router.post('/unblock-user', isAdmin, async (req, res) => {
   try {
     const { email } = req.body;
@@ -222,7 +241,6 @@ router.post('/unblock-user', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Get temporarily locked users (due to failed attempts) ----
 router.get('/locked-users', isAdmin, async (req, res) => {
   try {
     const now = new Date();
@@ -237,7 +255,6 @@ router.get('/locked-users', isAdmin, async (req, res) => {
   }
 });
 
-// ---- Unlock a temporarily locked user (reset attempts and lock) ----
 router.post('/unlock-user', isAdmin, async (req, res) => {
   try {
     const { email } = req.body;

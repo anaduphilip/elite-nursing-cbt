@@ -23,6 +23,11 @@ export const PreCouncilExamList = () => {
   const secondaryText = getSecondaryText(darkMode);
   const navigate = useNavigate();
 
+  const formatPercentage = (value) => {
+    if (value === null || value === undefined) return '0';
+    return Number(value).toFixed(1);
+  };
+
   // ===== Check if exam 1 has been taken =====
   const isFreeExamTaken = (examId) => {
     return localStorage.getItem(`precouncil_exam_${examId}_taken`) === 'true';
@@ -443,7 +448,7 @@ export const PreCouncilExamList = () => {
                       }}>
                          {exam.timeLimit || 180}m
                       </span>
-                      {/* ===== NEW: Show last attempt score & percentage ===== */}
+
                       {attemptData && (
                         <span style={{
                           background: darkMode ? '#1a1a2e' : '#e8f5e9',
@@ -454,7 +459,7 @@ export const PreCouncilExamList = () => {
                           fontWeight: 600,
                           whiteSpace: 'nowrap'
                         }}>
-                          Last: {attemptData.score}/{attemptData.total} ({attemptData.percentage}%)
+                          Last: {attemptData.score}/{attemptData.total} ({formatPercentage(attemptData.percentage)}%)
                         </span>
                       )}
                     </div>
