@@ -8,6 +8,7 @@ export const DashboardTab = ({ dashboardData, dashboardLoading, darkMode, headin
       <h2 style={{ color: headingColor, marginBottom: 20 }}>📊 Dashboard</h2>
       {dashboardLoading ? <LoadingWithBar message="Loading dashboard..." /> : dashboardData ? (
         <div>
+          {/* Stats Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 30 }}>
             <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12, textAlign: 'center' }}>
               <div style={{ fontSize: 28, fontWeight: 'bold', color: headingColor }}>{dashboardData.users.total}</div>
@@ -34,8 +35,18 @@ export const DashboardTab = ({ dashboardData, dashboardLoading, darkMode, headin
               <div style={{ color: secondaryText }}>New This Month</div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12 }}>
+
+          {/* ===== TWO BOXES – RESPONSIVE GRID ===== */}
+          <div 
+            className="dashboard-two-columns"
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: 24,
+              width: '100%'
+            }}
+          >
+            <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12, overflow: 'hidden' }}>
               <h4 style={{ color: headingColor, marginBottom: 12 }}>Popular Categories</h4>
               {dashboardData.popularCategories.map(cat => (
                 <div key={cat._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>
@@ -44,7 +55,7 @@ export const DashboardTab = ({ dashboardData, dashboardLoading, darkMode, headin
                 </div>
               ))}
             </div>
-            <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12 }}>
+            <div style={{ background: darkMode ? '#2d2d3d' : '#f8f9fa', padding: 16, borderRadius: 12, overflow: 'hidden' }}>
               <h4 style={{ color: headingColor, marginBottom: 12 }}>Recent Users</h4>
               {dashboardData.recentUsers.map(u => (
                 <div key={u._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid ' + (darkMode ? '#444' : '#eee') }}>
@@ -56,6 +67,15 @@ export const DashboardTab = ({ dashboardData, dashboardLoading, darkMode, headin
           </div>
         </div>
       ) : <p>No data</p>}
+
+      {/* ===== RESPONSIVE MEDIA QUERY ===== */}
+      <style>{`
+        @media (max-width: 768px) {
+          .dashboard-two-columns {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

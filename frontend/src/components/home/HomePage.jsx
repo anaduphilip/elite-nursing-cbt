@@ -873,13 +873,18 @@ export const HomePage = () => {
 
       {/* ---- FOOTER ---- */}
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
-        <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
+        <p style={{ color: secondaryText, fontSize: 12 }}>
+          © 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
           <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
             Privacy Policy
           </Link>
           <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
           <Link to="/terms" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
             Terms & Conditions
+          </Link>
+          <span style={{ color: secondaryText, margin: '0 6px' }}>|</span>
+          <Link to="/how-to-use" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none' }}>
+            How to Use
           </Link>
         </p>
       </div>

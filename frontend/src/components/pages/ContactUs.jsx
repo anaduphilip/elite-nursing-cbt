@@ -22,7 +22,6 @@ export const ContactUs = () => {
     navigate(-1);
   };
 
-  // Floating Back Button style
   const backButtonStyle = {
     position: 'fixed',
     bottom: '24px',
@@ -93,17 +92,37 @@ export const ContactUs = () => {
             <div style={{ textAlign: 'center', padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>📧</div>
               <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 4 }}>Email</h3>
-              <p style={{ fontSize: 13, wordBreak: 'break-all' }}>elitenursingcbt@gmail.com</p>
+              <p style={{ fontSize: 13, wordBreak: 'break-all' }}>
+                <a href="mailto:elitenursingcbt@gmail.com" style={{ color: '#2196f3', textDecoration: 'none' }}>
+                  elitenursingcbt@gmail.com
+                </a>
+              </p>
             </div>
             <div style={{ textAlign: 'center', padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>📞</div>
               <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 4 }}>Phone / WhatsApp</h3>
-              <p style={{ fontSize: 13 }}>09063908476</p>
+              <p style={{ fontSize: 13 }}>
+                <a 
+                  href="https://wa.me/2349063908476" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  style={{ color: '#25D366', textDecoration: 'none', fontWeight: 'bold' }}
+                >
+                  09063908476
+                </a>
+              </p>
             </div>
             <div style={{ textAlign: 'center', padding: 16, background: darkMode ? '#1a1a2e' : '#f0f7f4', borderRadius: 12 }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>💬</div>
               <h3 style={{ color: headingColor, fontSize: 16, marginBottom: 4 }}>WhatsApp Group</h3>
-              <a href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 'bold', fontSize: 13 }}>Join Community →</a>
+              <a 
+                href="https://chat.whatsapp.com/HdpwnXzyrLrIqwnpjZqVsb" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ color: '#25D366', textDecoration: 'none', fontWeight: 'bold', fontSize: 13 }}
+              >
+                Join Community
+              </a>
             </div>
           </div>
         </div>
@@ -124,15 +143,40 @@ export const ContactUs = () => {
           
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 16 }}>
-              <input type="text" placeholder="Your Name" value={name} onChange={(e) => setName(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} />
+              <input 
+                type="text" 
+                placeholder="Your Name" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+                required 
+                style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} 
+              />
             </div>
             <div style={{ marginBottom: 16 }}>
-              <input type="email" placeholder="Your Email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} />
+              <input 
+                type="email" 
+                placeholder="Your Email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                required 
+                style={{ width: '100%', padding: '12px 14px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} 
+              />
             </div>
             <div style={{ marginBottom: 20 }}>
-              <textarea placeholder="Your Message" value={message} onChange={(e) => setMessage(e.target.value)} required rows="4" style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, resize: 'vertical', background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} />
+              <textarea 
+                placeholder="Your Message" 
+                value={message} 
+                onChange={(e) => setMessage(e.target.value)} 
+                required 
+                rows="4" 
+                style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 10, fontSize: 14, resize: 'vertical', background: darkMode ? '#1a1a2e' : '#f8f9fa', color: darkMode ? 'white' : '#333', boxSizing: 'border-box' }} 
+              />
             </div>
-            <button type="submit" disabled={loading} style={{ width: '100%', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', color: 'white', padding: '12px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, opacity: loading ? 0.7 : 1 }}>
+            <button 
+              type="submit" 
+              disabled={loading} 
+              style={{ width: '100%', background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', color: 'white', padding: '12px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, opacity: loading ? 0.7 : 1 }}
+            >
               {loading ? 'Sending...' : 'Send Message'}
             </button>
           </form>
