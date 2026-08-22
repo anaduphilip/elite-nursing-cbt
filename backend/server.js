@@ -23,6 +23,7 @@ const { connectWithRetry } = require('./src/utils');
 const { allowedOrigins } = require('./src/config/constants');
 const routes = require('./src/routes');
 const { startPremiumReminderCron } = require('./src/utils');
+const { startScheduledNotificationsCron } = require('./src/utils/scheduled-notifications-cron');
 
 const app = express();
 
@@ -48,6 +49,7 @@ connectWithRetry();
 
 // ===== CRON JOBS =====
 startPremiumReminderCron();
+startScheduledNotificationsCron();
 
 // ===== ROUTES =====
 app.use('/api', routes);
