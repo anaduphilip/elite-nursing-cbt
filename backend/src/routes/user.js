@@ -1,6 +1,6 @@
 // src/routes/user.js
 const express = require('express');
-const { User } = require('../models');
+const { User, Contact } = require('../models');   // ← add Contact
 const { authenticate } = require('../middleware');
 const { checkAndUpdatePremium } = require('../utils');
 
@@ -83,6 +83,22 @@ router.delete('/history/:quizId', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Delete attempt error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/contact-messages', authenticate, async (req, res) => {
+  try {
+    const messages = await Contact.find({
+      $or: [
+        { userId: req.user._id },
+        { email: req.user.email }
+      ]
+    }).sort({ createdAt: 1 });
+
+    res.json({ success: true, messages });
+  } catch (error) {
+    console.error('Error fetching contact messages:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });
 

@@ -225,7 +225,7 @@ export const ContactsTab = ({
                       justifyContent: 'center'
                     }}
                   >
-                    ✉️ Reply
+                    Reply
                   </button>
                   <button
                     onClick={() => {
@@ -249,7 +249,7 @@ export const ContactsTab = ({
                       gap: 6
                     }}
                   >
-                    🗑️ Delete
+                    Delete
                   </button>
                 </>
               ) : (

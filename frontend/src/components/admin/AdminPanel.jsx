@@ -656,7 +656,7 @@ export const AdminPanel = () => {
         name: contactName,
         originalMessage: originalMessage,
         reply: replyMessage,
-        contactId: contactId   // now sends the contact ID
+        contactId: contactId
       }, { headers: { Authorization: `Bearer ${token}` } });
       alert('Reply sent successfully!');
       setReplyingTo(null);
