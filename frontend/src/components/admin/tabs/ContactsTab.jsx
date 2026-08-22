@@ -275,7 +275,7 @@ export const ContactsTab = ({
                   />
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <button
-                      onClick={() => sendReply(contact.email, contact.name, contact.message)}
+                      onClick={() => sendReply(contact.email, contact.name, contact.message, contact._id)}
                       disabled={sendingReply || !replyMessage.trim()}
                       style={{
                         background: replyMessage.trim() ? '#28a745' : '#ccc',

@@ -644,7 +644,7 @@ export const AdminPanel = () => {
   };
 
   // ===== Contacts =====
-  const sendReply = async (contactEmail, contactName, originalMessage) => {
+  const sendReply = async (contactEmail, contactName, originalMessage, contactId) => {
     if (!replyMessage.trim()) {
       alert('Please enter a reply message');
       return;
@@ -655,15 +655,31 @@ export const AdminPanel = () => {
         to: contactEmail,
         name: contactName,
         originalMessage: originalMessage,
-        reply: replyMessage
+        reply: replyMessage,
+        contactId: contactId   // now sends the contact ID
       }, { headers: { Authorization: `Bearer ${token}` } });
       alert('Reply sent successfully!');
       setReplyingTo(null);
       setReplyMessage('');
+      // Refresh contacts
+      const contactsRes = await axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } });
+      setContacts(contactsRes.data);
     } catch (error) {
       alert('Failed to send reply: ' + (error.response?.data?.error || 'Unknown error'));
     } finally {
       setSendingReply(false);
+    }
+  };
+
+  // NEW: Delete a contact message
+  const deleteContact = async (contactId) => {
+    if (!window.confirm('Are you sure you want to delete this message?')) return;
+    try {
+      await axios.delete(`/api/admin/contacts/${contactId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const contactsRes = await axios.get('/api/admin/contacts', { headers: { Authorization: `Bearer ${token}` } });
+      setContacts(contactsRes.data);
+    } catch (error) {
+      alert('Failed to delete message: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -1868,7 +1884,19 @@ export const AdminPanel = () => {
           {/* ===== Render the active tab ===== */}
           {activeTab === 'dashboard' && <DashboardTab {...{ dashboardData, dashboardLoading, ...commonProps }} />}
           {activeTab === 'users' && <UsersTab {...{ users, filteredUsers, searchQuery, setSearchQuery, userFilter, setUserFilter, selectedPlan, setSelectedPlan, applyPlan, deleteUser, setAdjustUserId, setShowAdjustModal, ...commonProps }} />}
-          {activeTab === 'contacts' && <ContactsTab {...{ contacts, replyingTo, setReplyingTo, replyMessage, setReplyMessage, sendingReply, sendReply, ...commonProps }} />}
+          {activeTab === 'contacts' && <ContactsTab
+            {...{ 
+              contacts, 
+              replyingTo, 
+              setReplyingTo, 
+              replyMessage, 
+              setReplyMessage, 
+              sendingReply, 
+              sendReply, 
+              deleteContact,
+              ...commonProps 
+            }} 
+          />}
           {activeTab === 'notifications' && <NotificationsTab {...{ notificationTitle, setNotificationTitle, notificationMessage, setNotificationMessage, sendingNotification, sendNotification, notificationStatus, ...commonProps }} />}
           {activeTab === 'manualOtp' && <ManualOtpTab {...{ manualOtpEmail, setManualOtpEmail, generatingOtp, generateManualOtp, manualOtpResult, ...commonProps }} />}
           {activeTab === 'manualReset' && <ManualResetTab {...{ resetEmail, setResetEmail, generatingResetOtp, generateManualResetOtp, resetOtpResult, ...commonProps }} />}
