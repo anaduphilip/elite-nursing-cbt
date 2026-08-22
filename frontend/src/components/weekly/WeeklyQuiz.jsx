@@ -17,8 +17,11 @@ export const WeeklyQuiz = () => {
   const [alreadyAttempted, setAlreadyAttempted] = useState(false);
   const [attemptScore, setAttemptScore] = useState(null);
   const [attemptPercentage, setAttemptPercentage] = useState(null);
+  const [attemptAnswers, setAttemptAnswers] = useState(null);
+  const [attemptQuestions, setAttemptQuestions] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
   const [showReview, setShowReview] = useState(false);
+  const [showPastReview, setShowPastReview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { token, darkMode } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
@@ -34,6 +37,7 @@ export const WeeklyQuiz = () => {
   let weeklyQuizCache = null;
   let weeklyQuizPromise = null;
 
+  // ===== Fetch current weekly quiz =====
   useEffect(() => {
     const fetchQuiz = async () => {
       setLoading(true);
@@ -103,7 +107,7 @@ export const WeeklyQuiz = () => {
     fetchQuiz();
   }, [token]);
 
-  // ==== Fetch remaining explanations ====
+  // ===== Fetch remaining explanations =====
   useEffect(() => {
     const fetchRemaining = async () => {
       try {
@@ -119,6 +123,7 @@ export const WeeklyQuiz = () => {
     if (token) fetchRemaining();
   }, [token]);
 
+  // ===== Timer logic =====
   useEffect(() => {
     if (!timeLeft || timeLeft <= 0 || submitted) return;
     const timer = setInterval(() => {
@@ -169,25 +174,25 @@ export const WeeklyQuiz = () => {
     }
   };
 
-  // ===== Get AI explanation for a question =====
-  const getExplanation = async (idx) => {
+  // ===== Get AI explanation for a question (used in both current and past review) =====
+  const getExplanation = async (idx, questionsArray, answersObject) => {
     if (!isPremium && explanationRemaining <= 0) {
       alert('You have used all your free explanations for today (10/day). Upgrade to Premium for unlimited!');
       return;
     }
-    
+
     setLoadingExplanation({ ...loadingExplanation, [idx]: true });
     try {
-      const question = quiz.questions[idx];
+      const question = questionsArray[idx];
       const res = await axios.post('/api/explain-question', {
         questionText: question.questionText,
         options: question.options,
         correctAnswer: question.correctAnswer,
-        userAnswer: answers[idx]
+        userAnswer: answersObject[idx]
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       setExplanation({ ...explanation, [idx]: res.data.explanation });
       setExplanationRemaining(res.data.remaining);
     } catch (error) {
@@ -201,7 +206,6 @@ export const WeeklyQuiz = () => {
     }
   };
 
-  // ===== Close/Dismiss explanation =====
   const closeExplanation = (idx) => {
     setExplanation((prev) => {
       const updated = { ...prev };
@@ -210,8 +214,19 @@ export const WeeklyQuiz = () => {
     });
   };
 
+  // ===== Fetch past attempt for review (triggered from alreadyAttempted page) =====
+  const fetchPastAttempt = async () => {
+    try {
+      alert('Review of past weekly quiz attempts is coming soon!');
+    } catch (error) {
+      console.error('Failed to fetch past attempt:', error);
+    }
+  };
+
+  // ===== Render loading state =====
   if (loading) return <LoadingWithBar message="Loading Weekly Quiz..." />;
 
+  // ===== No quiz available =====
   if (!quiz) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
@@ -223,6 +238,7 @@ export const WeeklyQuiz = () => {
     );
   }
 
+  // ===== Already attempted =====
   if (alreadyAttempted) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
@@ -233,27 +249,41 @@ export const WeeklyQuiz = () => {
           <p style={{ fontSize: 18, margin: '10px 0', color: headingColor }}>Percentage: <strong>{attemptPercentage}%</strong></p>
           <p style={{ color: secondaryText, marginTop: 20 }}>Check back next week for a new quiz.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/weekly-leaderboard"><button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏆 View Leaderboard</button></Link>
-            <Link to="/"><button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button></Link>
+            {/* ===== NEW: Review button for past attempt ===== */}
+            <button
+              onClick={fetchPastAttempt}
+              style={{
+                marginTop: 20,
+                background: '#1e3c72',
+                color: 'white',
+                padding: '10px 20px',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              Review Answers
+            </button>
+            <Link to="/weekly-leaderboard">
+              <button style={{ marginTop: 20, background: '#ff9800', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🏆 View Leaderboard</button>
+            </Link>
+            <Link to="/">
+              <button style={{ marginTop: 20, background: '#1e3c72', color: 'white', padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go Home</button>
+            </Link>
           </div>
         </div>
       </div>
     );
   }
 
-  // ===== REVIEW VIEW with AI =====
+  // ===== REVIEW VIEW (after submission) =====
   if (submitted && showReview && quiz) {
     const allQuestions = quiz.questions;
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
-            <h2 style={{ color: headingColor, fontSize: 22 }}>Answer Review</h2>
-            <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
-            <button onClick={() => setShowReview(false)} style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Results</button>
-          </div>
-
-          {/* ===== Remaining counter ===== */}
+          {/* Remaining counter */}
           {!isPremium && explanationRemaining !== null && (
             <div style={{
               textAlign: 'center',
@@ -269,34 +299,17 @@ export const WeeklyQuiz = () => {
             </div>
           )}
 
+          <div style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center' }}>
+            <h2 style={{ color: headingColor, fontSize: 22 }}>Answer Review</h2>
+            <p style={{ fontSize: 14 }}>Score: {result.score}/{result.total} ({result.percentage}%)</p>
+            <button onClick={() => setShowReview(false)} style={{ background: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, marginTop: 10 }}>Back to Results</button>
+          </div>
+
           {allQuestions.map((q, idx) => {
             const userAnswer = answers[idx];
             const isCorrect = userAnswer !== undefined && userAnswer === q.correctAnswer;
             return (
               <div key={idx} style={{ background: darkMode ? '#16213e' : 'white', borderRadius: 12, padding: 16, marginBottom: 12, borderLeft: `5px solid ${isCorrect ? '#4caf50' : '#f44336'}` }}>
-                {/* ===== IMAGE DISPLAY IN REVIEW ===== */}
-                {q.imageUrl && (
-                  <div style={{
-                    marginBottom: 12,
-                    textAlign: 'center',
-                    background: darkMode ? '#1a1a2e' : '#f8f9fa',
-                    padding: 8,
-                    borderRadius: 6
-                  }}>
-                    <img
-                      src={q.imageUrl}
-                      alt={`Question ${idx + 1} illustration`}
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '180px',
-                        borderRadius: 6,
-                        objectFit: 'contain'
-                      }}
-                      loading="lazy"
-                    />
-                  </div>
-                )}
-
                 <h4 style={{ fontSize: 15, marginBottom: 10 }}>Q{idx+1}: {q.questionText}</h4>
                 {q.options.map((opt, optIdx) => (
                   <div key={optIdx} style={{ padding: '10px 12px', margin: '6px 0', background: optIdx === q.correctAnswer ? '#c8e6c9' : (optIdx === userAnswer ? '#ffcdd2' : '#f5f5f5'), borderRadius: 10, fontSize: 14 }}>
@@ -306,9 +319,8 @@ export const WeeklyQuiz = () => {
                   </div>
                 ))}
 
-                {/* ===== AI EXPLANATION BUTTON ===== */}
                 <button
-                  onClick={() => getExplanation(idx)}
+                  onClick={() => getExplanation(idx, allQuestions, answers)}
                   disabled={loadingExplanation[idx]}
                   style={{
                     marginTop: 12,
@@ -335,7 +347,6 @@ export const WeeklyQuiz = () => {
                   )}
                 </button>
 
-                {/* ===== AI EXPLANATION DISPLAY WITH CLOSE BUTTON ===== */}
                 {explanation[idx] && (
                   <div style={{
                     marginTop: 12,
@@ -347,7 +358,6 @@ export const WeeklyQuiz = () => {
                     textAlign: 'left',
                     position: 'relative'
                   }}>
-                    {/* Close button */}
                     <button
                       onClick={() => closeExplanation(idx)}
                       style={{
@@ -370,7 +380,6 @@ export const WeeklyQuiz = () => {
                     >
                       ✕
                     </button>
-
                     <div style={{ fontWeight: 'bold', color: '#ff9800', marginBottom: 8, textAlign: 'left' }}>AI Explanation</div>
                     <ReactMarkdown
                       components={{
@@ -418,6 +427,7 @@ export const WeeklyQuiz = () => {
     );
   }
 
+  // ===== Results view (after submission, before review) =====
   if (submitted && result) {
     return (
       <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
@@ -471,29 +481,6 @@ export const WeeklyQuiz = () => {
         </div>
 
         <div style={{ background: '#1e3c72', borderRadius: 16, padding: 20, marginBottom: 20 }}>
-          {/* ===== IMAGE DISPLAY IN ACTIVE EXAM ===== */}
-          {currentQuestion?.imageUrl && (
-            <div style={{
-              marginBottom: 16,
-              textAlign: 'center',
-              background: darkMode ? '#1a1a2e' : '#f8f9fa',
-              padding: 12,
-              borderRadius: 8
-            }}>
-              <img
-                src={currentQuestion.imageUrl}
-                alt={`Question ${currentIndex + 1} illustration`}
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '250px',
-                  borderRadius: 8,
-                  objectFit: 'contain'
-                }}
-                loading="lazy"
-              />
-            </div>
-          )}
-
           <h4 style={{ color: 'white', marginBottom: 16, fontSize: 16 }}>Question {currentIndex+1}: {currentQuestion.questionText}</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {currentQuestion.options.map((opt, optIdx) => (
