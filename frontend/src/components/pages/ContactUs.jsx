@@ -47,53 +47,57 @@ export const ContactUs = () => {
     backgroundColor: darkMode ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 255, 255, 0.9)'
   };
 
-  // Fetch user's messages if logged in
+  const fetchMessages = async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get('/api/user/contact-messages', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setMessages(res.data.messages);
+      }
+    } catch (err) {
+      console.error('Failed to fetch messages:', err);
+    } finally {
+      setFetching(false);
+    }
+  };
+
   useEffect(() => {
     if (token) {
-      const fetchMessages = async () => {
-        try {
-          const res = await axios.get('/api/user/contact-messages', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (res.data.success) {
-            setMessages(res.data.messages);
-          }
-        } catch (err) {
-          console.error('Failed to fetch messages:', err);
-        } finally {
-          setFetching(false);
-        }
-      };
       fetchMessages();
     } else {
       setFetching(false);
     }
   }, [token]);
 
+  useEffect(() => {
+    if (submitted) {
+      const timer = setTimeout(() => setSubmitted(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitted]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setSubmitted(false);
+
     try {
       await axios.post(
         '/api/contact',
         { name, email, message },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
+
       setSubmitted(true);
-      // Refresh messages if logged in
-      if (token) {
-        const res = await axios.get('/api/user/contact-messages', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data.success) {
-          setMessages(res.data.messages);
-        }
-      }
       setMessage('');
-      setTimeout(() => setSubmitted(false), 5000);
-    } catch (error) {
+
+      if (token) {
+        await fetchMessages();
+      }
+    } catch (err) {
       setError('Failed to send message. Please try again.');
     } finally {
       setLoading(false);
@@ -159,14 +163,14 @@ export const ContactUs = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {messages.map((msg) => (
                   <div key={msg._id} style={{ borderBottom: `1px solid ${darkMode ? '#333' : '#eee'}`, paddingBottom: 16 }}>
-                    {/* User's original message */}
+                    {/* User message */}
                     <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                       <div style={{ maxWidth: '80%', background: darkMode ? '#2d2d3d' : '#f1f3f5', padding: '10px 14px', borderRadius: '12px 12px 12px 4px', borderLeft: `4px solid #1e3c72` }}>
                         <p style={{ margin: 0, fontSize: 14, color: textColor }}>{msg.message}</p>
                         <span style={{ fontSize: 11, color: secondaryText }}>{formatTime(msg.createdAt)}</span>
                       </div>
                     </div>
-                    {/* Admin reply if exists */}
+                    {/* Admin reply */}
                     {msg.adminReply && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                         <div style={{ maxWidth: '80%', background: darkMode ? '#1a2e2a' : '#e8f5e9', padding: '10px 14px', borderRadius: '12px 12px 4px 12px', borderRight: `4px solid #2e7d32` }}>

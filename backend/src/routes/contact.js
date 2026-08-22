@@ -11,6 +11,7 @@ router.post('/', async (req, res) => {
   try {
     const { name, email, message } = req.body;
 
+    // Optional authentication – extract userId if token is valid
     let userId = null;
     try {
       const authHeader = req.headers.authorization;
@@ -20,17 +21,20 @@ router.post('/', async (req, res) => {
         const user = await User.findById(decoded.userId).select('_id');
         if (user) userId = user._id;
       }
-    } catch (tokenError) {
+    } catch (e) {
+      // silently ignore
     }
 
+    // Normalise email to lowercase for consistent matching
     const contact = new Contact({
       userId,
-      name,
-      email,
-      message
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      message: message.trim()
     });
     await contact.save();
 
+    // Send email to admin (unchanged)
     const htmlContent = getContactEmailTemplate(name, email, message);
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
     sendSmtpEmail.to = [{ email: 'elitenursingcbt@gmail.com' }];

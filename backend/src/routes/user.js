@@ -1,6 +1,6 @@
 // src/routes/user.js
 const express = require('express');
-const { User, Contact } = require('../models');   // ← add Contact
+const { User, Contact } = require('../models');
 const { authenticate } = require('../middleware');
 const { checkAndUpdatePremium } = require('../utils');
 
@@ -47,7 +47,7 @@ router.post('/check-exam-access', authenticate, async (req, res) => {
   res.json({ hasAccess: hasPurchased });
 });
 
-// ===== Get user's full exam history (excluding deleted) =====
+// Get user's full exam history (excluding deleted)
 router.get('/history', authenticate, async (req, res) => {
   try {
     const history = req.user.quizResults.filter(entry => !entry.deleted);
@@ -58,7 +58,7 @@ router.get('/history', authenticate, async (req, res) => {
   }
 });
 
-// ===== SOFT DELETE all history =====
+// SOFT DELETE all history
 router.delete('/history', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -71,7 +71,7 @@ router.delete('/history', authenticate, async (req, res) => {
   }
 });
 
-// ===== SOFT DELETE a specific attempt =====
+// SOFT DELETE a specific attempt
 router.delete('/history/:quizId', authenticate, async (req, res) => {
   try {
     const { quizId } = req.params;
@@ -86,12 +86,13 @@ router.delete('/history/:quizId', authenticate, async (req, res) => {
   }
 });
 
+// ===== NEW: Get user's contact message history =====
 router.get('/contact-messages', authenticate, async (req, res) => {
   try {
     const messages = await Contact.find({
       $or: [
         { userId: req.user._id },
-        { email: req.user.email }
+        { email: req.user.email.toLowerCase() }
       ]
     }).sort({ createdAt: 1 });
 
