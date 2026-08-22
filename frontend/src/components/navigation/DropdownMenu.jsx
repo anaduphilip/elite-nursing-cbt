@@ -33,18 +33,18 @@ export const DropdownMenu = () => {
 
   // ---- Main menu items (always visible) ----
   const mainItems = [
-    { label: 'Home', path: '/', icon: '🏠' },
-    { label: 'Profile', path: '/profile', icon: '👤' },
-    { label: 'Weekly Quiz', path: '/weekly-quiz', icon: '📝' },
-    { label: 'About Us', path: '/about', icon: 'ℹ️' },
+    { label: 'Home', path: '/' },
+    { label: 'Profile', path: '/profile' },
+    { label: 'Weekly Quiz', path: '/weekly-quiz' },
+    { label: 'About Us', path: '/about' },
   ];
 
   // ---- Support sub‑items (hidden under "Support") ----
   const supportItems = [
-    { label: 'Contact Us', path: '/contact', icon: '📧' },
-    { label: 'Join WhatsApp', path: '/whatsapp', icon: '💬', highlight: true },
-    { label: 'FAQ', path: '/faq', icon: '❓' },
-    { label: 'How to Use', path: '/how-to-use', icon: '📖' },
+    { label: 'Contact Us', path: '/contact' },
+    { label: 'Join WhatsApp', path: '/whatsapp', highlight: true },
+    { label: 'FAQ', path: '/faq' },
+    { label: 'How to Use', path: '/how-to-use' },
   ];
 
   // ---- Dropdown button style ----
