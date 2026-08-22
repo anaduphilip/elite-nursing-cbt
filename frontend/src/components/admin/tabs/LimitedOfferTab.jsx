@@ -14,7 +14,7 @@ export const LimitedOfferTab = ({
   darkMode
 }) => {
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, maxWidth: '100%', boxSizing: 'border-box' }}>
       <h3 style={{ color: headingColor, marginBottom: 20 }}>🔥 Limited Time Offer</h3>
       <p style={{ color: secondaryText, marginBottom: 16 }}>
         Create a limited-time discount offer that appears on the Home page and Premium page with a live countdown timer.
@@ -22,7 +22,7 @@ export const LimitedOfferTab = ({
       </p>
 
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 12, color: textColor, cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 12, color: textColor, cursor: 'pointer', flexWrap: 'wrap' }}>
           <input
             type="checkbox"
             checked={limitedOffer.enabled}
@@ -33,13 +33,16 @@ export const LimitedOfferTab = ({
         </label>
       </div>
 
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: '16px 24px',
-        marginBottom: 20,
-        opacity: limitedOffer.enabled ? 1 : 0.6
-      }}>
+      <div 
+        className="limited-offer-grid"
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 1fr', 
+          gap: '16px 24px',
+          marginBottom: 20,
+          opacity: limitedOffer.enabled ? 1 : 0.6
+        }}
+      >
         <div>
           <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>
             Discount Percentage (%)
@@ -92,13 +95,16 @@ export const LimitedOfferTab = ({
         </div>
       </div>
 
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: '16px 24px',
-        marginBottom: 20,
-        opacity: limitedOffer.enabled ? 1 : 0.6
-      }}>
+      <div 
+        className="limited-offer-grid"
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 1fr', 
+          gap: '16px 24px',
+          marginBottom: 20,
+          opacity: limitedOffer.enabled ? 1 : 0.6
+        }}
+      >
         <div>
           <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>
             Start Date & Time
@@ -172,13 +178,16 @@ export const LimitedOfferTab = ({
         />
       </div>
 
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: '16px 24px',
-        marginBottom: 20,
-        opacity: limitedOffer.enabled ? 1 : 0.6
-      }}>
+      <div 
+        className="limited-offer-grid"
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 1fr', 
+          gap: '16px 24px',
+          marginBottom: 20,
+          opacity: limitedOffer.enabled ? 1 : 0.6
+        }}
+      >
         <div>
           <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>
             Button Text
@@ -233,7 +242,10 @@ export const LimitedOfferTab = ({
         padding: 20, 
         borderRadius: 12, 
         marginBottom: 20,
-        border: `2px solid ${limitedOffer.enabled ? '#ff9800' : '#ccc'}`
+        border: `2px solid ${limitedOffer.enabled ? '#ff9800' : '#ccc'}`,
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        overflowX: 'auto'
       }}>
         <h4 style={{ color: headingColor, marginBottom: 12 }}>Preview</h4>
         {limitedOffer.enabled && limitedOffer.discountPercent > 0 ? (
@@ -300,7 +312,10 @@ export const LimitedOfferTab = ({
             cursor: limitedOfferLoading ? 'not-allowed' : 'pointer', 
             fontWeight: 'bold', 
             fontSize: 16,
-            opacity: limitedOfferLoading ? 0.7 : 1
+            opacity: limitedOfferLoading ? 0.7 : 1,
+            width: '100%',
+            maxWidth: '300px',
+            boxSizing: 'border-box'
           }}
         >
           {limitedOfferLoading ? 'Saving...' : '💾 Save Limited Offer'}
@@ -313,11 +328,22 @@ export const LimitedOfferTab = ({
           padding: 12, 
           borderRadius: 8,
           background: limitedOfferResult.includes('✅') ? '#e8f5e9' : '#ffebee',
-          color: limitedOfferResult.includes('✅') ? '#2e7d32' : '#c62828'
+          color: limitedOfferResult.includes('✅') ? '#2e7d32' : '#c62828',
+          maxWidth: '100%',
+          boxSizing: 'border-box',
+          wordBreak: 'break-word'
         }}>
           {limitedOfferResult}
         </p>
       )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .limited-offer-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

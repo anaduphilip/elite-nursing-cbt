@@ -156,8 +156,30 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
     }
   };
 
+  // ---- Shared input style ----
+  const inputStyle = {
+    width: '100%',
+    padding: '10px 14px',
+    border: `1px solid ${darkMode ? '#444' : '#ccc'}`,
+    borderRadius: 8,
+    fontSize: 14,
+    background: darkMode ? '#2d2d3d' : 'white',
+    color: darkMode ? '#eee' : '#333',
+    boxSizing: 'border-box',
+    outline: 'none',
+    transition: 'border-color 0.2s ease'
+  };
+
+  const labelStyle = {
+    display: 'block',
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: textColor
+  };
+
   return (
-    <div>
+    <div style={{ maxWidth: '100%', boxSizing: 'border-box' }}>
       <style>{`
         .quill {
           background: ${darkMode ? '#2d2d3d' : 'white'};
@@ -211,6 +233,25 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
         .ql-snow .ql-picker.ql-header .ql-picker-item::before {
           color: ${darkMode ? '#eee' : '#333'} !important;
         }
+        /* Responsive Quill */
+        .ql-toolbar {
+          flex-wrap: wrap;
+        }
+        .ql-toolbar .ql-formats {
+          margin-bottom: 4px;
+        }
+        @media (max-width: 500px) {
+          .ql-toolbar {
+            padding: 8px !important;
+          }
+          .ql-toolbar .ql-formats {
+            margin-right: 4px !important;
+          }
+          .ql-toolbar button,
+          .ql-toolbar .ql-picker {
+            padding: 2px 4px !important;
+          }
+        }
       `}</style>
 
       <h3 style={{ color: headingColor, marginBottom: 20 }}>📖 Study Notes</h3>
@@ -230,53 +271,57 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
         </div>
       )}
 
-      {/* Form */}
+      {/* ===== FORM ===== */}
       <div style={{
         background: darkMode ? '#1a1a2e' : '#f8f9fa',
-        padding: 20,
+        padding: '20px 24px',
         borderRadius: 12,
         marginBottom: 24,
-        border: `1px solid ${darkMode ? '#444' : '#ddd'}`
+        border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+        maxWidth: '100%',
+        boxSizing: 'border-box'
       }}>
         <h4 style={{ color: headingColor, marginBottom: 16, fontSize: 16 }}>
           {editingId ? '✏️ Edit Note' : '➕ Create New Note'}
         </h4>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+
+        {/* ===== GRID: Title + Category ===== */}
+        <div className="sn-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 16 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Title *</label>
+            <label style={labelStyle}>Title *</label>
             <input
               type="text"
               placeholder="Note title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#2d2d3d' : 'white', color: darkMode ? '#eee' : '#333', boxSizing: 'border-box' }}
+              style={inputStyle}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Category</label>
+            <label style={labelStyle}>Category</label>
             <input
               type="text"
               placeholder="e.g., Pharmacology, Fundamentals"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#2d2d3d' : 'white', color: darkMode ? '#eee' : '#333', boxSizing: 'border-box' }}
+              style={inputStyle}
             />
           </div>
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Description</label>
+          <label style={labelStyle}>Description</label>
           <input
             type="text"
             placeholder="Brief description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#2d2d3d' : 'white', color: darkMode ? '#eee' : '#333', boxSizing: 'border-box' }}
+            style={inputStyle}
           />
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Content *</label>
+          <label style={labelStyle}>Content *</label>
           <div style={{ background: darkMode ? '#2d2d3d' : 'white', borderRadius: 8, border: `1px solid ${darkMode ? '#444' : '#ccc'}` }}>
             <ReactQuill
               theme="snow"
@@ -290,29 +335,30 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+        {/* ===== GRID: Read Time, Order, toggles ===== */}
+        <div className="sn-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 16 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Read Time (min)</label>
+            <label style={labelStyle}>Read Time (min)</label>
             <input
               type="number"
               placeholder="5"
               value={estimatedReadTime}
               onChange={(e) => setEstimatedReadTime(e.target.value)}
-              style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#2d2d3d' : 'white', color: darkMode ? '#eee' : '#333', boxSizing: 'border-box' }}
+              style={inputStyle}
               min="1"
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: textColor }}>Order</label>
+            <label style={labelStyle}>Order</label>
             <input
               type="number"
               placeholder="0"
               value={order}
               onChange={(e) => setOrder(parseInt(e.target.value) || 0)}
-              style={{ width: '100%', padding: '10px 14px', border: '1px solid #ccc', borderRadius: 8, fontSize: 14, background: darkMode ? '#2d2d3d' : 'white', color: darkMode ? '#eee' : '#333', boxSizing: 'border-box' }}
+              style={inputStyle}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingTop: 20 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingTop: 8 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 'bold', color: textColor, cursor: 'pointer' }}>
               <input type="checkbox" checked={isPremium} onChange={(e) => setIsPremium(e.target.checked)} />
               ⭐ Premium
@@ -324,7 +370,7 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button
             onClick={handleSave}
             disabled={loading}
@@ -336,7 +382,9 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
               borderRadius: 8,
               cursor: loading ? 'not-allowed' : 'pointer',
               fontWeight: 'bold',
-              opacity: loading ? 0.7 : 1
+              opacity: loading ? 0.7 : 1,
+              fontSize: 14,
+              minWidth: '120px'
             }}
           >
             {loading ? 'Saving...' : (editingId ? 'Update Note' : 'Create Note')}
@@ -351,7 +399,8 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
                 border: 'none',
                 borderRadius: 8,
                 cursor: 'pointer',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                fontSize: 14
               }}
             >
               Cancel Edit
@@ -360,13 +409,13 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
         </div>
       </div>
 
-      {/* Notes List */}
+      {/* ===== NOTES LIST ===== */}
       {loading && !notes.length ? (
         <p style={{ color: secondaryText }}>Loading notes...</p>
       ) : notes.length === 0 ? (
         <p style={{ color: secondaryText }}>No study notes created yet.</p>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
+        <div className="sn-card-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
           {notes.map(note => (
             <div key={note._id} style={{
               background: darkMode ? '#1a1a2e' : 'white',
@@ -374,11 +423,14 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
               borderRadius: 12,
               border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
               opacity: note.active ? 1 : 0.6,
-              position: 'relative'
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <h4 style={{ color: headingColor, margin: 0, fontSize: 16 }}>{note.title}</h4>
-                <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 4 }}>
+                <h4 style={{ color: headingColor, margin: 0, fontSize: 16, wordBreak: 'break-word' }}>{note.title}</h4>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {note.isPremium && <span style={{ background: '#ff9800', color: 'white', padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 'bold' }}>⭐</span>}
                   <span style={{
                     background: note.active ? '#4caf50' : '#dc3545',
@@ -392,12 +444,12 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
                   </span>
                 </div>
               </div>
-              <p style={{ color: secondaryText, fontSize: 13, marginBottom: 4 }}>{note.description}</p>
-              <p style={{ color: secondaryText, fontSize: 12, marginBottom: 8 }}>
+              <p style={{ color: secondaryText, fontSize: 13, margin: 0 }}>{note.description}</p>
+              <p style={{ color: secondaryText, fontSize: 12, margin: 0 }}>
                 📂 {note.category || 'General'} • ⏱️ {note.estimatedReadTime || 5} min • 📊 {note.order || 0}
               </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button onClick={() => handleEdit(note)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Edit</button>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                <button onClick={() => handleEdit(note)} style={{ background: '#ffc107', color: '#333', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>Edit</button>
                 <button onClick={() => handleToggleActive(note._id, note.active)} style={{
                   background: note.active ? '#dc3545' : '#28a745',
                   color: 'white',
@@ -405,16 +457,44 @@ export const StudyNotesTab = ({ token, darkMode, headingColor, secondaryText, te
                   border: 'none',
                   borderRadius: 4,
                   cursor: 'pointer',
-                  fontSize: 12
+                  fontSize: 12,
+                  fontWeight: 500
                 }}>
                   {note.active ? 'Deactivate' : 'Activate'}
                 </button>
-                <button onClick={() => handleDelete(note._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+                <button onClick={() => handleDelete(note._id)} style={{ background: '#dc3545', color: 'white', padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>Delete</button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* ===== RESPONSIVE MEDIA QUERIES ===== */}
+      <style>{`
+        @media (max-width: 600px) {
+          .sn-grid-2 {
+            grid-template-columns: 1fr !important;
+          }
+          .sn-grid-3 {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .sn-card-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .sn-grid-3 > div:last-child {
+            grid-column: 1 / -1;
+            justify-content: flex-start;
+          }
+        }
+        @media (max-width: 400px) {
+          .sn-grid-3 {
+            grid-template-columns: 1fr !important;
+          }
+          .sn-grid-3 > div:last-child {
+            grid-column: auto;
+          }
+        }
+      `}</style>
     </div>
   );
 };
