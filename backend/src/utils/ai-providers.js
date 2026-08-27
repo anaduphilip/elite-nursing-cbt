@@ -4,7 +4,7 @@ const axios = require('axios');
 // AI Provider configurations
 const aiProviders = [];
 
-// 1. Mistral (primary – confirmed working)
+// ===== 1. Mistral (primary – confirmed working) =====
 if (process.env.MISTRAL_API_KEY) {
   aiProviders.push({
     name: 'mistral',
@@ -15,7 +15,7 @@ if (process.env.MISTRAL_API_KEY) {
   });
 }
 
-// 2. Groq – Qwen 3.6 (confirmed working)
+// ===== 2. Groq – Qwen 3.6 (confirmed working) =====
 if (process.env.GROQ_API_KEY) {
   aiProviders.push({
     name: 'groq-qwen3.6',
@@ -26,7 +26,7 @@ if (process.env.GROQ_API_KEY) {
   });
 }
 
-// 3. Groq – Qwen 3.8 (confirmed working)
+// ===== 3. Groq – Qwen 3.8 (confirmed working) =====
 if (process.env.GROQ_API_KEY) {
   aiProviders.push({
     name: 'groq-qwen3.8',
@@ -37,7 +37,7 @@ if (process.env.GROQ_API_KEY) {
   });
 }
 
-// 4. Gemini – using the confirmed working model (3.5-flash-lite)
+// ===== 4. Gemini – confirmed working (gemini-3.5-flash-lite) =====
 if (process.env.GEMINI_API_KEY) {
   aiProviders.push({
     name: 'gemini',
@@ -46,18 +46,74 @@ if (process.env.GEMINI_API_KEY) {
   });
 }
 
-// 5. NVIDIA (preserved – currently broken)
+
+// 5. NVIDIA – Nemotron 3 Ultra (fastest, most capable)
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
-    name: 'nvidia',
+    name: 'nvidia-nemotron-ultra',
     url: 'https://integrate.api.nvidia.com/v1/chat/completions',
     headers: { 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}` },
-    model: 'meta/llama-3.1-70b-instruct',
+    model: 'nvidia/nemotron-3-ultra-550b-a55b',
     format: 'openai'
   });
 }
 
-// 6. DeepSeek (preserved – insufficient balance)
+// 6. NVIDIA – Nemotron 3 Super (fast, reliable)
+if (process.env.NVIDIA_API_KEY) {
+  aiProviders.push({
+    name: 'nvidia-nemotron-super',
+    url: 'https://integrate.api.nvidia.com/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}` },
+    model: 'nvidia/nemotron-3-super-120b-a12b',
+    format: 'openai'
+  });
+}
+
+// 7. NVIDIA – MiniMax M3 (very fast, good general chat)
+if (process.env.NVIDIA_API_KEY) {
+  aiProviders.push({
+    name: 'nvidia-minimax',
+    url: 'https://integrate.api.nvidia.com/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}` },
+    model: 'minimaxai/minimax-m3',
+    format: 'openai'
+  });
+}
+
+// 8. NVIDIA – Nemotron 3 Nano (lightweight, fast)
+if (process.env.NVIDIA_API_KEY) {
+  aiProviders.push({
+    name: 'nvidia-nemotron-nano',
+    url: 'https://integrate.api.nvidia.com/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}` },
+    model: 'nvidia/nemotron-3-nano-30b-a3b',
+    format: 'openai'
+  });
+}
+
+// 9. NVIDIA – DeepSeek V4 Pro (on NVIDIA platform)
+if (process.env.NVIDIA_API_KEY) {
+  aiProviders.push({
+    name: 'nvidia-deepseek-v4',
+    url: 'https://integrate.api.nvidia.com/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}` },
+    model: 'deepseek-ai/deepseek-v4-pro-0813',
+    format: 'openai'
+  });
+}
+
+// 10. NVIDIA – Poolside Laguna (coding‑focused, works well)
+if (process.env.NVIDIA_API_KEY) {
+  aiProviders.push({
+    name: 'nvidia-poolside',
+    url: 'https://integrate.api.nvidia.com/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}` },
+    model: 'poolside/laguna-xs-2.1',
+    format: 'openai'
+  });
+}
+
+// ===== 11. DeepSeek (original – preserved, currently insufficient balance) =====
 if (process.env.DEEPSEEK_API_KEY) {
   aiProviders.push({
     name: 'deepseek',
