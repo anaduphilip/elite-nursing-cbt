@@ -37,7 +37,16 @@ if (process.env.GROQ_API_KEY) {
   });
 }
 
-// 4. NVIDIA (secondary – confirmed working)
+// 4. Gemini – using the confirmed working model (3.5-flash-lite)
+if (process.env.GEMINI_API_KEY) {
+  aiProviders.push({
+    name: 'gemini',
+    url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    format: 'gemini'
+  });
+}
+
+// 5. NVIDIA (preserved – currently broken)
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia',
@@ -48,16 +57,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 5. Gemini (quota issues – may work later)
-if (process.env.GEMINI_API_KEY) {
-  aiProviders.push({
-    name: 'gemini',
-    url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    format: 'gemini'
-  });
-}
-
-// 6. DeepSeek (insufficient balance – last resort)
+// 6. DeepSeek (preserved – insufficient balance)
 if (process.env.DEEPSEEK_API_KEY) {
   aiProviders.push({
     name: 'deepseek',
