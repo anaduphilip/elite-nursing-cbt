@@ -15,7 +15,29 @@ if (process.env.MISTRAL_API_KEY) {
   });
 }
 
-// 2. NVIDIA (secondary – confirmed working)
+// 2. Groq – Qwen 3.6 (confirmed working)
+if (process.env.GROQ_API_KEY) {
+  aiProviders.push({
+    name: 'groq-qwen3.6',
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
+    model: 'qwen/qwen3.6-27b',
+    format: 'openai'
+  });
+}
+
+// 3. Groq – Qwen 3.8 (confirmed working)
+if (process.env.GROQ_API_KEY) {
+  aiProviders.push({
+    name: 'groq-qwen3.8',
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
+    model: 'qwen/qwen3.8-27b',
+    format: 'openai'
+  });
+}
+
+// 4. NVIDIA (secondary – confirmed working)
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia',
@@ -26,18 +48,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 3. Groq (third – confirmed working)
-if (process.env.GROQ_API_KEY) {
-  aiProviders.push({
-    name: 'groq',
-    url: 'https://api.groq.com/openai/v1/chat/completions',
-    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
-    model: 'llama-3.3-70b-versatile',
-    format: 'openai'
-  });
-}
-
-// 4. Gemini (quota issues – may work later)
+// 5. Gemini (quota issues – may work later)
 if (process.env.GEMINI_API_KEY) {
   aiProviders.push({
     name: 'gemini',
@@ -46,7 +57,7 @@ if (process.env.GEMINI_API_KEY) {
   });
 }
 
-// 5. DeepSeek (insufficient balance – last resort)
+// 6. DeepSeek (insufficient balance – last resort)
 if (process.env.DEEPSEEK_API_KEY) {
   aiProviders.push({
     name: 'deepseek',
