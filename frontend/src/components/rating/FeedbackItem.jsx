@@ -1,8 +1,7 @@
 // src/components/rating/FeedbackItem.jsx
-import React, { useState } from 'react';
-import axios from 'axios';
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
+import axios from 'axios';
 
 const FeedbackItem = ({
   feedback,
@@ -13,7 +12,7 @@ const FeedbackItem = ({
   cardBg,
   token
 }) => {
-  const { token, user } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const [reactions, setReactions] = useState(feedback.reactions || []);
   const [replyReactions, setReplyReactions] = useState(
     feedback.replies?.map(r => ({ ...r, reactions: r.reactions || [] })) || []
@@ -36,7 +35,6 @@ const FeedbackItem = ({
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success) {
-        // Refetch reactions for this feedback
         const updated = await axios.get('/api/ratings/latest');
         if (updated.data.success) {
           const updatedFeedback = updated.data.ratings.find(f => f._id === feedbackId);
@@ -84,7 +82,6 @@ const FeedbackItem = ({
       border: `1px solid ${darkMode ? '#444' : '#eee'}`,
       boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
     }}>
-      {/* Header: Stars + Name + Date */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ color: '#FFD700', fontSize: 18 }}>
@@ -99,14 +96,12 @@ const FeedbackItem = ({
         </span>
       </div>
 
-      {/* Feedback text */}
       {feedback.feedback && (
         <p style={{ color: textColor, marginBottom: 12, fontSize: 14 }}>
           {feedback.feedback}
         </p>
       )}
 
-      {/* Reactions on feedback itself */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         {allowedEmojis.map((emoji) => {
           const count = reactions.filter(r => r.emoji === emoji).length;
@@ -135,7 +130,6 @@ const FeedbackItem = ({
         })}
       </div>
 
-      {/* Replies toggle */}
       {feedback.replies && feedback.replies.length > 0 && (
         <div style={{ marginTop: 8 }}>
           <button
@@ -155,7 +149,6 @@ const FeedbackItem = ({
         </div>
       )}
 
-      {/* Replies */}
       {showReplies && feedback.replies && feedback.replies.map((reply) => {
         const replyReactionsList = replyReactions.find(r => r._id === reply._id)?.reactions || [];
         return (
@@ -177,7 +170,6 @@ const FeedbackItem = ({
             <p style={{ color: textColor, fontSize: 14, marginBottom: 8 }}>
               {reply.replyText}
             </p>
-            {/* Reactions on reply */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {allowedEmojis.map((emoji) => {
                 const count = replyReactionsList.filter(r => r.emoji === emoji).length;

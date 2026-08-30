@@ -1,7 +1,7 @@
 // src/components/rating/RatingModal.jsx
-import axios from 'axios';
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
+import axios from 'axios';
 
 const RatingModal = ({
   isOpen,
@@ -58,7 +58,6 @@ const RatingModal = ({
       setSubmitted(true);
       setShowSuggestionBox(false);
       if (onRatingSubmitted) onRatingSubmitted();
-      // Auto close after 3 seconds
       setTimeout(() => {
         onClose();
         setSubmitted(false);
@@ -108,7 +107,6 @@ const RatingModal = ({
               We value your feedback! Please rate your experience with our app.
             </p>
 
-            {/* Stars */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <span
@@ -135,7 +133,6 @@ const RatingModal = ({
               </p>
             )}
 
-            {/* Name input */}
             <div style={{ marginBottom: 12 }}>
               <input
                 type="text"
@@ -155,7 +152,6 @@ const RatingModal = ({
               />
             </div>
 
-            {/* Suggestion Box (appears after rating) */}
             {showSuggestionBox && (
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', marginBottom: 6, color: textColor, fontWeight: 'bold' }}>
