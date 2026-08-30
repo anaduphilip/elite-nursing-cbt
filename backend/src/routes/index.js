@@ -41,6 +41,8 @@ const notificationRoutes = require('./notification');
 const studyPlanRoutes = require('./study-plan');
 const premiumRoutes = require('./premium');
 const referralRoutes = require('./referral');
+const ratingRoutes = require('./rating');
+const adminRatingRoutes = require('./admin-ratings');
 
 const router = express.Router();
 
@@ -136,5 +138,7 @@ router.use('/config', configRoutes);
 router.use('/categories', categoriesRoutes);
 router.use('/faqs', faqsRoutes);
 router.use('/', premiumRoutes);
+router.use('/ratings', ratingRoutes);
+router.use('/admin/ratings', adminRatingRoutes); 
 
 module.exports = router;

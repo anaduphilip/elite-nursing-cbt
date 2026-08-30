@@ -42,6 +42,20 @@ const ConfigSchema = new mongoose.Schema({
     streakResetHours: { type: Number, default: 24 },
     showBadgesOnHome: { type: Boolean, default: true },
     showStreakOnHome: { type: Boolean, default: true }
+  },
+  ratingSettings: {
+    showRatingModal: { type: Boolean, default: true },
+    modalFrequency: { type: String, enum: ['always', 'once', 'afterExam', 'weekly'], default: 'afterExam' },
+    minExamsBeforePrompt: { type: Number, default: 3 },
+    customMessage: { type: String, default: 'We value your feedback! Please rate your experience.' },
+    fakeRatingsCount: { type: Number, default: 0 },
+    fakeRatingsDistribution: {
+      1: { type: Number, default: 0 },
+      2: { type: Number, default: 0 },
+      3: { type: Number, default: 0 },
+      4: { type: Number, default: 0 },
+      5: { type: Number, default: 0 }
+    }
   }
 });
 
