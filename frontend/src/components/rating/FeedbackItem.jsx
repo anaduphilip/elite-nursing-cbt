@@ -14,20 +14,14 @@ const FeedbackItem = ({
 }) => {
   const { user } = useContext(AuthContext);
 
-  // ----- Safety: use a fallback object if feedback is invalid -----
-  const safeFeedback = feedback && feedback._id ? feedback : {
-    _id: null,
-    stars: 0,
-    name: 'Anonymous',
-    feedback: '',
-    createdAt: new Date(),
-    replies: [],
-    reactions: []
-  };
+  // ----- GUARD: Exit early if feedback is invalid -----
+  if (!feedback || !feedback._id) {
+    return null;
+  }
 
-  const [reactions, setReactions] = useState(safeFeedback.reactions || []);
+  const [reactions, setReactions] = useState(feedback.reactions || []);
   const [replyReactions, setReplyReactions] = useState(
-    (safeFeedback.replies || []).map(r => ({
+    (feedback.replies || []).map(r => ({
       ...r,
       reactions: r.reactions || []
     }))
@@ -38,9 +32,6 @@ const FeedbackItem = ({
   const pickerRef = useRef({});
 
   const allowedEmojis = ['👍', '❤️', '👏', '😊', '🔥', '💯', '🌟', '🙌'];
-
-  // ----- If feedback is truly invalid, render nothing after hooks -----
-  if (!feedback || !feedback._id) return null;
 
   const togglePicker = (key) => {
     setPickerOpen(prev => ({ ...prev, [key]: !prev[key] }));
@@ -127,7 +118,7 @@ const FeedbackItem = ({
           return (
             <button
               key={emoji}
-              onClick={() => handleReaction(safeFeedback._id, emoji, replyId)}
+              onClick={() => handleReaction(feedback._id, emoji, replyId)}
               disabled={reacting}
               style={{
                 display: 'inline-flex',
@@ -195,7 +186,7 @@ const FeedbackItem = ({
                 {allowedEmojis.map(emoji => (
                   <button
                     key={emoji}
-                    onClick={() => handleReaction(safeFeedback._id, emoji, replyId)}
+                    onClick={() => handleReaction(feedback._id, emoji, replyId)}
                     disabled={reacting}
                     style={{
                       padding: '4px 8px',
@@ -220,7 +211,6 @@ const FeedbackItem = ({
     );
   };
 
-  // ----- Main render using safeFeedback (which is guaranteed to have _id) -----
   return (
     <div
       style={{
@@ -241,26 +231,26 @@ const FeedbackItem = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ color: '#FFD700', fontSize: 18 }}>
-            {renderStars(safeFeedback.stars)}
+            {renderStars(feedback.stars)}
           </span>
           <span style={{ fontWeight: 'bold', color: textColor }}>
-            {safeFeedback.name || 'Anonymous User'}
+            {feedback.name || 'Anonymous User'}
           </span>
         </div>
         <span style={{ color: secondaryText, fontSize: 12 }}>
-          {formatDate(safeFeedback.createdAt)}
+          {formatDate(feedback.createdAt)}
         </span>
       </div>
 
-      {safeFeedback.feedback && (
+      {feedback.feedback && (
         <p style={{ color: textColor, marginBottom: 12, fontSize: 14 }}>
-          {safeFeedback.feedback}
+          {feedback.feedback}
         </p>
       )}
 
-      {renderReactions(reactions, safeFeedback._id, null)}
+      {renderReactions(reactions, feedback._id, null)}
 
-      {safeFeedback.replies && safeFeedback.replies.length > 0 && (
+      {feedback.replies && feedback.replies.length > 0 && (
         <div style={{ marginTop: 8 }}>
           <button
             onClick={() => setShowReplies(!showReplies)}
@@ -274,14 +264,14 @@ const FeedbackItem = ({
               textDecoration: 'underline',
             }}
           >
-            {showReplies ? 'Hide Replies' : `View Replies (${safeFeedback.replies.length})`}
+            {showReplies ? 'Hide Replies' : `View Replies (${feedback.replies.length})`}
           </button>
         </div>
       )}
 
       {showReplies &&
-        safeFeedback.replies &&
-        safeFeedback.replies.map((reply) => {
+        feedback.replies &&
+        feedback.replies.map((reply) => {
           const replyReactionsList =
             replyReactions.find(r => r._id === reply._id)?.reactions || [];
           return (
@@ -313,7 +303,7 @@ const FeedbackItem = ({
               <p style={{ color: textColor, fontSize: 14, marginBottom: 8 }}>
                 {reply.replyText}
               </p>
-              {renderReactions(replyReactionsList, safeFeedback._id, reply._id)}
+              {renderReactions(replyReactionsList, feedback._id, reply._id)}
             </div>
           );
         })}
