@@ -1,5 +1,4 @@
 // src/components/rating/RatingModal.jsx
-import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
