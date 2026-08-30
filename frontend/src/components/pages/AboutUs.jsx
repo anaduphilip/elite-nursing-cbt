@@ -1,14 +1,19 @@
 // src/components/pages/AboutUs.jsx
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { getHeadingColor, getSecondaryText } from '../../utils/theme';
+import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
+import RatingStats from '../rating/RatingStats';
+import RatingModal from '../rating/RatingModal';
 
 export const AboutUs = () => {
-  const { darkMode } = useContext(AuthContext);
+  const { darkMode, token } = useContext(AuthContext);
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
+  const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
   const navigate = useNavigate();
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   const goBack = () => {
     navigate(-1);
@@ -62,9 +67,23 @@ export const AboutUs = () => {
         <p style={{ lineHeight: 1.8, marginBottom: 20, color: darkMode ? '#ccc' : '#555' }}>ELITE NURSING & MIDWIFERY CBT is a premier Computer Based Testing platform designed specifically for nursing and midwifery students.</p>
         <p style={{ lineHeight: 1.8, marginBottom: 20, color: darkMode ? '#ccc' : '#555' }}>Our mission is to provide high-quality, accessible exam preparation materials that help students succeed in their nursing and midwifery licensing examinations.</p>
         <p style={{ lineHeight: 1.8, marginBottom: 20, color: darkMode ? '#ccc' : '#555' }}>With over 20,000 practice questions covering General Nursing, Midwifery, Pediatric Nursing, Dental Nursing, and Public Health, we are committed to excellence in nursing education.</p>
+
+        {/* ===== RATING STATS (full details) ===== */}
+        {token && (
+          <RatingStats
+            darkMode={darkMode}
+            headingColor={headingColor}
+            textColor={textColor}
+            secondaryText={secondaryText}
+            cardBg={cardBg}
+            onRateClick={() => setShowRatingModal(true)}
+          />
+        )}
+
         <h3 style={{ color: '#ff9800', marginTop: 30 }}>Coming Soon</h3>
         <p>Study notes and NCLEX Practice questions are coming soon!</p>
       </div>
+
       <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
         <p style={{ color: secondaryText, fontSize: 12 }}>© 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
           <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
@@ -76,6 +95,17 @@ export const AboutUs = () => {
           </Link>
         </p>
       </div>
+
+      {/* ===== RATING MODAL ===== */}
+      <RatingModal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        darkMode={darkMode}
+        cardBg={cardBg}
+        headingColor={headingColor}
+        textColor={textColor}
+        secondaryText={secondaryText}
+      />
     </div>
   );
 };

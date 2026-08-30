@@ -77,7 +77,10 @@ const RatingModal = ({
   return (
     <div style={{
       position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       background: 'rgba(0,0,0,0.7)',
       display: 'flex',
       alignItems: 'center',
@@ -91,6 +94,8 @@ const RatingModal = ({
         padding: 30,
         maxWidth: 480,
         width: '100%',
+        maxHeight: '90vh',
+        overflowY: 'auto',
         boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
         position: 'relative'
       }}>
@@ -141,6 +146,8 @@ const RatingModal = ({
                 onChange={(e) => setName(e.target.value)}
                 style={{
                   width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
                   padding: '10px 14px',
                   borderRadius: 8,
                   border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
@@ -164,6 +171,8 @@ const RatingModal = ({
                   rows="3"
                   style={{
                     width: '100%',
+                    maxWidth: '100%',
+                    boxSizing: 'border-box',
                     padding: '10px 14px',
                     borderRadius: 8,
                     border: `1px solid ${darkMode ? '#444' : '#ddd'}`,

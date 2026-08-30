@@ -126,20 +126,19 @@ const FeedbackItem = ({
                 gap: 4,
                 padding: '4px 12px',
                 borderRadius: 20,
-                border: `1px solid ${userReacted ? '#1e3c72' : (darkMode ? '#555' : '#ddd')}`,
+                border: `1px solid ${userReacted ? '#1e3c72' : (darkMode ? '#444' : '#ddd')}`,
                 background: userReacted ? (darkMode ? '#2d3a5a' : '#e8f0fe') : 'transparent',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
-                boxShadow: userReacted ? '0 2px 6px rgba(30,60,114,0.15)' : 'none',
                 fontSize: 14,
-                fontWeight: userReacted ? 'bold' : 'normal',
+                fontWeight: userReacted ? '600' : '400',
                 color: textColor,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.03)')}
               onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
             >
               <span style={{ fontSize: 16 }}>{emoji}</span>
-              <span style={{ fontSize: 13, fontWeight: 'bold' }}>{count}</span>
+              <span style={{ fontSize: 13, fontWeight: '500' }}>{count}</span>
             </button>
           );
         })}
@@ -155,12 +154,12 @@ const FeedbackItem = ({
                 gap: 4,
                 padding: '4px 12px',
                 borderRadius: 20,
-                border: `1px solid ${darkMode ? '#555' : '#ddd'}`,
+                border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
                 background: 'transparent',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 color: secondaryText,
-                fontSize: 14,
+                fontSize: 13,
               }}
             >
               😊 React
@@ -175,7 +174,7 @@ const FeedbackItem = ({
                   border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
                   borderRadius: 12,
                   padding: 8,
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
                   display: 'flex',
                   gap: 6,
                   flexWrap: 'wrap',
@@ -216,42 +215,57 @@ const FeedbackItem = ({
       style={{
         background: cardBg,
         borderRadius: 12,
-        padding: 20,
-        border: `1px solid ${darkMode ? '#444' : '#eee'}`,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+        padding: 18,
+        border: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+        boxShadow: darkMode
+          ? '0 1px 4px rgba(0,0,0,0.3)'
+          : '0 1px 4px rgba(0,0,0,0.04)',
+        transition: 'box-shadow 0.2s',
+        marginBottom: 16,
       }}
     >
+      {/* Header: Stars + Name + Date */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 8,
+          marginBottom: 6,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ color: '#FFD700', fontSize: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ color: '#FFD700', fontSize: 16 }}>
             {renderStars(feedback.stars)}
           </span>
-          <span style={{ fontWeight: 'bold', color: textColor }}>
-            {feedback.name || 'Anonymous User'}
+          <span style={{ fontWeight: 600, color: textColor, fontSize: 14 }}>
+            {feedback.name || 'Anonymous'}
           </span>
         </div>
-        <span style={{ color: secondaryText, fontSize: 12 }}>
+        <span style={{ color: secondaryText, fontSize: 11 }}>
           {formatDate(feedback.createdAt)}
         </span>
       </div>
 
+      {/* Feedback text */}
       {feedback.feedback && (
-        <p style={{ color: textColor, marginBottom: 12, fontSize: 14 }}>
+        <p
+          style={{
+            color: textColor,
+            fontSize: 14,
+            lineHeight: 1.6,
+            margin: '4px 0 10px 0',
+          }}
+        >
           {feedback.feedback}
         </p>
       )}
 
+      {/* Reactions */}
       {renderReactions(reactions, feedback._id, null)}
 
+      {/* Replies toggle */}
       {feedback.replies && feedback.replies.length > 0 && (
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 10 }}>
           <button
             onClick={() => setShowReplies(!showReplies)}
             style={{
@@ -259,16 +273,18 @@ const FeedbackItem = ({
               border: 'none',
               color: '#1e3c72',
               cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 'bold',
+              fontSize: 12,
+              fontWeight: 600,
+              padding: 0,
               textDecoration: 'underline',
             }}
           >
-            {showReplies ? 'Hide Replies' : `View Replies (${feedback.replies.length})`}
+            {showReplies ? 'Hide replies' : `View ${feedback.replies.length} reply${feedback.replies.length > 1 ? 's' : ''}`}
           </button>
         </div>
       )}
 
+      {/* Replies list */}
       {showReplies &&
         feedback.replies &&
         feedback.replies.map((reply) => {
@@ -278,9 +294,9 @@ const FeedbackItem = ({
             <div
               key={reply._id}
               style={{
-                marginTop: 12,
-                padding: 12,
-                background: darkMode ? '#1a1a2e' : '#f8f9fa',
+                marginTop: 10,
+                padding: 10,
+                background: darkMode ? 'rgba(255,255,255,0.04)' : '#f8f9fa',
                 borderRadius: 8,
                 borderLeft: `3px solid #1e3c72`,
               }}
@@ -290,17 +306,23 @@ const FeedbackItem = ({
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 4,
+                  marginBottom: 2,
                 }}
               >
-                <span style={{ fontWeight: 'bold', color: headingColor, fontSize: 13 }}>
+                <span style={{ fontWeight: 600, color: headingColor, fontSize: 12 }}>
                   Admin
                 </span>
-                <span style={{ color: secondaryText, fontSize: 11 }}>
+                <span style={{ color: secondaryText, fontSize: 10 }}>
                   {formatDate(reply.createdAt)}
                 </span>
               </div>
-              <p style={{ color: textColor, fontSize: 14, marginBottom: 8 }}>
+              <p
+                style={{
+                  color: textColor,
+                  fontSize: 13,
+                  margin: '2px 0 6px 0',
+                }}
+              >
                 {reply.replyText}
               </p>
               {renderReactions(replyReactionsList, feedback._id, reply._id)}

@@ -20,7 +20,7 @@ const FeedbackList = ({
       setLoading(true);
       const res = await axios.get('/api/ratings/latest');
       if (res.data.success) {
-        setFeedbacks(res.data.ratings);
+        setFeedbacks(res.data.ratings || []);
       }
     } catch (err) {
       console.error('Fetch feedbacks error:', err);
@@ -34,13 +34,7 @@ const FeedbackList = ({
     fetchFeedbacks();
   }, []);
 
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: 20, color: secondaryText }}>
-        Loading feedbacks...
-      </div>
-    );
-  }
+  if (loading) return null; // no loading text
 
   if (error) {
     return (
@@ -59,19 +53,26 @@ const FeedbackList = ({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {feedbacks.map((fb) => (
-        <FeedbackItem
-          key={fb._id}
-          feedback={fb}
-          darkMode={darkMode}
-          headingColor={headingColor}
-          textColor={textColor}
-          secondaryText={secondaryText}
-          cardBg={cardBg}
-          token={token}
-        />
-      ))}
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16,
+      marginTop: 12
+    }}>
+      {feedbacks
+        .filter(fb => fb && fb._id)
+        .map((fb) => (
+          <FeedbackItem
+            key={fb._id}
+            feedback={fb}
+            darkMode={darkMode}
+            headingColor={headingColor}
+            textColor={textColor}
+            secondaryText={secondaryText}
+            cardBg={cardBg}
+            token={token}
+          />
+        ))}
     </div>
   );
 };

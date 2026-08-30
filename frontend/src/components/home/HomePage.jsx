@@ -12,7 +12,8 @@ import {
   getCachedExams as getCachedPreCouncilExams
 } from '../../utils/preCouncilCache';
 import FeedbackList from '../rating/FeedbackList';
-import RateUsWidget from '../rating/RateUsWidget';
+import RatingSummary from '../rating/RatingSummary';
+import RatingModal from '../rating/RatingModal';
 
 export const HomePage = () => {
   // ---- Check cache immediately ----
@@ -73,6 +74,9 @@ export const HomePage = () => {
   const [showPrivateMessage, setShowPrivateMessage] = useState(false);
   const [currentPrivateMessage, setCurrentPrivateMessage] = useState(null);
   const [privateMessageDismissed, setPrivateMessageDismissed] = useState({});
+
+  // ===== RATING MODAL STATE =====
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   // ---- FETCH CONFIG (background update) ----
   useEffect(() => {
@@ -471,12 +475,19 @@ export const HomePage = () => {
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h1 style={{ color: headingColor, fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: 8 }}>ELITE NURSING & MIDWIFERY CBT</h1>
-          <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 16px)' }}>Computer Based Testing Platform</p>
+          <h1 style={{ color: headingColor, fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: 8 }}>
+            ELITE NURSING & MIDWIFERY CBT
+          </h1>
+          <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 'clamp(14px, 4vw, 16px)' }}>
+            Computer Based Testing Platform
+          </p>
         </div>
 
-        {/* ===== PRIVATE MESSAGE BANNER ===== */}
+        {/* --- Banners / Modals --- */}
+
+        {/* Private Message Banner */}
         {showPrivateMessage && currentPrivateMessage && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#e8f5e9',
@@ -533,7 +544,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ---- ANNOUNCEMENT BANNER ---- */}
+        {/* Announcement Banner */}
         {showBanner && announcement && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#fff3e0',
@@ -590,7 +601,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ---- MARKETING CONSENT BANNER ---- */}
+        {/* Marketing Consent Banner */}
         {showConsentBanner && consentBanner && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#e3f2fd',
@@ -659,7 +670,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ===== LIMITED TIME OFFER BANNER ===== */}
+        {/* Limited Offer Banner */}
         {showOffer && offer && offerTimeLeft && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#fff3e0',
@@ -733,7 +744,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ===== REFERRAL DISCOUNT BANNER ===== */}
+        {/* Referral Discount Banner */}
         {referralDiscount && referralTimeLeft && (
           <div style={{
             background: darkMode ? '#1a2e1a' : '#e8f5e9',
@@ -787,7 +798,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ===== REFERRAL REWARD MODAL ===== */}
+        {/* Referral Reward Modal */}
         {showReferralRewardModal && (
           <div style={{
             position: 'fixed',
@@ -838,7 +849,6 @@ export const HomePage = () => {
           <p style={{ color: secondaryText, fontSize: 'clamp(14px, 4vw, 16px)', marginBottom: 24 }}>
             Select a mode to start your nursing exam preparation
           </p>
-
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
             {renderModeButtons()}
           </div>
@@ -873,23 +883,52 @@ export const HomePage = () => {
           </div>
         )}
 
+        {/* ===== RATING SUMMARY (compact) ===== */}
         {token && (
-          <div style={{ marginTop: 24 }}>
-            <RateUsWidget
+          <div style={{ marginTop: 24, marginBottom: 12 }}>
+            <RatingSummary
               darkMode={darkMode}
               headingColor={headingColor}
               textColor={textColor}
               secondaryText={secondaryText}
               cardBg={cardBg}
+              onRateClick={() => setShowRatingModal(true)}
             />
           </div>
         )}
 
         {/* ===== USER FEEDBACK SECTION ===== */}
-        <div style={{ marginTop: 48, padding: '20px 0' }}>
-          <h2 style={{ color: headingColor, textAlign: 'center', marginBottom: 24 }}>
-            What Our Users Say
-          </h2>
+        <div style={{ marginTop: 32 }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: 16
+          }}>
+            <h2 style={{
+              color: headingColor,
+              fontSize: 20,
+              fontWeight: 600,
+              margin: 0
+            }}>
+              What Our Users Say
+            </h2>
+            <Link
+              to="/about"
+              style={{
+                color: '#1e3c72',
+                fontSize: 14,
+                fontWeight: 500,
+                textDecoration: 'none',
+                borderBottom: '1px solid transparent',
+                transition: 'border-bottom 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderBottom = '1px solid #1e3c72'}
+              onMouseLeave={(e) => e.currentTarget.style.borderBottom = '1px solid transparent'}
+            >
+              See all reviews
+            </Link>
+          </div>
           <FeedbackList
             darkMode={darkMode}
             headingColor={headingColor}
@@ -902,7 +941,7 @@ export const HomePage = () => {
       </div>
 
       {/* ---- FOOTER ---- */}
-      <div style={{ textAlign: 'center', padding: '20px', marginTop: 20 }}>
+      <div style={{ textAlign: 'center', padding: '20px', marginTop: 40 }}>
         <p style={{ color: secondaryText, fontSize: 12 }}>
           © 2026 ELITE Nursing & Midwifery CBT. All rights reserved.{' '}
           <Link to="/privacy" style={{ color: '#2196f3', fontSize: 11, textDecoration: 'none', marginLeft: 4 }}>
@@ -919,7 +958,18 @@ export const HomePage = () => {
         </p>
       </div>
 
-      {/* ---- CSS Animation for modal ---- */}
+      {/* ---- RATING MODAL ---- */}
+      <RatingModal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        darkMode={darkMode}
+        cardBg={cardBg}
+        headingColor={headingColor}
+        textColor={textColor}
+        secondaryText={secondaryText}
+      />
+
+      {/* ---- CSS Animation ---- */}
       <style>{`
         @keyframes popIn {
           from { transform: scale(0.8); opacity: 0; }
