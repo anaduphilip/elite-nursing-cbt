@@ -22,7 +22,7 @@ const RatingSchema = new mongoose.Schema({
     type: String,
     default: 'Anonymous User'
   },
-  isFake: {
+  isMarketing: {
     type: Boolean,
     default: false 
   },
@@ -49,6 +49,6 @@ RatingSchema.index({ createdAt: -1 });
 RatingSchema.index({ isDeleted: 1, createdAt: -1 });
 RatingSchema.index({ userId: 1 });
 RatingSchema.index({ stars: 1 });
-RatingSchema.index({ isFake: 1 });
+RatingSchema.index({ isMarketing: 1 });
 
 module.exports = mongoose.model('Rating', RatingSchema);

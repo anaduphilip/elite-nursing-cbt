@@ -52,6 +52,8 @@ import { PreCouncilPapers } from './components/pre-council/PreCouncilPapers';
 import { PreCouncilExamList } from './components/pre-council/PreCouncilExamList';
 import { PreCouncilTakeExam } from './components/pre-council/PreCouncilTakeExam';
 import { ReferralPage } from './components/referral/ReferralPage';
+import RatingModal from './components/rating/RatingModal';
+import { checkRatingPrompt } from './utils/ratingHelpers';
 
 const API_URL = 'https://elite-nursing-cbt.onrender.com';
 axios.defaults.baseURL = API_URL;
@@ -194,6 +196,9 @@ function App() {
     return parseInt(localStorage.getItem('refreshVersion') || '0');
   });
 
+  // ========== Rating Modal state ==========
+  const [showRatingModal, setShowRatingModal] = useState(false);
+
   const headingColor = getHeadingColorHelper(darkMode);
   const secondaryText = getSecondaryTextHelper(darkMode);
   const textColor = getTextColorHelper(darkMode);
@@ -323,6 +328,23 @@ function App() {
       clearInterval(interval);
     };
   }, [refreshVersion]);
+
+  // ========== RATING MODAL CHECK ==========
+  useEffect(() => {
+    if (auth.token && auth.user) {
+      const checkPrompt = async () => {
+        try {
+          const shouldShow = await checkRatingPrompt(auth.token);
+          if (shouldShow) {
+            setShowRatingModal(true);
+          }
+        } catch (err) {
+          console.error('Rating prompt check error:', err);
+        }
+      };
+      checkPrompt();
+    }
+  }, [auth.token, auth.user]);
 
   const [notificationModal, setNotificationModal] = useState(null);
 
@@ -643,6 +665,17 @@ function App() {
         )}
 
         <LogoutModal isOpen={showLogoutModal} onClose={closeLogoutModal} />
+
+        {/* ===== RATING MODAL ===== */}
+        <RatingModal
+          isOpen={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
+          darkMode={darkMode}
+          cardBg={cardBg}
+          headingColor={headingColor}
+          textColor={textColor}
+          secondaryText={secondaryText}
+        />
       </AlertProvider>
     </AuthContext.Provider>
   );

@@ -29,13 +29,11 @@ import { HomePageControlTab } from './tabs/HomePageControlTab';
 import { GamificationTab } from './tabs/GamificationTab';
 import { ForceRefreshTab } from './tabs/ForceRefreshTab';
 import { UserAccessControlTab } from './tabs/UserAccessControlTab';
-
-// ===== NEW: Pre Council Admin Import =====
 import { PreCouncilAdmin } from './tabs/PreCouncilAdmin';
-
-// Import modal components
 import { QuestionModal } from './components/QuestionModal';
 import { AdjustPremiumModal } from './components/AdjustPremiumModal';
+import RatingsTab from './tabs/RatingsTab';
+import RatingSettingsTab from './tabs/RatingSettingsTab';
 
 export const AdminPanel = () => {
   // ===== All existing state =====
@@ -1871,14 +1869,13 @@ export const AdminPanel = () => {
             <button onClick={() => setActiveTab('studyNotes')} style={{ background: activeTab === 'studyNotes' ? '#2E7D64' : 'transparent', color: activeTab === 'studyNotes' ? 'white' : '#2E7D64', padding: '10px 24px', border: activeTab === 'studyNotes' ? 'none' : '1px solid #2E7D64', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Study Notes</button>
             <button onClick={() => setActiveTab('homePageControl')} style={{ background: activeTab === 'homePageControl' ? '#1e3c72' : 'transparent', color: activeTab === 'homePageControl' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'homePageControl' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Home Page Control</button>
             <button onClick={() => setActiveTab('limitedOffer')} style={{ background: activeTab === 'limitedOffer' ? '#ff9800' : 'transparent', color: activeTab === 'limitedOffer' ? 'white' : '#ff9800', padding: '10px 24px', border: activeTab === 'limitedOffer' ? 'none' : '1px solid #ff9800', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Limited Offer</button>
-            {/* ===== NEW GAMIFICATION TAB ===== */}
             <button onClick={() => setActiveTab('gamification')} style={{ background: activeTab === 'gamification' ? '#1e3c72' : 'transparent', color: activeTab === 'gamification' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'gamification' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Gamification</button>
-            {/* ===== NEW FORCE REFRESH TAB ===== */}
             <button onClick={() => setActiveTab('forceRefresh')} style={{ background: activeTab === 'forceRefresh' ? '#dc3545' : 'transparent', color: activeTab === 'forceRefresh' ? 'white' : '#dc3545', padding: '10px 24px', border: activeTab === 'forceRefresh' ? 'none' : '2px solid #dc3545', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Force Refresh</button>
-            {/* ===== NEW PRE COUNCIL TAB ===== */}
             <button onClick={() => setActiveTab('preCouncil')} style={{ background: activeTab === 'preCouncil' ? '#1e3c72' : 'transparent', color: activeTab === 'preCouncil' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'preCouncil' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Pre Council</button>
-            {/* ===== NEW: Access Control ===== */}
             <button onClick={() => setActiveTab('accessControl')} style={{ background: activeTab === 'accessControl' ? '#dc3545' : 'transparent', color: activeTab === 'accessControl' ? 'white' : '#dc3545', padding: '10px 24px', border: activeTab === 'accessControl' ? 'none' : '2px solid #dc3545', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>Access Control</button>
+            {/* ===== RATING & FEEDBACK TABS ===== */}
+            <button onClick={() => setActiveTab('ratings')} style={{ background: activeTab === 'ratings' ? '#1e3c72' : 'transparent', color: activeTab === 'ratings' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'ratings' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>⭐ Ratings & Feedback</button>
+            <button onClick={() => setActiveTab('ratingSettings')} style={{ background: activeTab === 'ratingSettings' ? '#1e3c72' : 'transparent', color: activeTab === 'ratingSettings' ? 'white' : '#1e3c72', padding: '10px 24px', border: activeTab === 'ratingSettings' ? 'none' : '1px solid #1e3c72', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>⚙️ Rating Settings</button>
           </div>
 
           {/* ===== Render the active tab ===== */}
@@ -1965,9 +1962,7 @@ export const AdminPanel = () => {
             handleSaveLimitedOffer,
             ...commonProps 
           }} />}
-          {/* ===== NEW GAMIFICATION TAB ===== */}
           {activeTab === 'gamification' && <GamificationTab {...commonProps} />}
-          {/* ===== NEW FORCE REFRESH TAB ===== */}
           {activeTab === 'forceRefresh' && <ForceRefreshTab {...{ 
             forceRefreshMessage, 
             setForceRefreshMessage,
@@ -1979,12 +1974,10 @@ export const AdminPanel = () => {
             loadForceRefresh,
             ...commonProps 
           }} />}
-          {/* ===== NEW PRE COUNCIL TAB ===== */}
           {activeTab === 'preCouncil' && <PreCouncilAdmin {...commonProps} />}
-
-          {/* ===== NEW: User Access Control Tab ===== */}
           {activeTab === 'accessControl' && <UserAccessControlTab {...commonProps} />}
-
+          {activeTab === 'ratings' && <RatingsTab {...commonProps} />}
+          {activeTab === 'ratingSettings' && <RatingSettingsTab {...commonProps} />}
 
           {/* ===== Modals ===== */}
           <QuestionModal

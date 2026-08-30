@@ -42,7 +42,7 @@ router.post('/', authenticate, async (req, res) => {
       stars,
       feedback: feedback || '',
       name: name || req.user.name || 'Anonymous User',
-      isFake: false,
+      isMarketing: false,
       isDeleted: false,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -110,7 +110,7 @@ router.get('/check', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/ratings/latest – Get latest 5 feedbacks (real + fake)
+// GET /api/ratings/latest – Get latest 5 feedbacks (real + Marketing)
 router.get('/latest', async (req, res) => {
   try {
     // Get only ratings with feedback text (non-empty)
@@ -120,7 +120,7 @@ router.get('/latest', async (req, res) => {
     })
     .sort({ createdAt: -1 })
     .limit(5)
-    .select('stars feedback name createdAt isFake userId');
+    .select('stars feedback name createdAt isMarketing userId');
 
     // Get replies for each rating
     const ratingsWithReplies = await Promise.all(
@@ -181,11 +181,11 @@ router.get('/latest', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     const config = await Config.findOne();
-    const fakeCounts = config?.ratingSettings?.fakeRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    const totalFake = Object.values(fakeCounts).reduce((a, b) => a + b, 0);
+    const MarketingCounts = config?.ratingSettings?.MarketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const totalMarketing = Object.values(MarketingCounts).reduce((a, b) => a + b, 0);
 
     // Get real ratings stats
-    const realRatings = await Rating.find({ isDeleted: false, isFake: false });
+    const realRatings = await Rating.find({ isDeleted: false, isMarketing: false });
     const totalReal = realRatings.length;
 
     // Calculate real distribution
@@ -196,13 +196,13 @@ router.get('/stats', async (req, res) => {
       realSum += r.stars;
     });
 
-    // Combine real + fake
+    // Combine real + Marketing
     const totalDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     let totalSum = 0;
     let totalCount = 0;
 
     for (let i = 1; i <= 5; i++) {
-      totalDistribution[i] = (realDistribution[i] || 0) + (fakeCounts[i] || 0);
+      totalDistribution[i] = (realDistribution[i] || 0) + (MarketingCounts[i] || 0);
       totalCount += totalDistribution[i];
       totalSum += totalDistribution[i] * i;
     }
@@ -216,7 +216,7 @@ router.get('/stats', async (req, res) => {
         average: Math.round(average * 10) / 10,
         distribution: totalDistribution,
         realCount: totalReal,
-        fakeCount: totalFake
+        MarketingCount: totalMarketing
       }
     });
   } catch (error) {

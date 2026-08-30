@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
-import { getHeadingColor, getSecondaryText, getTextColor } from '../../utils/theme';
+import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
 import { LoadingWithBar } from '../common/LoadingWithBar';
 import { ProgressSnapshot } from './ProgressSnapshot';
 import { getCachedCategories, getCachedQuizzes } from '../../utils/quizHelpers';
@@ -11,6 +11,7 @@ import {
   getCachedCategories as getCachedPreCouncilCategories,
   getCachedExams as getCachedPreCouncilExams
 } from '../../utils/preCouncilCache';
+import FeedbackList from '../rating/FeedbackList';
 
 export const HomePage = () => {
   // ---- Check cache immediately ----
@@ -21,6 +22,7 @@ export const HomePage = () => {
   const headingColor = getHeadingColor(darkMode);
   const secondaryText = getSecondaryText(darkMode);
   const textColor = getTextColor(darkMode);
+  const cardBg = getCardBg(darkMode);
   const navigate = useNavigate();
 
   // ---- TOGGLES FOR EXPANDABLE SECTIONS ----
@@ -869,6 +871,21 @@ export const HomePage = () => {
             </button>
           </div>
         )}
+
+        {/* ===== USER FEEDBACK SECTION ===== */}
+        <div style={{ marginTop: 48, padding: '20px 0' }}>
+          <h2 style={{ color: headingColor, textAlign: 'center', marginBottom: 24 }}>
+            What Our Users Say
+          </h2>
+          <FeedbackList
+            darkMode={darkMode}
+            headingColor={headingColor}
+            textColor={textColor}
+            secondaryText={secondaryText}
+            cardBg={cardBg}
+            token={token}
+          />
+        </div>
       </div>
 
       {/* ---- FOOTER ---- */}

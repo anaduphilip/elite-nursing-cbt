@@ -48,8 +48,8 @@ const ConfigSchema = new mongoose.Schema({
     modalFrequency: { type: String, enum: ['always', 'once', 'afterExam', 'weekly'], default: 'afterExam' },
     minExamsBeforePrompt: { type: Number, default: 3 },
     customMessage: { type: String, default: 'We value your feedback! Please rate your experience.' },
-    fakeRatingsCount: { type: Number, default: 0 },
-    fakeRatingsDistribution: {
+    MarketingRatingsCount: { type: Number, default: 0 },
+    MarketingRatingsDistribution: {
       1: { type: Number, default: 0 },
       2: { type: Number, default: 0 },
       3: { type: Number, default: 0 },

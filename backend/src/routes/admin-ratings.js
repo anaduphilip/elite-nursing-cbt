@@ -1,21 +1,72 @@
 // src/routes/admin-ratings.js
 const express = require('express');
 const { Rating, FeedbackReply, FeedbackReaction, Config, User } = require('../models');
-const { isAdmin, authenticate } = require('../middleware');
+const { isAdmin } = require('../middleware');
 
 const router = express.Router();
 
-// ===== ADMIN ROUTES =====
+// ===== SETTINGS ROUTES (must be before :id) =====
+// GET /api/admin/ratings/settings
+router.get('/settings', isAdmin, async (req, res) => {
+  try {
+    let config = await Config.findOne();
+    if (!config) {
+      config = new Config();
+      await config.save();
+    }
+    const settings = {
+      showRatingModal: config.ratingSettings?.showRatingModal ?? true,
+      modalFrequency: config.ratingSettings?.modalFrequency || 'afterExam',
+      minExamsBeforePrompt: config.ratingSettings?.minExamsBeforePrompt || 3,
+      customMessage: config.ratingSettings?.customMessage || 'We value your feedback! Please rate your experience.',
+      MarketingRatingsCount: config.ratingSettings?.MarketingRatingsCount || 0,
+      MarketingRatingsDistribution: config.ratingSettings?.MarketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    };
+    res.json({ success: true, settings });
+  } catch (error) {
+    console.error('Fetch rating settings error:', error);
+    res.status(500).json({ error: 'Failed to fetch rating settings.' });
+  }
+});
 
-// GET /api/admin/ratings – Get all ratings (with filters)
+// PUT /api/admin/ratings/settings
+router.put('/settings', isAdmin, async (req, res) => {
+  try {
+    const { ratingSettings } = req.body;
+    let config = await Config.findOne();
+    if (!config) {
+      config = new Config();
+    }
+    config.ratingSettings = {
+      showRatingModal: ratingSettings?.showRatingModal !== undefined ? ratingSettings.showRatingModal : true,
+      modalFrequency: ratingSettings?.modalFrequency || 'afterExam',
+      minExamsBeforePrompt: ratingSettings?.minExamsBeforePrompt || 3,
+      customMessage: ratingSettings?.customMessage || 'We value your feedback! Please rate your experience.',
+      MarketingetingetingRatingsCount: ratingSettings?.MarketingRatingsCount || 0,
+      MarketingRatingsDistribution: ratingSettings?.MarketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    };
+    config.updatedAt = new Date();
+    await config.save();
+    res.json({
+      success: true,
+      message: 'Rating settings updated successfully.',
+      settings: config.ratingSettings
+    });
+  } catch (error) {
+    console.error('Update rating settings error:', error);
+    res.status(500).json({ error: 'Failed to update rating settings.' });
+  }
+});
+
+// ===== CRUD ROUTES =====
+// GET /api/admin/ratings – list with filters
 router.get('/', isAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 20, stars, isFake, isDeleted } = req.query;
+    const { page = 1, limit = 20, stars, isMarketing, isDeleted } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
-
     const filter = {};
     if (stars) filter.stars = parseInt(stars);
-    if (isFake !== undefined) filter.isFake = isFake === 'true';
+    if (isMarketing !== undefined) filter.isMarketing = isMarketing === 'true';
     if (isDeleted !== undefined) filter.isDeleted = isDeleted === 'true';
 
     const ratings = await Rating.find(filter)
@@ -42,7 +93,7 @@ router.get('/', isAdmin, async (req, res) => {
   }
 });
 
-// GET /api/admin/ratings/:id – Get single rating with replies
+// GET /api/admin/ratings/:id – single rating
 router.get('/:id', isAdmin, async (req, res) => {
   try {
     const rating = await Rating.findById(req.params.id)
@@ -76,91 +127,71 @@ router.get('/:id', isAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/ratings – Create fake rating (for marketing)
+// POST /api/admin/ratings – create Marketing rating
 router.post('/', isAdmin, async (req, res) => {
   try {
-    const { stars, feedback, name, isFake = true } = req.body;
-
+    const { stars, feedback, name, isMarketing = true } = req.body;
     if (!stars || stars < 1 || stars > 5) {
       return res.status(400).json({ error: 'Valid stars (1-5) are required.' });
     }
-
     const rating = new Rating({
       userId: null,
       stars,
       feedback: feedback || '',
       name: name || 'Happy User',
-      isFake: true,
+      isMarketing: true,
       isDeleted: false,
       createdAt: new Date(),
       updatedAt: new Date()
     });
-
     await rating.save();
-
-    res.json({
-      success: true,
-      message: 'Rating created successfully.',
-      rating
-    });
+    res.json({ success: true, message: 'Rating created successfully.', rating });
   } catch (error) {
-    console.error('Create fake rating error:', error);
+    console.error('Create Marketing rating error:', error);
     res.status(500).json({ error: 'Failed to create rating.' });
   }
 });
 
-// POST /api/admin/ratings/bulk – Create multiple fake ratings
+// POST /api/admin/ratings/bulk – bulk Marketing ratings
 router.post('/bulk', isAdmin, async (req, res) => {
   try {
     const { count, stars, namePrefix = 'User', feedback } = req.body;
-
     if (!count || count < 1 || count > 10000) {
       return res.status(400).json({ error: 'Count must be between 1 and 10000.' });
     }
-
     if (!stars || stars < 1 || stars > 5) {
       return res.status(400).json({ error: 'Valid stars (1-5) are required.' });
     }
-
     const ratings = [];
     const now = new Date();
-
     for (let i = 0; i < count; i++) {
       ratings.push({
         userId: null,
         stars,
         feedback: feedback || '',
         name: `${namePrefix} ${i + 1}`,
-        isFake: true,
+        isMarketing: true,
         isDeleted: false,
-        createdAt: new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000), // Random date in last 30 days
+        createdAt: new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000),
         updatedAt: now
       });
     }
-
     await Rating.insertMany(ratings);
-
-    res.json({
-      success: true,
-      message: `${count} fake ratings created successfully.`,
-      count
-    });
+    res.json({ success: true, message: `${count} Marketing ratings created successfully.`, count });
   } catch (error) {
-    console.error('Bulk fake ratings error:', error);
+    console.error('Bulk Marketing ratings error:', error);
     res.status(500).json({ error: 'Failed to create bulk ratings.' });
   }
 });
 
-// PUT /api/admin/ratings/:id – Update rating
+// PUT /api/admin/ratings/:id – update rating
 router.put('/:id', isAdmin, async (req, res) => {
   try {
     const { stars, feedback, name, isDeleted } = req.body;
     const rating = await Rating.findById(req.params.id);
-
     if (!rating) {
       return res.status(404).json({ error: 'Rating not found.' });
     }
-
     if (stars !== undefined) rating.stars = stars;
     if (feedback !== undefined) rating.feedback = feedback;
     if (name !== undefined) rating.name = name;
@@ -169,64 +200,209 @@ router.put('/:id', isAdmin, async (req, res) => {
       rating.deletedAt = isDeleted ? new Date() : null;
     }
     rating.updatedAt = new Date();
-
     await rating.save();
-
-    res.json({
-      success: true,
-      message: 'Rating updated successfully.',
-      rating
-    });
+    res.json({ success: true, message: 'Rating updated successfully.', rating });
   } catch (error) {
     console.error('Update rating error:', error);
     res.status(500).json({ error: 'Failed to update rating.' });
   }
 });
 
-// DELETE /api/admin/ratings/:id – Soft delete rating
+// DELETE /api/admin/ratings/:id – soft delete single rating
 router.delete('/:id', isAdmin, async (req, res) => {
   try {
     const rating = await Rating.findById(req.params.id);
-
     if (!rating) {
       return res.status(404).json({ error: 'Rating not found.' });
     }
-
     rating.isDeleted = true;
     rating.deletedAt = new Date();
     await rating.save();
-
-    // Also soft delete all replies
     await FeedbackReply.updateMany(
       { feedbackId: rating._id },
       { isDeleted: true, deletedAt: new Date() }
     );
-
-    res.json({
-      success: true,
-      message: 'Rating and associated replies deleted successfully.'
-    });
+    res.json({ success: true, message: 'Rating and associated replies deleted successfully.' });
   } catch (error) {
     console.error('Delete rating error:', error);
     res.status(500).json({ error: 'Failed to delete rating.' });
   }
 });
 
-// POST /api/admin/ratings/:id/reply – Add admin reply
+// ===== BULK OPERATIONS =====
+
+// DELETE /api/admin/ratings/bulk – bulk soft delete or delete all Marketing
+router.delete('/bulk', isAdmin, async (req, res) => {
+  try {
+    const { ids, deleteAllMarketing } = req.body;
+
+    // Option 1: Delete all Marketing ratings (marketing oops)
+    if (deleteAllMarketing === true) {
+      const result = await Rating.updateMany(
+        { isMarketing: true, isDeleted: false },
+        { isDeleted: true, deletedAt: new Date() }
+      );
+      const MarketingRatings = await Rating.find({ isMarketing: true, isDeleted: true });
+      const MarketingIds = MarketingRatings.map(r => r._id);
+      if (MarketingIds.length > 0) {
+        await FeedbackReply.updateMany(
+          { feedbackId: { $in: MarketingIds }, isDeleted: false },
+          { isDeleted: true, deletedAt: new Date() }
+        );
+      }
+      return res.json({
+        success: true,
+        message: `Deleted ${result.modifiedCount} Marketing ratings and their replies.`,
+        deletedCount: result.modifiedCount
+      });
+    }
+
+    // Option 2: Bulk soft delete specific ratings
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Please provide an array of rating IDs or set deleteAllMarketing: true.' });
+    }
+
+    const mongoose = require('mongoose');
+    const validIds = ids.filter(id => mongoose.Types.ObjectId.isValid(id));
+    if (validIds.length === 0) {
+      return res.status(400).json({ error: 'No valid rating IDs provided.' });
+    }
+
+    const result = await Rating.updateMany(
+      { _id: { $in: validIds }, isDeleted: false },
+      { isDeleted: true, deletedAt: new Date() }
+    );
+    await FeedbackReply.updateMany(
+      { feedbackId: { $in: validIds }, isDeleted: false },
+      { isDeleted: true, deletedAt: new Date() }
+    );
+
+    res.json({
+      success: true,
+      message: `Deleted ${result.modifiedCount} ratings and their replies.`,
+      deletedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Bulk delete error:', error);
+    res.status(500).json({ error: 'Failed to delete ratings.' });
+  }
+});
+
+// PUT /api/admin/ratings/bulk/restore – restore soft-deleted ratings
+router.put('/bulk/restore', isAdmin, async (req, res) => {
+  try {
+    const { ids, restoreAll } = req.body;
+
+    if (restoreAll === true) {
+      const result = await Rating.updateMany(
+        { isDeleted: true },
+        { isDeleted: false, deletedAt: null }
+      );
+      const restoredRatings = await Rating.find({ isDeleted: false });
+      const restoredIds = restoredRatings.map(r => r._id);
+      if (restoredIds.length > 0) {
+        await FeedbackReply.updateMany(
+          { feedbackId: { $in: restoredIds }, isDeleted: true },
+          { isDeleted: false, deletedAt: null }
+        );
+      }
+      return res.json({
+        success: true,
+        message: `Restored ${result.modifiedCount} ratings and their replies.`,
+        restoredCount: result.modifiedCount
+      });
+    }
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Please provide an array of rating IDs or set restoreAll: true.' });
+    }
+
+    const mongoose = require('mongoose');
+    const validIds = ids.filter(id => mongoose.Types.ObjectId.isValid(id));
+    if (validIds.length === 0) {
+      return res.status(400).json({ error: 'No valid rating IDs provided.' });
+    }
+
+    const result = await Rating.updateMany(
+      { _id: { $in: validIds }, isDeleted: true },
+      { isDeleted: false, deletedAt: null }
+    );
+    await FeedbackReply.updateMany(
+      { feedbackId: { $in: validIds }, isDeleted: true },
+      { isDeleted: false, deletedAt: null }
+    );
+
+    res.json({
+      success: true,
+      message: `Restored ${result.modifiedCount} ratings and their replies.`,
+      restoredCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Bulk restore error:', error);
+    res.status(500).json({ error: 'Failed to restore ratings.' });
+  }
+});
+
+// DELETE /api/admin/ratings/bulk/permanent – permanently delete ratings (hard delete)
+router.delete('/bulk/permanent', isAdmin, async (req, res) => {
+  try {
+    const { ids, deleteAllDeleted } = req.body;
+
+    if (deleteAllDeleted === true) {
+      const deletedRatings = await Rating.find({ isDeleted: true });
+      const deletedIds = deletedRatings.map(r => r._id);
+      if (deletedIds.length > 0) {
+        await FeedbackReply.deleteMany({ feedbackId: { $in: deletedIds } });
+        await FeedbackReaction.deleteMany({ feedbackId: { $in: deletedIds } });
+      }
+      const result = await Rating.deleteMany({ isDeleted: true });
+      return res.json({
+        success: true,
+        message: `Permanently deleted ${result.deletedCount} ratings and their replies.`,
+        deletedCount: result.deletedCount
+      });
+    }
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Please provide an array of rating IDs or set deleteAllDeleted: true.' });
+    }
+
+    const mongoose = require('mongoose');
+    const validIds = ids.filter(id => mongoose.Types.ObjectId.isValid(id));
+    if (validIds.length === 0) {
+      return res.status(400).json({ error: 'No valid rating IDs provided.' });
+    }
+
+    await FeedbackReply.deleteMany({ feedbackId: { $in: validIds } });
+    await FeedbackReaction.deleteMany({ feedbackId: { $in: validIds } });
+
+    const result = await Rating.deleteMany({ _id: { $in: validIds }, isDeleted: true });
+
+    res.json({
+      success: true,
+      message: `Permanently deleted ${result.deletedCount} ratings and their replies.`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error('Bulk permanent delete error:', error);
+    res.status(500).json({ error: 'Failed to permanently delete ratings.' });
+  }
+});
+
+// ===== REPLY & REACTION ROUTES =====
+
+// POST /api/admin/ratings/:id/reply
 router.post('/:id/reply', isAdmin, async (req, res) => {
   try {
     const { replyText } = req.body;
     const { id } = req.params;
-
     if (!replyText || replyText.trim().length === 0) {
       return res.status(400).json({ error: 'Reply text is required.' });
     }
-
     const rating = await Rating.findById(id);
     if (!rating || rating.isDeleted) {
       return res.status(404).json({ error: 'Rating not found.' });
     }
-
     const reply = new FeedbackReply({
       feedbackId: id,
       adminId: req.userId,
@@ -235,155 +411,72 @@ router.post('/:id/reply', isAdmin, async (req, res) => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-
     await reply.save();
-
     const populatedReply = await FeedbackReply.findById(reply._id)
       .populate('adminId', 'name email');
-
-    res.json({
-      success: true,
-      message: 'Reply added successfully.',
-      reply: populatedReply
-    });
+    res.json({ success: true, message: 'Reply added successfully.', reply: populatedReply });
   } catch (error) {
     console.error('Reply error:', error);
     res.status(500).json({ error: 'Failed to add reply.' });
   }
 });
 
-// PUT /api/admin/ratings/:id/reply/:replyId – Edit admin reply
+// PUT /api/admin/ratings/:id/reply/:replyId
 router.put('/:id/reply/:replyId', isAdmin, async (req, res) => {
   try {
     const { replyText } = req.body;
     const { id, replyId } = req.params;
-
     if (!replyText || replyText.trim().length === 0) {
       return res.status(400).json({ error: 'Reply text is required.' });
     }
-
     const reply = await FeedbackReply.findOne({
       _id: replyId,
       feedbackId: id,
       isDeleted: false
     });
-
     if (!reply) {
       return res.status(404).json({ error: 'Reply not found.' });
     }
-
     reply.replyText = replyText.trim();
     reply.updatedAt = new Date();
     await reply.save();
-
-    res.json({
-      success: true,
-      message: 'Reply updated successfully.',
-      reply
-    });
+    res.json({ success: true, message: 'Reply updated successfully.', reply });
   } catch (error) {
     console.error('Edit reply error:', error);
     res.status(500).json({ error: 'Failed to update reply.' });
   }
 });
 
-// DELETE /api/admin/ratings/:id/reply/:replyId – Delete reply
+// DELETE /api/admin/ratings/:id/reply/:replyId
 router.delete('/:id/reply/:replyId', isAdmin, async (req, res) => {
   try {
     const { id, replyId } = req.params;
-
     const reply = await FeedbackReply.findOne({
       _id: replyId,
       feedbackId: id
     });
-
     if (!reply) {
       return res.status(404).json({ error: 'Reply not found.' });
     }
-
     reply.isDeleted = true;
     reply.deletedAt = new Date();
     await reply.save();
-
-    res.json({
-      success: true,
-      message: 'Reply deleted successfully.'
-    });
+    res.json({ success: true, message: 'Reply deleted successfully.' });
   } catch (error) {
     console.error('Delete reply error:', error);
     res.status(500).json({ error: 'Failed to delete reply.' });
   }
 });
 
-// PUT /api/admin/settings/rating – Update rating settings
-router.put('/settings', isAdmin, async (req, res) => {
-  try {
-    const { ratingSettings } = req.body;
-    let config = await Config.findOne();
-    if (!config) {
-      config = new Config();
-    }
-
-    config.ratingSettings = {
-      showRatingModal: ratingSettings?.showRatingModal !== undefined ? ratingSettings.showRatingModal : true,
-      modalFrequency: ratingSettings?.modalFrequency || 'afterExam',
-      minExamsBeforePrompt: ratingSettings?.minExamsBeforePrompt || 3,
-      customMessage: ratingSettings?.customMessage || 'We value your feedback! Please rate your experience.',
-      fakeRatingsCount: ratingSettings?.fakeRatingsCount || 0,
-      fakeRatingsDistribution: ratingSettings?.fakeRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-    };
-
-    config.updatedAt = new Date();
-    await config.save();
-
-    res.json({
-      success: true,
-      message: 'Rating settings updated successfully.',
-      settings: config.ratingSettings
-    });
-  } catch (error) {
-    console.error('Update rating settings error:', error);
-    res.status(500).json({ error: 'Failed to update settings.' });
-  }
-});
-
-// GET /api/admin/settings/rating – Get rating settings
-router.get('/settings', isAdmin, async (req, res) => {
-  try {
-    const config = await Config.findOne();
-    const settings = config?.ratingSettings || {
-      showRatingModal: true,
-      modalFrequency: 'afterExam',
-      minExamsBeforePrompt: 3,
-      customMessage: 'We value your feedback! Please rate your experience.',
-      fakeRatingsCount: 0,
-      fakeRatingsDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-    };
-
-    res.json({
-      success: true,
-      settings
-    });
-  } catch (error) {
-    console.error('Fetch rating settings error:', error);
-    res.status(500).json({ error: 'Failed to fetch settings.' });
-  }
-});
-
-// DELETE /api/admin/ratings/reactions/:reactionId – Remove any reaction (admin)
+// DELETE /api/admin/ratings/reactions/:reactionId – admin remove any reaction
 router.delete('/reactions/:reactionId', isAdmin, async (req, res) => {
   try {
     const reaction = await FeedbackReaction.findById(req.params.reactionId);
     if (!reaction) {
       return res.status(404).json({ error: 'Reaction not found.' });
     }
-
     await FeedbackReaction.findByIdAndDelete(req.params.reactionId);
-
-    res.json({
-      success: true,
-      message: 'Reaction removed successfully.'
-    });
+    res.json({ success: true, message: 'Reaction removed successfully.' });
   } catch (error) {
     console.error('Admin remove reaction error:', error);
     res.status(500).json({ error: 'Failed to remove reaction.' });
