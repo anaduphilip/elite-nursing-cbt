@@ -12,6 +12,7 @@ import {
   getCachedExams as getCachedPreCouncilExams
 } from '../../utils/preCouncilCache';
 import FeedbackList from '../rating/FeedbackList';
+import RateUsWidget from '../rating/RateUsWidget';
 
 export const HomePage = () => {
   // ---- Check cache immediately ----
@@ -869,6 +870,18 @@ export const HomePage = () => {
             >
               📱 Download App
             </button>
+          </div>
+        )}
+
+        {token && (
+          <div style={{ marginTop: 24 }}>
+            <RateUsWidget
+              darkMode={darkMode}
+              headingColor={headingColor}
+              textColor={textColor}
+              secondaryText={secondaryText}
+              cardBg={cardBg}
+            />
           </div>
         )}
 

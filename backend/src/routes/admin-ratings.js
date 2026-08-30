@@ -17,8 +17,8 @@ router.get('/settings', isAdmin, async (req, res) => {
       modalFrequency: config.ratingSettings?.modalFrequency || 'afterExam',
       minExamsBeforePrompt: config.ratingSettings?.minExamsBeforePrompt || 3,
       customMessage: config.ratingSettings?.customMessage || 'We value your feedback! Please rate your experience.',
-      marketingRatingsCount: config.ratingSettings?.marketingRatingsCount || 0,
-      marketingRatingsDistribution: config.ratingSettings?.marketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      MarketingRatingsCount: config.ratingSettings?.MarketingRatingsCount || 0,
+      MarketingRatingsDistribution: config.ratingSettings?.MarketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
     };
     res.json({ success: true, settings });
   } catch (error) {
@@ -39,8 +39,8 @@ router.put('/settings', isAdmin, async (req, res) => {
       modalFrequency: ratingSettings?.modalFrequency || 'afterExam',
       minExamsBeforePrompt: ratingSettings?.minExamsBeforePrompt || 3,
       customMessage: ratingSettings?.customMessage || 'We value your feedback! Please rate your experience.',
-      marketingRatingsCount: ratingSettings?.marketingRatingsCount || 0,
-      marketingRatingsDistribution: ratingSettings?.marketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      MarketingRatingsCount: ratingSettings?.MarketingRatingsCount || 0,
+      MarketingRatingsDistribution: ratingSettings?.MarketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
     };
     config.updatedAt = new Date();
     await config.save();
@@ -55,7 +55,6 @@ router.put('/settings', isAdmin, async (req, res) => {
   }
 });
 
-// GET /api/admin/ratings – list
 router.get('/', isAdmin, async (req, res) => {
   try {
     const { page = 1, limit = 20, stars, isMarketing, isDeleted } = req.query;
@@ -317,7 +316,6 @@ router.delete('/reactions/:reactionId', isAdmin, async (req, res) => {
   }
 });
 
-// GET /api/admin/ratings/:id – single rating
 router.get('/:id', isAdmin, async (req, res) => {
   try {
     const rating = await Rating.findById(req.params.id)

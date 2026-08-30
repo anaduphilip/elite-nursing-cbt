@@ -71,13 +71,15 @@ router.get('/check', authenticate, async (req, res) => {
       minExamsBeforePrompt: 3
     };
 
-    // Check if user already rated
-    const hasRated = await Rating.findOne({
+    // Get user's existing rating
+    const existingRating = await Rating.findOne({
       userId: req.user._id,
       isDeleted: false
     });
 
-    // Count user's exam completions
+    const hasRated = !!existingRating;
+    const userRating = existingRating ? existingRating.stars : null;
+
     const examCount = req.user.quizResults?.length || 0;
 
     let shouldShow = false;
@@ -91,15 +93,14 @@ router.get('/check', authenticate, async (req, res) => {
         const minExams = settings.minExamsBeforePrompt || 3;
         shouldShow = !hasRated && examCount >= minExams;
       } else if (settings.modalFrequency === 'weekly') {
-        // Simple weekly check – if user hasn't rated and it's been more than 7 days
-        // For simplicity, we'll just check if they haven't rated
         shouldShow = !hasRated;
       }
     }
 
     res.json({
       shouldShow,
-      hasRated: !!hasRated,
+      hasRated,
+      userRating,
       examCount,
       settings,
       message: shouldShow ? 'We value your feedback!' : 'Thank you for being part of our community!'
@@ -113,7 +114,6 @@ router.get('/check', authenticate, async (req, res) => {
 // GET /api/ratings/latest – Get latest 5 feedbacks (real + Marketing)
 router.get('/latest', async (req, res) => {
   try {
-    // Get only ratings with feedback text (non-empty)
     const ratings = await Rating.find({
       isDeleted: false,
       feedback: { $ne: '' }
@@ -122,7 +122,6 @@ router.get('/latest', async (req, res) => {
     .limit(5)
     .select('stars feedback name createdAt isMarketing userId');
 
-    // Get replies for each rating
     const ratingsWithReplies = await Promise.all(
       ratings.map(async (rating) => {
         const replies = await FeedbackReply.find({
@@ -133,15 +132,13 @@ router.get('/latest', async (req, res) => {
         .populate('adminId', 'name email')
         .lean();
 
-        // Get reactions for this feedback
         const reactions = await FeedbackReaction.find({
           feedbackId: rating._id,
-          replyId: null // reactions on the feedback itself
+          replyId: null
         })
         .populate('userId', 'name')
         .lean();
 
-        // Get reactions for each reply
         const repliesWithReactions = await Promise.all(
           replies.map(async (reply) => {
             const replyReactions = await FeedbackReaction.find({
@@ -184,11 +181,9 @@ router.get('/stats', async (req, res) => {
     const MarketingCounts = config?.ratingSettings?.MarketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     const totalMarketing = Object.values(MarketingCounts).reduce((a, b) => a + b, 0);
 
-    // Get real ratings stats
     const realRatings = await Rating.find({ isDeleted: false, isMarketing: false });
     const totalReal = realRatings.length;
 
-    // Calculate real distribution
     const realDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     let realSum = 0;
     realRatings.forEach(r => {
@@ -196,7 +191,6 @@ router.get('/stats', async (req, res) => {
       realSum += r.stars;
     });
 
-    // Combine real + Marketing
     const totalDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     let totalSum = 0;
     let totalCount = 0;
@@ -231,19 +225,16 @@ router.post('/:id/reactions', authenticate, async (req, res) => {
     const { id } = req.params;
     const { emoji, replyId } = req.body;
 
-    // Validate emoji
     const validEmojis = ['👍', '❤️', '👏', '😊', '🔥', '💯', '🌟', '🙌'];
     if (!validEmojis.includes(emoji)) {
       return res.status(400).json({ error: 'Invalid emoji.' });
     }
 
-    // Check if feedback exists
     const rating = await Rating.findById(id);
     if (!rating || rating.isDeleted) {
       return res.status(404).json({ error: 'Feedback not found.' });
     }
 
-    // If replyId is provided, check if reply exists
     if (replyId) {
       const reply = await FeedbackReply.findOne({
         _id: replyId,
@@ -255,7 +246,6 @@ router.post('/:id/reactions', authenticate, async (req, res) => {
       }
     }
 
-    // Find existing reaction by this user on this feedback/reply
     const existingReaction = await FeedbackReaction.findOne({
       feedbackId: id,
       replyId: replyId || null,
@@ -264,7 +254,6 @@ router.post('/:id/reactions', authenticate, async (req, res) => {
 
     if (existingReaction) {
       if (existingReaction.emoji === emoji) {
-        // Same emoji – remove it (toggle off)
         await FeedbackReaction.findByIdAndDelete(existingReaction._id);
         return res.json({
           success: true,
@@ -272,7 +261,6 @@ router.post('/:id/reactions', authenticate, async (req, res) => {
           action: 'removed'
         });
       } else {
-        // Different emoji – update it
         existingReaction.emoji = emoji;
         existingReaction.updatedAt = new Date();
         await existingReaction.save();
@@ -284,7 +272,6 @@ router.post('/:id/reactions', authenticate, async (req, res) => {
         });
       }
     } else {
-      // New reaction
       const reaction = new FeedbackReaction({
         feedbackId: id,
         replyId: replyId || null,
