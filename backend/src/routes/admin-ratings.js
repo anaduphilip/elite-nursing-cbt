@@ -75,7 +75,7 @@ router.get('/', isAdmin, async (req, res) => {
       ];
     }
 
-    let sortOption = { createdAt: -1 }; // default: latest
+    let sortOption = { createdAt: -1 };
     if (sort === 'oldest') sortOption = { createdAt: 1 };
     else if (sort === 'highest') sortOption = { stars: -1 };
     else if (sort === 'lowest') sortOption = { stars: 1 };
@@ -110,11 +110,14 @@ router.post('/', isAdmin, async (req, res) => {
     if (!stars || stars < 1 || stars > 5) {
       return res.status(400).json({ error: 'Valid stars (1-5) are required.' });
     }
+
+    const displayName = name && name.trim() ? name.trim() : 'Anonymous User';
+
     const rating = new Rating({
       userId: null,
       stars,
       feedback: feedback || '',
-      name: name || 'Happy User',
+      name: displayName,
       isMarketing: true,
       isDeleted: false,
       createdAt: new Date(),
@@ -130,21 +133,25 @@ router.post('/', isAdmin, async (req, res) => {
 
 router.post('/bulk', isAdmin, async (req, res) => {
   try {
-    const { count, stars, namePrefix = 'User', feedback } = req.body;
+    const { count, stars, namePrefix = '', feedback } = req.body;
     if (!count || count < 1 || count > 10000) {
       return res.status(400).json({ error: 'Count must be between 1 and 10000.' });
     }
     if (!stars || stars < 1 || stars > 5) {
       return res.status(400).json({ error: 'Valid stars (1-5) are required.' });
     }
+
     const ratings = [];
     const now = new Date();
+    const prefix = namePrefix && namePrefix.trim() ? namePrefix.trim() : null;
+
     for (let i = 0; i < count; i++) {
+      const displayName = prefix ? `${prefix} ${i + 1}` : 'Anonymous User';
       ratings.push({
         userId: null,
         stars,
         feedback: feedback || '',
-        name: `${namePrefix} ${i + 1}`,
+        name: displayName,
         isMarketing: true,
         isDeleted: false,
         createdAt: new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000),
