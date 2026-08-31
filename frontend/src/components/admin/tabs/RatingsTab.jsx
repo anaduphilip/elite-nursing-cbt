@@ -77,7 +77,6 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
     fetchRatings();
   }, [page, filter]);
 
-  // ----- Single actions (unchanged) -----
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this rating?')) return;
     try {
@@ -332,32 +331,68 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
   };
 
   return (
-    <div>
-      <h3 style={{ color: headingColor }}>Ratings & Feedback</h3>
+    <div style={{ boxSizing: 'border-box' }}>
+      <h3 style={{ color: headingColor, marginBottom: 20 }}>Ratings & Feedback</h3>
 
       {/* Filters + Search + Sort */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 10,
+        marginBottom: 16,
+        alignItems: 'center',
+        boxSizing: 'border-box'
+      }}>
         <select
           value={filter.stars}
           onChange={(e) => setFilter({ ...filter, stars: e.target.value })}
-          style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor }}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 6,
+            border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+            boxSizing: 'border-box',
+            background: cardBg,
+            color: textColor,
+            flex: '1 1 100px',
+            minWidth: '80px'
+          }}
         >
           <option value="">All Stars</option>
           {[1,2,3,4,5].map(s => <option key={s} value={s}>{s}★</option>)}
         </select>
+
         <select
           value={filter.isMarketing}
           onChange={(e) => setFilter({ ...filter, isMarketing: e.target.value })}
-          style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor }}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 6,
+            border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+            boxSizing: 'border-box',
+            background: cardBg,
+            color: textColor,
+            flex: '1 1 100px',
+            minWidth: '80px'
+          }}
         >
           <option value="">All Types</option>
           <option value="true">Marketing</option>
           <option value="false">Real</option>
         </select>
+
         <select
           value={filter.isDeleted}
           onChange={(e) => setFilter({ ...filter, isDeleted: e.target.value })}
-          style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor }}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 6,
+            border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+            boxSizing: 'border-box',
+            background: cardBg,
+            color: textColor,
+            flex: '1 1 100px',
+            minWidth: '80px'
+          }}
         >
           <option value="">All Status</option>
           <option value="false">Active</option>
@@ -370,11 +405,12 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
           value={filter.search}
           onChange={handleSearchChange}
           style={{
-            flex: 1,
-            minWidth: 200,
+            flex: '2 1 180px',
+            minWidth: '140px',
             padding: '8px 12px',
             borderRadius: 6,
-            border: '1px solid #ccc',
+            border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+            boxSizing: 'border-box',
             background: cardBg,
             color: textColor,
             outline: 'none'
@@ -384,7 +420,16 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
         <select
           value={filter.sortBy}
           onChange={handleSortChange}
-          style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor }}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 6,
+            border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+            boxSizing: 'border-box',
+            background: cardBg,
+            color: textColor,
+            flex: '1 1 110px',
+            minWidth: '100px'
+          }}
         >
           <option value="latest">Latest</option>
           <option value="oldest">Oldest</option>
@@ -392,49 +437,117 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
           <option value="lowest">Lowest Star</option>
         </select>
 
-        <button onClick={fetchRatings} style={{ padding: '8px 16px', background: '#1e3c72', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+        <button
+          onClick={fetchRatings}
+          style={{
+            padding: '8px 16px',
+            background: '#1e3c72',
+            color: 'white',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            flex: '0 0 auto'
+          }}
+        >
           Refresh
         </button>
       </div>
 
-      {/* Bulk Marketing Generator (only show in active view) */}
       {!isDeletedView && (
-        <div style={{ padding: 16, background: darkMode ? '#1a1a2e' : '#f8f9fa', borderRadius: 8, marginBottom: 16 }}>
-          <h4 style={{ color: headingColor, marginBottom: 8 }}>Add Marketing Ratings (Marketing)</h4>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{
+          padding: 16,
+          background: darkMode ? '#1a1a2e' : '#f8f9fa',
+          borderRadius: 8,
+          border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+          boxSizing: 'border-box',
+          marginBottom: 16
+        }}>
+          <h4 style={{ color: headingColor, marginBottom: 8 }}>Add Marketing Ratings</h4>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 10,
+            alignItems: 'center',
+            boxSizing: 'border-box'
+          }}>
             <input
               type="number"
               min="1"
               max="10000"
               value={bulkCount}
               onChange={(e) => setBulkCount(parseInt(e.target.value) || 1)}
-              style={{ width: 100, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor }}
+              style={{
+                flex: '1 1 80px',
+                minWidth: '70px',
+                padding: '6px 10px',
+                borderRadius: 4,
+                border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                boxSizing: 'border-box',
+                background: cardBg,
+                color: textColor
+              }}
             />
             <select
               value={bulkStars}
               onChange={(e) => setBulkStars(parseInt(e.target.value))}
-              style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor }}
+              style={{
+                padding: '6px 10px',
+                borderRadius: 4,
+                border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                boxSizing: 'border-box',
+                background: cardBg,
+                color: textColor,
+                flex: '0 0 auto'
+              }}
             >
               {[1,2,3,4,5].map(s => <option key={s} value={s}>{s}★</option>)}
             </select>
             <input
               type="text"
-              placeholder="Name prefix (leave empty for Anonymous)"
+              placeholder="Name prefix (empty = Anonymous)"
               value={bulkNamePrefix}
               onChange={(e) => setBulkNamePrefix(e.target.value)}
-              style={{ width: 150, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor }}
+              style={{
+                flex: '1 1 130px',
+                minWidth: '100px',
+                padding: '6px 10px',
+                borderRadius: 4,
+                border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                boxSizing: 'border-box',
+                background: cardBg,
+                color: textColor
+              }}
             />
             <input
               type="text"
               placeholder="Feedback (optional)"
               value={bulkFeedback}
               onChange={(e) => setBulkFeedback(e.target.value)}
-              style={{ flex: 1, minWidth: 200, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor }}
+              style={{
+                flex: '2 1 160px',
+                minWidth: '120px',
+                padding: '6px 10px',
+                borderRadius: 4,
+                border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                boxSizing: 'border-box',
+                background: cardBg,
+                color: textColor
+              }}
             />
             <button
               onClick={handleBulkMarketing}
               disabled={bulkLoading}
-              style={{ padding: '8px 20px', background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+              style={{
+                padding: '6px 16px',
+                background: '#ff9800',
+                color: 'white',
+                border: 'none',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                flex: '0 0 auto'
+              }}
             >
               {bulkLoading ? 'Adding...' : 'Add Bulk'}
             </button>
@@ -444,21 +557,23 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
 
       <div style={{
         display: 'flex',
-        gap: 12,
         flexWrap: 'wrap',
+        gap: 8,
         alignItems: 'center',
-        padding: '12px 16px',
+        padding: '10px 14px',
         background: darkMode ? '#1a1a2e' : '#f8f9fa',
         borderRadius: 8,
+        border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+        boxSizing: 'border-box',
         marginBottom: 16
       }}>
-        <span style={{ color: textColor, fontWeight: 'bold', fontSize: 14 }}>
+        <span style={{ color: textColor, fontWeight: 'bold', fontSize: 14, marginRight: 4 }}>
           Bulk Actions:
         </span>
         <button
           onClick={toggleSelectAll}
           style={{
-            padding: '6px 16px',
+            padding: '4px 12px',
             background: selectAll ? '#dc3545' : '#1e3c72',
             color: 'white',
             border: 'none',
@@ -469,17 +584,18 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
         >
           {selectAll ? 'Deselect All' : 'Select All'}
         </button>
-        <span style={{ color: secondaryText, fontSize: 13 }}>
+        <span style={{ color: secondaryText, fontSize: 13, marginRight: 4 }}>
           {selectedIds.length} selected
         </span>
 
         {isDeletedView ? (
+
           <>
             <button
               onClick={handleBulkRestore}
               disabled={selectedIds.length === 0 || bulkRestoring}
               style={{
-                padding: '6px 20px',
+                padding: '4px 14px',
                 background: selectedIds.length === 0 || bulkRestoring ? '#ccc' : '#28a745',
                 color: 'white',
                 border: 'none',
@@ -489,13 +605,13 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                 fontWeight: 'bold'
               }}
             >
-              {bulkRestoring ? 'Restoring...' : `Restore Selected (${selectedIds.length})`}
+              {bulkRestoring ? 'Restoring...' : `Restore (${selectedIds.length})`}
             </button>
             <button
               onClick={handleBulkPermanentDelete}
               disabled={selectedIds.length === 0 || bulkPermanentDeleting}
               style={{
-                padding: '6px 20px',
+                padding: '4px 14px',
                 background: selectedIds.length === 0 || bulkPermanentDeleting ? '#ccc' : '#dc3545',
                 color: 'white',
                 border: 'none',
@@ -505,13 +621,13 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                 fontWeight: 'bold'
               }}
             >
-              {bulkPermanentDeleting ? 'Deleting...' : `Permanently Delete (${selectedIds.length})`}
+              {bulkPermanentDeleting ? 'Deleting...' : `Perm Delete (${selectedIds.length})`}
             </button>
             <button
               onClick={handleRestoreAll}
               disabled={bulkRestoring}
               style={{
-                padding: '6px 20px',
+                padding: '4px 14px',
                 background: '#17a2b8',
                 color: 'white',
                 border: 'none',
@@ -526,7 +642,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
             <button
               onClick={() => setShowPermanentDeleteModal(true)}
               style={{
-                padding: '6px 20px',
+                padding: '4px 14px',
                 background: '#dc3545',
                 color: 'white',
                 border: 'none',
@@ -540,12 +656,13 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
             </button>
           </>
         ) : (
+
           <>
             <button
               onClick={handleBulkDelete}
               disabled={selectedIds.length === 0 || bulkDeleting}
               style={{
-                padding: '6px 20px',
+                padding: '4px 14px',
                 background: selectedIds.length === 0 || bulkDeleting ? '#ccc' : '#dc3545',
                 color: 'white',
                 border: 'none',
@@ -555,12 +672,12 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                 fontWeight: 'bold'
               }}
             >
-              {bulkDeleting ? 'Deleting...' : `Delete Selected (${selectedIds.length})`}
+              {bulkDeleting ? 'Deleting...' : `Delete (${selectedIds.length})`}
             </button>
             <button
               onClick={() => setShowDeleteAllMarketingModal(true)}
               style={{
-                padding: '6px 20px',
+                padding: '4px 14px',
                 background: '#ff9800',
                 color: 'white',
                 border: 'none',
@@ -578,74 +695,99 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
 
       {/* Ratings Table */}
       {loading ? (
-        <p>Loading...</p>
+        <p style={{ color: secondaryText }}>Loading...</p>
       ) : (
         <>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
-                <th style={{ textAlign: 'center', padding: '8px', width: '40px' }}>
-                  <input
-                    type="checkbox"
-                    checked={selectAll}
-                    onChange={toggleSelectAll}
-                    style={{ cursor: 'pointer', width: 16, height: 16 }}
-                  />
-                </th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Name</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Stars</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Feedback</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Type</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Date</th>
-                <th style={{ textAlign: 'center', padding: '8px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ratings.map(r => (
-                <tr key={r._id} style={{ borderBottom: `1px solid ${darkMode ? '#333' : '#eee'}` }}>
-                  <td style={{ textAlign: 'center', padding: '8px' }}>
+          <div style={{
+            overflowX: 'auto',
+            borderRadius: 8,
+            border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+            boxSizing: 'border-box'
+          }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: 14,
+              minWidth: '700px'
+            }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
+                  <th style={{ textAlign: 'center', padding: '8px', width: '36px' }}>
                     <input
                       type="checkbox"
-                      checked={selectedIds.includes(r._id)}
-                      onChange={() => toggleSelect(r._id)}
+                      checked={selectAll}
+                      onChange={toggleSelectAll}
                       style={{ cursor: 'pointer', width: 16, height: 16 }}
                     />
-                  </td>
-                  <td style={{ padding: '8px', color: textColor }}>{r.name || 'N/A'}</td>
-                  <td style={{ padding: '8px', color: '#FFD700' }}>{'★'.repeat(r.stars)}</td>
-                  <td style={{ padding: '8px', color: textColor }}>{r.feedback?.slice(0, 50) || '-'}</td>
-                  <td style={{ padding: '8px' }}>{r.isMarketing ? 'Marketing' : 'Real'}</td>
-                  <td style={{ padding: '8px', color: secondaryText, fontSize: 12 }}>{new Date(r.createdAt).toLocaleDateString()}</td>
-                  <td style={{ padding: '8px', textAlign: 'center' }}>
-                    <button
-                      onClick={() => { setSelectedRating(r); setEditData({ stars: r.stars, feedback: r.feedback, name: r.name }); setEditMode(false); }}
-                      style={{ background: '#17a2b8', color: 'white', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', marginRight: 4 }}
-                    >
-                      View
-                    </button>
-                    <button
-                      onClick={() => { setEditMode(true); setSelectedRating(r); setEditData({ stars: r.stars, feedback: r.feedback, name: r.name }); }}
-                      style={{ background: '#ffc107', color: 'black', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', marginRight: 4 }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(r._id)}
-                      style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }}
-                    >
-                      {r.isDeleted ? 'Restore' : 'Delete'}
-                    </button>
-                  </td>
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '8px' }}>Name</th>
+                  <th style={{ textAlign: 'left', padding: '8px' }}>Stars</th>
+                  <th style={{ textAlign: 'left', padding: '8px' }}>Feedback</th>
+                  <th style={{ textAlign: 'left', padding: '8px' }}>Type</th>
+                  <th style={{ textAlign: 'left', padding: '8px' }}>Date</th>
+                  <th style={{ textAlign: 'center', padding: '8px' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {ratings.map(r => (
+                  <tr key={r._id} style={{ borderBottom: `1px solid ${darkMode ? '#333' : '#eee'}` }}>
+                    <td style={{ textAlign: 'center', padding: '8px' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(r._id)}
+                        onChange={() => toggleSelect(r._id)}
+                        style={{ cursor: 'pointer', width: 16, height: 16 }}
+                      />
+                    </td>
+                    <td style={{ padding: '8px', color: textColor }}>{r.name || 'N/A'}</td>
+                    <td style={{ padding: '8px', color: '#FFD700' }}>{'★'.repeat(r.stars)}</td>
+                    <td style={{ padding: '8px', color: textColor }}>{r.feedback?.slice(0, 50) || '-'}</td>
+                    <td style={{ padding: '8px' }}>{r.isMarketing ? 'Marketing' : 'Real'}</td>
+                    <td style={{ padding: '8px', color: secondaryText, fontSize: 12 }}>{new Date(r.createdAt).toLocaleDateString()}</td>
+                    <td style={{ padding: '8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <button
+                        onClick={() => { setSelectedRating(r); setEditData({ stars: r.stars, feedback: r.feedback, name: r.name }); setEditMode(false); }}
+                        style={{ background: '#17a2b8', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', marginRight: 4 }}
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => { setEditMode(true); setSelectedRating(r); setEditData({ stars: r.stars, feedback: r.feedback, name: r.name }); }}
+                        style={{ background: '#ffc107', color: 'black', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', marginRight: 4 }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(r._id)}
+                        style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer' }}
+                      >
+                        {r.isDeleted ? 'Restore' : 'Delete'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 16 }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 12,
+            marginTop: 16,
+            flexWrap: 'wrap'
+          }}>
             <button
               onClick={() => setPage(p => Math.max(1, p-1))}
               disabled={page === 1}
-              style={{ padding: '6px 12px', background: page === 1 ? '#ccc' : '#1e3c72', color: 'white', border: 'none', borderRadius: 4, cursor: page === 1 ? 'default' : 'pointer' }}
+              style={{
+                padding: '6px 16px',
+                background: page === 1 ? '#ccc' : '#1e3c72',
+                color: 'white',
+                border: 'none',
+                borderRadius: 4,
+                cursor: page === 1 ? 'default' : 'pointer'
+              }}
             >
               Prev
             </button>
@@ -653,7 +795,14 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
             <button
               onClick={() => setPage(p => Math.min(totalPages, p+1))}
               disabled={page === totalPages}
-              style={{ padding: '6px 12px', background: page === totalPages ? '#ccc' : '#1e3c72', color: 'white', border: 'none', borderRadius: 4, cursor: page === totalPages ? 'default' : 'pointer' }}
+              style={{
+                padding: '6px 16px',
+                background: page === totalPages ? '#ccc' : '#1e3c72',
+                color: 'white',
+                border: 'none',
+                borderRadius: 4,
+                cursor: page === totalPages ? 'default' : 'pointer'
+              }}
             >
               Next
             </button>
@@ -664,26 +813,43 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
       {/* ----- Detail Modal ----- */}
       {selectedRating && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           background: 'rgba(0,0,0,0.7)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 2000, padding: 20
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: 16
         }}>
-          <div style={{ background: cardBg, borderRadius: 20, padding: 28, maxWidth: 600, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{
+            background: cardBg,
+            borderRadius: 20,
+            padding: 20,
+            maxWidth: 600,
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+            boxSizing: 'border-box'
+          }}>
             <h4 style={{ color: headingColor, marginBottom: 16 }}>Rating Details</h4>
             {editMode ? (
               <div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ display: 'block', color: textColor, fontWeight: 'bold' }}>Stars</label>
-                  <input type="number" min="1" max="5" value={editData.stars} onChange={(e) => setEditData({ ...editData, stars: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor }} />
+                  <input type="number" min="1" max="5" value={editData.stars} onChange={(e) => setEditData({ ...editData, stars: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: 4, border: `1px solid ${darkMode ? '#555' : '#ccc'}`, boxSizing: 'border-box', background: cardBg, color: textColor }} />
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ display: 'block', color: textColor, fontWeight: 'bold' }}>Feedback</label>
-                  <textarea value={editData.feedback} onChange={(e) => setEditData({ ...editData, feedback: e.target.value })} rows="3" style={{ width: '100%', padding: '8px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor }} />
+                  <textarea value={editData.feedback} onChange={(e) => setEditData({ ...editData, feedback: e.target.value })} rows="3" style={{ width: '100%', padding: '8px', borderRadius: 4, border: `1px solid ${darkMode ? '#555' : '#ccc'}`, boxSizing: 'border-box', background: cardBg, color: textColor }} />
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ display: 'block', color: textColor, fontWeight: 'bold' }}>Name</label>
-                  <input type="text" value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor }} />
+                  <input type="text" value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: 4, border: `1px solid ${darkMode ? '#555' : '#ccc'}`, boxSizing: 'border-box', background: cardBg, color: textColor }} />
                 </div>
                 <button onClick={() => handleUpdate(selectedRating._id)} style={{ background: '#28a745', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 4, cursor: 'pointer', marginRight: 8 }}>Save</button>
                 <button onClick={() => { setEditMode(false); }} style={{ background: '#6c757d', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 4, cursor: 'pointer' }}>Cancel</button>
@@ -703,7 +869,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                     onChange={(e) => setReplyText(e.target.value)}
                     rows="3"
                     placeholder="Type your reply..."
-                    style={{ width: '100%', padding: '8px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor }}
+                    style={{ width: '100%', padding: '8px', borderRadius: 4, border: `1px solid ${darkMode ? '#555' : '#ccc'}`, boxSizing: 'border-box', background: cardBg, color: textColor }}
                   />
                   <button
                     onClick={() => handleReply(selectedRating._id)}
@@ -716,39 +882,40 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
 
                 <div style={{ marginTop: 16, borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingTop: 16 }}>
                   <h5 style={{ color: headingColor }}>Add Marketing Reactions</h5>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                     <input
                       type="text"
                       placeholder="Emoji (e.g., 👍)"
                       value={newReactionEmoji}
                       onChange={(e) => setNewReactionEmoji(e.target.value)}
-                      style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor, width: 80 }}
+                      style={{ padding: '6px 10px', borderRadius: 4, border: `1px solid ${darkMode ? '#555' : '#ccc'}`, boxSizing: 'border-box', background: cardBg, color: textColor, width: '70px' }}
                     />
                     <input
                       type="number"
                       placeholder="Count"
                       value={newReactionCount}
                       onChange={(e) => setNewReactionCount(parseInt(e.target.value) || 1)}
-                      style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor, width: 80 }}
+                      style={{ padding: '6px 10px', borderRadius: 4, border: `1px solid ${darkMode ? '#555' : '#ccc'}`, boxSizing: 'border-box', background: cardBg, color: textColor, width: '70px' }}
                     />
-                    {/* Reply dropdown */}
                     <select
                       value={selectedReplyId}
                       onChange={(e) => setSelectedReplyId(e.target.value)}
                       style={{
                         padding: '6px 10px',
                         borderRadius: 4,
-                        border: '1px solid #ccc',
+                        border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                        boxSizing: 'border-box',
                         background: cardBg,
                         color: textColor,
-                        minWidth: 150
+                        flex: '1 1 120px',
+                        minWidth: '100px'
                       }}
                     >
                       <option value="">Main Feedback</option>
                       {selectedRating.replies && selectedRating.replies.length > 0 ? (
                         selectedRating.replies.map((reply, idx) => (
                           <option key={reply._id} value={reply._id}>
-                            Reply #{idx + 1}: {reply.replyText?.slice(0, 30) || ''}
+                            Reply #{idx + 1}: {reply.replyText?.slice(0, 25) || ''}
                           </option>
                         ))
                       ) : (
@@ -764,7 +931,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                     </button>
                   </div>
                   <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>
-                    You can add multiple different emojis. The count will be updated if the same emoji already exists.
+                    Multiple emojis allowed. Same emoji updates count.
                   </p>
                 </div>
 
@@ -779,22 +946,26 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
       {showDeleteAllMarketingModal && (
         <div style={{
           position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           background: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 3000,
-          padding: 20
+          padding: 16
         }}>
           <div style={{
             background: cardBg,
             borderRadius: 20,
-            padding: 28,
+            padding: 24,
             maxWidth: 450,
             width: '100%',
             textAlign: 'center',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+            boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+            boxSizing: 'border-box'
           }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
             <h3 style={{ color: headingColor, marginBottom: 12 }}>Delete All Marketing Ratings?</h3>
@@ -804,11 +975,11 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
               <br /><br />
               <strong style={{ color: '#dc3545' }}>This action cannot be undone!</strong>
             </p>
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
               <button
                 onClick={() => setShowDeleteAllMarketingModal(false)}
                 style={{
-                  flex: 1,
+                  flex: '1 1 100px',
                   padding: '12px',
                   background: 'transparent',
                   border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
@@ -824,7 +995,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                 onClick={handleDeleteAllMarketing}
                 disabled={bulkDeleting}
                 style={{
-                  flex: 1,
+                  flex: '1 1 100px',
                   padding: '12px',
                   background: '#dc3545',
                   color: 'white',
@@ -834,7 +1005,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                   fontWeight: 'bold'
                 }}
               >
-                {bulkDeleting ? 'Deleting...' : 'Yes, Delete All Marketing'}
+                {bulkDeleting ? 'Deleting...' : 'Yes, Delete All'}
               </button>
             </div>
           </div>
@@ -845,35 +1016,39 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
       {showPermanentDeleteModal && (
         <div style={{
           position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           background: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 3000,
-          padding: 20
+          padding: 16
         }}>
           <div style={{
             background: cardBg,
             borderRadius: 20,
-            padding: 28,
+            padding: 24,
             maxWidth: 450,
             width: '100%',
             textAlign: 'center',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+            boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+            boxSizing: 'border-box'
           }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>💀</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}></div>
             <h3 style={{ color: headingColor, marginBottom: 12 }}>Permanently Delete All?</h3>
             <p style={{ color: secondaryText, marginBottom: 20 }}>
               This will <strong style={{ color: '#dc3545' }}>permanently delete</strong> all soft-deleted ratings and their replies.
               <br /><br />
               <strong style={{ color: '#dc3545' }}>This action cannot be undone!</strong>
             </p>
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
               <button
                 onClick={() => setShowPermanentDeleteModal(false)}
                 style={{
-                  flex: 1,
+                  flex: '1 1 100px',
                   padding: '12px',
                   background: 'transparent',
                   border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
@@ -889,7 +1064,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                 onClick={handleDeleteAllDeleted}
                 disabled={bulkPermanentDeleting}
                 style={{
-                  flex: 1,
+                  flex: '1 1 100px',
                   padding: '12px',
                   background: '#dc3545',
                   color: 'white',

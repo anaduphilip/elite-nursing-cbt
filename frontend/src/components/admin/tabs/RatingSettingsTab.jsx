@@ -4,28 +4,19 @@ import axios from 'axios';
 
 const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, cardBg }) => {
   const [settings, setSettings] = useState({
-    // ---- Modal settings ----
     showRatingModal: true,
     modalFrequency: 'afterExam',
     minExamsBeforePrompt: 3,
     customMessage: 'We value your feedback! Please rate your experience.',
-
-    // ---- Feedback list settings ----
     showFeedbackList: true,
     feedbackListLimit: 5,
     showSeeAllLink: true,
-
-    // ---- Rating widget visibility ----
     showRatingOnHome: true,
     showRatingOnAbout: true,
-
-    // ---- Marketing reactions ----
     enableMarketingReactions: true,
     allowedReactionEmojis: '👍,❤️,👏,😊,🔥,💯,🌟,🙌',
-
-    // ---- Marketing counts (for stats) ----
-    fakeRatingsCount: 0,
-    fakeRatingsDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    MarketingRatingsCount: 0,
+    MarketingRatingsDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
   });
 
   const [loading, setLoading] = useState(true);
@@ -41,11 +32,7 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
-        // Merge with defaults to avoid missing fields
-        setSettings(prev => ({
-          ...prev,
-          ...res.data.settings
-        }));
+        setSettings(prev => ({ ...prev, ...res.data.settings }));
       }
     } catch (err) {
       console.error('Fetch settings error:', err);
@@ -79,18 +66,19 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
     <div>
       <h3 style={{ color: headingColor, marginBottom: 20 }}>Rating & Feedback Settings</h3>
 
-      {/* ===== SECTION 1: Rating Modal ===== */}
+      {/* ---- SECTION 1: Rating Modal ---- */}
       <div style={{
         background: cardBg,
         borderRadius: 12,
         padding: 20,
         border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}`,
+        boxSizing: 'border-box',
         marginBottom: 24
       }}>
-        <h4 style={{ color: headingColor, marginBottom: 12 }}>⭐ Rating Modal</h4>
+        <h4 style={{ color: headingColor, marginBottom: 12 }}>Rating Modal</h4>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, flexWrap: 'wrap' }}>
             <input
               type="checkbox"
               checked={settings.showRatingModal}
@@ -112,6 +100,7 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
               padding: '8px 12px',
               borderRadius: 6,
               border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+              boxSizing: 'border-box',
               background: cardBg,
               color: textColor
             }}
@@ -138,6 +127,7 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
                 padding: '8px 12px',
                 borderRadius: 6,
                 border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                boxSizing: 'border-box',
                 background: cardBg,
                 color: textColor
               }}
@@ -158,6 +148,7 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
               padding: '8px 12px',
               borderRadius: 6,
               border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+              boxSizing: 'border-box',
               background: cardBg,
               color: textColor
             }}
@@ -165,18 +156,18 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
         </div>
       </div>
 
-      {/* ===== SECTION 2: Feedback Display ===== */}
       <div style={{
         background: cardBg,
         borderRadius: 12,
         padding: 20,
         border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}`,
+        boxSizing: 'border-box',
         marginBottom: 24
       }}>
-        <h4 style={{ color: headingColor, marginBottom: 12 }}>📝 Feedback List (HomePage)</h4>
+        <h4 style={{ color: headingColor, marginBottom: 12 }}>Feedback List (HomePage)</h4>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, flexWrap: 'wrap' }}>
             <input
               type="checkbox"
               checked={settings.showFeedbackList}
@@ -201,6 +192,7 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
               padding: '8px 12px',
               borderRadius: 6,
               border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+              boxSizing: 'border-box',
               background: cardBg,
               color: textColor
             }}
@@ -208,7 +200,7 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, flexWrap: 'wrap' }}>
             <input
               type="checkbox"
               checked={settings.showSeeAllLink}
@@ -219,18 +211,18 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
         </div>
       </div>
 
-      {/* ===== SECTION 3: Rating Widget Visibility ===== */}
       <div style={{
         background: cardBg,
         borderRadius: 12,
         padding: 20,
         border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}`,
+        boxSizing: 'border-box',
         marginBottom: 24
       }}>
-        <h4 style={{ color: headingColor, marginBottom: 12 }}>📍 Rating Widget Visibility</h4>
+        <h4 style={{ color: headingColor, marginBottom: 12 }}>Rating Widget Visibility</h4>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, flexWrap: 'wrap' }}>
             <input
               type="checkbox"
               checked={settings.showRatingOnHome}
@@ -241,7 +233,7 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, flexWrap: 'wrap' }}>
             <input
               type="checkbox"
               checked={settings.showRatingOnAbout}
@@ -252,18 +244,18 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
         </div>
       </div>
 
-      {/* ===== SECTION 4: Marketing Reactions ===== */}
       <div style={{
         background: cardBg,
         borderRadius: 12,
         padding: 20,
         border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}`,
+        boxSizing: 'border-box',
         marginBottom: 24
       }}>
-        <h4 style={{ color: headingColor, marginBottom: 12 }}>🎭 Marketing Reactions</h4>
+        <h4 style={{ color: headingColor, marginBottom: 12 }}>Marketing Reactions</h4>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: textColor, flexWrap: 'wrap' }}>
             <input
               type="checkbox"
               checked={settings.enableMarketingReactions}
@@ -287,6 +279,7 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
               padding: '8px 12px',
               borderRadius: 6,
               border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+              boxSizing: 'border-box',
               background: cardBg,
               color: textColor
             }}
@@ -297,7 +290,7 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
         </div>
       </div>
 
-      {/* ===== Save Button ===== */}
+      {/* ---- Save Button ---- */}
       <button
         onClick={handleSave}
         disabled={saving}
@@ -310,11 +303,27 @@ const RatingSettingsTab = ({ token, darkMode, headingColor, textColor, secondary
           cursor: 'pointer',
           fontWeight: 'bold',
           fontSize: 16,
-          opacity: saving ? 0.7 : 1
+          opacity: saving ? 0.7 : 1,
+          width: '100%',
+          maxWidth: '300px',
+          display: 'block',
+          margin: '0 auto'
         }}
       >
         {saving ? 'Saving...' : 'Save All Settings'}
       </button>
+
+      {/* ---- Responsive styles ---- */}
+      <style>{`
+        @media (max-width: 600px) {
+          .settings-section {
+            padding: 16px !important;
+          }
+          input, select {
+            font-size: 14px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
