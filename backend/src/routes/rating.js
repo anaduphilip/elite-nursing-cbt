@@ -8,7 +8,6 @@ const router = express.Router();
 router.post('/', authenticate, async (req, res) => {
   try {
     const { stars, feedback, name } = req.body;
-    
     if (!stars || stars < 1 || stars > 5) {
       return res.status(400).json({ error: 'Please provide a valid star rating (1-5).' });
     }
@@ -24,6 +23,12 @@ router.post('/', authenticate, async (req, res) => {
       existing.name = name || existing.name;
       existing.updatedAt = new Date();
       await existing.save();
+
+      await User.findByIdAndUpdate(req.user._id, {
+        lastRatingPromptDate: null,
+        lastRatingPromptExamCount: 0
+      });
+
       return res.json({
         success: true,
         message: 'Rating updated successfully.',
@@ -43,6 +48,11 @@ router.post('/', authenticate, async (req, res) => {
     });
 
     await rating.save();
+
+    await User.findByIdAndUpdate(req.user._id, {
+      lastRatingPromptDate: null,
+      lastRatingPromptExamCount: 0
+    });
 
     res.json({
       success: true,
@@ -64,34 +74,79 @@ router.get('/check', authenticate, async (req, res) => {
       minExamsBeforePrompt: 3
     };
 
+    const user = req.user;
     const existingRating = await Rating.findOne({
-      userId: req.user._id,
+      userId: user._id,
       isDeleted: false
     });
-
     const hasRated = !!existingRating;
     const userRating = existingRating ? existingRating.stars : null;
-    const examCount = req.user.quizResults?.length || 0;
+    const examCount = user.quizResults?.length || 0;
+    const now = new Date();
+
+    if (hasRated) {
+      return res.json({
+        shouldShow: false,
+        hasRated: true,
+        userRating,
+        examCount,
+        settings,
+        message: 'Thank you for your feedback!'
+      });
+    }
+
+    let lastPromptDate = user.lastRatingPromptDate || null;
+    let lastPromptExamCount = user.lastRatingPromptExamCount || 0;
 
     let shouldShow = false;
 
-    if (settings.showRatingModal !== false) {
-      if (settings.modalFrequency === 'always') {
-        shouldShow = true;
-      } else if (settings.modalFrequency === 'once') {
-        shouldShow = !hasRated;
-      } else if (settings.modalFrequency === 'afterExam') {
-        const minExams = settings.minExamsBeforePrompt || 3;
-        shouldShow = !hasRated && examCount >= minExams;
-      } else if (settings.modalFrequency === 'weekly') {
-        shouldShow = !hasRated;
+    switch (settings.modalFrequency) {
+      case 'always': {
+        if (!lastPromptDate || (now - lastPromptDate) >= 24 * 60 * 60 * 1000) {
+          shouldShow = true;
+        }
+        break;
       }
+
+      case 'once': {
+        if (!lastPromptDate) {
+          shouldShow = true;
+        }
+        break;
+      }
+
+      case 'afterExam': {
+        const minExams = settings.minExamsBeforePrompt || 3;
+        if (examCount - lastPromptExamCount >= minExams) {
+          shouldShow = true;
+        }
+        break;
+      }
+
+      case 'weekly': {
+        if (!lastPromptDate || (now - lastPromptDate) >= 7 * 24 * 60 * 60 * 1000) {
+          shouldShow = true;
+        }
+        break;
+      }
+
+      default:
+        shouldShow = false;
+    }
+
+    if (shouldShow) {
+      await User.findByIdAndUpdate(user._id, {
+        lastRatingPromptDate: now,
+        lastRatingPromptExamCount: examCount
+      });
+      req.user.lastRatingPromptDate = now;
+      req.user.lastRatingPromptExamCount = examCount;
     }
 
     res.json({
       shouldShow,
-      hasRated,
-      userRating,
+      hasRated: false,
+      userRating: null,
       examCount,
       settings,
       message: shouldShow ? 'We value your feedback!' : 'Thank you for being part of our community!'

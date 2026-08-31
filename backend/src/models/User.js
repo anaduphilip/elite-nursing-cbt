@@ -10,7 +10,6 @@ const UserSchema = new mongoose.Schema({
   isBanned: { type: Boolean, default: false },
   isDeleted: { type: Boolean, default: false },
 
-  // ===== NEW RATE‑LIMITING FIELDS =====
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
   manuallyBlocked: { type: Boolean, default: false },
@@ -113,7 +112,10 @@ const UserSchema = new mongoose.Schema({
     quizId: { type: String, required: true },
     questionIndex: { type: Number, required: true },
     passed: { type: Boolean, default: false }
-  }]
+  }],
+
+  lastRatingPromptDate: { type: Date, default: null },
+  lastRatingPromptExamCount: { type: Number, default: 0 }
 });
 
 module.exports = mongoose.model('User', UserSchema);
