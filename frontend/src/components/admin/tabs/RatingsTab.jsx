@@ -5,7 +5,13 @@ import axios from 'axios';
 const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, cardBg }) => {
   const [ratings, setRatings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState({ stars: '', isMarketing: '', isDeleted: '' });
+  const [filter, setFilter] = useState({
+    stars: '',
+    isMarketing: '',
+    isDeleted: '',
+    search: '',
+    sortBy: 'latest'
+  });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedRating, setSelectedRating] = useState(null);
@@ -32,11 +38,11 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
   const [showDeleteAllMarketingModal, setShowDeleteAllMarketingModal] = useState(false);
   const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
 
-  // ===== NEW: Reaction inputs =====
+  // Reaction inputs
   const [newReactionEmoji, setNewReactionEmoji] = useState('');
   const [newReactionCount, setNewReactionCount] = useState(1);
 
-  // ----- Fetch ratings -----
+  // ----- Fetch ratings with search and sort -----
   const fetchRatings = async () => {
     try {
       setLoading(true);
@@ -45,7 +51,9 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
         limit: 20,
         ...(filter.stars && { stars: filter.stars }),
         ...(filter.isMarketing !== '' && { isMarketing: filter.isMarketing }),
-        ...(filter.isDeleted !== '' && { isDeleted: filter.isDeleted })
+        ...(filter.isDeleted !== '' && { isDeleted: filter.isDeleted }),
+        ...(filter.search && { search: filter.search }),
+        sort: filter.sortBy
       });
       const res = await axios.get(`/api/admin/ratings?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -68,7 +76,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
     fetchRatings();
   }, [page, filter]);
 
-  // ----- Single actions -----
+  // ----- Single actions (unchanged) -----
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this rating?')) return;
     try {
@@ -283,7 +291,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
     }
   };
 
-  // ===== NEW: Add marketing reaction =====
+  // ===== Add marketing reaction =====
   const handleAddReaction = async () => {
     if (!selectedRating) return;
     if (!newReactionEmoji || newReactionCount < 1) {
@@ -296,7 +304,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
         {
           emoji: newReactionEmoji,
           count: newReactionCount,
-          replyId: null 
+          replyId: null
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -311,12 +319,24 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
 
   const isDeletedView = filter.isDeleted === 'true';
 
+  // ----- Handle search input (debounced) -----
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setFilter(prev => ({ ...prev, search: value }));
+    setPage(1); // Reset to first page on search
+  };
+
+  const handleSortChange = (e) => {
+    setFilter(prev => ({ ...prev, sortBy: e.target.value }));
+    setPage(1);
+  };
+
   return (
     <div>
       <h3 style={{ color: headingColor }}>Ratings & Feedback</h3>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+      {/* Filters + Search + Sort */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16, alignItems: 'center' }}>
         <select
           value={filter.stars}
           onChange={(e) => setFilter({ ...filter, stars: e.target.value })}
@@ -343,6 +363,37 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
           <option value="false">Active</option>
           <option value="true">Deleted</option>
         </select>
+
+        {/* Search Input */}
+        <input
+          type="text"
+          placeholder="🔍 Search by name or feedback..."
+          value={filter.search}
+          onChange={handleSearchChange}
+          style={{
+            flex: 1,
+            minWidth: 200,
+            padding: '8px 12px',
+            borderRadius: 6,
+            border: '1px solid #ccc',
+            background: cardBg,
+            color: textColor,
+            outline: 'none'
+          }}
+        />
+
+        {/* Sort Dropdown */}
+        <select
+          value={filter.sortBy}
+          onChange={handleSortChange}
+          style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ccc', background: cardBg, color: textColor }}
+        >
+          <option value="latest">Latest</option>
+          <option value="oldest">Oldest</option>
+          <option value="highest">Highest Star</option>
+          <option value="lowest">Lowest Star</option>
+        </select>
+
         <button onClick={fetchRatings} style={{ padding: '8px 16px', background: '#1e3c72', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
           Refresh
         </button>
@@ -668,7 +719,6 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                   </button>
                 </div>
 
-                {/* ===== NEW: Add Marketing Reactions ===== */}
                 <div style={{ marginTop: 16, borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingTop: 16 }}>
                   <h5 style={{ color: headingColor }}>Add Marketing Reactions</h5>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

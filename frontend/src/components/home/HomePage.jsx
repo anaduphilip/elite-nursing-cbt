@@ -975,7 +975,7 @@ export const HomePage = () => {
                       onMouseEnter={(e) => e.currentTarget.style.borderBottom = '1px solid #1e3c72'}
                       onMouseLeave={(e) => e.currentTarget.style.borderBottom = '1px solid transparent'}
                     >
-                      See all reviews →
+                      See all reviews
                     </Link>
                   </div>
                 )}

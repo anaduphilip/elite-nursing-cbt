@@ -41,15 +41,12 @@ router.put('/settings', isAdmin, async (req, res) => {
     if (!config) {
       config = new Config();
     }
-
     config.ratingSettings = {
-      ...config.ratingSettings, 
+      ...config.ratingSettings,
       ...ratingSettings
     };
-
     config.updatedAt = new Date();
     await config.save();
-
     res.json({
       success: true,
       message: 'Rating settings updated successfully.',
@@ -63,15 +60,28 @@ router.put('/settings', isAdmin, async (req, res) => {
 
 router.get('/', isAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 20, stars, isMarketing, isDeleted } = req.query;
+    const { page = 1, limit = 20, stars, isMarketing, isDeleted, search, sort } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
+
     const filter = {};
     if (stars) filter.stars = parseInt(stars);
     if (isMarketing !== undefined) filter.isMarketing = isMarketing === 'true';
     if (isDeleted !== undefined) filter.isDeleted = isDeleted === 'true';
 
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { feedback: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    let sortOption = { createdAt: -1 }; // default: latest
+    if (sort === 'oldest') sortOption = { createdAt: 1 };
+    else if (sort === 'highest') sortOption = { stars: -1 };
+    else if (sort === 'lowest') sortOption = { stars: 1 };
+
     const ratings = await Rating.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(sortOption)
       .skip(skip)
       .limit(parseInt(limit))
       .populate('userId', 'name email');
