@@ -41,6 +41,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
   // Reaction inputs
   const [newReactionEmoji, setNewReactionEmoji] = useState('');
   const [newReactionCount, setNewReactionCount] = useState(1);
+  const [selectedReplyId, setSelectedReplyId] = useState('');
 
   // ----- Fetch ratings with search and sort -----
   const fetchRatings = async () => {
@@ -291,7 +292,6 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
     }
   };
 
-  // ===== Add marketing reaction =====
   const handleAddReaction = async () => {
     if (!selectedRating) return;
     if (!newReactionEmoji || newReactionCount < 1) {
@@ -304,12 +304,13 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
         {
           emoji: newReactionEmoji,
           count: newReactionCount,
-          replyId: null
+          replyId: selectedReplyId || null
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setNewReactionEmoji('');
       setNewReactionCount(1);
+      setSelectedReplyId('');
       fetchRatings();
       alert('Reaction added successfully.');
     } catch (err) {
@@ -319,11 +320,10 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
 
   const isDeletedView = filter.isDeleted === 'true';
 
-  // ----- Handle search input (debounced) -----
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setFilter(prev => ({ ...prev, search: value }));
-    setPage(1); // Reset to first page on search
+    setPage(1);
   };
 
   const handleSortChange = (e) => {
@@ -364,7 +364,6 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
           <option value="true">Deleted</option>
         </select>
 
-        {/* Search Input */}
         <input
           type="text"
           placeholder="🔍 Search by name or feedback..."
@@ -382,7 +381,6 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
           }}
         />
 
-        {/* Sort Dropdown */}
         <select
           value={filter.sortBy}
           onChange={handleSortChange}
@@ -421,7 +419,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
             </select>
             <input
               type="text"
-              placeholder="Name prefix"
+              placeholder="Name prefix (leave empty for Anonymous)"
               value={bulkNamePrefix}
               onChange={(e) => setBulkNamePrefix(e.target.value)}
               style={{ width: 150, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor }}
@@ -444,7 +442,6 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
         </div>
       )}
 
-      {/* Bulk Actions Bar */}
       <div style={{
         display: 'flex',
         gap: 12,
@@ -477,7 +474,6 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
         </span>
 
         {isDeletedView ? (
-          // ----- Deleted view actions -----
           <>
             <button
               onClick={handleBulkRestore}
@@ -544,7 +540,6 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
             </button>
           </>
         ) : (
-          // ----- Active view actions -----
           <>
             <button
               onClick={handleBulkDelete}
@@ -736,6 +731,30 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                       onChange={(e) => setNewReactionCount(parseInt(e.target.value) || 1)}
                       style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor, width: 80 }}
                     />
+                    {/* Reply dropdown */}
+                    <select
+                      value={selectedReplyId}
+                      onChange={(e) => setSelectedReplyId(e.target.value)}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: 4,
+                        border: '1px solid #ccc',
+                        background: cardBg,
+                        color: textColor,
+                        minWidth: 150
+                      }}
+                    >
+                      <option value="">Main Feedback</option>
+                      {selectedRating.replies && selectedRating.replies.length > 0 ? (
+                        selectedRating.replies.map((reply, idx) => (
+                          <option key={reply._id} value={reply._id}>
+                            Reply #{idx + 1}: {reply.replyText?.slice(0, 30) || ''}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No replies yet</option>
+                      )}
+                    </select>
                     <button
                       onClick={handleAddReaction}
                       disabled={!newReactionEmoji || newReactionCount < 1}
@@ -745,11 +764,11 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                     </button>
                   </div>
                   <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>
-                    This reaction will be added as a marketing reaction (no user linked).
+                    You can add multiple different emojis. The count will be updated if the same emoji already exists.
                   </p>
                 </div>
 
-                <button onClick={() => { setSelectedRating(null); setReplyText(''); setNewReactionEmoji(''); setNewReactionCount(1); }} style={{ marginTop: 16, background: '#6c757d', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: 'pointer' }}>Close</button>
+                <button onClick={() => { setSelectedRating(null); setReplyText(''); setNewReactionEmoji(''); setNewReactionCount(1); setSelectedReplyId(''); }} style={{ marginTop: 16, background: '#6c757d', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: 'pointer' }}>Close</button>
               </>
             )}
           </div>
