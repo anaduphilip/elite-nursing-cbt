@@ -11,7 +11,10 @@ const RatingModal = ({
   cardBg,
   headingColor,
   textColor,
-  secondaryText
+  secondaryText,
+  modalFrequency,
+  minExamsBeforePrompt,
+  customMessage
 }) => {
   const { token, user } = useContext(AuthContext);
   const [stars, setStars] = useState(0);
@@ -78,6 +81,8 @@ const RatingModal = ({
     onClose();
   };
 
+  const displayMessage = customMessage || 'We value your feedback! Please rate your experience with our app.';
+
   return (
     <div style={{
       position: 'fixed',
@@ -113,7 +118,7 @@ const RatingModal = ({
           <>
             <h3 style={{ color: headingColor, marginBottom: 8 }}>Rate Your Experience</h3>
             <p style={{ color: secondaryText, fontSize: 14, marginBottom: 20 }}>
-              We value your feedback! Please rate your experience with our app.
+              {displayMessage}
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>

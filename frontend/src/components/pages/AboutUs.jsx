@@ -1,10 +1,11 @@
 // src/components/pages/AboutUs.jsx
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { getHeadingColor, getSecondaryText, getTextColor, getCardBg } from '../../utils/theme';
 import RatingStats from '../rating/RatingStats';
 import RatingModal from '../rating/RatingModal';
+import axios from 'axios';
 
 export const AboutUs = () => {
   const { darkMode, token } = useContext(AuthContext);
@@ -14,10 +15,26 @@ export const AboutUs = () => {
   const cardBg = getCardBg(darkMode);
   const navigate = useNavigate();
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showRatingOnAbout, setShowRatingOnAbout] = useState(true);
 
   const goBack = () => {
     navigate(-1);
   };
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await axios.get('/api/config');
+        if (res.data.success && res.data.config?.ratingSettings) {
+          const rs = res.data.config.ratingSettings;
+          setShowRatingOnAbout(rs.showRatingOnAbout ?? true);
+        }
+      } catch (err) {
+        console.error('Failed to fetch rating settings:', err);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   // Floating Back Button style
   const backButtonStyle = {
@@ -68,8 +85,7 @@ export const AboutUs = () => {
         <p style={{ lineHeight: 1.8, marginBottom: 20, color: darkMode ? '#ccc' : '#555' }}>Our mission is to provide high-quality, accessible exam preparation materials that help students succeed in their nursing and midwifery licensing examinations.</p>
         <p style={{ lineHeight: 1.8, marginBottom: 20, color: darkMode ? '#ccc' : '#555' }}>With over 20,000 practice questions covering General Nursing, Midwifery, Pediatric Nursing, Dental Nursing, and Public Health, we are committed to excellence in nursing education.</p>
 
-        {/* ===== RATING STATS (full details) ===== */}
-        {token && (
+        {token && showRatingOnAbout && (
           <RatingStats
             darkMode={darkMode}
             headingColor={headingColor}
@@ -96,7 +112,6 @@ export const AboutUs = () => {
         </p>
       </div>
 
-      {/* ===== RATING MODAL ===== */}
       <RatingModal
         isOpen={showRatingModal}
         onClose={() => setShowRatingModal(false)}

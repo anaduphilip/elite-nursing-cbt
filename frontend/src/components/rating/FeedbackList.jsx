@@ -11,9 +11,9 @@ const FeedbackList = ({
   textColor,
   secondaryText,
   cardBg,
-  token
+  token,
+  limit = 5
 }) => {
-  // Try to read from cache on initial render
   const [feedbacks, setFeedbacks] = useState(() => {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
@@ -29,7 +29,7 @@ const FeedbackList = ({
   useEffect(() => {
     const fetchFeedbacks = async () => {
       try {
-        const res = await axios.get('/api/ratings/latest');
+        const res = await axios.get(`/api/ratings/latest?limit=${limit}`);
         if (res.data.success) {
           const data = res.data.ratings || [];
           setFeedbacks(data);
@@ -43,17 +43,11 @@ const FeedbackList = ({
       }
     };
     fetchFeedbacks();
-  }, []);
+  }, [limit]);
 
-  // ----- Skeleton (shows when loading and no cache) -----
   if (loading && !feedbacks) {
     return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 16,
-        marginTop: 12
-      }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 12 }}>
         {[1, 2, 3].map((_, idx) => (
           <div
             key={idx}
@@ -68,11 +62,7 @@ const FeedbackList = ({
               gap: 8
             }}
           >
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
                   width: 80,
@@ -170,12 +160,7 @@ const FeedbackList = ({
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 16,
-      marginTop: 12
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 12 }}>
       {feedbacks
         .filter(fb => fb && fb._id)
         .map((fb) => (

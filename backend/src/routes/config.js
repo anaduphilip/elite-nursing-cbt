@@ -4,7 +4,6 @@ const { Config } = require('../models');
 
 const router = express.Router();
 
-// Get public config (limited fields)
 router.get('/', async (req, res) => {
   try {
     let config = await Config.findOne();
@@ -12,11 +11,15 @@ router.get('/', async (req, res) => {
       config = new Config();
       await config.save();
     }
+
     const now = new Date();
     const offer = config.limitedOffer || {};
-    const isOfferActive = offer.enabled && offer.discountPercent > 0 &&
+    const isOfferActive = offer.enabled &&
+      offer.discountPercent > 0 &&
       (!offer.startDate || new Date(offer.startDate) <= now) &&
       (!offer.endDate || new Date(offer.endDate) >= now);
+
+    const rs = config.ratingSettings || {};
 
     res.json({
       success: true,
@@ -51,6 +54,18 @@ router.get('/', async (req, res) => {
           streakResetHours: config.gamification?.streakResetHours || 24,
           showBadgesOnHome: config.gamification?.showBadgesOnHome !== undefined ? config.gamification.showBadgesOnHome : true,
           showStreakOnHome: config.gamification?.showStreakOnHome !== undefined ? config.gamification.showStreakOnHome : true
+        },
+
+        ratingSettings: {
+          showRatingModal: rs.showRatingModal ?? true,
+          modalFrequency: rs.modalFrequency || 'afterExam',
+          minExamsBeforePrompt: rs.minExamsBeforePrompt || 3,
+          customMessage: rs.customMessage || 'We value your feedback! Please rate your experience.',
+          showFeedbackList: rs.showFeedbackList ?? true,
+          feedbackListLimit: rs.feedbackListLimit || 5,
+          showSeeAllLink: rs.showSeeAllLink ?? true,
+          showRatingOnHome: rs.showRatingOnHome ?? true,
+          showRatingOnAbout: rs.showRatingOnAbout ?? true
         }
       }
     });

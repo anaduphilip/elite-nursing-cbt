@@ -29,6 +29,7 @@ export const HomePage = () => {
 
   // ---- TOGGLES FOR EXPANDABLE SECTIONS ----
   const [showProgress, setShowProgress] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   // ---- HOME PAGE VISIBILITY CONFIG (defaults: all visible) ----
   const [config, setConfig] = useState({
@@ -39,6 +40,16 @@ export const HomePage = () => {
     showDownloadApp: true,
     showGetPremium: true,
     showPreCouncil: true
+  });
+
+  const [ratingSettings, setRatingSettings] = useState({
+    showRatingOnHome: true,
+    showFeedbackList: true,
+    feedbackListLimit: 5,
+    showSeeAllLink: true,
+    modalFrequency: 'afterExam',
+    minExamsBeforePrompt: 3,
+    customMessage: 'We value your feedback! Please rate your experience.'
   });
 
   // ---- ANNOUNCEMENT BANNER STATE ----
@@ -84,14 +95,27 @@ export const HomePage = () => {
       try {
         const res = await axios.get('/api/config');
         if (res.data.success && res.data.config) {
+          const cfg = res.data.config;
           setConfig({
-            showFreeMode: res.data.config.showFreeMode !== undefined ? res.data.config.showFreeMode : true,
-            showPremiumMode: res.data.config.showPremiumMode !== undefined ? res.data.config.showPremiumMode : true,
-            showStudyMode: res.data.config.showStudyMode !== undefined ? res.data.config.showStudyMode : true,
-            showProgressSnapshot: res.data.config.showProgressSnapshot !== undefined ? res.data.config.showProgressSnapshot : true,
-            showDownloadApp: res.data.config.showDownloadApp !== undefined ? res.data.config.showDownloadApp : true,
-            showGetPremium: res.data.config.showGetPremium !== undefined ? res.data.config.showGetPremium : true,
-            showPreCouncil: res.data.config.showPreCouncil !== undefined ? res.data.config.showPreCouncil : true
+            showFreeMode: cfg.showFreeMode !== undefined ? cfg.showFreeMode : true,
+            showPremiumMode: cfg.showPremiumMode !== undefined ? cfg.showPremiumMode : true,
+            showStudyMode: cfg.showStudyMode !== undefined ? cfg.showStudyMode : true,
+            showProgressSnapshot: cfg.showProgressSnapshot !== undefined ? cfg.showProgressSnapshot : true,
+            showDownloadApp: cfg.showDownloadApp !== undefined ? cfg.showDownloadApp : true,
+            showGetPremium: cfg.showGetPremium !== undefined ? cfg.showGetPremium : true,
+            showPreCouncil: cfg.showPreCouncil !== undefined ? cfg.showPreCouncil : true
+          });
+
+          // ---- Set rating settings ----
+          const rs = cfg.ratingSettings || {};
+          setRatingSettings({
+            showRatingOnHome: rs.showRatingOnHome ?? true,
+            showFeedbackList: rs.showFeedbackList ?? true,
+            feedbackListLimit: rs.feedbackListLimit || 5,
+            showSeeAllLink: rs.showSeeAllLink ?? true,
+            modalFrequency: rs.modalFrequency || 'afterExam',
+            minExamsBeforePrompt: rs.minExamsBeforePrompt || 3,
+            customMessage: rs.customMessage || 'We value your feedback! Please rate your experience.'
           });
         }
       } catch (error) {
@@ -151,7 +175,7 @@ export const HomePage = () => {
         if (res.data.success && res.data.config?.limitedOffer) {
           const offerData = res.data.config.limitedOffer;
           setOffer(offerData);
-          
+
           if (offerData.isActive && offerData.discountPercent > 0) {
             let userQualifies = true;
             const target = offerData.targetAudience || 'free';
@@ -299,7 +323,7 @@ export const HomePage = () => {
         if (res.data.success && res.data.messages.length > 0) {
           const unread = res.data.messages.filter(m => !m.isRead);
           setPrivateMessages(unread);
-          
+
           if (unread.length > 0) {
             const dismissed = localStorage.getItem(`privateMsg_${unread[0]._id}`);
             if (!dismissed) {
@@ -456,7 +480,6 @@ export const HomePage = () => {
       );
     }
 
-    // ===== Pre Council Exam Button =====
     if (config.showPreCouncil) {
       buttons.push(
         <button
@@ -475,7 +498,6 @@ export const HomePage = () => {
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <h1 style={{ color: headingColor, fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: 8 }}>
             ELITE NURSING & MIDWIFERY CBT
@@ -485,9 +507,7 @@ export const HomePage = () => {
           </p>
         </div>
 
-        {/* --- Banners / Modals --- */}
-
-        {/* Private Message Banner */}
+        {/* ===== PRIVATE MESSAGE BANNER ===== */}
         {showPrivateMessage && currentPrivateMessage && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#e8f5e9',
@@ -544,7 +564,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* Announcement Banner */}
+        {/* ---- ANNOUNCEMENT BANNER ---- */}
         {showBanner && announcement && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#fff3e0',
@@ -601,7 +621,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* Marketing Consent Banner */}
+        {/* ---- MARKETING CONSENT BANNER ---- */}
         {showConsentBanner && consentBanner && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#e3f2fd',
@@ -670,7 +690,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* Limited Offer Banner */}
+        {/* ===== LIMITED TIME OFFER BANNER ===== */}
         {showOffer && offer && offerTimeLeft && (
           <div style={{
             background: darkMode ? '#2d2d3d' : '#fff3e0',
@@ -744,7 +764,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* Referral Discount Banner */}
+        {/* ===== REFERRAL DISCOUNT BANNER ===== */}
         {referralDiscount && referralTimeLeft && (
           <div style={{
             background: darkMode ? '#1a2e1a' : '#e8f5e9',
@@ -798,7 +818,7 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* Referral Reward Modal */}
+        {/* ===== REFERRAL REWARD MODAL ===== */}
         {showReferralRewardModal && (
           <div style={{
             position: 'fixed',
@@ -883,8 +903,8 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ===== RATING SUMMARY (compact) ===== */}
-        {token && (
+        {/* ===== RATING SUMMARY – controlled by admin setting ===== */}
+        {token && ratingSettings.showRatingOnHome && (
           <div style={{ marginTop: 24, marginBottom: 12 }}>
             <RatingSummary
               darkMode={darkMode}
@@ -897,47 +917,81 @@ export const HomePage = () => {
           </div>
         )}
 
-        {/* ===== USER FEEDBACK SECTION ===== */}
-        <div style={{ marginTop: 32 }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            marginBottom: 16
-          }}>
-            <h2 style={{
-              color: headingColor,
-              fontSize: 20,
-              fontWeight: 600,
-              margin: 0
+        {/* ===== WHAT OUR USERS SAY – controlled by admin setting ===== */}
+        {ratingSettings.showFeedbackList && (
+          <div style={{ marginTop: 32 }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+              marginBottom: 16
             }}>
-              What Our Users Say
-            </h2>
-            <Link
-              to="/about"
-              style={{
-                color: '#1e3c72',
-                fontSize: 14,
-                fontWeight: 500,
-                textDecoration: 'none',
-                borderBottom: '1px solid transparent',
-                transition: 'border-bottom 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.borderBottom = '1px solid #1e3c72'}
-              onMouseLeave={(e) => e.currentTarget.style.borderBottom = '1px solid transparent'}
-            >
-              See all reviews
-            </Link>
+              <button
+                onClick={() => setShowFeedback(!showFeedback)}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  width: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '8px 0',
+                  cursor: 'pointer',
+                  borderBottom: `2px solid ${darkMode ? '#444' : '#e0e0e0'}`,
+                  marginBottom: showFeedback ? 16 : 0
+                }}
+              >
+                <span style={{
+                  color: headingColor,
+                  fontSize: 20,
+                  fontWeight: 600
+                }}>
+                  What Our Users Say
+                </span>
+                <span style={{
+                  color: secondaryText,
+                  fontSize: 20,
+                  fontWeight: 'bold'
+                }}>
+                  {showFeedback ? '▼' : '▶'}
+                </span>
+              </button>
+            </div>
+
+            {showFeedback && (
+              <>
+                {ratingSettings.showSeeAllLink && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                    <Link
+                      to="/about"
+                      style={{
+                        color: '#1e3c72',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        textDecoration: 'none',
+                        borderBottom: '1px solid transparent',
+                        transition: 'border-bottom 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderBottom = '1px solid #1e3c72'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderBottom = '1px solid transparent'}
+                    >
+                      See all reviews →
+                    </Link>
+                  </div>
+                )}
+                <FeedbackList
+                  limit={ratingSettings.feedbackListLimit}
+                  darkMode={darkMode}
+                  headingColor={headingColor}
+                  textColor={textColor}
+                  secondaryText={secondaryText}
+                  cardBg={cardBg}
+                  token={token}
+                />
+              </>
+            )}
           </div>
-          <FeedbackList
-            darkMode={darkMode}
-            headingColor={headingColor}
-            textColor={textColor}
-            secondaryText={secondaryText}
-            cardBg={cardBg}
-            token={token}
-          />
-        </div>
+        )}
       </div>
 
       {/* ---- FOOTER ---- */}
@@ -967,9 +1021,11 @@ export const HomePage = () => {
         headingColor={headingColor}
         textColor={textColor}
         secondaryText={secondaryText}
+        modalFrequency={ratingSettings.modalFrequency}
+        minExamsBeforePrompt={ratingSettings.minExamsBeforePrompt}
+        customMessage={ratingSettings.customMessage}
       />
 
-      {/* ---- CSS Animation ---- */}
       <style>{`
         @keyframes popIn {
           from { transform: scale(0.8); opacity: 0; }

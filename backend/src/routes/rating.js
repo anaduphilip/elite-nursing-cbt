@@ -5,9 +5,6 @@ const { authenticate } = require('../middleware');
 
 const router = express.Router();
 
-// ===== USER ROUTES =====
-
-// POST /api/ratings – Submit a rating
 router.post('/', authenticate, async (req, res) => {
   try {
     const { stars, feedback, name } = req.body;
@@ -16,20 +13,17 @@ router.post('/', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Please provide a valid star rating (1-5).' });
     }
 
-    // Check if user already rated (prevent duplicates)
     const existing = await Rating.findOne({
       userId: req.user._id,
       isDeleted: false
     });
 
     if (existing) {
-      // Update existing rating instead of creating duplicate
       existing.stars = stars;
       existing.feedback = feedback || existing.feedback;
       existing.name = name || existing.name;
       existing.updatedAt = new Date();
       await existing.save();
-
       return res.json({
         success: true,
         message: 'Rating updated successfully.',
@@ -61,7 +55,6 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/ratings/check – Check if user should see rating prompt
 router.get('/check', authenticate, async (req, res) => {
   try {
     const config = await Config.findOne();
@@ -71,7 +64,6 @@ router.get('/check', authenticate, async (req, res) => {
       minExamsBeforePrompt: 3
     };
 
-    // Get user's existing rating
     const existingRating = await Rating.findOne({
       userId: req.user._id,
       isDeleted: false
@@ -79,7 +71,6 @@ router.get('/check', authenticate, async (req, res) => {
 
     const hasRated = !!existingRating;
     const userRating = existingRating ? existingRating.stars : null;
-
     const examCount = req.user.quizResults?.length || 0;
 
     let shouldShow = false;
@@ -111,15 +102,16 @@ router.get('/check', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/ratings/latest – Get latest 5 feedbacks (real + Marketing)
 router.get('/latest', async (req, res) => {
   try {
+    const limit = parseInt(req.query.limit) || 5;
+
     const ratings = await Rating.find({
       isDeleted: false,
       feedback: { $ne: '' }
     })
     .sort({ createdAt: -1 })
-    .limit(5)
+    .limit(limit)
     .select('stars feedback name createdAt isMarketing userId');
 
     const ratingsWithReplies = await Promise.all(
@@ -147,7 +139,6 @@ router.get('/latest', async (req, res) => {
             })
             .populate('userId', 'name')
             .lean();
-
             return {
               ...reply,
               reactions: replyReactions
@@ -174,10 +165,8 @@ router.get('/latest', async (req, res) => {
   }
 });
 
-// ===== FIXED STATS ROUTE: counts all ratings from database =====
 router.get('/stats', async (req, res) => {
   try {
-    // Get all non‑deleted ratings (both real and marketing)
     const allRatings = await Rating.find({ isDeleted: false });
 
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -190,8 +179,6 @@ router.get('/stats', async (req, res) => {
 
     const totalCount = allRatings.length;
     const average = totalCount > 0 ? (totalSum / totalCount) : 0;
-
-    // Separate counts (optional)
     const realCount = allRatings.filter(r => !r.isMarketing).length;
     const marketingCount = allRatings.filter(r => r.isMarketing).length;
 
@@ -211,7 +198,6 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// POST /api/ratings/:id/reactions – Add/change reaction to feedback
 router.post('/:id/reactions', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
@@ -285,7 +271,6 @@ router.post('/:id/reactions', authenticate, async (req, res) => {
   }
 });
 
-// DELETE /api/ratings/:id/reactions – Remove user's reaction
 router.delete('/:id/reactions', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
