@@ -14,10 +14,7 @@ const FeedbackItem = ({
 }) => {
   const { user } = useContext(AuthContext);
 
-  // ----- GUARD: Exit early if feedback is invalid -----
-  if (!feedback || !feedback._id) {
-    return null;
-  }
+  if (!feedback || !feedback._id) return null;
 
   const [reactions, setReactions] = useState(feedback.reactions || []);
   const [replyReactions, setReplyReactions] = useState(
@@ -103,18 +100,34 @@ const FeedbackItem = ({
     return reaction.userId && reaction.userId._id === user?._id;
   };
 
+  // ----- NEW: renderReactions that groups by emoji and sums counts -----
   const renderReactions = (targetReactions, targetId, replyId = null) => {
     const key = replyId ? `reply_${replyId}` : 'feedback';
     const isPickerOpen = pickerOpen[key] || false;
-    const visibleEmojis = allowedEmojis.filter(emoji =>
-      targetReactions.some(r => r.emoji === emoji)
-    );
+
+    // Group by emoji and sum counts
+    const emojiMap = {};
+    targetReactions.forEach(r => {
+      const emoji = r.emoji;
+      if (!emojiMap[emoji]) {
+        emojiMap[emoji] = { count: 0, userReacted: false };
+      }
+      emojiMap[emoji].count += r.count || 1;
+      if (r.userId && r.userId._id === user?._id) {
+        emojiMap[emoji].userReacted = true;
+      }
+    });
+
+    // Only show emojis that have count > 0
+    const visibleEmojis = Object.keys(emojiMap).filter(emoji => emojiMap[emoji].count > 0);
+
+    // Allowed emojis for the picker = intersection of allowedEmojis and those not already visible
+    const pickerEmojis = allowedEmojis.filter(emoji => !visibleEmojis.includes(emoji));
 
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
         {visibleEmojis.map((emoji) => {
-          const count = targetReactions.filter(r => r.emoji === emoji).length;
-          const userReacted = targetReactions.some(r => r.emoji === emoji && isOwnReaction(r));
+          const { count, userReacted } = emojiMap[emoji];
           return (
             <button
               key={emoji}
@@ -143,7 +156,7 @@ const FeedbackItem = ({
           );
         })}
 
-        {allowedEmojis.length > visibleEmojis.length && (
+        {pickerEmojis.length > 0 && (
           <div style={{ position: 'relative', display: 'inline-block' }} ref={el => (pickerRef.current[key] = el)}>
             <button
               onClick={() => togglePicker(key)}
@@ -182,7 +195,7 @@ const FeedbackItem = ({
                   zIndex: 10,
                 }}
               >
-                {allowedEmojis.map(emoji => (
+                {pickerEmojis.map(emoji => (
                   <button
                     key={emoji}
                     onClick={() => handleReaction(feedback._id, emoji, replyId)}
@@ -210,6 +223,7 @@ const FeedbackItem = ({
     );
   };
 
+  // ----- Main render -----
   return (
     <div
       style={{
@@ -224,7 +238,6 @@ const FeedbackItem = ({
         marginBottom: 16,
       }}
     >
-      {/* Header: Stars + Name + Date */}
       <div
         style={{
           display: 'flex',
@@ -246,7 +259,6 @@ const FeedbackItem = ({
         </span>
       </div>
 
-      {/* Feedback text */}
       {feedback.feedback && (
         <p
           style={{
@@ -260,10 +272,8 @@ const FeedbackItem = ({
         </p>
       )}
 
-      {/* Reactions */}
       {renderReactions(reactions, feedback._id, null)}
 
-      {/* Replies toggle */}
       {feedback.replies && feedback.replies.length > 0 && (
         <div style={{ marginTop: 10 }}>
           <button
@@ -284,7 +294,6 @@ const FeedbackItem = ({
         </div>
       )}
 
-      {/* Replies list */}
       {showReplies &&
         feedback.replies &&
         feedback.replies.map((reply) => {

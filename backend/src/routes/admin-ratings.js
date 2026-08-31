@@ -17,6 +17,13 @@ router.get('/settings', isAdmin, async (req, res) => {
       modalFrequency: config.ratingSettings?.modalFrequency || 'afterExam',
       minExamsBeforePrompt: config.ratingSettings?.minExamsBeforePrompt || 3,
       customMessage: config.ratingSettings?.customMessage || 'We value your feedback! Please rate your experience.',
+      showFeedbackList: config.ratingSettings?.showFeedbackList ?? true,
+      feedbackListLimit: config.ratingSettings?.feedbackListLimit || 5,
+      showSeeAllLink: config.ratingSettings?.showSeeAllLink ?? true,
+      showRatingOnHome: config.ratingSettings?.showRatingOnHome ?? true,
+      showRatingOnAbout: config.ratingSettings?.showRatingOnAbout ?? true,
+      enableMarketingReactions: config.ratingSettings?.enableMarketingReactions ?? true,
+      allowedReactionEmojis: config.ratingSettings?.allowedReactionEmojis || '👍,❤️,👏,😊,🔥,💯,🌟,🙌',
       MarketingRatingsCount: config.ratingSettings?.MarketingRatingsCount || 0,
       MarketingRatingsDistribution: config.ratingSettings?.MarketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
     };
@@ -34,16 +41,15 @@ router.put('/settings', isAdmin, async (req, res) => {
     if (!config) {
       config = new Config();
     }
+
     config.ratingSettings = {
-      showRatingModal: ratingSettings?.showRatingModal !== undefined ? ratingSettings.showRatingModal : true,
-      modalFrequency: ratingSettings?.modalFrequency || 'afterExam',
-      minExamsBeforePrompt: ratingSettings?.minExamsBeforePrompt || 3,
-      customMessage: ratingSettings?.customMessage || 'We value your feedback! Please rate your experience.',
-      MarketingRatingsCount: ratingSettings?.MarketingRatingsCount || 0,
-      MarketingRatingsDistribution: ratingSettings?.MarketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      ...config.ratingSettings, 
+      ...ratingSettings
     };
+
     config.updatedAt = new Date();
     await config.save();
+
     res.json({
       success: true,
       message: 'Rating settings updated successfully.',
@@ -88,7 +94,6 @@ router.get('/', isAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/ratings – create single marketing rating
 router.post('/', isAdmin, async (req, res) => {
   try {
     const { stars, feedback, name, isMarketing = true } = req.body;
@@ -113,7 +118,6 @@ router.post('/', isAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/ratings/bulk – bulk marketing ratings
 router.post('/bulk', isAdmin, async (req, res) => {
   try {
     const { count, stars, namePrefix = 'User', feedback } = req.body;
@@ -145,7 +149,6 @@ router.post('/bulk', isAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/ratings/bulk – bulk soft delete or delete all marketing
 router.delete('/bulk', isAdmin, async (req, res) => {
   try {
     const { ids, deleteAllMarketing } = req.body;
@@ -200,7 +203,6 @@ router.delete('/bulk', isAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/admin/ratings/bulk/restore – restore soft-deleted ratings
 router.put('/bulk/restore', isAdmin, async (req, res) => {
   try {
     const { ids, restoreAll } = req.body;
@@ -255,7 +257,6 @@ router.put('/bulk/restore', isAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/ratings/bulk/permanent – permanently delete ratings (hard delete)
 router.delete('/bulk/permanent', isAdmin, async (req, res) => {
   try {
     const { ids, deleteAllDeleted } = req.body;
@@ -301,7 +302,6 @@ router.delete('/bulk/permanent', isAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/ratings/reactions/:reactionId – admin remove reaction
 router.delete('/reactions/:reactionId', isAdmin, async (req, res) => {
   try {
     const reaction = await FeedbackReaction.findById(req.params.reactionId);
@@ -313,6 +313,75 @@ router.delete('/reactions/:reactionId', isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Admin remove reaction error:', error);
     res.status(500).json({ error: 'Failed to remove reaction.' });
+  }
+});
+
+router.post('/:id/reactions', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { emoji, count, replyId } = req.body;
+
+    if (!emoji) {
+      return res.status(400).json({ error: 'Emoji is required.' });
+    }
+    if (!count || count < 1) {
+      return res.status(400).json({ error: 'Count must be at least 1.' });
+    }
+
+    const rating = await Rating.findById(id);
+    if (!rating || rating.isDeleted) {
+      return res.status(404).json({ error: 'Feedback not found.' });
+    }
+
+    if (replyId) {
+      const reply = await FeedbackReply.findOne({
+        _id: replyId,
+        feedbackId: id,
+        isDeleted: false
+      });
+      if (!reply) {
+        return res.status(404).json({ error: 'Reply not found.' });
+      }
+    }
+
+    const existing = await FeedbackReaction.findOne({
+      feedbackId: id,
+      replyId: replyId || null,
+      emoji: emoji,
+      isMarketing: true
+    });
+
+    if (existing) {
+      existing.count = count;
+      existing.updatedAt = new Date();
+      await existing.save();
+      return res.json({
+        success: true,
+        message: 'Reaction count updated.',
+        reaction: existing
+      });
+    }
+
+    const reaction = new FeedbackReaction({
+      feedbackId: id,
+      replyId: replyId || null,
+      userId: null,
+      emoji: emoji,
+      count: count,
+      isMarketing: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    await reaction.save();
+
+    res.json({
+      success: true,
+      message: 'Reaction added successfully.',
+      reaction
+    });
+  } catch (error) {
+    console.error('Add marketing reaction error:', error);
+    res.status(500).json({ error: 'Failed to add reaction.' });
   }
 });
 
@@ -337,7 +406,6 @@ router.get('/:id', isAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/admin/ratings/:id – update rating
 router.put('/:id', isAdmin, async (req, res) => {
   try {
     const { stars, feedback, name, isDeleted } = req.body;
@@ -361,7 +429,6 @@ router.put('/:id', isAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/ratings/:id – soft delete single rating
 router.delete('/:id', isAdmin, async (req, res) => {
   try {
     const rating = await Rating.findById(req.params.id);
@@ -382,7 +449,6 @@ router.delete('/:id', isAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/ratings/:id/reply
 router.post('/:id/reply', isAdmin, async (req, res) => {
   try {
     const { replyText } = req.body;
@@ -412,7 +478,6 @@ router.post('/:id/reply', isAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/admin/ratings/:id/reply/:replyId
 router.put('/:id/reply/:replyId', isAdmin, async (req, res) => {
   try {
     const { replyText } = req.body;
@@ -438,7 +503,6 @@ router.put('/:id/reply/:replyId', isAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/ratings/:id/reply/:replyId
 router.delete('/:id/reply/:replyId', isAdmin, async (req, res) => {
   try {
     const { id, replyId } = req.params;

@@ -32,6 +32,10 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
   const [showDeleteAllMarketingModal, setShowDeleteAllMarketingModal] = useState(false);
   const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
 
+  // ===== NEW: Reaction inputs =====
+  const [newReactionEmoji, setNewReactionEmoji] = useState('');
+  const [newReactionCount, setNewReactionCount] = useState(1);
+
   // ----- Fetch ratings -----
   const fetchRatings = async () => {
     try {
@@ -276,6 +280,32 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
       alert('Failed to permanently delete.');
     } finally {
       setBulkPermanentDeleting(false);
+    }
+  };
+
+  // ===== NEW: Add marketing reaction =====
+  const handleAddReaction = async () => {
+    if (!selectedRating) return;
+    if (!newReactionEmoji || newReactionCount < 1) {
+      alert('Please enter a valid emoji and count.');
+      return;
+    }
+    try {
+      await axios.post(
+        `/api/admin/ratings/${selectedRating._id}/reactions`,
+        {
+          emoji: newReactionEmoji,
+          count: newReactionCount,
+          replyId: null 
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNewReactionEmoji('');
+      setNewReactionCount(1);
+      fetchRatings();
+      alert('Reaction added successfully.');
+    } catch (err) {
+      alert('Failed to add reaction.');
     }
   };
 
@@ -619,6 +649,7 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                 <p><strong>Feedback:</strong> {selectedRating.feedback || 'None'}</p>
                 <p><strong>Type:</strong> {selectedRating.isMarketing ? 'Marketing' : 'Real'}</p>
                 <p><strong>Date:</strong> {new Date(selectedRating.createdAt).toLocaleString()}</p>
+
                 <div style={{ marginTop: 16 }}>
                   <h5 style={{ color: headingColor }}>Admin Reply</h5>
                   <textarea
@@ -636,7 +667,39 @@ const RatingsTab = ({ token, darkMode, headingColor, textColor, secondaryText, c
                     {replying ? 'Sending...' : 'Send Reply'}
                   </button>
                 </div>
-                <button onClick={() => { setSelectedRating(null); setReplyText(''); }} style={{ marginTop: 16, background: '#6c757d', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: 'pointer' }}>Close</button>
+
+                {/* ===== NEW: Add Marketing Reactions ===== */}
+                <div style={{ marginTop: 16, borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingTop: 16 }}>
+                  <h5 style={{ color: headingColor }}>Add Marketing Reactions</h5>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="text"
+                      placeholder="Emoji (e.g., 👍)"
+                      value={newReactionEmoji}
+                      onChange={(e) => setNewReactionEmoji(e.target.value)}
+                      style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor, width: 80 }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Count"
+                      value={newReactionCount}
+                      onChange={(e) => setNewReactionCount(parseInt(e.target.value) || 1)}
+                      style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', background: cardBg, color: textColor, width: 80 }}
+                    />
+                    <button
+                      onClick={handleAddReaction}
+                      disabled={!newReactionEmoji || newReactionCount < 1}
+                      style={{ padding: '6px 16px', background: '#28a745', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                    >
+                      Add Reaction
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 12, color: secondaryText, marginTop: 4 }}>
+                    This reaction will be added as a marketing reaction (no user linked).
+                  </p>
+                </div>
+
+                <button onClick={() => { setSelectedRating(null); setReplyText(''); setNewReactionEmoji(''); setNewReactionCount(1); }} style={{ marginTop: 16, background: '#6c757d', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: 'pointer' }}>Close</button>
               </>
             )}
           </div>

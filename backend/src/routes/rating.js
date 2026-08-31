@@ -174,43 +174,35 @@ router.get('/latest', async (req, res) => {
   }
 });
 
-// GET /api/ratings/stats – Get aggregated stats
+// ===== FIXED STATS ROUTE: counts all ratings from database =====
 router.get('/stats', async (req, res) => {
   try {
-    const config = await Config.findOne();
-    const MarketingCounts = config?.ratingSettings?.MarketingRatingsDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    const totalMarketing = Object.values(MarketingCounts).reduce((a, b) => a + b, 0);
+    // Get all non‑deleted ratings (both real and marketing)
+    const allRatings = await Rating.find({ isDeleted: false });
 
-    const realRatings = await Rating.find({ isDeleted: false, isMarketing: false });
-    const totalReal = realRatings.length;
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let totalSum = 0;
 
-    const realDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    let realSum = 0;
-    realRatings.forEach(r => {
-      realDistribution[r.stars]++;
-      realSum += r.stars;
+    allRatings.forEach(r => {
+      distribution[r.stars]++;
+      totalSum += r.stars;
     });
 
-    const totalDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    let totalSum = 0;
-    let totalCount = 0;
-
-    for (let i = 1; i <= 5; i++) {
-      totalDistribution[i] = (realDistribution[i] || 0) + (MarketingCounts[i] || 0);
-      totalCount += totalDistribution[i];
-      totalSum += totalDistribution[i] * i;
-    }
-
+    const totalCount = allRatings.length;
     const average = totalCount > 0 ? (totalSum / totalCount) : 0;
+
+    // Separate counts (optional)
+    const realCount = allRatings.filter(r => !r.isMarketing).length;
+    const marketingCount = allRatings.filter(r => r.isMarketing).length;
 
     res.json({
       success: true,
       stats: {
         total: totalCount,
         average: Math.round(average * 10) / 10,
-        distribution: totalDistribution,
-        realCount: totalReal,
-        MarketingCount: totalMarketing
+        distribution: distribution,
+        realCount: realCount,
+        marketingCount: marketingCount
       }
     });
   } catch (error) {

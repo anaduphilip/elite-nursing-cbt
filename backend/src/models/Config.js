@@ -43,11 +43,19 @@ const ConfigSchema = new mongoose.Schema({
     showBadgesOnHome: { type: Boolean, default: true },
     showStreakOnHome: { type: Boolean, default: true }
   },
+  
   ratingSettings: {
     showRatingModal: { type: Boolean, default: true },
     modalFrequency: { type: String, enum: ['always', 'once', 'afterExam', 'weekly'], default: 'afterExam' },
     minExamsBeforePrompt: { type: Number, default: 3 },
     customMessage: { type: String, default: 'We value your feedback! Please rate your experience.' },
+    showFeedbackList: { type: Boolean, default: true },
+    feedbackListLimit: { type: Number, default: 5 },
+    showSeeAllLink: { type: Boolean, default: true },
+    showRatingOnHome: { type: Boolean, default: true },
+    showRatingOnAbout: { type: Boolean, default: true },
+    enableMarketingReactions: { type: Boolean, default: true },
+    allowedReactionEmojis: { type: String, default: '👍,❤️,👏,😊,🔥,💯,🌟,🙌' },
     MarketingRatingsCount: { type: Number, default: 0 },
     MarketingRatingsDistribution: {
       1: { type: Number, default: 0 },

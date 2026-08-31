@@ -55,6 +55,10 @@ const RatingModal = ({
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      localStorage.removeItem('latestFeedbacks');
+      localStorage.removeItem('ratingStats');
+
       setSubmitted(true);
       setShowSuggestionBox(false);
       if (onRatingSubmitted) onRatingSubmitted();

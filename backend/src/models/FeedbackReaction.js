@@ -10,17 +10,24 @@ const FeedbackReactionSchema = new mongoose.Schema({
   replyId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'FeedbackReply',
-    default: null 
+    default: null
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    default: null 
   },
   emoji: {
     type: String,
-    required: true,
-    enum: ['👍', '❤️', '👏', '😊', '🔥', '💯', '🌟', '🙌']
+    required: true
+  },
+  count: {
+    type: Number,
+    default: 1
+  },
+  isMarketing: {
+    type: Boolean,
+    default: false 
   },
   createdAt: {
     type: Date,
@@ -34,8 +41,7 @@ const FeedbackReactionSchema = new mongoose.Schema({
 
 FeedbackReactionSchema.index(
   { feedbackId: 1, replyId: 1, userId: 1 },
-  { unique: true }
+  { unique: true, partialFilterExpression: { userId: { $ne: null } } }
 );
-FeedbackReactionSchema.index({ feedbackId: 1, replyId: 1 });
 
 module.exports = mongoose.model('FeedbackReaction', FeedbackReactionSchema);
