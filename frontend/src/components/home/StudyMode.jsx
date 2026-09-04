@@ -137,7 +137,7 @@ export const StudyMode = () => {
               gap: 8
             }}
           >
-            ← Back to Home
+            Back to Home
           </button>
         </div>
 

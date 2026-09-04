@@ -89,7 +89,7 @@ router.post('/apply', async (req, res) => {
     };
     await newUser.save();
 
-    console.log(`✅ [REFERRAL] ${newUser.email} → ${referrer.email} | 10% discount applied`);
+    console.log(`✅ [REFERRAL] ${newUser.email} ${referrer.email} | 10% discount applied`);
 
     res.json({ 
       success: true, 

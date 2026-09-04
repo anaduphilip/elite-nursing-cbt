@@ -12,8 +12,8 @@ export const QuestionEditorTab = ({
   setShowQuestionModal,
   resetQuestionForm,
   handleDeleteQuestionFromQuiz,
-  fetchQuestions,          // ← NEW
-  openEditQuestionInQuiz,  // ← NEW
+  fetchQuestions,
+  openEditQuestionInQuiz,
   darkMode,
   headingColor,
   secondaryText,

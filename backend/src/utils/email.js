@@ -266,7 +266,7 @@ const getReminderEmailTemplate = (name, plan, daysLeft, hoursLeft) => {
           <p style="margin-top:6px;">${message}</p>
         </div>
         <p style="color: #4a5568; font-size: 15px; text-align:center; margin: 20px 0;">
-          <a href="https://elite-nursing-cbt.vercel.app/get-premium" class="btn">Renew Now →</a>
+          <a href="https://elite-nursing-cbt.vercel.app/get-premium" class="btn">Renew Now</a>
         </p>
         <p style="color: #4a5568; font-size: 15px;">Best regards,<br/>ELITE Nursing CBT Team</p>
       </div>

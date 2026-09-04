@@ -104,7 +104,7 @@ export const FloatingChatButton = () => {
 
   const buttonSize = 60;
   const isOnRight = position.x > 0;
-  const arrow = isOnRight ? '←' : '→';
+  const arrow = isOnRight ? 'L' : 'R';
 
   if (!isVisible) {
     return (

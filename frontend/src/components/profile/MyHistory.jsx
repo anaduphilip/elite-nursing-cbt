@@ -110,7 +110,7 @@ export const MyHistory = () => {
     navigate('/profile');
   };
 
-  // ===== GROUP ATTEMPTS BY CATEGORY → TOPIC =====
+  // ===== GROUP ATTEMPTS BY CATEGORY & TOPIC =====
   const grouped = {};
   attempts.forEach(attempt => {
     const cat = attempt.category || 'general';

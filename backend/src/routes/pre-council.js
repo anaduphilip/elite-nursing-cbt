@@ -119,7 +119,7 @@ router.post('/exams/:examId/submit', authenticate, async (req, res) => {
       });
 
       await user.save();
-      console.log(`✅ PreCouncil result saved for ${user.email}: ${score}/${total} (${categorySlug} → ${paperName})`);
+      console.log(`✅ PreCouncil result saved for ${user.email}: ${score}/${total} (${categorySlug} ${paperName})`);
 
       try {
         const gamificationResult = await checkAndAwardBadges(req.user._id);

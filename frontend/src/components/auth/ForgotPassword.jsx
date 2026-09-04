@@ -190,7 +190,7 @@ export const ForgotPassword = () => {
 
         <div style={{ marginTop: 20, textAlign: 'center' }}>
           <Link to="/login" style={{ color: headingColor, fontSize: 13, textDecoration: 'none' }}>
-            ← Back to Login
+            Back to Login
           </Link>
         </div>
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>

@@ -139,7 +139,7 @@ export const ExamList = () => {
       {showPremiumModal && <PremiumModal onClose={() => setShowPremiumModal(false)} examTitle={quiz.title} sectionNumber={selectedSection?.number} />}
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         <Link to={getCategorySlug()} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, background: examColor, color: 'white', padding: '10px 20px', borderRadius: 30, marginBottom: 20, fontSize: 14 }}>
-          ← Back to Courses
+          Back to Courses
         </Link>
 
         <div style={{ background: `linear-gradient(135deg, ${examColor} 0%, ${mode === 'free' ? '#1a3a5c' : '#e65100'} 100%)`, borderRadius: 20, padding: 24, marginBottom: 28, color: 'white', textAlign: 'center' }}>
@@ -168,7 +168,7 @@ export const ExamList = () => {
                     {lastScores[1] && <p style={{ color: '#ff9800', fontSize: 13, marginTop: 4 }}>📊 Your Last Score: {lastScores[1].score}/{lastScores[1].total} ({formatPercentage(lastScores[1].percentage)}%)</p>}
                   </div>
                   <button onClick={() => handleStartExam(sections[0])} style={{ background: hasTakenExam1 ? '#ff9800' : '#4caf50', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-                    {hasTakenExam1 ? '⭐ Upgrade to Retake' : 'Start Free Exam →'}
+                    {hasTakenExam1 ? '⭐ Upgrade to Retake' : 'Start Free Exam'}
                   </button>
                 </div>
               </div>
@@ -176,7 +176,7 @@ export const ExamList = () => {
 
             <div style={{ textAlign: 'center', padding: 28, background: '#fff3e0', borderRadius: 16, marginBottom: 20 }}>
               <p style={{ color: '#ff9800', fontWeight: 'bold', fontSize: 16 }}>⭐ Unlock ALL premium exams and retakes by chooseing a subscription plan that suits you!</p>
-              <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 12 }}>Upgrade Now →</button></Link>
+              <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 12 }}>Upgrade Now</button></Link>
             </div>
           </>
         )}
@@ -194,7 +194,7 @@ export const ExamList = () => {
                     <p style={{ textAlign: 'center', fontSize: 14 }}>{section.count} Questions | ⏰ {section.timeMinutes} minutes</p>
                     {lastScores[section.number] && <p style={{ color: '#ff9800', textAlign: 'center', fontSize: 13, marginTop: 4 }}>📊 Score: {lastScores[section.number].score}/{lastScores[section.number].total} ({formatPercentage(lastScores[section.number].percentage)}%)</p>}
                     <button onClick={() => handleStartExam(section)} style={{ width: '100%', marginTop: 14, background: canAccess ? '#ff9800' : '#ccc', color: 'white', padding: '10px', border: 'none', borderRadius: 10, cursor: canAccess ? 'pointer' : 'not-allowed', fontWeight: 'bold', fontSize: 14 }}>
-                      {canAccess ? 'Start Exam →' : '🔒 Premium Required'}
+                      {canAccess ? 'Start Exam' : '🔒 Premium Required'}
                     </button>
                   </div>
                 );
@@ -203,7 +203,7 @@ export const ExamList = () => {
             {!userPremium && (
               <div style={{ marginTop: 24, textAlign: 'center', padding: 20, background: '#fff3e0', borderRadius: 16 }}>
                 <p style={{ color: '#ff9800', fontSize: 14 }}>⭐ Upgrade to access all examinations by Choosing a subscription plan that suits you!</p>
-                <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 8 }}>Upgrade Now →</button></Link>
+                <Link to="/get-premium"><button style={{ background: '#ff9800', color: 'white', padding: '10px 24px', border: 'none', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, marginTop: 8 }}>Upgrade Now</button></Link>
               </div>
             )}
           </div>

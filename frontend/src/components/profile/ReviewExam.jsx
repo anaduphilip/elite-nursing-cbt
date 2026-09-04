@@ -165,7 +165,7 @@ export const ReviewExam = () => {
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <Link to="/history" style={{ textDecoration: 'none', color: headingColor }}>← Back to History</Link>
+          <Link to="/history" style={{ textDecoration: 'none', color: headingColor }}>Back to History</Link>
         </div>
 
         {/* ===== Remaining counter ===== */}

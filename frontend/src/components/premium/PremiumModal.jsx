@@ -34,7 +34,7 @@ export const PremiumModal = ({ onClose, examTitle, sectionNumber }) => {
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <button onClick={onClose} style={{ flex: 1, background: '#6c757d', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: '500', fontSize: 14 }}>Cancel</button>
           <button onClick={handleUpgrade} style={{ flex: 1, background: '#ff9800', color: 'white', padding: 12, border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-            View Plans →
+            View Plans
           </button>
         </div>
       </div>

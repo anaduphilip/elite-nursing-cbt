@@ -58,7 +58,7 @@ async function fixAllCategories() {
         quiz.category = newCategory;
         await quiz.save();
         fixed++;
-        console.log(`   Fixed: ${quiz.title.substring(0, 50)} → ${newCategory}`);
+        console.log(`   Fixed: ${quiz.title.substring(0, 50)} ${newCategory}`);
       }
     }
 

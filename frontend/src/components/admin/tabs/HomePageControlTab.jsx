@@ -11,7 +11,7 @@ export const HomePageControlTab = ({ token, config, setConfig, darkMode, heading
     showStudyMode: true,
     showProgressSnapshot: true,
     showDownloadApp: true,
-    showPreCouncil: true,        // ← NEW: Pre Council toggle
+    showPreCouncil: true,
     showGetPremium: true
   });
 
@@ -23,7 +23,7 @@ export const HomePageControlTab = ({ token, config, setConfig, darkMode, heading
         showStudyMode: config.showStudyMode !== undefined ? config.showStudyMode : true,
         showProgressSnapshot: config.showProgressSnapshot !== undefined ? config.showProgressSnapshot : true,
         showDownloadApp: config.showDownloadApp !== undefined ? config.showDownloadApp : true,
-        showPreCouncil: config.showPreCouncil !== undefined ? config.showPreCouncil : true,   // ← NEW
+        showPreCouncil: config.showPreCouncil !== undefined ? config.showPreCouncil : true,
         showGetPremium: config.showGetPremium !== undefined ? config.showGetPremium : true
       });
     }

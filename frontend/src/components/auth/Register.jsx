@@ -388,7 +388,7 @@ export const Register = () => {
             
             <div style={{ marginTop: 20, textAlign: 'center' }}>
               <Link to="/login" style={{ color: headingColor, fontSize: 13, textDecoration: 'none' }}>
-                ← Back to Login
+                Back to Login
               </Link>
             </div>
           </>
@@ -463,7 +463,7 @@ export const Register = () => {
                 </button>
               </p>
               <Link to="/login" style={{ color: headingColor, fontSize: 13, textDecoration: 'none', display: 'inline-block', marginTop: 10 }}>
-                ← Back to Login
+                Back to Login
               </Link>
             </div>
           </>

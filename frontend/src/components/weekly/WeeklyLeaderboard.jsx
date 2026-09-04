@@ -100,7 +100,7 @@ export const WeeklyLeaderboard = () => {
               fontSize: 'clamp(13px, 3vw, 14px)'
             }}
           >
-            ← Back to Quiz
+            Back to Quiz
           </Link>
         </div>
 
@@ -119,7 +119,7 @@ export const WeeklyLeaderboard = () => {
             {userRank ? (
               <>Your Rank: <strong>#{userRank}</strong> out of {attempts.length} participants</>
             ) : (
-              <>🏆 Take the weekly quiz to see your rank! <Link to="/weekly-quiz" style={{ color: '#1e3c72', fontWeight: 'bold' }}>Start Quiz →</Link></>
+              <>🏆 Take the weekly quiz to see your rank! <Link to="/weekly-quiz" style={{ color: '#1e3c72', fontWeight: 'bold' }}>Start Quiz</Link></>
             )}
           </p>
         </div>

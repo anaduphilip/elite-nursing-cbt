@@ -172,7 +172,7 @@ async function addQuizzes() {
       for (let idx = 0; idx < newFiles.length; idx++) {
         const file = newFiles[idx];
         const title = file.filename.replace(/\.docx$/i, '');
-        const isPremium = hasExisting || idx > 0; // existing exist OR not the first new file → premium
+        const isPremium = hasExisting || idx > 0;
 
         console.log(`   📖 Adding: ${title} (${isPremium ? 'Premium' : 'Free'})`);
 

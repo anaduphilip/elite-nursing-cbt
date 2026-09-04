@@ -17,7 +17,7 @@ export const PreCouncilCourseModal = ({ paper, categorySlug, onClose }) => {
   };
 
   const handleBack = () => {
-    onClose(); // Close the modal (which essentially goes back to papers)
+    onClose();
   };
 
   return (
@@ -45,7 +45,6 @@ export const PreCouncilCourseModal = ({ paper, categorySlug, onClose }) => {
         boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
         position: 'relative'
       }}>
-        {/* ===== BACK ARROW BUTTON (replaces ✕) ===== */}
         <button
           onClick={handleBack}
           style={{
@@ -56,21 +55,21 @@ export const PreCouncilCourseModal = ({ paper, categorySlug, onClose }) => {
             background: darkMode ? '#2d2d3d' : '#ffffff',
             color: headingColor,
             border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
-            borderRadius: '50%',
-            width: '40px',
-            height: '40px',
-            fontSize: '18px',
+            borderRadius: '30px',
+            padding: '6px 16px',
+            fontSize: '14px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            gap: '4px',
             transition: 'transform 0.2s ease, box-shadow 0.2s ease',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             backdropFilter: 'blur(4px)',
             backgroundColor: darkMode ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 255, 255, 0.9)'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.08)';
+            e.currentTarget.style.transform = 'scale(1.05)';
             e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
           }}
           onMouseLeave={(e) => {
@@ -79,7 +78,7 @@ export const PreCouncilCourseModal = ({ paper, categorySlug, onClose }) => {
           }}
           aria-label="Go back"
         >
-          ←
+          Back
         </button>
 
         <div style={{ marginLeft: '48px' }}>

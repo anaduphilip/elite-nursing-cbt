@@ -60,7 +60,7 @@ async function fixOptions() {
             console.log(`\n📝 Fixed in: "${quiz.title}"`);
             console.log(`   Question: ${question.questionText.substring(0, 60)}...`);
             console.log(`   Option ${String.fromCharCode(65 + index)}: "${trimmed}"`);
-            console.log(`   → Cleaned to: "${cleaned}"`);
+            console.log(`   Cleaned to: "${cleaned}"`);
             quizModified = true;
             totalFixedQuestions++;
             return cleaned;

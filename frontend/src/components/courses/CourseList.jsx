@@ -297,7 +297,7 @@ export const CourseList = () => {
                       <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{infoText}</p>
                       {premiumTag && premiumTag}
                       <div style={{ marginTop: 'auto' }}>
-                        <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>View Exams →</button>
+                        <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>View Exams</button>
                       </div>
                     </div>
                   </Link>
@@ -313,7 +313,7 @@ export const CourseList = () => {
                       <p style={{ color: darkMode ? '#aaa' : '#666', fontSize: 13, marginBottom: 12 }}>{exam.description}</p>
                       <p style={{ fontSize: 14 }}><strong style={{ color: category.color }}>Questions:</strong> {exam.totalQuestions}</p>
                       <div style={{ marginTop: 'auto' }}>
-                        <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Start Exam →</button>
+                        <button style={{ width: '100%', background: category.color, color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>Start Exam</button>
                       </div>
                     </div>
                   </Link>
@@ -325,7 +325,7 @@ export const CourseList = () => {
                 const hasTakenFree = localStorage.getItem(`exam_${quiz._id}_taken`) === 'true';
                 const isCompleted = !!lastScore;
 
-                let buttonText = 'Start Exam →';
+                let buttonText = 'Start Exam';
                 let buttonLink = `/take/${quiz._id}/1/${mode}`;
                 let buttonColor = category.color;
 
@@ -431,7 +431,7 @@ export const CourseList = () => {
           zIndex: 1000
         }}
       >
-        ← {currentTopic ? 'Back to Courses' : 'Back to Categories'}
+       {currentTopic ? 'Back to Courses' : 'Back to Categories'}
       </button>
     </div>
   );

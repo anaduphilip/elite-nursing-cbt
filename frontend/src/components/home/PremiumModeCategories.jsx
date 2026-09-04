@@ -272,7 +272,7 @@ export const PremiumModeCategories = () => {
                   {premiumTag && premiumTag}
                   <div style={{ marginTop: 'auto' }}>
                     <button style={{ width: '100%', background: '#ff9800', color: 'white', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
-                      View Exams →
+                      View Exams
                     </button>
                   </div>
                 </div>
@@ -299,7 +299,6 @@ export const PremiumModeCategories = () => {
 
   return (
     <div style={{ background: darkMode ? '#1a1a2e' : '#f0f7f4', minHeight: '100vh', padding: '20px' }}>
-      {/* ===== FLOATING BACK BUTTON – BOTTOM CENTER ===== */}
       <button
         onClick={goBack}
         style={{
@@ -311,30 +310,30 @@ export const PremiumModeCategories = () => {
           background: darkMode ? '#2d2d3d' : '#ffffff',
           color: headingColor,
           border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
-          borderRadius: '50%',
-          width: '50px',
-          height: '50px',
-          fontSize: '22px',
+          borderRadius: '30px',
+          padding: '10px 24px',
+          fontSize: '16px',
           cursor: 'pointer',
           boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          gap: '6px',
           transition: 'transform 0.2s ease, box-shadow 0.2s ease',
           backdropFilter: 'blur(4px)',
           backgroundColor: darkMode ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 255, 255, 0.9)'
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateX(-50%) scale(1.08)';
+          e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)';
           e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.2)';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
           e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
         }}
-        aria-label="Go back"
+        aria-label="Go back to home"
       >
-        ←
+        Back
       </button>
 
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -370,7 +369,7 @@ export const PremiumModeCategories = () => {
                 fontWeight: 'bold',
                 fontSize: 14
               }}>
-                Upgrade Now →
+                Upgrade Now
               </button>
             </Link>
           </div>
@@ -484,7 +483,7 @@ export const PremiumModeCategories = () => {
                       <span style={{ background: '#fff3e0', color: '#ff9800', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>⭐ Premium</span>
                     </div>
                     <button style={{ marginTop: 16, background: '#ff9800', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 30, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, width: '100%' }}>
-                      Explore Courses →
+                      Explore Courses
                     </button>
                   </div>
                 </Link>

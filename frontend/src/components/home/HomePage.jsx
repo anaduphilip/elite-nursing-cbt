@@ -742,7 +742,7 @@ export const HomePage = () => {
                   boxShadow: '0 2px 8px rgba(255, 152, 0, 0.3)'
                 }}
               >
-                {offer.buttonText || 'Claim Offer →'}
+                {offer.buttonText || 'Claim Offer'}
               </button>
               <button
                 onClick={() => {
