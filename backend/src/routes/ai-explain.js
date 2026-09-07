@@ -21,52 +21,50 @@ const checkUserExplanationLimit = async (user) => {
   return { allowed: remaining > 0, remaining };
 };
 
-// ----- STRIP QUESTION/OPTIONS LINES + EXTRACT BULLETS -----
-const cleanResponse = (text) => {
+// ----- IMPROVED EXTRACTION – only the numbered bullets -----
+const cleanResponse = (text, questionText = '') => {
   if (!text) return '';
 
-  // 1. Remove <think> tags
+  // 1. Remove <think> ... </think> (common in some models)
   let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '');
 
-  // 2. Remove lines that contain the question/options (case-insensitive)
-  const headerPatterns = [
-    /^Question:/i,
-    /^Options:/i,
-    /^Correct Answer:/i,
-    /^User's Answer:/i,
-    /^Requirements:/i,
-    /^Output Requirements:/i,
-    /^Provide/i, // sometimes they start with "Provide..."
-  ];
-  const lines = cleaned.split('\n');
-  const filteredLines = lines.filter(line => {
-    const trimmed = line.trim();
-    // Keep if it's a bullet (starts with number, dash, asterisk) OR if it's a complete sentence (>20 chars)
-    return headerPatterns.every(pattern => !pattern.test(trimmed));
-  });
+  // 2. Split into lines and trim
+  const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-  // 3. Now extract bullets from the remaining lines
-  const bulletLines = filteredLines.filter(l => /^\s*(\d\.|•|-|\*)\s/.test(l.trim()));
+  // 3. Look for lines that start with "1.", "2.", ..., "5."
+  const numberedLines = lines.filter(l => /^[1-5]\.\s/.test(l));
 
-  // 4. If we have numbered bullets (1., 2., etc.) keep them
-  const numberedBullets = bulletLines.filter(l => /^\s*\d\./.test(l.trim()));
-  if (numberedBullets.length >= 3) {
-    return numberedBullets.slice(0, 5).join('\n');
+  // 4. If we have at least 3 numbered bullets, return them (sanitized)
+  if (numberedLines.length >= 3) {
+    // Remove any leftover "Question:", "Options:" etc. from inside bullets
+    const sanitized = numberedLines.slice(0, 5).map(line =>
+      line.replace(/Question:|Options:|Correct Answer:|User's Answer:/gi, '').trim()
+    );
+    return sanitized.join('\n');
   }
 
-  // 5. If dash/asterisk bullets, keep them
-  if (bulletLines.length >= 3) {
-    return bulletLines.slice(0, 5).join('\n');
+  // 5. Fallback: try dash/asterisk bullets
+  const dashLines = lines.filter(l => /^[•\-*]\s/.test(l));
+  if (dashLines.length >= 3) {
+    return dashLines.slice(0, 5).join('\n');
   }
 
-  // 6. If no bullets, take the last 5 non‑empty lines that are complete sentences
-  const sentenceLines = filteredLines.filter(l => l.trim().length > 20 && !/^\s*[•\-*]\s/.test(l.trim()));
-  if (sentenceLines.length >= 3) {
-    return sentenceLines.slice(-5).join('\n');
+  // 6. Fallback: pick lines that are not the question/options and look like complete sentences
+  const filtered = lines.filter(l =>
+    !/^Question:|^Options:|^Correct Answer:|^User's Answer:/i.test(l) &&
+    !l.includes(questionText) &&
+    l.length > 20
+  );
+  if (filtered.length >= 3) {
+    return filtered.slice(-5).join('\n');
   }
 
-  // 7. Fallback
-  return filteredLines.slice(-5).join('\n') || 'Explanation not available. Please try again.';
+  // 7. Ultimate fallback – take last 5 lines
+  if (lines.length > 0) {
+    return lines.slice(-5).join('\n');
+  }
+
+  return 'Explanation not available. Please try again.';
 };
 
 // Generate AI explanation
@@ -89,49 +87,58 @@ router.post('/', authenticate, async (req, res) => {
     const correctLetter = String.fromCharCode(65 + correctAnswer);
     const userLetter = userAnswer !== undefined ? String.fromCharCode(65 + userAnswer) : 'Not answered';
 
-    // ----- STRICT PROMPT – NO QUESTION/OPTIONS IN OUTPUT -----
-    const prompt = `Question: ${questionText}
+    // ----- STRICT PROMPT – ask for exactly 5 numbered bullets, no extras -----
+    const prompt = `You are an AI tutor. Answer the following question with exactly 5 numbered bullet points.
+Use this exact structure:
+1. The correct answer is [letter] because [one clear reason].
+2. Option [letter] is wrong because [specific reason].
+3. Option [letter] is wrong because [specific reason].
+4. Option [letter] is wrong because [specific reason].
+5. Study tip: [one actionable piece of advice].
+
+IMPORTANT:
+- Do NOT include the question, the options, or any extra text before or after the bullets.
+- Do NOT include reasoning, meta‑comments, or "think" tags.
+- Each bullet must be a complete sentence (under 20 words).
+
+Question: ${questionText}
 Options:
 A: ${options[0]}
 B: ${options[1]}
 C: ${options[2]}
 D: ${options[3]}
 Correct Answer: ${correctLetter}
-User's Answer: ${userLetter}
+User's Answer: ${userLetter}`;
 
-Provide a short explanation in exactly 5 numbered bullet points (1. to 5.).
-1. Start with: "The correct answer is [option] because ..."
-2. For each wrong option: "Option [letter] is wrong because ..."
-3. End with: "Study tip: ..."
+    // Call the AI with a low temperature and frequency penalty to reduce repetition
+    const rawExplanation = await callAIModels(prompt, 180, 0.15, { frequency_penalty: 0.5 });
 
-Do NOT repeat the question, options, correct answer, or user's answer. Only output the 5 bullets.`;
+    // Clean and extract only the bullet points
+    let finalExplanation = cleanResponse(rawExplanation, questionText);
 
-    const rawExplanation = await callAIModels(prompt, 180, 0.15);
-
-    let finalExplanation = cleanResponse(rawExplanation);
-
-    // ----- Fallback if extraction fails -----
+    // ----- If extraction failed, try a fallback prompt -----
     if (!finalExplanation || finalExplanation === 'Explanation not available. Please try again.') {
-      const fallbackPrompt = `Correct: ${correctLetter}. Explain in 5 bullets why correct and why others wrong.`;
+      const fallbackPrompt = `Correct: ${correctLetter}. Explain in 5 bullets why correct and why each wrong option is wrong.`;
       const fallbackRaw = await callAIModels(fallbackPrompt, 140, 0.15);
-      const fallbackCleaned = cleanResponse(fallbackRaw);
+      const fallbackCleaned = cleanResponse(fallbackRaw, questionText);
       if (fallbackCleaned && fallbackCleaned !== 'Explanation not available. Please try again.') {
         finalExplanation = fallbackCleaned;
       }
     }
 
-    // ----- Ultimate fallback (rare) -----
+    // ----- Ultimate fallback (should never happen) -----
     if (!finalExplanation || finalExplanation === 'Explanation not available. Please try again.') {
       const optionLabels = ['A', 'B', 'C', 'D'];
       const wrongOptions = optionLabels.filter(l => l !== correctLetter);
       const correctName = options[correctAnswer];
-      finalExplanation = [
+      const fallbackBullets = [
         `1. The correct answer is ${correctLetter} (${correctName}) because it is the most accurate choice.`,
         `2. Option ${wrongOptions[0]} is wrong because it does not match the correct physiological process.`,
         `3. Option ${wrongOptions[1]} is wrong because it describes a different mechanism.`,
         `4. Option ${wrongOptions[2]} is wrong because it is not the primary factor.`,
         `5. Study tip: Focus on understanding the underlying pathophysiology.`
-      ].join('\n');
+      ];
+      finalExplanation = fallbackBullets.join('\n');
     }
 
     // Increment user's daily count (if not premium)
