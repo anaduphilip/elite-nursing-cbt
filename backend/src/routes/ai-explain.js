@@ -21,6 +21,12 @@ const checkUserExplanationLimit = async (user) => {
   return { allowed: remaining > 0, remaining };
 };
 
+// Helper: strip <think> tags and any reasoning content
+const stripThinkTags = (text) => {
+  if (!text) return '';
+  return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+};
+
 // Generate AI explanation
 router.post('/', authenticate, async (req, res) => {
   try {
@@ -41,7 +47,8 @@ router.post('/', authenticate, async (req, res) => {
     const correctLetter = String.fromCharCode(65 + correctAnswer);
     const userLetter = userAnswer !== undefined ? String.fromCharCode(65 + userAnswer) : 'Not answered';
 
-    const prompt = `You are a nursing educator. Provide a helpful, educational explanation for the following multiple-choice question.
+    // ----- STRICT, CONCISE PROMPT – NO THINKING, SHORT & STRUCTURED -----
+    const prompt = `You are a nursing educator. Provide a very concise, educational explanation for the following multiple-choice question.
 
 Question: ${questionText}
 Options:
@@ -52,15 +59,28 @@ D: ${options[3]}
 Correct Answer: ${correctLetter}
 User's Answer: ${userLetter}
 
-Please provide:
-1. Why the correct answer is right (1-2 sentences)
-2. Why each wrong answer is wrong (1 sentence each)
-3. One brief study tip for this topic
+IMPORTANT INSTRUCTIONS:
+- Do NOT include any thinking, reasoning, or "analysis" in your response.
+- Do NOT use <think> tags or similar.
+- Output ONLY the following 5 bullet points, with NO extra text:
+  1. Why the correct answer is right (one sentence)
+  2. Why A is wrong (one sentence)
+  3. Why B is wrong (one sentence)
+  4. Why D is wrong (one sentence)
+  5. One brief study tip (one sentence)
+- Keep each bullet short (max 15 words per bullet).
+- Total response must be under 150 words.`;
 
-Keep explanations concise and educational. Use bullet points.`;
+    // Use AI provider with lower token limit and temperature
+    const rawExplanation = await callAIModels(prompt, 200, 0.5);
 
-    const explanation = await callAIModels(prompt, 400, 0.7);
+    // ----- Post-process: strip any residual <think> tags -----
+    const cleanExplanation = stripThinkTags(rawExplanation);
 
+    // If the cleaned explanation is empty, fallback to a generic message
+    const finalExplanation = cleanExplanation || 'Explanation not available. Please try again.';
+
+    // Increment user's daily count (if not premium)
     if (!req.user.isPremium) {
       req.user.dailyExplanations = (req.user.dailyExplanations || 0) + 1;
       await req.user.save();
@@ -68,7 +88,7 @@ Keep explanations concise and educational. Use bullet points.`;
 
     res.json({
       success: true,
-      explanation: explanation,
+      explanation: finalExplanation,
       remaining: limitCheck.remaining - 1,
       isPremium: req.user.isPremium
     });
