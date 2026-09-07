@@ -21,11 +21,11 @@ const checkUserExplanationLimit = async (user) => {
   return { allowed: remaining > 0, remaining };
 };
 
-// ----- IMPROVED EXTRACTION – only the numbered bullets -----
+// ----- ROBUST EXTRACTION – grabs only numbered bullets and sanitises them -----
 const cleanResponse = (text, questionText = '') => {
   if (!text) return '';
 
-  // 1. Remove <think> ... </think> (common in some models)
+  // 1. Remove <think> tags (common in some models)
   let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '');
 
   // 2. Split into lines and trim
@@ -36,7 +36,7 @@ const cleanResponse = (text, questionText = '') => {
 
   // 4. If we have at least 3 numbered bullets, return them (sanitized)
   if (numberedLines.length >= 3) {
-    // Remove any leftover "Question:", "Options:" etc. from inside bullets
+    // Remove any leftover "Question:", "Options:", etc. that might have crept in
     const sanitized = numberedLines.slice(0, 5).map(line =>
       line.replace(/Question:|Options:|Correct Answer:|User's Answer:/gi, '').trim()
     );
@@ -49,7 +49,7 @@ const cleanResponse = (text, questionText = '') => {
     return dashLines.slice(0, 5).join('\n');
   }
 
-  // 6. Fallback: pick lines that are not the question/options and look like complete sentences
+  // 6. Fallback: pick lines that are not the question/options and look like sentences
   const filtered = lines.filter(l =>
     !/^Question:|^Options:|^Correct Answer:|^User's Answer:/i.test(l) &&
     !l.includes(questionText) &&
@@ -87,19 +87,21 @@ router.post('/', authenticate, async (req, res) => {
     const correctLetter = String.fromCharCode(65 + correctAnswer);
     const userLetter = userAnswer !== undefined ? String.fromCharCode(65 + userAnswer) : 'Not answered';
 
-    // ----- STRICT PROMPT – ask for exactly 5 numbered bullets, no extras -----
-    const prompt = `You are an AI tutor. Answer the following question with exactly 5 numbered bullet points.
-Use this exact structure:
-1. The correct answer is [letter] because [one clear reason].
-2. Option [letter] is wrong because [specific reason].
-3. Option [letter] is wrong because [specific reason].
-4. Option [letter] is wrong because [specific reason].
-5. Study tip: [one actionable piece of advice].
+    // Pre‑compute the wrong option letters
+    const optionLetters = ['A', 'B', 'C', 'D'];
+    const wrongOptions = optionLetters.filter(l => l !== correctLetter);
 
-IMPORTANT:
-- Do NOT include the question, the options, or any extra text before or after the bullets.
-- Do NOT include reasoning, meta‑comments, or "think" tags.
-- Each bullet must be a complete sentence (under 20 words).
+    // ----- IMPROVED PROMPT – pre‑fill letters, ask for completions -----
+    const prompt = `You are an AI tutor. Provide a short explanation for the question below. Your response must consist of exactly 5 numbered bullet points. Do not include any other text, the question, or the options.
+
+Use these exact beginnings for each bullet:
+1. The correct answer is ${correctLetter} because 
+2. Option ${wrongOptions[0]} is wrong because 
+3. Option ${wrongOptions[1]} is wrong because 
+4. Option ${wrongOptions[2]} is wrong because 
+5. Study tip: 
+
+Complete each bullet with a concise reason or tip. Each bullet must be a complete sentence under 20 words.
 
 Question: ${questionText}
 Options:
@@ -116,7 +118,7 @@ User's Answer: ${userLetter}`;
     // Clean and extract only the bullet points
     let finalExplanation = cleanResponse(rawExplanation, questionText);
 
-    // ----- If extraction failed, try a fallback prompt -----
+    // ----- If extraction failed, try a fallback prompt (simpler) -----
     if (!finalExplanation || finalExplanation === 'Explanation not available. Please try again.') {
       const fallbackPrompt = `Correct: ${correctLetter}. Explain in 5 bullets why correct and why each wrong option is wrong.`;
       const fallbackRaw = await callAIModels(fallbackPrompt, 140, 0.15);
@@ -128,8 +130,6 @@ User's Answer: ${userLetter}`;
 
     // ----- Ultimate fallback (should never happen) -----
     if (!finalExplanation || finalExplanation === 'Explanation not available. Please try again.') {
-      const optionLabels = ['A', 'B', 'C', 'D'];
-      const wrongOptions = optionLabels.filter(l => l !== correctLetter);
       const correctName = options[correctAnswer];
       const fallbackBullets = [
         `1. The correct answer is ${correctLetter} (${correctName}) because it is the most accurate choice.`,
