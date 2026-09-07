@@ -21,33 +21,54 @@ const checkUserExplanationLimit = async (user) => {
   return { allowed: remaining > 0, remaining };
 };
 
-// ----- AGGRESSIVE CLEAN‑UP – removes thinking tags AND any text before the first bullet -----
+// ----- EXTREMELY AGGRESSIVE CLEAN‑UP -----
 const cleanResponse = (text) => {
   if (!text) return '';
 
   // 1. Remove <think> ... </think> (including tags)
   let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '');
 
-  // 2. Remove common thinking / reasoning phrases that may not be wrapped in tags
-  cleaned = cleaned.replace(/^(Here'?s a thinking process|Analyze User Input|Deconstruct the Question|Role:|Task:|Constraints:|The user|We need to|Let's|I think|My reasoning)[\s\S]*?(?=\d\.|•|-)/i, '');
-
-  // 3. Remove any leading text until we hit a bullet point (1., •, -)
-  const bulletMatch = cleaned.match(/(\d\.|•|-)\s/);
-  if (bulletMatch) {
-    const startIndex = bulletMatch.index;
-    cleaned = cleaned.substring(startIndex);
+  // 2. Remove common thinking / reasoning phrases (with flexible matching)
+  const thinkingPatterns = [
+    /^Here'?s a thinking process/i,
+    /^Analyze User Input/i,
+    /^Deconstruct the Question/i,
+    /^Role:/i,
+    /^Task:/i,
+    /^Constraints:/i,
+    /^The user/i,
+    /^We need to/i,
+    /^Let's/i,
+    /^I think/i,
+    /^My reasoning/i,
+    /^This is a thinking process/i,
+    /^Step by step/i,
+    /^Let me think/i,
+    /^To solve this/i,
+    /^First,?/i,
+    /^Second,?/i,
+    /^Third,?/i,
+    /^Finally,?/i,
+  ];
+  for (const pattern of thinkingPatterns) {
+    cleaned = cleaned.replace(pattern, '');
   }
 
-  // 4. Trim extra whitespace
-  cleaned = cleaned.trim();
-
-  // 5. If we have more than 5 bullet points, truncate to 5 (safety)
-  const lines = cleaned.split('\n').filter(line => line.trim());
-  if (lines.length > 6) { // 5 bullets + maybe an extra line
-    cleaned = lines.slice(0, 6).join('\n');
+  // 3. Remove any leading lines that don't start with a bullet (1., •, -, *, etc.)
+  const lines = cleaned.split('\n');
+  const bulletLineIndex = lines.findIndex(line => /^\s*(\d\.|•|-|\*)\s/.test(line));
+  if (bulletLineIndex !== -1) {
+    cleaned = lines.slice(bulletLineIndex).join('\n');
+  } else {
+    // If no bullet found, keep only the last 5 lines (safety)
+    const lastLines = lines.slice(-5);
+    cleaned = lastLines.join('\n');
   }
 
-  // 6. If after all cleaning the text is empty, return a fallback
+  // 4. Remove extra blank lines and trim
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+
+  // 5. If the cleaned text is empty, return a fallback
   return cleaned || 'Explanation not available. Please try again.';
 };
 
@@ -71,10 +92,10 @@ router.post('/', authenticate, async (req, res) => {
     const correctLetter = String.fromCharCode(65 + correctAnswer);
     const userLetter = userAnswer !== undefined ? String.fromCharCode(65 + userAnswer) : 'Not answered';
 
-    // ----- STRICT, CONCISE PROMPT – NO THINKING, SHORT & STRUCTURED -----
-    const prompt = `You are a nursing educator. Provide a very concise, educational explanation for the following multiple-choice question.
+    // ----- SYSTEM + USER PROMPTS – STRICTEST FORMAT -----
+    const systemPrompt = `You are a nursing educator. Output ONLY the following 5 bullet points, with NO extra text, NO reasoning, and NO analysis. Do NOT include any thinking process. Do NOT use <think> tags. Each bullet must be one sentence (max 15 words). Total response under 150 words.`;
 
-Question: ${questionText}
+    const userPrompt = `Question: ${questionText}
 Options:
 A: ${options[0]}
 B: ${options[1]}
@@ -83,19 +104,18 @@ D: ${options[3]}
 Correct Answer: ${correctLetter}
 User's Answer: ${userLetter}
 
-IMPORTANT INSTRUCTIONS:
-- Do NOT include any thinking, reasoning, or "analysis" in your response.
-- Do NOT use <think> tags or similar.
-- Output ONLY the following 5 bullet points, with NO extra text:
-  1. Why the correct answer is right (one sentence)
-  2. Why A is wrong (one sentence)
-  3. Why B is wrong (one sentence)
-  4. Why D is wrong (one sentence)
-  5. One brief study tip (one sentence)
-- Keep each bullet short (max 15 words per bullet).
-- Total response must be under 150 words.`;
+Provide:
+1. Why the correct answer is right
+2. Why A is wrong
+3. Why B is wrong
+4. Why D is wrong
+5. One brief study tip`;
 
-    const rawExplanation = await callAIModels(prompt, 200, 0.3);
+    // Combine system and user messages (our callAIModels expects a single prompt, so we'll merge them)
+    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+
+    // Use very low temperature and strict token limit
+    const rawExplanation = await callAIModels(fullPrompt, 160, 0.1);
 
     // ----- Clean response aggressively -----
     const finalExplanation = cleanResponse(rawExplanation);
