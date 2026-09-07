@@ -21,10 +21,34 @@ const checkUserExplanationLimit = async (user) => {
   return { allowed: remaining > 0, remaining };
 };
 
-// Helper: strip <think> tags and any reasoning content
-const stripThinkTags = (text) => {
+// ----- AGGRESSIVE CLEAN‑UP – removes thinking tags AND any text before the first bullet -----
+const cleanResponse = (text) => {
   if (!text) return '';
-  return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+  // 1. Remove <think> ... </think> (including tags)
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+
+  // 2. Remove common thinking / reasoning phrases that may not be wrapped in tags
+  cleaned = cleaned.replace(/^(Here'?s a thinking process|Analyze User Input|Deconstruct the Question|Role:|Task:|Constraints:|The user|We need to|Let's|I think|My reasoning)[\s\S]*?(?=\d\.|•|-)/i, '');
+
+  // 3. Remove any leading text until we hit a bullet point (1., •, -)
+  const bulletMatch = cleaned.match(/(\d\.|•|-)\s/);
+  if (bulletMatch) {
+    const startIndex = bulletMatch.index;
+    cleaned = cleaned.substring(startIndex);
+  }
+
+  // 4. Trim extra whitespace
+  cleaned = cleaned.trim();
+
+  // 5. If we have more than 5 bullet points, truncate to 5 (safety)
+  const lines = cleaned.split('\n').filter(line => line.trim());
+  if (lines.length > 6) { // 5 bullets + maybe an extra line
+    cleaned = lines.slice(0, 6).join('\n');
+  }
+
+  // 6. If after all cleaning the text is empty, return a fallback
+  return cleaned || 'Explanation not available. Please try again.';
 };
 
 // Generate AI explanation
@@ -71,14 +95,10 @@ IMPORTANT INSTRUCTIONS:
 - Keep each bullet short (max 15 words per bullet).
 - Total response must be under 150 words.`;
 
-    // Use AI provider with lower token limit and temperature
-    const rawExplanation = await callAIModels(prompt, 200, 0.5);
+    const rawExplanation = await callAIModels(prompt, 200, 0.3);
 
-    // ----- Post-process: strip any residual <think> tags -----
-    const cleanExplanation = stripThinkTags(rawExplanation);
-
-    // If the cleaned explanation is empty, fallback to a generic message
-    const finalExplanation = cleanExplanation || 'Explanation not available. Please try again.';
+    // ----- Clean response aggressively -----
+    const finalExplanation = cleanResponse(rawExplanation);
 
     // Increment user's daily count (if not premium)
     if (!req.user.isPremium) {
