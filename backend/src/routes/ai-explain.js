@@ -21,42 +21,52 @@ const checkUserExplanationLimit = async (user) => {
   return { allowed: remaining > 0, remaining };
 };
 
-// ----- ROBUST EXTRACTION – keeps the full bullet content -----
+// ----- STRIP QUESTION/OPTIONS LINES + EXTRACT BULLETS -----
 const cleanResponse = (text) => {
   if (!text) return '';
 
-  // 1. Remove <think> ... </think>
+  // 1. Remove <think> tags
   let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '');
 
-  // 2. Split into lines and remove empty ones
-  const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  // 2. Remove lines that contain the question/options (case-insensitive)
+  const headerPatterns = [
+    /^Question:/i,
+    /^Options:/i,
+    /^Correct Answer:/i,
+    /^User's Answer:/i,
+    /^Requirements:/i,
+    /^Output Requirements:/i,
+    /^Provide/i, // sometimes they start with "Provide..."
+  ];
+  const lines = cleaned.split('\n');
+  const filteredLines = lines.filter(line => {
+    const trimmed = line.trim();
+    // Keep if it's a bullet (starts with number, dash, asterisk) OR if it's a complete sentence (>20 chars)
+    return headerPatterns.every(pattern => !pattern.test(trimmed));
+  });
 
-  // 3. Look for lines starting with "1.", "2.", etc.
-  const bulletLines = lines.filter(l => /^\d\./.test(l));
+  // 3. Now extract bullets from the remaining lines
+  const bulletLines = filteredLines.filter(l => /^\s*(\d\.|•|-|\*)\s/.test(l.trim()));
 
-  // 4. If we have at least 3 numbered bullets, join them and return
+  // 4. If we have numbered bullets (1., 2., etc.) keep them
+  const numberedBullets = bulletLines.filter(l => /^\s*\d\./.test(l.trim()));
+  if (numberedBullets.length >= 3) {
+    return numberedBullets.slice(0, 5).join('\n');
+  }
+
+  // 5. If dash/asterisk bullets, keep them
   if (bulletLines.length >= 3) {
     return bulletLines.slice(0, 5).join('\n');
   }
 
-  // 5. Try dash/asterisk bullets
-  const dashLines = lines.filter(l => /^[•\-*]\s/.test(l));
-  if (dashLines.length >= 3) {
-    return dashLines.slice(0, 5).join('\n');
-  }
-
-  // 6. If we have lines that look like complete sentences (not question/options), take the last 5
-  const sentenceLines = lines.filter(l => l.length > 20 && !/^Question:|^Options:|^Correct Answer:|^User's Answer:/i.test(l));
+  // 6. If no bullets, take the last 5 non‑empty lines that are complete sentences
+  const sentenceLines = filteredLines.filter(l => l.trim().length > 20 && !/^\s*[•\-*]\s/.test(l.trim()));
   if (sentenceLines.length >= 3) {
-    return sentenceLines.slice(0, 5).join('\n');
+    return sentenceLines.slice(-5).join('\n');
   }
 
-  // 7. Fallback: take the last 5 non‑empty lines
-  if (lines.length > 0) {
-    return lines.slice(-5).join('\n');
-  }
-
-  return 'Explanation not available. Please try again.';
+  // 7. Fallback
+  return filteredLines.slice(-5).join('\n') || 'Explanation not available. Please try again.';
 };
 
 // Generate AI explanation
@@ -79,7 +89,7 @@ router.post('/', authenticate, async (req, res) => {
     const correctLetter = String.fromCharCode(65 + correctAnswer);
     const userLetter = userAnswer !== undefined ? String.fromCharCode(65 + userAnswer) : 'Not answered';
 
-    // ----- EXPLICIT PROMPT – ask for full, clear explanations -----
+    // ----- STRICT PROMPT – NO QUESTION/OPTIONS IN OUTPUT -----
     const prompt = `Question: ${questionText}
 Options:
 A: ${options[0]}
@@ -89,22 +99,20 @@ D: ${options[3]}
 Correct Answer: ${correctLetter}
 User's Answer: ${userLetter}
 
-Provide a short, clear explanation in exactly 5 numbered bullet points (1. to 5.).
-1. Start with: "The correct answer is [option letter] because [one clear reason]."
-2. For each wrong option, explain why it is incorrect (e.g., "Option A is wrong because...").
-3. End with a brief study tip.
+Provide a short explanation in exactly 5 numbered bullet points (1. to 5.).
+1. Start with: "The correct answer is [option] because ..."
+2. For each wrong option: "Option [letter] is wrong because ..."
+3. End with: "Study tip: ..."
 
-Do NOT repeat the question or options. Do NOT include any extra text, reasoning, or analysis. 
-Each bullet must be a complete sentence (under 20 words).`;
+Do NOT repeat the question, options, correct answer, or user's answer. Only output the 5 bullets.`;
 
     const rawExplanation = await callAIModels(prompt, 180, 0.15);
 
-    // Clean and extract the bullet points
     let finalExplanation = cleanResponse(rawExplanation);
 
-    // ----- If extraction failed, try a fallback prompt -----
+    // ----- Fallback if extraction fails -----
     if (!finalExplanation || finalExplanation === 'Explanation not available. Please try again.') {
-      const fallbackPrompt = `Correct: ${correctLetter}. Explain in 5 bullets why correct and why each wrong option is wrong.`;
+      const fallbackPrompt = `Correct: ${correctLetter}. Explain in 5 bullets why correct and why others wrong.`;
       const fallbackRaw = await callAIModels(fallbackPrompt, 140, 0.15);
       const fallbackCleaned = cleanResponse(fallbackRaw);
       if (fallbackCleaned && fallbackCleaned !== 'Explanation not available. Please try again.') {
@@ -112,19 +120,18 @@ Each bullet must be a complete sentence (under 20 words).`;
       }
     }
 
-    // ----- Ultimate fallback (should never happen) -----
+    // ----- Ultimate fallback (rare) -----
     if (!finalExplanation || finalExplanation === 'Explanation not available. Please try again.') {
       const optionLabels = ['A', 'B', 'C', 'D'];
       const wrongOptions = optionLabels.filter(l => l !== correctLetter);
       const correctName = options[correctAnswer];
-      const fallbackBullets = [
+      finalExplanation = [
         `1. The correct answer is ${correctLetter} (${correctName}) because it is the most accurate choice.`,
         `2. Option ${wrongOptions[0]} is wrong because it does not match the correct physiological process.`,
         `3. Option ${wrongOptions[1]} is wrong because it describes a different mechanism.`,
         `4. Option ${wrongOptions[2]} is wrong because it is not the primary factor.`,
         `5. Study tip: Focus on understanding the underlying pathophysiology.`
-      ];
-      finalExplanation = fallbackBullets.join('\n');
+      ].join('\n');
     }
 
     // Increment user's daily count (if not premium)
