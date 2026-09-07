@@ -21,14 +21,14 @@ const checkUserExplanationLimit = async (user) => {
   return { allowed: remaining > 0, remaining };
 };
 
-// ----- EXTREMELY AGGRESSIVE CLEAN‑UP -----
+// ----- ULTRA-AGGRESSIVE CLEAN-UP -----
 const cleanResponse = (text) => {
   if (!text) return '';
 
-  // 1. Remove <think> ... </think> (including tags)
+  // 1. Remove <think> ... </think>
   let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '');
 
-  // 2. Remove common thinking / reasoning phrases (with flexible matching)
+  // 2. Remove any lines that look like thinking/reasoning
   const thinkingPatterns = [
     /^Here'?s a thinking process/i,
     /^Analyze User Input/i,
@@ -49,26 +49,46 @@ const cleanResponse = (text) => {
     /^Second,?/i,
     /^Third,?/i,
     /^Finally,?/i,
+    /^User's Answer/i,
+    /^Correct Answer/i,
+    /^Options:/i,
+    /^Question:/i,
+    /^Question context/i,
   ];
   for (const pattern of thinkingPatterns) {
     cleaned = cleaned.replace(pattern, '');
   }
 
-  // 3. Remove any leading lines that don't start with a bullet (1., •, -, *, etc.)
+  // 3. Find the first bullet point and discard everything before it
   const lines = cleaned.split('\n');
-  const bulletLineIndex = lines.findIndex(line => /^\s*(\d\.|•|-|\*)\s/.test(line));
-  if (bulletLineIndex !== -1) {
-    cleaned = lines.slice(bulletLineIndex).join('\n');
+  const bulletIndex = lines.findIndex(line => /^\s*(\d\.|•|-|\*)\s/.test(line));
+  if (bulletIndex !== -1) {
+    cleaned = lines.slice(bulletIndex).join('\n');
   } else {
-    // If no bullet found, keep only the last 5 lines (safety)
-    const lastLines = lines.slice(-5);
-    cleaned = lastLines.join('\n');
+    // If no bullet found, take the last 5 non‑empty lines
+    const nonEmpty = lines.filter(l => l.trim());
+    const lastFive = nonEmpty.slice(-5);
+    cleaned = lastFive.join('\n');
   }
 
   // 4. Remove extra blank lines and trim
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
 
-  // 5. If the cleaned text is empty, return a fallback
+  // 5. If still contains "think" or "reasoning" (case‑insensitive), return fallback
+  const forbiddenWords = /\b(think|reasoning|analysis|process)\b/i;
+  if (forbiddenWords.test(cleaned)) {
+    return 'Explanation not available. Please try again.';
+  }
+
+  // 6. If too long (> 200 words), truncate to 5 bullets
+  const wordCount = cleaned.split(/\s+/).length;
+  if (wordCount > 200) {
+    const bulletLines = cleaned.split('\n').filter(l => /^\s*(\d\.|•|-|\*)\s/.test(l));
+    if (bulletLines.length >= 5) {
+      cleaned = bulletLines.slice(0, 5).join('\n');
+    }
+  }
+
   return cleaned || 'Explanation not available. Please try again.';
 };
 
@@ -92,10 +112,8 @@ router.post('/', authenticate, async (req, res) => {
     const correctLetter = String.fromCharCode(65 + correctAnswer);
     const userLetter = userAnswer !== undefined ? String.fromCharCode(65 + userAnswer) : 'Not answered';
 
-    // ----- SYSTEM + USER PROMPTS – STRICTEST FORMAT -----
-    const systemPrompt = `You are a nursing educator. Output ONLY the following 5 bullet points, with NO extra text, NO reasoning, and NO analysis. Do NOT include any thinking process. Do NOT use <think> tags. Each bullet must be one sentence (max 15 words). Total response under 150 words.`;
-
-    const userPrompt = `Question: ${questionText}
+    // ----- EXTREMELY STRICT DIRECT PROMPT (no system prompt) -----
+    const prompt = `Question: ${questionText}
 Options:
 A: ${options[0]}
 B: ${options[1]}
@@ -104,21 +122,30 @@ D: ${options[3]}
 Correct Answer: ${correctLetter}
 User's Answer: ${userLetter}
 
-Provide:
-1. Why the correct answer is right
-2. Why A is wrong
-3. Why B is wrong
-4. Why D is wrong
-5. One brief study tip`;
+Provide ONLY these 5 bullet points. NO extra text, NO reasoning, NO thinking. Each bullet = one sentence (max 15 words). Total under 150 words.
+1. Why correct answer is right:
+2. Why A is wrong:
+3. Why B is wrong:
+4. Why D is wrong:
+5. Study tip:`;
 
-    // Combine system and user messages (our callAIModels expects a single prompt, so we'll merge them)
-    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+    // Minimum possible tokens, lowest temperature
+    const rawExplanation = await callAIModels(prompt, 150, 0.05);
 
-    // Use very low temperature and strict token limit
-    const rawExplanation = await callAIModels(fullPrompt, 160, 0.1);
+    // Clean and validate
+    let finalExplanation = cleanResponse(rawExplanation);
 
-    // ----- Clean response aggressively -----
-    const finalExplanation = cleanResponse(rawExplanation);
+    // If still looks like thinking, try with an even shorter prompt (fallback)
+    if (!finalExplanation || finalExplanation.includes('think') || finalExplanation.includes('reasoning')) {
+      const fallbackPrompt = `Question: ${questionText} Correct: ${correctLetter}. Explain in 5 bullets (max 15 words each): 1. Correct answer 2. A wrong 3. B wrong 4. D wrong 5. Tip.`;
+      const fallbackRaw = await callAIModels(fallbackPrompt, 120, 0.05);
+      finalExplanation = cleanResponse(fallbackRaw);
+    }
+
+    // Final check: if still empty or too long, use generic fallback
+    if (!finalExplanation || finalExplanation.split(/\s+/).length > 200) {
+      finalExplanation = '1. Correct answer is right.\n2. A is wrong.\n3. B is wrong.\n4. D is wrong.\n5. Study tip: Review key concepts.';
+    }
 
     // Increment user's daily count (if not premium)
     if (!req.user.isPremium) {
