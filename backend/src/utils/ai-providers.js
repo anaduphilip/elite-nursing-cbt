@@ -4,7 +4,7 @@ const axios = require('axios');
 // AI Provider configurations
 const aiProviders = [];
 
-// ===== 1. Mistral (primary – confirmed working) =====
+// 1. MISTRAL (primary – confirmed working)
 if (process.env.MISTRAL_API_KEY) {
   aiProviders.push({
     name: 'mistral',
@@ -15,39 +15,9 @@ if (process.env.MISTRAL_API_KEY) {
   });
 }
 
-// ===== 2. Groq – Qwen 3.6 (confirmed working) =====
-if (process.env.GROQ_API_KEY) {
-  aiProviders.push({
-    name: 'groq-qwen3.6',
-    url: 'https://api.groq.com/openai/v1/chat/completions',
-    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
-    model: 'qwen/qwen3.6-27b',
-    format: 'openai'
-  });
-}
+// 2. NVIDIA FREE TIER – all confirmed working models
 
-// ===== 3. Groq – Qwen 3.8 (confirmed working) =====
-if (process.env.GROQ_API_KEY) {
-  aiProviders.push({
-    name: 'groq-qwen3.8',
-    url: 'https://api.groq.com/openai/v1/chat/completions',
-    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
-    model: 'qwen/qwen3.8-27b',
-    format: 'openai'
-  });
-}
-
-// ===== 4. Gemini – confirmed working (gemini-3.5-flash-lite) =====
-if (process.env.GEMINI_API_KEY) {
-  aiProviders.push({
-    name: 'gemini',
-    url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    format: 'gemini'
-  });
-}
-
-
-// 5. NVIDIA – Nemotron 3 Ultra (fastest, most capable)
+// 2.1 NVIDIA – Nemotron 3 Ultra (fastest, most capable)
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-nemotron-ultra',
@@ -58,7 +28,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 6. NVIDIA – Nemotron 3 Super (fast, reliable)
+// 2.2 NVIDIA – Nemotron 3 Super (fast, reliable)
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-nemotron-super',
@@ -69,7 +39,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 7. NVIDIA – MiniMax M3 (very fast, good general chat)
+// 2.3 NVIDIA – MiniMax M3 (very fast, good general chat)
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-minimax',
@@ -80,7 +50,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 8. NVIDIA – Nemotron 3 Nano (lightweight, fast)
+// 2.4 NVIDIA – Nemotron 3 Nano (lightweight, fast)
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-nemotron-nano',
@@ -91,7 +61,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 9. NVIDIA – DeepSeek V4 Pro (on NVIDIA platform)
+// 2.5 NVIDIA – DeepSeek V4 Pro (on NVIDIA platform)
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-deepseek-v4',
@@ -102,7 +72,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 10. NVIDIA – Poolside Laguna (coding‑focused, works well)
+// 2.6 NVIDIA – Poolside Laguna (coding‑focused, works well)
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-poolside',
@@ -113,7 +83,41 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// ===== 11. DeepSeek (original – preserved, currently insufficient balance) =====
+// 3. GROQ – confirmed working models (after NVIDIA)
+
+// 3.1 Groq – Qwen 3.6
+if (process.env.GROQ_API_KEY) {
+  aiProviders.push({
+    name: 'groq-qwen3.6',
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
+    model: 'qwen/qwen3.6-27b',
+    format: 'openai'
+  });
+}
+
+// 3.2 Groq – Qwen 3.8
+if (process.env.GROQ_API_KEY) {
+  aiProviders.push({
+    name: 'groq-qwen3.8',
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
+    model: 'qwen/qwen3.8-27b',
+    format: 'openai'
+  });
+}
+
+// 4. GEMINI – (test on Render – may work)
+if (process.env.GEMINI_API_KEY) {
+  aiProviders.push({
+    name: 'gemini',
+    url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    format: 'gemini'
+  });
+}
+
+
+// 5. DEEPSEEK (original – preserved, currently insufficient balance)
 if (process.env.DEEPSEEK_API_KEY) {
   aiProviders.push({
     name: 'deepseek',
@@ -138,7 +142,7 @@ function normalizeResponse(provider, raw) {
 }
 
 // Main function to call providers in order
-async function callAIModels(prompt, maxTokens = 400, temperature = 0.7) {
+async function callAIModels(prompt, maxTokens = 400, temperature = 0.7, extraOptions = {}) {
   const messages = [
     { role: 'system', content: 'You are a helpful nursing educator.' },
     { role: 'user', content: prompt }
@@ -165,7 +169,8 @@ async function callAIModels(prompt, maxTokens = 400, temperature = 0.7) {
           model: provider.model,
           messages: messages,
           max_tokens: maxTokens,
-          temperature: temperature
+          temperature: temperature,
+          ...extraOptions
         };
       }
 
@@ -177,7 +182,7 @@ async function callAIModels(prompt, maxTokens = 400, temperature = 0.7) {
       if (response.status === 200) {
         const raw = response.data;
         if (raw.error) {
-          console.log(`Provider ${provider.name} returned error in body: ${raw.error.message || JSON.stringify(raw.error)}`);
+          console.log(`Provider ${provider.name} returned error: ${raw.error.message || JSON.stringify(raw.error)}`);
           continue;
         }
         const normalized = normalizeResponse(provider, raw);
