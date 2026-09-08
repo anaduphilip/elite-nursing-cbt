@@ -4,7 +4,9 @@ const axios = require('axios');
 // AI Provider configurations
 const aiProviders = [];
 
+// =========================================================================
 // 1. MISTRAL (primary – confirmed working)
+// =========================================================================
 if (process.env.MISTRAL_API_KEY) {
   aiProviders.push({
     name: 'mistral',
@@ -15,9 +17,63 @@ if (process.env.MISTRAL_API_KEY) {
   });
 }
 
-// 2. NVIDIA FREE TIER (all confirmed working models)
+// =========================================================================
+// 1b. MISTRAL – CODESRTRAL (working fallback – from test)
+// =========================================================================
+if (process.env.MISTRAL_API_KEY) {
+  aiProviders.push({
+    name: 'codestral-latest',
+    url: 'https://api.mistral.ai/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}` },
+    model: 'codestral-latest',
+    format: 'openai'
+  });
+}
 
-// 2.1 NVIDIA – Nemotron 3 Ultra (fastest, most capable)
+// =========================================================================
+// 1c. MISTRAL – CODE (working fallback – from test)
+// =========================================================================
+if (process.env.MISTRAL_API_KEY) {
+  aiProviders.push({
+    name: 'mistral-code-latest',
+    url: 'https://api.mistral.ai/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}` },
+    model: 'mistral-code-latest',
+    format: 'openai'
+  });
+}
+
+// =========================================================================
+// 1d. MISTRAL – CODE FIM (working fallback – from test)
+// =========================================================================
+if (process.env.MISTRAL_API_KEY) {
+  aiProviders.push({
+    name: 'mistral-code-fim-latest',
+    url: 'https://api.mistral.ai/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}` },
+    model: 'mistral-code-fim-latest',
+    format: 'openai'
+  });
+}
+
+// =========================================================================
+// 1e. MISTRAL – CODESRTRAL 2508 (working fallback – from test)
+// =========================================================================
+if (process.env.MISTRAL_API_KEY) {
+  aiProviders.push({
+    name: 'codestral-2508',
+    url: 'https://api.mistral.ai/v1/chat/completions',
+    headers: { 'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}` },
+    model: 'codestral-2508',
+    format: 'openai'
+  });
+}
+
+// =========================================================================
+// 2. NVIDIA FREE TIER – all confirmed working models
+// =========================================================================
+
+// 2.1 NVIDIA – Nemotron 3 Ultra
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-nemotron-ultra',
@@ -28,7 +84,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 2.2 NVIDIA – Nemotron 3 Super (fast, reliable)
+// 2.2 NVIDIA – Nemotron 3 Super
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-nemotron-super',
@@ -39,7 +95,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 2.3 NVIDIA – MiniMax M3 (very fast, good general chat)
+// 2.3 NVIDIA – MiniMax M3
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-minimax',
@@ -50,7 +106,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 2.4 NVIDIA – Nemotron 3 Nano (lightweight, fast)
+// 2.4 NVIDIA – Nemotron 3 Nano
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-nemotron-nano',
@@ -61,7 +117,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 2.5 NVIDIA – DeepSeek V4 Pro (on NVIDIA platform)
+// 2.5 NVIDIA – DeepSeek V4 Pro (on NVIDIA)
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-deepseek-v4',
@@ -72,7 +128,7 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 2.6 NVIDIA – Poolside Laguna (coding‑focused, works well)
+// 2.6 NVIDIA – Poolside Laguna
 if (process.env.NVIDIA_API_KEY) {
   aiProviders.push({
     name: 'nvidia-poolside',
@@ -83,9 +139,9 @@ if (process.env.NVIDIA_API_KEY) {
   });
 }
 
-// 3. GROQ – confirmed working models (after NVIDIA)
-
-// 3.1 Groq – Qwen 3.6
+// =========================================================================
+// 3. GROQ – confirmed working models
+// =========================================================================
 if (process.env.GROQ_API_KEY) {
   aiProviders.push({
     name: 'groq-qwen3.6',
@@ -96,7 +152,6 @@ if (process.env.GROQ_API_KEY) {
   });
 }
 
-// 3.2 Groq – Qwen 3.8
 if (process.env.GROQ_API_KEY) {
   aiProviders.push({
     name: 'groq-qwen3.8',
@@ -107,7 +162,9 @@ if (process.env.GROQ_API_KEY) {
   });
 }
 
-// 4. GEMINI – (test on Render – may work)
+// =========================================================================
+// 4. GEMINI
+// =========================================================================
 if (process.env.GEMINI_API_KEY) {
   aiProviders.push({
     name: 'gemini',
@@ -116,8 +173,9 @@ if (process.env.GEMINI_API_KEY) {
   });
 }
 
-
-// 5. DEEPSEEK (original – preserved, currently insufficient balance)
+// =========================================================================
+// 5. DEEPSEEK (original – last resort)
+// =========================================================================
 if (process.env.DEEPSEEK_API_KEY) {
   aiProviders.push({
     name: 'deepseek',
@@ -128,7 +186,9 @@ if (process.env.DEEPSEEK_API_KEY) {
   });
 }
 
-// Helper: Normalize Gemini response to OpenAI format
+// =========================================================================
+// Helper: Normalize Gemini response
+// =========================================================================
 function normalizeResponse(provider, raw) {
   if (provider.format === 'gemini') {
     const candidates = raw.candidates || [];
@@ -141,7 +201,9 @@ function normalizeResponse(provider, raw) {
   return raw;
 }
 
-// Main function to call providers in order
+// =========================================================================
+// Main function
+// =========================================================================
 async function callAIModels(prompt, maxTokens = 400, temperature = 0.7, extraOptions = {}) {
   const messages = [
     { role: 'system', content: 'You are a helpful nursing educator.' },
