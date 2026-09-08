@@ -15,7 +15,7 @@ if (process.env.MISTRAL_API_KEY) {
   });
 }
 
-// 2. NVIDIA FREE TIER – all confirmed working models
+// 2. NVIDIA FREE TIER (all confirmed working models)
 
 // 2.1 NVIDIA – Nemotron 3 Ultra (fastest, most capable)
 if (process.env.NVIDIA_API_KEY) {
